@@ -2,6 +2,7 @@ import { HttpResponse } from "@server/http-response"
 import { z } from "zod"
 
 import { createClient } from "@/lib/supabase/server"
+import { fetchPublicImage } from "@/lib/media/safe-image-fetch"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -49,24 +50,21 @@ export async function GET(request: Request) {
       return HttpResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const upstream = await fetch(parsed.data.url, {
-      headers: { Accept: "image/*" },
-      redirect: "follow",
-    })
-    if (!upstream.ok) {
+    let image: Awaited<ReturnType<typeof fetchPublicImage>>
+    try {
+      image = await fetchPublicImage(parsed.data.url)
+    } catch {
       return HttpResponse.json(
         { error: "Could not fetch source image." },
         { status: 400 }
       )
     }
 
-    const contentType = upstream.headers.get("content-type") || "image/jpeg"
-    const bytes = await upstream.arrayBuffer()
-
-    return new HttpResponse(bytes, {
+    return new HttpResponse(image.bytes, {
       status: 200,
       headers: {
-        "Content-Type": contentType,
+        "Content-Type": image.contentType,
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, max-age=300",
       },
     })

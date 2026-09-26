@@ -13,6 +13,7 @@ MAD STUDIO is a multi-brand marketing workspace for inventory, content generatio
 - `artifacts/mad-studio` is the Vite/React port of the imported Next.js UI. The original visual theme is in `src/index.css`; all user-facing pages live under `src/app`.
 - `artifacts/api-server/src/ported` contains the imported server actions, API routes, and server libraries. Express adapters in `src/routes` serve the original `/api/*` endpoints and an action RPC at `/api/actions/:name`. The action contract is documented in `artifacts/api-server/PORTING.md`.
 - Authentication, data, and storage remain on the **existing external Supabase project**. The scaffold's `lib/db` package is unused by this app; do not migrate its data to Replit PostgreSQL without explicit authorization.
+- Public links use the configured Replit/custom app origin; never derive public or secret-bearing server-to-server targets from request `Host` headers. Remote media must be fetched through the pinned-address, redirect-checked image fetch helper.
 - Imported Supabase migration SQL is preserved in `supabase/migrations`. Do not automatically run it against the external project. The app expects the external schema to match those migrations.
 - Imported public Supabase settings are exposed to the browser through the Vite config; the service-role key and provider credentials are server-side only. Never log their values.
 

@@ -3,6 +3,7 @@ import sharp from "sharp"
 import { z } from "zod"
 
 import { createClient } from "@/lib/supabase/server"
+import { fetchPublicImage } from "@/lib/media/safe-image-fetch"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -94,55 +95,8 @@ export async function POST(request: Request) {
       return HttpResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Prefer Cloudinary AI removal when configured.
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim()
-    const cloudKey = process.env.CLOUDINARY_API_KEY?.trim()
-    const cloudSecret = process.env.CLOUDINARY_API_SECRET?.trim()
-
-    let pngBuffer: Buffer
-    let mode: "cloudinary" | "sharp_threshold" = "sharp_threshold"
-
-    if (cloudName && cloudKey && cloudSecret) {
-      try {
-        const auth = Buffer.from(`${cloudKey}:${cloudSecret}`).toString("base64")
-        const delivery = `https://res.cloudinary.com/${cloudName}/image/fetch/e_background_removal/${encodeURIComponent(imageUrl)}`
-        const deliveryRes = await fetch(delivery, {
-          headers: { Authorization: `Basic ${auth}` },
-        })
-        if (deliveryRes.ok) {
-          pngBuffer = Buffer.from(await deliveryRes.arrayBuffer())
-          mode = "cloudinary"
-        } else {
-          throw new Error(`Cloudinary ${deliveryRes.status}`)
-        }
-      } catch (error) {
-        console.warn(
-          "[remove-bg] Cloudinary failed, falling back to sharp:",
-          error
-        )
-        const source = await fetch(imageUrl)
-        if (!source.ok) {
-          return HttpResponse.json(
-            { error: "Could not fetch source image." },
-            { status: 400 }
-          )
-        }
-        pngBuffer = await removeNearWhiteBackground(
-          Buffer.from(await source.arrayBuffer())
-        )
-      }
-    } else {
-      const source = await fetch(imageUrl)
-      if (!source.ok) {
-        return HttpResponse.json(
-          { error: "Could not fetch source image." },
-          { status: 400 }
-        )
-      }
-      pngBuffer = await removeNearWhiteBackground(
-        Buffer.from(await source.arrayBuffer())
-      )
-    }
+    const source = await fetchPublicImage(imageUrl)
+    const pngBuffer = await removeNearWhiteBackground(source.bytes)
 
     const path = `cutouts/${entityId}/${itemId ?? "item"}/${Date.now()}-cutout.png`
     const { error: uploadError } = await supabase.storage
@@ -162,7 +116,7 @@ export async function POST(request: Request) {
 
     return HttpResponse.json({
       transparentUrl: publicUrl,
-      mode,
+      mode: "sharp_threshold",
     })
   } catch (error) {
     console.error("[media/remove-bg]", error)
