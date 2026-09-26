@@ -1,27 +1,35 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useLocation } from "wouter"
 
 type State = { node: ReactNode; error: string | null; loading: boolean }
 
 export function PageLoader({ load }: { load: () => Promise<ReactNode> }) {
+  const [pathname] = useLocation()
   const [state, setState] = useState<State>({ node: null, error: null, loading: true })
   const loadRef = useRef(load)
   loadRef.current = load
   useEffect(() => {
     let mounted = true
-    const run = () => {
-      setState((current) => ({ ...current, loading: true }))
-      loadRef.current().then((node) => {
-        if (mounted) setState({ node, error: null, loading: false })
-      }).catch((error: unknown) => {
-        if (mounted && (error as Error).message !== "MAD_REDIRECT") {
+    let latestRun = 0
+    const run = async () => {
+      const thisRun = ++latestRun
+      setState({ node: null, error: null, loading: true })
+      try {
+        const node = await loadRef.current()
+        if (mounted && thisRun === latestRun) {
+          setState({ node, error: null, loading: false })
+        }
+      } catch (error) {
+        if (mounted && thisRun === latestRun && (error as Error).message !== "MAD_REDIRECT") {
           setState({ node: null, error: error instanceof Error ? error.message : "Could not load the workspace.", loading: false })
         }
-      })
+      }
     }
-    run()
-    window.addEventListener("mad:refresh", run)
-    return () => { mounted = false; window.removeEventListener("mad:refresh", run) }
-  }, [])
+    const onRefresh = () => { void run() }
+    onRefresh()
+    window.addEventListener("mad:refresh", onRefresh)
+    return () => { mounted = false; window.removeEventListener("mad:refresh", onRefresh) }
+  }, [pathname])
   if (state.loading) return (
     <div className="flex min-h-svh flex-col bg-mad-white p-6">
       <div className="h-12 w-full animate-pulse bg-neutral-100" />
