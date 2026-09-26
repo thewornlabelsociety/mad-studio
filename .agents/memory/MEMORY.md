@@ -1,1 +1,2 @@
 - [Replit preview auth cookies](replit-preview-auth-cookies.md) — keep third-party cookie settings limited to secure `.replit.dev` previews.
+- [SPA query synchronization](spa-query-synchronization.md) — restored URL state must not use a full-page navigation in the Vite port.

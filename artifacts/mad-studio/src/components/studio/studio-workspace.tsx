@@ -298,16 +298,19 @@ export function StudioWorkspace({
 
   const syncPackUrl = useCallback(
     (nextPackId: string | null) => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(window.location.search)
       params.set("eid", activeEntity.id)
       if (nextPackId) {
         params.set("pack_id", nextPackId)
       } else {
         params.delete("pack_id")
       }
-      router.replace(`/studio?${params.toString()}`, { scroll: false })
+      const nextUrl = `/studio?${params.toString()}`
+      if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+        window.history.replaceState(window.history.state, "", nextUrl)
+      }
     },
-    [activeEntity.id, router, searchParams]
+    [activeEntity.id]
   )
 
   const writeLocalBuffer = useCallback(
