@@ -24,6 +24,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /actions/{name}:
+    post:
+      operationId: invokeServerAction
+      tags: [actions]
+      summary: Invoke an imported server action
+      description: |
+        Calls a server action by its exported name. The args array contains its
+        original positional arguments. See artifacts/api-server/PORTING.md for
+        the supported names, authorization behavior, and file encoding.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
+      responses:
+        "200":
+          description: Action result or redirect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+        "400":
+          description: Invalid action payload
+        "404":
+          description: Unknown action
+        "500":
+          description: Action failed
 components:
   schemas:
     HealthStatus:
@@ -33,4 +67,24 @@ components:
           type: string
       required:
         - status
+    ActionRequest:
+      type: object
+      properties:
+        args:
+          type: array
+          maxItems: 8
+          items: {}
+        arguments:
+          type: array
+          maxItems: 8
+          items: {}
+      oneOf:
+        - required: [args]
+        - required: [arguments]
+    ActionResponse:
+      type: object
+      properties:
+        result: {}
+        redirect:
+          type: string
 

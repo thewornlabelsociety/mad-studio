@@ -1,45 +1,22 @@
-# [Project name]
+# MAD STUDIO
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+MAD STUDIO is a multi-brand marketing workspace for inventory, content generation, campaigns, publishing, and analytics.
 
-## Run & Operate
+## Run & verify
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- The managed workflows are `artifacts/mad-studio: web` and `artifacts/api-server: API Server`. Start or restart them through Replit workflows, not root-level `pnpm dev`.
+- `pnpm --filter @workspace/mad-studio run typecheck` and `pnpm --filter @workspace/api-server run typecheck` check the applications.
+- `pnpm --filter @workspace/api-spec run codegen` regenerates the shared API types.
 
-## Stack
+## Architecture
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- `artifacts/mad-studio` is the Vite/React port of the imported Next.js UI. The original visual theme is in `src/index.css`; all user-facing pages live under `src/app`.
+- `artifacts/api-server/src/ported` contains the imported server actions, API routes, and server libraries. Express adapters in `src/routes` serve the original `/api/*` endpoints and an action RPC at `/api/actions/:name`. The action contract is documented in `artifacts/api-server/PORTING.md`.
+- Authentication, data, and storage remain on the **existing external Supabase project**. The scaffold's `lib/db` package is unused by this app; do not migrate its data to Replit PostgreSQL without explicit authorization.
+- Imported Supabase migration SQL is preserved in `supabase/migrations`. Do not automatically run it against the external project. The app expects the external schema to match those migrations.
+- Imported public Supabase settings are exposed to the browser through the Vite config; the service-role key and provider credentials are server-side only. Never log their values.
 
-## Where things live
+## Known operational gaps
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
-
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- The external Supabase `record_link_click` routine currently fails with a missing `link_clicks.last_clicked_at` column; this is an external schema mismatch, not a route/proxy error. Confirm the intended external migration state before changing that database.
+- The imported Vercel cron definitions in `.migration-backup/vercel.json` do not automatically schedule jobs on Replit. The API endpoints are ported, but scheduling requires an explicit operational setup.

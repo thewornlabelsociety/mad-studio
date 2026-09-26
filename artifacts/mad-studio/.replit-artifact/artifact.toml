@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "MAD STUDIO"
+description = "A multi-brand marketing studio for managing creative campaigns, inventory, scheduling, and AI-assisted content."
+version = "1.0.0"
+id = "artifacts/mad-studio"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24726
+
+[services.development]
+run = "pnpm --filter @workspace/mad-studio run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mad-studio", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/mad-studio/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24726"
+BASE_PATH = "/"

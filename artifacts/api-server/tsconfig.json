@@ -5,7 +5,13 @@
     "tsBuildInfoFile": ".tsbuildinfo",
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@/lib/*": ["src/ported/lib/*"],
+      "@server/*": ["src/lib/*"]
+    }
   },
   "include": ["src"],
   "references": [

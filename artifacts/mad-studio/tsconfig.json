@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build", "dist", "**/*.test.ts", "src/app/actions", "src/app/api", "src/app/auth", "src/app/r", "src/app/icon.tsx", "src/app/layout.tsx", "src/app/page.tsx", "src/app/login", "src/lib/ai", "src/lib/brain/extract-document.ts", "src/lib/supabase/admin.ts", "src/lib/supabase/server.ts", "src/lib/supabase/middleware.ts", "src/lib/campaigns/upsert-drop-campaign.ts", "src/lib/scheduling", "src/lib/social/outbound-dispatch.ts", "src/lib/social/meta-publisher.ts", "src/lib/social/publish-campaign.ts", "src/lib/social/ensure-public-media.ts", "src/lib/inventory/pull-arrivals.ts", "src/lib/inventory/dispatch-due.ts", "src/lib/entities/extract-dna.ts", "src/lib/media/vision-inspect.ts"],
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "preserve",
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "moduleResolution": "bundler",
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "references": [
+    {
+      "path": "../../lib/api-client-react"
+    }
+  ]
+}
