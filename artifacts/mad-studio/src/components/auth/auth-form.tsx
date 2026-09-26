@@ -58,6 +58,7 @@ export function AuthForm({
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<Message | null>(() => {
     if (initialError) {
@@ -343,22 +344,34 @@ export function AuthForm({
             >
               Password
             </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete={
-                mode === "signup" ? "new-password" : "current-password"
-              }
-              required
-              minLength={mode === "signup" ? 8 : undefined}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder={
-                mode === "signup" ? "At least 8 characters" : "••••••••"
-              }
-              className="border-2 border-mad-black bg-mad-white px-3 py-2.5 font-mono text-sm text-mad-black outline-none focus:ring-0"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete={
+                  mode === "signup" ? "new-password" : "current-password"
+                }
+                required
+                minLength={mode === "signup" ? 8 : undefined}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder={
+                  mode === "signup" ? "At least 8 characters" : "••••••••"
+                }
+                className="w-full border-2 border-mad-black bg-mad-white px-3 py-2.5 pr-16 font-mono text-sm text-mad-black outline-none focus:ring-0"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-controls="password"
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute inset-y-0 right-0 flex items-center px-3 font-typewriter text-[0.65rem] font-bold tracking-widest text-neutral-600 uppercase hover:text-mad-black focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-mad-vermillion"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
         ) : null}
 
