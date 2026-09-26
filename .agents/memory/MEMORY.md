@@ -1,0 +1,1 @@
+- [Replit preview auth cookies](replit-preview-auth-cookies.md) — keep third-party cookie settings limited to secure `.replit.dev` previews.
