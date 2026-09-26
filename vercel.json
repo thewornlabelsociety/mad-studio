@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync-metrics",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/dispatch-scheduled",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/dispatch",
+      "schedule": "* * * * *"
+    }
+  ]
+}
