@@ -14,6 +14,14 @@ import {
   packToAssetPack,
 } from "@/lib/campaigns/pack-schema"
 import { buildStudioContext } from "@/lib/campaigns/pack-hydrate"
+import {
+  cleanHashtags,
+  dedupeSentences,
+  scrubCopyMarkers,
+  scrubInlineHashtags,
+  stripBareUrls,
+  stripInternalMarkers,
+} from "@/lib/copy/caption-hygiene"
 import { packToStudioPreview } from "@/lib/campaigns/studio-preview"
 import type { Json } from "@/lib/database.types"
 import { scrubAgencyLeak } from "@/lib/inventory/context-hooks"
@@ -288,27 +296,42 @@ export async function POST(request: Request) {
     })
     const durationMs = Date.now() - startTime
 
+    const scrubCopy = (text: string) => scrubCopyMarkers(scrubAgencyLeak(text))
+    const cleanTags = cleanHashtags(object.seo_caption.search_optimized_tags)
+    for (const fallback of [
+      entity.name,
+      "shoplocal",
+      "whangarei",
+      "newarrival",
+    ]) {
+      if (cleanTags.length >= 3) break
+      const [tag] = cleanHashtags([fallback])
+      if (tag && !cleanTags.includes(tag)) cleanTags.push(tag)
+    }
+
     const scrubbedPack = {
       ...object,
+      campaign_title:
+        stripInternalMarkers(object.campaign_title) || object.campaign_title,
       creative_hooks: object.creative_hooks
         ? {
-            vibe_styling: scrubAgencyLeak(object.creative_hooks.vibe_styling),
-            investment_condition: scrubAgencyLeak(
+            vibe_styling: scrubCopy(object.creative_hooks.vibe_styling),
+            investment_condition: scrubCopy(
               object.creative_hooks.investment_condition
             ),
-            local_instore: scrubAgencyLeak(object.creative_hooks.local_instore),
+            local_instore: scrubCopy(object.creative_hooks.local_instore),
           }
         : undefined,
       algorithmic_signals: {
         ...object.algorithmic_signals,
-        spoken_hook: scrubAgencyLeak(object.algorithmic_signals.spoken_hook),
-        on_screen_text: scrubAgencyLeak(
-          object.algorithmic_signals.on_screen_text
-        ),
+        spoken_hook: scrubCopy(object.algorithmic_signals.spoken_hook),
+        on_screen_text: scrubCopy(object.algorithmic_signals.on_screen_text),
       },
       seo_caption: {
-        ...object.seo_caption,
-        caption_body: scrubAgencyLeak(object.seo_caption.caption_body),
+        caption_body: dedupeSentences(
+          scrubInlineHashtags(stripBareUrls(scrubCopy(object.seo_caption.caption_body)))
+        ),
+        search_optimized_tags: cleanTags,
       },
     }
 

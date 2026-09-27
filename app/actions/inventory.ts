@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache"
 
 import type { Json } from "@/lib/database.types"
 import { upsertDropCampaign } from "@/lib/campaigns/upsert-drop-campaign"
+import {
+  cleanHashtags,
+  composeCaption,
+  sanitizeItemTitle,
+} from "@/lib/copy/caption-hygiene"
 import { mergeCaptionWithTags } from "@/lib/inventory/optimization-tags"
 import { resolveItemDestinationUrl } from "@/lib/marketing/story-presets"
 import {
@@ -626,14 +631,15 @@ export async function armMultiChannelDispatch(input: {
     .eq("id", input.entityId)
     .maybeSingle()
 
-  const headline = input.copyDraft.headline?.trim() || row.title
+  const headline =
+    input.copyDraft.headline?.trim() || sanitizeItemTitle(row.title)
   const captionBody = input.copyDraft.caption?.trim() || ""
-  const tags = input.copyDraft.tags ?? []
+  const tags = cleanHashtags(input.copyDraft.tags ?? [], {
+    bannedSeeds: [row.website_item_id],
+  })
   const caption =
-    mergeCaptionWithTags(
-      [headline, captionBody].filter(Boolean).join("\n\n").trim() || row.title,
-      tags
-    ) || row.title
+    mergeCaptionWithTags(composeCaption(headline, captionBody) || headline, tags) ||
+    headline
 
   const payload: ScheduledPostPayload = {
     title: row.title,

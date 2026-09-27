@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import type { CampaignPack } from "@/lib/campaigns/pack-schema"
+import { composeCaption, dedupeSentences } from "@/lib/copy/caption-hygiene"
 import type { Json } from "@/lib/database.types"
 import { mergeCaptionWithTags } from "@/lib/inventory/optimization-tags"
 import {
@@ -54,7 +55,7 @@ function packPayloadFor(
   base: Pick<ScheduledPostPayload, "media_url" | "destination_url" | "slug_seed">
 ): ScheduledPostPayload {
   const socialCaption = mergeCaptionWithTags(
-    pack.seo_caption.caption_body,
+    dedupeSentences(pack.seo_caption.caption_body),
     pack.seo_caption.search_optimized_tags
   )
   if (channel === "email") {
@@ -72,9 +73,7 @@ function packPayloadFor(
       ...base,
       title: pack.campaign_title,
       headline: pack.algorithmic_signals.on_screen_text,
-      caption: [pack.algorithmic_signals.spoken_hook, socialCaption]
-        .filter(Boolean)
-        .join("\n\n"),
+      caption: composeCaption(pack.algorithmic_signals.spoken_hook, socialCaption),
     }
   }
   return {

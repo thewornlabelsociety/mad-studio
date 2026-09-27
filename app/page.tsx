@@ -62,6 +62,28 @@ export default async function HomePage() {
           </div>
         </section>
       </main>
+
+      <footer className="border-t-2 border-mad-black">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5">
+          <p className="font-typewriter text-[0.65rem] tracking-wider text-neutral-500 uppercase">
+            © {new Date().getFullYear()} MAD STUDIO · Whangārei, New Zealand
+          </p>
+          <nav className="flex items-center gap-5" aria-label="Legal">
+            <Link
+              href="/privacy"
+              className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase hover:text-mad-vermillion"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms"
+              className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase hover:text-mad-vermillion"
+            >
+              Terms of Service
+            </Link>
+          </nav>
+        </div>
+      </footer>
     </div>
   )
 }

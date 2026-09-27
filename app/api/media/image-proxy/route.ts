@@ -50,13 +50,17 @@ export async function GET(request: Request) {
     }
 
     const upstream = await fetch(parsed.data.url, {
-      headers: { Accept: "image/*" },
+      headers: {
+        Accept: "image/*",
+        "User-Agent": "Mozilla/5.0 (compatible; MADStudio/1.0)",
+      },
       redirect: "follow",
+      signal: AbortSignal.timeout(20_000),
     })
     if (!upstream.ok) {
       return NextResponse.json(
-        { error: "Could not fetch source image." },
-        { status: 400 }
+        { error: `Source image returned ${upstream.status}.` },
+        { status: 502 }
       )
     }
 

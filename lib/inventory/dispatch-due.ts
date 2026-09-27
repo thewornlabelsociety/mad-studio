@@ -1,3 +1,4 @@
+import { composeCaption, sanitizeItemTitle } from "@/lib/copy/caption-hygiene"
 import { resolveItemDestinationUrl } from "@/lib/marketing/story-presets"
 import { mergeCaptionWithTags } from "@/lib/inventory/optimization-tags"
 import {
@@ -261,10 +262,8 @@ export async function dispatchDueScheduledDrops(input?: {
 
     const caption =
       mergeCaptionWithTags(
-        [draft.headline, draft.caption]
-          .filter((part) => typeof part === "string" && part.trim())
-          .join("\n\n")
-          .trim() || item.title,
+        composeCaption(draft.headline, draft.caption) ||
+          sanitizeItemTitle(item.title),
         draft.tags
       )
 

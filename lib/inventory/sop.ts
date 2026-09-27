@@ -6,6 +6,11 @@ import {
   pickDefaultVibeTag,
   resolveIndustryProfile,
 } from "@/lib/brands/industry-templates"
+import {
+  sanitizeBrandName,
+  sanitizeItemTitle,
+  scrubCopyMarkers,
+} from "@/lib/copy/caption-hygiene"
 
 export type SopCriterionId =
   | "asset"
@@ -51,9 +56,10 @@ export function buildDefaultDraft(
   brandContext?: { brandName?: string; industry?: string | null }
 ): SopDraft {
   const priceLabel = formatInventoryPrice(item.price)
-  const brand = item.brand?.trim() || "New arrival"
-  const headline = item.title.slice(0, 80)
-  const baseDescription = item.description?.trim() || ""
+  const brand =
+    (item.brand?.trim() && sanitizeBrandName(item.brand)) || "New arrival"
+  const headline = sanitizeItemTitle(item.title, { brand: item.brand }).slice(0, 80)
+  const baseDescription = scrubCopyMarkers(item.description?.trim() || "")
   const profile = resolveIndustryProfile({
     name: brandContext?.brandName ?? brand,
     industry: brandContext?.industry,
@@ -71,9 +77,9 @@ export function buildDefaultDraft(
   }
 
   if (profile.id === "worn_label") {
-    const vibe = pickDefaultVibeTag(profile, `${item.title} ${baseDescription}`)
+    const vibe = pickDefaultVibeTag(profile, `${headline} ${baseDescription}`)
     const brandBit = brand.toLowerCase()
-    const titleBit = item.title.trim()
+    const titleBit = headline
     const titleClean = titleBit.toLowerCase().startsWith(brandBit)
       ? titleBit.slice(brand.length).replace(/^[\s\-–—:]+/, "").trim() || titleBit
       : titleBit
@@ -97,7 +103,9 @@ export function buildDefaultDraft(
   }
 
   const caption = [
-    `${brand} — ${item.title}.`,
+    headline.toLowerCase().startsWith(brand.toLowerCase())
+      ? `${headline}.`
+      : `${brand} — ${headline}.`,
     baseDescription ? baseDescription.slice(0, 160) : null,
     priceLabel !== "—" ? `${priceLabel}.` : null,
     "DM to hold or shop link in bio.",

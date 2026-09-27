@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import sharp from "sharp"
 import { z } from "zod"
 
 import { createClient } from "@/lib/supabase/server"
@@ -18,7 +17,32 @@ const bodySchema = z.object({
  * Drop near-white / studio-backdrop pixels to transparent.
  * Works well for flat white product photography without an external rembg key.
  */
+async function loadSharp() {
+  try {
+    return (await import("sharp")).default
+  } catch (error) {
+    throw new Error(
+      `Image processor unavailable on server (${error instanceof Error ? error.message : "sharp failed to load"}).`
+    )
+  }
+}
+
+async function fetchSource(imageUrl: string): Promise<Buffer> {
+  const source = await fetch(imageUrl, {
+    headers: {
+      Accept: "image/*",
+      "User-Agent": "Mozilla/5.0 (compatible; MADStudio/1.0)",
+    },
+    signal: AbortSignal.timeout(20_000),
+  })
+  if (!source.ok) {
+    throw new Error(`Source image returned ${source.status}.`)
+  }
+  return Buffer.from(await source.arrayBuffer())
+}
+
 async function removeNearWhiteBackground(input: Buffer): Promise<Buffer> {
+  const sharp = await loadSharp()
   const { data, info } = await sharp(input)
     .ensureAlpha()
     .raw()
@@ -120,28 +144,10 @@ export async function POST(request: Request) {
           "[remove-bg] Cloudinary failed, falling back to sharp:",
           error
         )
-        const source = await fetch(imageUrl)
-        if (!source.ok) {
-          return NextResponse.json(
-            { error: "Could not fetch source image." },
-            { status: 400 }
-          )
-        }
-        pngBuffer = await removeNearWhiteBackground(
-          Buffer.from(await source.arrayBuffer())
-        )
+        pngBuffer = await removeNearWhiteBackground(await fetchSource(imageUrl))
       }
     } else {
-      const source = await fetch(imageUrl)
-      if (!source.ok) {
-        return NextResponse.json(
-          { error: "Could not fetch source image." },
-          { status: 400 }
-        )
-      }
-      pngBuffer = await removeNearWhiteBackground(
-        Buffer.from(await source.arrayBuffer())
-      )
+      pngBuffer = await removeNearWhiteBackground(await fetchSource(imageUrl))
     }
 
     const path = `cutouts/${entityId}/${itemId ?? "item"}/${Date.now()}-cutout.png`

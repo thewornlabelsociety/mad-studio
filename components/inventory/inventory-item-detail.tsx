@@ -40,6 +40,7 @@ import {
   pickDefaultVibeTag,
   resolveIndustryProfile,
 } from "@/lib/brands/industry-templates"
+import { cleanHashtags, sanitizeItemTitle } from "@/lib/copy/caption-hygiene"
 import {
   buildContextAwareHooks,
   scrubAgencyLeak,
@@ -174,7 +175,9 @@ export function InventoryItemDetail({
   const [activeHookId, setActiveHookId] = useState<ContextHookId | null>(null)
   const [draft, setDraft] = useState<SopDraft>(() => {
     const defaults = buildDefaultDraft(item, { brandName, industry })
-    const savedTags = item.copy_draft.tags ?? []
+    const savedTags = cleanHashtags(item.copy_draft.tags ?? [], {
+      bannedSeeds: [item.website_item_id],
+    })
     const seededTags =
       savedTags.length > 0
         ? savedTags
@@ -184,8 +187,15 @@ export function InventoryItemDetail({
             industry,
             listingVibe: item.vibe,
           })
+    const savedHeadline = item.copy_draft.headline?.trim() ?? ""
+    // Older drafts stored a truncated copy of the caption as the headline.
+    const headlineIsFragment =
+      savedHeadline.length > 0 &&
+      (item.copy_draft.caption ?? "").trim().startsWith(savedHeadline)
     return {
-      headline: scrubCliches(item.copy_draft.headline || defaults.headline),
+      headline: scrubCliches(
+        savedHeadline && !headlineIsFragment ? savedHeadline : defaults.headline
+      ),
       caption: scrubCliches(item.copy_draft.caption || defaults.caption),
       tags: seededTags,
     }
@@ -314,7 +324,7 @@ export function InventoryItemDetail({
     setActiveHookId(hookId)
     setDraft((current) => ({
       ...current,
-      headline: row.hook.slice(0, 72),
+      headline: sanitizeItemTitle(item.title, { brand: item.brand }).slice(0, 72),
       caption: scrubCliches(row.hook),
     }))
   }

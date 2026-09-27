@@ -222,9 +222,32 @@ export function buildClientPersonaLayer(input: {
     input.visualDescription
       ? `When visual inspection is present, hooks 1 and 2 MUST each name at least one concreteFeatures item woven into natural prose (never "Camera sees: …").`
       : "",
+    ``,
+    buildCaptionQualityRules({
+      brandName: input.entity.name,
+      showroomCta: profile.id === "worn_label",
+    }),
   ]
     .filter(Boolean)
     .join("\n")
+}
+
+/** Caption hygiene rules — mirrors lib/copy/caption-hygiene post-processing. */
+export function buildCaptionQualityRules(input: {
+  brandName: string
+  showroomCta: boolean
+}): string {
+  const ctas = input.showroomCta
+    ? `"Tap link in bio to shop" or "Try on in our Whangārei showroom today"`
+    : `"Tap link in bio to shop"`
+  return [
+    `### CAPTION & HASHTAG QUALITY (seo_caption, carousel, short_video, email)`,
+    `- Never output duplicate introductory sentences or repeated draft fragments.`,
+    `- Write concise, editorial, 2-to-3 sentence captions in ${input.brandName}'s natural tone.`,
+    `- Do not insert bare web URLs in Instagram Feed captions. Use natural CTAs: ${ctas}. Tracking links are added automatically to Facebook / Email and the Story link sticker.`,
+    `- Generate 6-8 clean, relevant hashtags in seo_caption.search_optimized_tags. Strictly ban hashtagging internal test titles or raw item IDs (e.g., no #zaratestitem, no SKU or numeric codes).`,
+    `- Product names: strip internal catalog markers ("Test item", "SKU", "sample", item codes, draft notes, truncated abbreviations) and write a clean fashion title with natural casing, e.g. "Zara Cotton Maxi Skirt in Green".`,
+  ].join("\n")
 }
 
 export function buildCampaignPackPrompt(input: {
