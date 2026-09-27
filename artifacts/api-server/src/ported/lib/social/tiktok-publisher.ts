@@ -5,6 +5,8 @@ type DbClient = ReturnType<typeof createAdminClient> | {
 }
 
 const TIKTOK_API = "https://open.tiktokapis.com/v2"
+/** Unaudited / sandbox apps must post as private until TikTok approves the client. */
+const TIKTOK_POST_PRIVACY = "SELF_ONLY" as const
 
 export type TikTokConnection = {
   id: string
@@ -85,33 +87,12 @@ function describeError(envelope: TikTokEnvelope<unknown>, status: number): strin
   return `TikTok ${code ?? status}: ${envelope.error?.message || "publish failed"}`
 }
 
-/**
- * Picks the privacy level: TIKTOK_PRIVACY_LEVEL when the creator allows it,
- * otherwise SELF_ONLY (the only level unaudited apps may post with).
- */
-async function resolvePrivacyLevel(accessToken: string): Promise<string> {
-  const wanted = process.env.TIKTOK_PRIVACY_LEVEL?.trim() || "SELF_ONLY"
-  try {
-    const { envelope } = await tiktokPost<{ privacy_level_options?: string[] }>(
-      "/post/publish/creator_info/query/",
-      accessToken,
-      {}
-    )
-    const options = envelope.data?.privacy_level_options ?? []
-    if (options.length === 0 || options.includes(wanted)) return wanted
-    return options.includes("SELF_ONLY") ? "SELF_ONLY" : options[0]
-  } catch {
-    return wanted
-  }
-}
-
 /** Direct Post via the TikTok Content Posting API, pulling media from a public URL. */
 export async function publishToTikTok(input: {
   accessToken: string
   mediaUrl: string
   caption: string
 }): Promise<TikTokPublishResult> {
-  const privacyLevel = await resolvePrivacyLevel(input.accessToken)
   const video = isVideoUrl(input.mediaUrl)
 
   try {
@@ -122,7 +103,7 @@ export async function publishToTikTok(input: {
           {
             post_info: {
               title: input.caption.slice(0, 2200),
-              privacy_level: privacyLevel,
+              privacy_level: TIKTOK_POST_PRIVACY,
               disable_comment: false,
               disable_duet: false,
               disable_stitch: false,
@@ -137,7 +118,7 @@ export async function publishToTikTok(input: {
             post_info: {
               title: input.caption.split("\n")[0].slice(0, 90),
               description: input.caption.slice(0, 4000),
-              privacy_level: privacyLevel,
+              privacy_level: TIKTOK_POST_PRIVACY,
               disable_comment: false,
               auto_add_music: true,
             },
@@ -163,7 +144,7 @@ export async function publishToTikTok(input: {
     return {
       ok: true,
       publishId,
-      privacyLevel,
+      privacyLevel: TIKTOK_POST_PRIVACY,
       mediaType: video ? "VIDEO" : "PHOTO",
     }
   } catch (error) {
