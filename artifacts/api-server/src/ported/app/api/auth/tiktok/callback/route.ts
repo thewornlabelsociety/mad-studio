@@ -6,6 +6,7 @@ import {
   parseStateCookie,
   TIKTOK_STATE_COOKIE,
   tiktokClientKey,
+  tiktokClientSecret,
   tiktokRedirectUri,
 } from "@/lib/social/tiktok-oauth"
 import { createClient } from "@/lib/supabase/server"
@@ -51,9 +52,19 @@ export async function GET(request: WebRequest) {
     return finish(request, "tiktok_error", "state_mismatch")
   }
 
-  const clientSecret = process.env.TIKTOK_CLIENT_SECRET?.trim()
-  if (!clientSecret) {
-    return finish(request, "tiktok_error", "missing_client_secret")
+  let clientKey: string
+  let clientSecret: string
+  try {
+    clientKey = tiktokClientKey()
+    clientSecret = tiktokClientSecret()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error("[tiktok-oauth]", message)
+    return finish(
+      request,
+      "tiktok_error",
+      message.includes("SECRET") ? "missing_client_secret" : "missing_client_key"
+    )
   }
 
   const supabase = await createClient()
@@ -70,7 +81,7 @@ export async function GET(request: WebRequest) {
         "Cache-Control": "no-cache",
       },
       body: new URLSearchParams({
-        client_key: tiktokClientKey(),
+        client_key: clientKey,
         client_secret: clientSecret,
         code,
         grant_type: "authorization_code",

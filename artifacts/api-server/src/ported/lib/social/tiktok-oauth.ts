@@ -1,7 +1,19 @@
 export const TIKTOK_STATE_COOKIE = "tiktok_oauth_state"
 
 export function tiktokClientKey(): string {
-  return process.env.TIKTOK_CLIENT_KEY?.trim() || "sbawoa1ozw9mujedlm"
+  const key = process.env.TIKTOK_CLIENT_KEY?.trim()
+  if (!key) {
+    throw new Error("Missing TIKTOK_CLIENT_KEY in environment variables")
+  }
+  return key
+}
+
+export function tiktokClientSecret(): string {
+  const secret = process.env.TIKTOK_CLIENT_SECRET?.trim()
+  if (!secret) {
+    throw new Error("Missing TIKTOK_CLIENT_SECRET in environment variables")
+  }
+  return secret
 }
 
 /** Must match the redirect URI registered in the TikTok developer portal exactly. */

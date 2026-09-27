@@ -59,9 +59,17 @@ export async function GET(request: WebRequest) {
   })
   if (!canManage) return settingsRedirect(request, "tiktok_error", "forbidden")
 
+  let clientKey: string
+  try {
+    clientKey = tiktokClientKey()
+  } catch (err) {
+    console.error("[tiktok-oauth]", err instanceof Error ? err.message : err)
+    return settingsRedirect(request, "tiktok_error", "missing_client_key")
+  }
+
   const state = randomBytes(16).toString("hex")
   const authorize = new URL("https://www.tiktok.com/v2/auth/authorize/")
-  authorize.searchParams.set("client_key", tiktokClientKey())
+  authorize.searchParams.set("client_key", clientKey)
   authorize.searchParams.set("scope", tiktokScopes())
   authorize.searchParams.set("response_type", "code")
   authorize.searchParams.set("redirect_uri", tiktokRedirectUri())
