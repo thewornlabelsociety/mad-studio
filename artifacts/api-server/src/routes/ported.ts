@@ -5,6 +5,8 @@ import { getTrustedRequestOrigin, withRequestContext } from "../lib/request-cont
 import * as analyticsLog from "../ported/app/api/analytics/log/route";
 import * as apiSignout from "../ported/app/api/auth/signout/route";
 import * as dataDeletion from "../ported/app/api/auth/data-deletion/route";
+import * as metaStart from "../ported/app/api/auth/meta/route";
+import * as metaCallback from "../ported/app/api/auth/meta/callback/route";
 import * as tiktokStart from "../ported/app/api/auth/tiktok/route";
 import * as tiktokCallback from "../ported/app/api/auth/tiktok/callback/route";
 import * as brainChat from "../ported/app/api/brain/chat/route";
@@ -111,6 +113,8 @@ router.post("/api/analytics/log", webHandler(method(analyticsLog, "POST")));
 router.post("/api/auth/signout", webHandler(method(apiSignout, "POST")));
 router.get("/api/auth/data-deletion", webHandler(method(dataDeletion, "GET"), false));
 router.post("/api/auth/data-deletion", webHandler(method(dataDeletion, "POST")));
+router.get("/api/auth/meta", webHandler(method(metaStart, "GET"), false));
+router.get("/api/auth/meta/callback", webHandler(method(metaCallback, "GET"), false));
 router.get("/api/auth/tiktok", webHandler(method(tiktokStart, "GET"), false));
 router.get("/api/auth/tiktok/callback", webHandler(method(tiktokCallback, "GET"), false));
 router.post("/api/brain/chat", webHandler(method(brainChat, "POST")));

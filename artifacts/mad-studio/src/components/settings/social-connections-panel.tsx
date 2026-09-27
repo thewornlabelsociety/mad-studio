@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "@/lib/next-compat"
 import { Loader2, PlugZap, Save, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
@@ -37,14 +37,16 @@ const CARDS: PlatformCardConfig[] = [
   {
     platform: "instagram",
     title: "Instagram Business / Creator",
-    subtitle: "Feed + Story dispatch via Meta Graph",
+    subtitle: "Connect via Meta OAuth or paste tokens manually",
     accountLabel: "IG Business User ID",
     tokenLabel: "Page / IG access token",
+    readyNote:
+      "Use Connect with Meta to save Page + Instagram tokens to social_connections.",
   },
   {
     platform: "facebook",
     title: "Facebook Page",
-    subtitle: "Page photo posts via Meta Graph",
+    subtitle: "Same Meta login links your Facebook Page token",
     accountLabel: "Facebook Page ID",
     tokenLabel: "Page Access Token",
   },
@@ -92,6 +94,19 @@ export function SocialConnectionsPanel({
 }: Props) {
   const router = useRouter()
   const [connections, setConnections] = useState(initialConnections)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const status = params.get("status")
+    const reason = params.get("reason")
+    if (status === "meta_connected") {
+      toast.success("Instagram and Facebook connected via Meta.")
+      router.replace(`/settings/social?eid=${encodeURIComponent(entityId)}`)
+    } else if (status === "meta_error") {
+      toast.error(reason ? `Meta login failed: ${reason}` : "Meta login failed.")
+      router.replace(`/settings/social?eid=${encodeURIComponent(entityId)}`)
+    }
+  }, [entityId, router])
   const [editing, setEditing] = useState<PlatformCardConfig | null>(null)
   const [draft, setDraft] = useState<DraftForm>({
     connectionId: null,
@@ -303,6 +318,22 @@ export function SocialConnectionsPanel({
               ) : null}
 
               <div className="mt-auto flex flex-wrap gap-2 pt-5">
+                {card.platform === "instagram" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-none border-2 border-mad-black bg-mad-lime font-typewriter text-[0.6rem] uppercase shadow-keycap-sm hover:bg-mad-white"
+                    asChild
+                  >
+                    <a
+                      href={`/api/auth/meta?entityId=${encodeURIComponent(entityId)}`}
+                    >
+                      <PlugZap data-icon="inline-start" />
+                      Connect with Meta
+                    </a>
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"
