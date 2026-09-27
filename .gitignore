@@ -1,5 +1,16 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+artifacts/*/.env
+artifacts/*/.env.*
+
+# Build artifacts & leftovers
+.next/
+build/
+
 # compiled output
 dist
 tmp
@@ -32,12 +43,13 @@ node_modules
 /connect.lock
 /coverage
 /libpeerconnection.log
+*.log
 npm-debug.log
 yarn-error.log
 testem.log
 /typings
 
-# System Files
+# OS / Editor specifics
 .DS_Store
 Thumbs.db
 
