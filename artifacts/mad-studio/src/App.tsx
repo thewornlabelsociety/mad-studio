@@ -1,6 +1,6 @@
 import { type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { Route, Switch, Router as WouterRouter, useLocation } from "wouter"
+import { Link, Route, Switch, Router as WouterRouter, useLocation } from "wouter"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -16,6 +16,8 @@ import AnalyticsPage from "@/app/analytics/page"
 import SocialSettingsPage from "@/app/settings/social/page"
 import NewEntityPage from "@/app/entities/new/page"
 import InvitePage from "@/app/invite/[token]/page"
+import PrivacyPolicyPage from "@/app/privacy/page"
+import TermsOfServicePage from "@/app/terms/page"
 import { AuthForm } from "@/components/auth/auth-form"
 import { createClient } from "@/lib/supabase/client"
 import type { EmailOtpType } from "@supabase/supabase-js"
@@ -45,6 +47,13 @@ function Home() {
               <a href={href} className="border-2 border-mad-black bg-mad-white px-7 py-3.5 font-typewriter text-xs font-bold tracking-widest text-mad-black uppercase transition-all hover:bg-neutral-50">Sign In</a></div>
           </section>
         </main>
+        <footer className="border-t-2 border-mad-black"><div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5">
+          <p className="font-typewriter text-[0.65rem] tracking-wider text-neutral-500 uppercase">© {new Date().getFullYear()} MAD STUDIO · Whangārei, New Zealand</p>
+          <nav className="flex items-center gap-5" aria-label="Legal">
+            <Link href="/privacy" className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase hover:text-mad-vermillion">Privacy Policy</Link>
+            <Link href="/terms" className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase hover:text-mad-vermillion">Terms of Service</Link>
+          </nav>
+        </div></footer>
       </div>
     )
   }} />
@@ -83,6 +92,8 @@ function App() {
         <Route path="/login" component={Login} />
         <Route path="/auth/callback" component={AuthCallback} />
         <Route path="/auth/confirm" component={AuthCallback} />
+        <Route path="/privacy" component={PrivacyPolicyPage} />
+        <Route path="/terms" component={TermsOfServicePage} />
         <Route path="/studio">{() => <PageLoader load={() => StudioPage({ searchParams: query() })} />}</Route>
         <Route path="/today">{() => <PageLoader load={() => TodayPage({ searchParams: query() })} />}</Route>
         <Route path="/inventory">{() => <PageLoader load={async () => { await InventoryPage({ searchParams: query() }); return null }} />}</Route>

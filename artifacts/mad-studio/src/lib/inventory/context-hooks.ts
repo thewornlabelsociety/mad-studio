@@ -3,6 +3,12 @@ import {
   resolveIndustryProfile,
 } from "@/lib/brands/industry-templates"
 import {
+  sanitizeBrandName,
+  scrubCopyMarkers,
+  stripInternalMarkers,
+  toEditorialCase,
+} from "@/lib/copy/caption-hygiene"
+import {
   formatInventoryPrice,
   type MarketingEntity,
 } from "@/lib/inventory/types"
@@ -298,11 +304,15 @@ export function buildContextAwareHooks(input: {
 
   const labeled = parseLabeledFields(input.item.description ?? "")
   const designer = normalizeBrand(
-    labeled.brand?.trim() || input.item.brand?.trim() || input.brandName
+    sanitizeBrandName(
+      labeled.brand?.trim() || input.item.brand?.trim() || input.brandName
+    ) || input.brandName
   )
-  const rawTitle = input.item.title.trim()
+  const rawTitle = stripInternalMarkers(input.item.title.trim())
   const product = cleanProductTitle(rawTitle, designer)
-  const description = stripLabeledMeta(input.item.description?.trim() || "")
+  const description = stripLabeledMeta(
+    scrubCopyMarkers(input.item.description?.trim() || "")
+  )
   const proseCue = softCue(description, 90)
   const price = formatInventoryPrice(input.item.price)
   const features = (input.concreteFeatures ?? [])
@@ -320,8 +330,16 @@ export function buildContextAwareHooks(input: {
     profile.contentPillars[0] ||
     "Quiet Luxury"
 
-  const fabric = pickFabric(features, description, labeled.material)
-  const colour = pickColour(features, description, labeled.colour)
+  const fabric = pickFabric(
+    features,
+    `${description} ${rawTitle}`,
+    labeled.material
+  )
+  const colour = pickColour(
+    features,
+    `${description} - ${rawTitle}`,
+    labeled.colour
+  )
   const size = pickSize(description, rawTitle, labeled.size)
   const usedCore = new Set(
     [designer, product, fabric, colour, size].filter(Boolean) as string[]
@@ -332,7 +350,9 @@ export function buildContextAwareHooks(input: {
     usedCore
   )
 
-  const piece = productPhrase({ designer, product, fabric, colour })
+  const piece = toEditorialCase(
+    productPhrase({ designer, product, fabric, colour })
+  )
   const sizeBit = size ? `(Size ${size})` : null
   const conditionWord = /\b(pristine|excellent|like new|deadstock|sample)\b/i.test(
     `${rawTitle} ${input.item.description ?? ""} ${labeled.condition ?? ""}`
@@ -399,10 +419,12 @@ function buildFudiHooks(
   brandDisplay: string
 ): ContextHook[] {
   const title = cleanProductTitle(
-    input.item.title.trim(),
+    stripInternalMarkers(input.item.title.trim()),
     input.item.brand?.trim() || input.brandName
   )
-  const description = stripLabeledMeta(input.item.description?.trim() || "")
+  const description = stripLabeledMeta(
+    scrubCopyMarkers(input.item.description?.trim() || "")
+  )
   const textCue = softCue(description, 90)
   const features = (input.concreteFeatures ?? [])
     .map((row) => softenFeature(row))

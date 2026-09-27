@@ -1,6 +1,12 @@
 import { timingSafeEqual } from "crypto"
 import { HttpResponse } from "@server/http-response"
 
+import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
+import {
+  composeCaption,
+  finalizePlatformCaption,
+  IG_LINK_CTA,
+} from "@/lib/copy/caption-hygiene"
 import type { Json } from "@/lib/database.types"
 import { ensurePublicMediaUrl } from "@/lib/social/ensure-public-media"
 import { publishToMeta } from "@/lib/social/meta-publisher"
@@ -345,16 +351,29 @@ export async function POST(request: Request) {
       slug = link.slug
     }
 
-    const captionBase =
+    const captionBase = (
       input.caption?.trim() ||
-      [draftHeadline, draftCaption, item?.description]
-        .filter((part) => typeof part === "string" && part.trim())
-        .join("\n\n")
-        .slice(0, 2000)
+      composeCaption(draftHeadline, draftCaption) ||
+      item?.description?.trim() ||
+      ""
+    ).slice(0, 2000)
 
-    const caption = shortUrl
-      ? `${captionBase}\n\n${shortUrl}`.trim()
-      : captionBase
+    const isWornLabel =
+      resolveIndustryProfile({ name: entity.name }).id === "worn_label"
+    const caption = finalizePlatformCaption({
+      caption: captionBase,
+      platform: input.platform,
+      placement,
+      shortUrl,
+      cta: isWornLabel
+        ? `Tap link in bio to shop or try it on in our Whangārei showroom today.`
+        : IG_LINK_CTA,
+      bannedSeeds: item?.website_item_id ? [item.website_item_id] : [],
+    })
+    const linkSticker =
+      input.platform === "instagram" && placement === "story"
+        ? shortUrl || destination
+        : null
 
     let mediaUrl =
       input.mediaUrl?.trim() ||
@@ -470,11 +489,15 @@ export async function POST(request: Request) {
         draftHeadline ||
         item?.title ||
         `${entity.name} drop`
+      const emailBody = finalizePlatformCaption({
+        caption: captionBase,
+        platform: "email",
+      })
       const previewText =
-        input.emailPreview?.trim() || captionBase.slice(0, 140)
+        input.emailPreview?.trim() || emailBody.slice(0, 140)
       const htmlBody =
         input.htmlBody?.trim() ||
-        `<p>${captionBase.replace(/\n/g, "<br/>")}</p>`
+        `<p>${emailBody.replace(/\n/g, "<br/>")}</p>`
       const styled = luxuryEmailHtml({
         brandName: entity.name,
         subject,
@@ -719,6 +742,7 @@ export async function POST(request: Request) {
         requested_placement: input.placement,
         media_id: publishResult.mediaId,
         short_url: shortUrl,
+        link_sticker: linkSticker,
         slug,
         auth_mode: serviceAuthorized
           ? "service_secret"
@@ -738,6 +762,7 @@ export async function POST(request: Request) {
       mediaId: publishResult.mediaId,
       publishedMediaIds,
       shortUrl,
+      linkSticker,
       slug,
       status: item ? "published" : "dispatched",
       marketingEntityId: item?.id ?? null,

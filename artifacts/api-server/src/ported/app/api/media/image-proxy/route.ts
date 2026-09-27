@@ -53,10 +53,13 @@ export async function GET(request: Request) {
     let image: Awaited<ReturnType<typeof fetchPublicImage>>
     try {
       image = await fetchPublicImage(parsed.data.url)
-    } catch {
+    } catch (error) {
       return HttpResponse.json(
-        { error: "Could not fetch source image." },
-        { status: 400 }
+        {
+          error:
+            error instanceof Error ? error.message : "Could not fetch source image.",
+        },
+        { status: 502 }
       )
     }
 

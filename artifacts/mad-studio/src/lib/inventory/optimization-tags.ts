@@ -1,5 +1,12 @@
+import {
+  cleanHashtags,
+  sanitizeBrandName,
+  stripInternalMarkers,
+} from "@/lib/copy/caption-hygiene"
 import type { MarketingEntity } from "@/lib/inventory/types"
 import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
+
+const MAX_TAGS = 8
 
 /** Normalize to Instagram/TikTok-friendly tag tokens (no #). */
 export function normalizeOptTag(raw: string): string | null {
@@ -36,9 +43,14 @@ export function buildOptimizationTags(input: {
     name: input.brandName,
     industry: input.industry,
   })
-  const designer = input.item.brand?.trim() || null
+  const designer = input.item.brand?.trim()
+    ? sanitizeBrandName(input.item.brand) || null
+    : null
   const vibe = input.listingVibe?.trim() || input.item.vibe?.trim() || null
-  const hay = `${input.item.title} ${input.item.description ?? ""}`
+  const hay = stripInternalMarkers(
+    `${input.item.title} ${input.item.description ?? ""}`
+  )
+  const bannedSeeds = [input.item.website_item_id ?? ""]
 
   if (isFudi) {
     pushTag(
@@ -50,42 +62,37 @@ export function buildOptimizationTags(input: {
       "northlandeats",
       "supportlocal"
     )
-    return tags.slice(0, 12)
+    return cleanHashtags(tags, { max: MAX_TAGS, bannedSeeds })
   }
 
   pushTag(
     tags,
     "wornlabelsociety",
     "whangarei",
-    "preloved",
-    "consignment",
-    "nzfashion",
     designer,
-    vibe,
     hay.match(
       /\b(maxi|midi|mini|skirt|dress|blazer|coat|jean|denim|linen|silk|cotton|wool|cashmere)\b/i
     )?.[1],
+    vibe,
     hay.match(
       /\b(green|black|white|cream|navy|beige|pink|blue|brown|olive)\b/i
     )?.[1],
+    "preloved",
+    "nzfashion",
+    "consignment",
     "shopwhangarei",
-    "sustainablefashion",
-    "secondhandstyle",
-    "newarrival"
+    "sustainablefashion"
   )
 
-  // Slug-derived vibe tags from the listing
   for (const slug of input.item.aesthetic_slugs.slice(0, 3)) {
     pushTag(tags, slug.replace(/-/g, ""))
   }
 
-  return tags.slice(0, 12)
+  return cleanHashtags(tags, { max: MAX_TAGS, bannedSeeds })
 }
 
 export function formatTagsForCaption(tags: string[]): string {
-  const cleaned = tags
-    .map((tag) => normalizeOptTag(tag))
-    .filter((tag): tag is string => Boolean(tag))
+  const cleaned = cleanHashtags(tags, { max: MAX_TAGS })
   if (cleaned.length === 0) return ""
   return cleaned.map((tag) => `#${tag}`).join(" ")
 }

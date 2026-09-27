@@ -1,5 +1,4 @@
 import { HttpResponse } from "@server/http-response"
-import sharp from "sharp"
 import { z } from "zod"
 
 import { createClient } from "@/lib/supabase/server"
@@ -19,7 +18,18 @@ const bodySchema = z.object({
  * Drop near-white / studio-backdrop pixels to transparent.
  * Works well for flat white product photography without an external rembg key.
  */
+async function loadSharp() {
+  try {
+    return (await import("sharp")).default
+  } catch (error) {
+    throw new Error(
+      `Image processor unavailable on server (${error instanceof Error ? error.message : "sharp failed to load"}).`
+    )
+  }
+}
+
 async function removeNearWhiteBackground(input: Buffer): Promise<Buffer> {
+  const sharp = await loadSharp()
   const { data, info } = await sharp(input)
     .ensureAlpha()
     .raw()

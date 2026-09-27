@@ -188,6 +188,20 @@ function slugifyHandle(name: string): string {
   )
 }
 
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+async function readError(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: string }
+    if (body.error) return `${response.status} ${body.error}`
+  } catch {
+    // non-JSON body (e.g. platform error page)
+  }
+  return `HTTP ${response.status}`
+}
+
 export function MultiPlatformSimulator({
   content,
   activeMedia = null,
@@ -488,94 +502,104 @@ export function MultiPlatformSimulator({
     patchPreview({ cutoutMode: "css_blend" })
     setBusy("cutout")
     toast.message("Cutting out subject…")
-    try {
-      // Proxy avoids CORS so the browser model can read store / CDN photos.
-      const proxyUrl = `/api/media/image-proxy?url=${encodeURIComponent(source)}&entityId=${encodeURIComponent(actionContext.entityId)}`
-      const imageRes = await fetch(proxyUrl)
-      if (!imageRes.ok) {
-        throw new Error("Could not load image for cutout.")
-      }
-      const imageBlob = await imageRes.blob()
+    const ctx = actionContext
+    const sourceUrl = source
+    const failures: string[] = []
 
-      const { removeBackground } = await import("@imgly/background-removal")
-      const cutoutBlob = await removeBackground(imageBlob, {
-        output: { format: "image/png" },
-      })
+    async function loadSourceBlob(src: string): Promise<Blob> {
+      try {
+        const direct = await fetch(src, { mode: "cors", cache: "no-store" })
+        if (direct.ok) return await direct.blob()
+        failures.push(`direct ${direct.status}`)
+      } catch {
+        failures.push("direct blocked")
+      }
+      // Proxy covers hosts without CORS headers.
+      const proxyUrl = `/api/media/image-proxy?url=${encodeURIComponent(src)}&entityId=${encodeURIComponent(ctx.entityId)}`
+      const proxied = await fetch(proxyUrl)
+      if (!proxied.ok) {
+        throw new Error(`image load: ${await readError(proxied)}`)
+      }
+      return proxied.blob()
+    }
 
-      const form = new FormData()
-      form.append("file", cutoutBlob, "cutout.png")
-      form.append("entityId", actionContext.entityId)
-      if (actionContext.marketingEntityId) {
-        form.append("itemId", actionContext.marketingEntityId)
-      }
-
-      const uploadRes = await fetch("/api/media/upload-cutout", {
-        method: "POST",
-        body: form,
-      })
-      const uploadPayload = (await uploadRes.json()) as {
-        transparentUrl?: string
-        error?: string
-      }
-
-      if (uploadRes.ok && uploadPayload.transparentUrl) {
-        patchPreview({
-          cutoutImageUrl: uploadPayload.transparentUrl,
-          cutoutMode: "transparent",
-        })
-        toast.success("Subject cut out.")
-        return
-      }
-
-      // Fallback: server white-studio / Cloudinary path
-      const response = await fetch("/api/media/remove-bg", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: source,
-          entityId: actionContext.entityId,
-          itemId: actionContext.marketingEntityId,
-        }),
-      })
-      const payload = (await response.json()) as {
-        transparentUrl?: string
-      }
-      if (response.ok && payload.transparentUrl) {
-        patchPreview({
-          cutoutImageUrl: payload.transparentUrl,
-          cutoutMode: "transparent",
-        })
-        toast.success("Subject cut out.")
-      } else {
-        toast.message("Cutout unavailable — showing blend fallback.")
-      }
-    } catch (error) {
-      console.warn("[cutout]", error)
+    async function serverFallback(): Promise<string | null> {
       try {
         const response = await fetch("/api/media/remove-bg", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            imageUrl: source,
-            entityId: actionContext.entityId,
-            itemId: actionContext.marketingEntityId,
+            imageUrl: sourceUrl,
+            entityId: ctx.entityId,
+            itemId: ctx.marketingEntityId,
           }),
         })
-        const payload = (await response.json()) as {
-          transparentUrl?: string
+        if (!response.ok) {
+          failures.push(`server: ${await readError(response)}`)
+          return null
         }
-        if (response.ok && payload.transparentUrl) {
-          patchPreview({
-            cutoutImageUrl: payload.transparentUrl,
-            cutoutMode: "transparent",
-          })
-          toast.success("Subject cut out.")
-          return
-        }
-      } catch {
-        // ignore nested failure
+        const payload = (await response.json()) as { transparentUrl?: string }
+        return payload.transparentUrl ?? null
+      } catch (error) {
+        failures.push(`server: ${errorText(error)}`)
+        return null
       }
-      toast.message("Cutout unavailable — showing blend fallback.")
+    }
+
+    function applyCutout(url: string) {
+      patchPreview({ cutoutImageUrl: url, cutoutMode: "transparent" })
+      toast.success("Subject cut out.")
+    }
+
+    async function browserCutout(): Promise<string | null> {
+      try {
+        const imageBlob = await loadSourceBlob(sourceUrl)
+
+        const { removeBackground } = await import("@imgly/background-removal")
+        const cutoutBlob = await removeBackground(imageBlob, {
+          output: { format: "image/png" },
+        })
+
+        const form = new FormData()
+        form.append("file", cutoutBlob, "cutout.png")
+        form.append("entityId", ctx.entityId)
+        if (ctx.marketingEntityId) {
+          form.append("itemId", ctx.marketingEntityId)
+        }
+
+        const uploadRes = await fetch("/api/media/upload-cutout", {
+          method: "POST",
+          body: form,
+        })
+        if (uploadRes.ok) {
+          const uploadPayload = (await uploadRes.json()) as {
+            transparentUrl?: string
+          }
+          if (uploadPayload.transparentUrl) return uploadPayload.transparentUrl
+        }
+        failures.push(`upload: ${await readError(uploadRes)}`)
+      } catch (error) {
+        console.warn("[cutout]", error)
+        failures.push(errorText(error))
+      }
+      return null
+    }
+
+    try {
+      const browserUrl = await browserCutout()
+      if (browserUrl) {
+        applyCutout(browserUrl)
+        return
+      }
+      const fallbackUrl = await serverFallback()
+      if (fallbackUrl) {
+        applyCutout(fallbackUrl)
+        return
+      }
+      console.warn("[cutout] failed:", failures)
+      toast.error("Cutout unavailable — showing blend fallback.", {
+        description: failures.join(" · ").slice(0, 240),
+      })
     } finally {
       setBusy(null)
     }
@@ -666,15 +690,15 @@ export function MultiPlatformSimulator({
       const payload = (await response.json()) as {
         error?: string
         slug?: string
-        shortUrl?: string
+        linkSticker?: string | null
         message?: string
       }
       if (!response.ok) throw new Error(payload.error || "Publish failed.")
       if (payload.slug) setTrackableSlug(payload.slug)
       toast.success(
         payload.message ||
-          (payload.shortUrl
-            ? `Dispatched. Sticker: ${payload.shortUrl}`
+          (payload.linkSticker
+            ? `Dispatched. Add link sticker: ${payload.linkSticker}`
             : "Approved & dispatched.")
       )
     } catch (error) {
