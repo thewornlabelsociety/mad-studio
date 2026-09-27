@@ -13,6 +13,7 @@ import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import type {
   AnalyticsSnapshot,
   CampaignLedgerItem,
+  CampaignQueuePost,
 } from "@/lib/campaigns/ledger"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
@@ -88,10 +89,31 @@ export default async function CampaignsPage({
     }
   }
 
+  const queueByCampaign = new Map<string, CampaignQueuePost[]>()
+  if (campaignIds.length > 0) {
+    const { data: queueRows } = await supabase
+      .from("scheduled_posts")
+      .select(
+        "id, campaign_id, marketing_entity_id, platform, mode, status, scheduled_time, published_at, last_error, attempts"
+      )
+      .eq("entity_id", activeEntity.id)
+      .in("campaign_id", campaignIds)
+      .neq("status", "cancelled")
+      .order("scheduled_time", { ascending: true })
+
+    for (const row of queueRows ?? []) {
+      if (!row.campaign_id) continue
+      const list = queueByCampaign.get(row.campaign_id) ?? []
+      list.push(row)
+      queueByCampaign.set(row.campaign_id, list)
+    }
+  }
+
   const campaigns: CampaignLedgerItem[] = (campaignRows ?? []).map(
     (campaign) => ({
       ...campaign,
       analytics: analyticsByCampaign.get(campaign.id) ?? null,
+      queue: queueByCampaign.get(campaign.id) ?? [],
     })
   )
 

@@ -6,6 +6,7 @@ import { ChevronDown, Plus } from "lucide-react"
 
 import { CampaignRoiCard } from "@/components/analytics/campaign-roi-card"
 import { CampaignPostMortem } from "@/components/campaigns/campaign-post-mortem"
+import { CampaignQueuePanel } from "@/components/campaigns/campaign-queue-panel"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -19,6 +20,7 @@ import {
   formatMoney,
   type AnalyticsSnapshot,
   type CampaignLedgerItem,
+  type CampaignQueuePost,
   type OutcomeRating,
 } from "@/lib/campaigns/ledger"
 import { cn } from "@/lib/utils"
@@ -80,6 +82,19 @@ function CampaignAccordionRow({
   const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(
     campaign.analytics
   )
+  const [queue, setQueue] = useState<CampaignQueuePost[]>(campaign.queue)
+  const pendingCount = queue.filter(
+    (post) => post.status === "scheduled" || post.status === "processing"
+  ).length
+  const failedCount = queue.filter((post) => post.status === "failed").length
+  const liveStatus =
+    pendingCount > 0
+      ? "scheduled"
+      : campaign.status === "scheduled"
+        ? queue.some((post) => post.status === "published")
+          ? "published"
+          : "draft"
+        : campaign.status
 
   const spend = Number(analytics?.spend ?? 0)
   const sales = Number(analytics?.revenue ?? 0)
@@ -119,7 +134,20 @@ function CampaignAccordionRow({
           >
             {new Date(displayDate).toLocaleDateString()}
           </span>
-          {statusBadge(campaign.status)}
+          {statusBadge(liveStatus)}
+          {pendingCount > 0 || failedCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (!expanded) onToggle()
+              }}
+              className="font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-black uppercase underline decoration-2 underline-offset-2 hover:text-mad-vermillion"
+            >
+              {pendingCount > 0 ? `${pendingCount} queued` : null}
+              {pendingCount > 0 && failedCount > 0 ? " · " : null}
+              {failedCount > 0 ? `${failedCount} failed` : null}
+            </button>
+          ) : null}
           <span className="hidden font-typewriter text-[0.65rem] tracking-wider text-mad-black uppercase md:inline">
             Spend: {formatMoney(spend)}
             <span className="mx-1 text-neutral-400">|</span>
@@ -149,6 +177,12 @@ function CampaignAccordionRow({
       >
         <div className="overflow-hidden">
           <div className="space-y-6 border-t-2 border-mad-black px-4 py-5 sm:px-5">
+            <CampaignQueuePanel
+              entityId={entityId}
+              posts={queue}
+              onPostsChange={setQueue}
+            />
+
             <p className="font-typewriter text-[0.65rem] tracking-wider text-neutral-600 uppercase md:hidden">
               Spend: {formatMoney(spend)}
               <span className="mx-1 text-neutral-400">|</span>

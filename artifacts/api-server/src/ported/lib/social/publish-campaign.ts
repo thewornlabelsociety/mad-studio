@@ -93,7 +93,7 @@ export async function publishCampaignToSocials(
   })
 }
 
-/** TikTok → outbound webhook (Make / n8n); VIP Email → Resend or webhook. */
+/** TikTok → native OAuth connection or outbound webhook; VIP Email → Resend or webhook. */
 export async function dispatchOutboundChannel(
   ctx: ServiceDispatchContext,
   input: CampaignPublishPayload & { platform: "tiktok" | "email" }

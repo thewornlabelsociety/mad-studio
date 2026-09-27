@@ -59,4 +59,7 @@ export const armMultiChannelDispatch = (...args: any[]) => action("armMultiChann
 export const repurposeMarketingEntity = (...args: any[]) => action("repurposeMarketingEntity", ...args)
 export const armCampaignMultiChannelDispatch = (...args: any[]) => action("armCampaignMultiChannelDispatch", ...args)
 export const disarmCampaignQueue = (...args: any[]) => action("disarmCampaignQueue", ...args)
+export const pushScheduledPostNow = (...args: any[]) => action("pushScheduledPostNow", ...args)
+export const rescheduleScheduledPost = (...args: any[]) => action("rescheduleScheduledPost", ...args)
+export const cancelScheduledPost = (...args: any[]) => action("cancelScheduledPost", ...args)
 export const createEntity = (...args: any[]) => action("createEntity", ...args)

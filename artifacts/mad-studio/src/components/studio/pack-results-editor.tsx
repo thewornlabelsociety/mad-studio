@@ -396,39 +396,39 @@ export function PackResultsEditor({
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="min-w-0 space-y-3">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {assetTabs.map((tab) => {
-              const active = tab.key === activeKey
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveKey(tab.key)}
-                  className={cn(
-                    "shrink-0 border-2 border-mad-black px-3 py-2 text-left shadow-keycap-sm",
-                    active
-                      ? "bg-mad-black text-mad-white"
-                      : "bg-mad-white text-mad-black hover:bg-mad-lime"
-                  )}
-                >
-                  <p className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
-                    {tab.label}
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-0.5 text-[0.65rem]",
-                      active ? "text-white/70" : "text-neutral-500"
-                    )}
-                  >
-                    {tab.subtitle}
-                  </p>
-                </button>
-              )
-            })}
-          </div>
+      <div className="flex flex-nowrap gap-2 overflow-x-auto pb-2">
+        {assetTabs.map((tab) => {
+          const active = tab.key === activeKey
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveKey(tab.key)}
+              className={cn(
+                "shrink-0 whitespace-nowrap border-2 border-mad-black px-3 py-2 text-left shadow-keycap-sm",
+                active
+                  ? "bg-mad-black text-mad-white"
+                  : "bg-mad-white text-mad-black hover:bg-mad-lime"
+              )}
+            >
+              <p className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+                {tab.label}
+              </p>
+              <p
+                className={cn(
+                  "mt-0.5 text-[0.65rem]",
+                  active ? "text-white/70" : "text-neutral-500"
+                )}
+              >
+                {tab.subtitle}
+              </p>
+            </button>
+          )
+        })}
+      </div>
 
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="min-w-0 space-y-3">
           <article className="border-2 border-mad-black bg-mad-white shadow-keycap-sm">
             <header className="flex items-start justify-between gap-2 border-b-2 border-mad-black bg-neutral-50 px-3 py-2">
               <div>
@@ -744,7 +744,7 @@ export function PackResultsEditor({
           </article>
         </div>
 
-        <div className="xl:sticky xl:top-4 xl:self-start">
+        <div className="mx-auto w-full max-w-[380px] shrink-0 xl:sticky xl:top-4 xl:mx-0 xl:w-[380px] xl:self-start">
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase">
               Live preview
@@ -828,6 +828,7 @@ export function PackResultsEditor({
             }}
             industry={industry}
             visualPresets={visualPresets}
+            stacked
           />
         </div>
       </div>

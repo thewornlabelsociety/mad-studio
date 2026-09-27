@@ -59,6 +59,21 @@ export type CampaignLedgerItem = {
   ai_takeaway: string | null
   asset_pack: unknown
   analytics: AnalyticsSnapshot | null
+  queue: CampaignQueuePost[]
+}
+
+/** A `public.scheduled_posts` row as shown in the campaigns ledger. */
+export type CampaignQueuePost = {
+  id: string
+  campaign_id: string | null
+  marketing_entity_id: string | null
+  platform: string
+  mode: string
+  status: string
+  scheduled_time: string
+  published_at: string | null
+  last_error: string | null
+  attempts: number
 }
 
 export function formatMoney(value: number | null | undefined): string {

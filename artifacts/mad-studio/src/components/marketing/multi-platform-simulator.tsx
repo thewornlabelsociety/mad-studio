@@ -170,6 +170,8 @@ type Props = {
   showPublishCta?: boolean
   /** Smaller phone chrome for side-by-side SOP layouts (laptop Step 3). */
   compact?: boolean
+  /** Phone on top with controls below, for narrow (~380px) side columns. */
+  stacked?: boolean
   /** Optional media tray / extras rendered in the Styling column. */
   mediaSlot?: ReactNode
   /** Lifted story preview (style + cutout) so Continue keeps the same phone. */
@@ -217,6 +219,7 @@ export function MultiPlatformSimulator({
   showActionDock = false,
   showPublishCta = true,
   compact = false,
+  stacked = false,
   mediaSlot = null,
   storyPreview: controlledPreview,
   onStoryPreviewChange,
@@ -1082,21 +1085,8 @@ export function MultiPlatformSimulator({
     </section>
   )
 
-  if (workbench) {
-    return (
-      <div
-        className={cn(
-          "flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:gap-4",
-          className
-        )}
-      >
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          {platformColumn}
-          {stylingColumn}
-        </div>
-        <div className="mx-auto w-full max-w-[300px] shrink-0 sm:mx-0">
-          {phoneShell}
-          {showActionDock && actionContext ? (
+  const actionDock =
+    showActionDock && actionContext ? (
             <div className="mt-2 flex w-full flex-col gap-1.5">
               {showPublishCta ? (
                 <button
@@ -1144,7 +1134,60 @@ export function MultiPlatformSimulator({
                 </button>
               </div>
             </div>
-          ) : null}
+          ) : null
+
+  if (workbench && stacked) {
+    return (
+      <div className={cn("flex w-full flex-col gap-3", className)}>
+        <div className="mx-auto w-full max-w-[360px] shrink-0">
+          {phoneShell}
+          {actionDock}
+        </div>
+        <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1">
+          {PLATFORM_OPTIONS.map((option) => {
+            const active = platform === option.id
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setPlatform(option.id)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 whitespace-nowrap border-2 border-mad-black px-2 py-1",
+                  active
+                    ? "bg-mad-black text-mad-white"
+                    : "bg-mad-white text-mad-black hover:bg-mad-lime"
+                )}
+              >
+                <span className="font-typewriter text-[0.6rem] font-bold tracking-wider uppercase">
+                  {option.label}
+                </span>
+                <span className="font-typewriter text-[0.5rem] opacity-70">
+                  {option.ratio}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        {stylingColumn}
+      </div>
+    )
+  }
+
+  if (workbench) {
+    return (
+      <div
+        className={cn(
+          "flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:gap-4",
+          className
+        )}
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          {platformColumn}
+          {stylingColumn}
+        </div>
+        <div className="mx-auto w-full max-w-[300px] shrink-0 sm:mx-0">
+          {phoneShell}
+          {actionDock}
         </div>
       </div>
     )

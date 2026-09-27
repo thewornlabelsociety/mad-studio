@@ -51,11 +51,12 @@ const CARDS: PlatformCardConfig[] = [
   {
     platform: "tiktok",
     title: "TikTok Business",
-    subtitle: "Dispatches via outbound webhook (Make / n8n)",
+    subtitle: "Direct Post via TikTok login (webhook as fallback)",
     accountLabel: "TikTok Business Account ID",
     tokenLabel: "Access token (optional)",
     schemaOnly: false,
-    readyNote: "Publishing posts a TikTok payload to your Outbound Webhook URL.",
+    readyNote:
+      "Publishing posts straight to TikTok with this connection. Without one, the payload goes to your Outbound Webhook URL.",
   },
 ]
 
