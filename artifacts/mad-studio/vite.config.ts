@@ -78,6 +78,17 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Replit routes /api to the api-server artifact; locally, proxy there.
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
+      '/r': {
+        target: process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,
