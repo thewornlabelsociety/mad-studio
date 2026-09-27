@@ -13,7 +13,8 @@ import { createClient } from "@/lib/supabase/server"
 export const runtime = "nodejs"
 
 function settingsRedirect(request: WebRequest, status: string, reason?: string) {
-  const url = new URL("/settings/social", request.url)
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://madstudio.nz"
+  const url = new URL("/settings/social", baseUrl)
   url.searchParams.set("status", status)
   if (reason) url.searchParams.set("reason", reason)
   return HttpResponse.redirect(url)
@@ -29,7 +30,8 @@ export async function GET(request: WebRequest) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    const login = new URL("/login", request.url)
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://madstudio.nz"
+    const login = new URL("/login", baseUrl)
     login.searchParams.set(
       "redirect",
       `${request.nextUrl.pathname}${request.nextUrl.search}`

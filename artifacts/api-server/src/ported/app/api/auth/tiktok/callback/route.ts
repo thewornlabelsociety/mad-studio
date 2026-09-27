@@ -19,10 +19,18 @@ function statesMatch(a: string, b: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right)
 }
 
-function finish(request: WebRequest, status: string, reason?: string) {
-  const url = new URL("/settings/social", request.url)
+function finish(
+  request: WebRequest,
+  status: string,
+  reason?: string,
+  entityId?: string
+) {
+  // request.url is the internal proxy address on Replit, not the public site.
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://madstudio.nz"
+  const url = new URL("/settings/social", baseUrl)
   url.searchParams.set("status", status)
   if (reason) url.searchParams.set("reason", reason.slice(0, 160))
+  if (entityId) url.searchParams.set("eid", entityId)
   const response = HttpResponse.redirect(url)
   response.cookies.set(TIKTOK_STATE_COOKIE, "", {
     path: "/api/auth/tiktok",
@@ -126,9 +134,9 @@ export async function GET(request: WebRequest) {
       },
       { onConflict: "entity_id,platform,account_id" }
     )
-    if (saveError) return finish(request, "tiktok_error", saveError.message)
+    if (saveError) return finish(request, "tiktok_error", saveError.message, saved.entityId)
 
-    return finish(request, "tiktok_connected")
+    return finish(request, "tiktok_connected", undefined, saved.entityId)
   } catch (err) {
     return finish(
       request,
