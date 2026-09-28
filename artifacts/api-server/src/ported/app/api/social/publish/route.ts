@@ -11,6 +11,10 @@ import type { Json } from "@/lib/database.types"
 import { ensurePublicMediaUrl } from "@/lib/social/ensure-public-media"
 import { publishToMeta } from "@/lib/social/meta-publisher"
 import { ensureTrackableLink } from "@/lib/social/link-tracker"
+import {
+  TIKTOK_SANDBOX_DISPATCH_NOTE,
+  tikTokMediaGuardError,
+} from "@/lib/social/tiktok-media-guard"
 import { publishToTikTok, resolveTikTokConnection } from "@/lib/social/tiktok-publisher"
 import {
   formatMetaDispatchError,
@@ -410,6 +414,11 @@ export async function POST(request: Request) {
         )
       }
 
+      const tiktokMediaError = tikTokMediaGuardError(mediaUrl)
+      if (tiktokMediaError) {
+        return HttpResponse.json({ error: tiktokMediaError }, { status: 400 })
+      }
+
       const tiktokConnection = await resolveTikTokConnection(supabase, entity.id)
       if (tiktokConnection) {
         const posted = await publishToTikTok({
@@ -459,7 +468,9 @@ export async function POST(request: Request) {
           platform: "tiktok",
           status: "dispatched",
           mediaId: posted.publishId,
-          message: `Sent to TikTok (${tiktokConnection.accountName}, ${posted.privacyLevel})`,
+          message: posted.publishId
+            ? `${TIKTOK_SANDBOX_DISPATCH_NOTE} (${tiktokConnection.accountName}, ${posted.privacyLevel})`
+            : `Sent to TikTok (${tiktokConnection.accountName}, ${posted.privacyLevel})`,
           shortUrl,
           slug,
           marketingEntityId: item?.id ?? null,

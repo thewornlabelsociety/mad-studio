@@ -50,6 +50,7 @@ import {
 import type { MarketingEntity } from "@/lib/inventory/types"
 import type { ActiveMedia } from "@/components/marketing/media-tray"
 import { detectMediaKindFromUrl } from "@/components/marketing/media-tray"
+import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
 import { trackableUrl } from "@/lib/social/types"
 import { cn } from "@/lib/utils"
 
@@ -658,6 +659,13 @@ export function MultiPlatformSimulator({
     }
     setBusy("publish")
     try {
+      if (platform === "tiktok") {
+        const tiktokMediaError = tikTokMediaGuardError(media)
+        if (tiktokMediaError) {
+          toast.error(tiktokMediaError)
+          return
+        }
+      }
       if (platform !== "email" && platform !== "tiktok") {
         await ensureLink()
       }
@@ -676,10 +684,7 @@ export function MultiPlatformSimulator({
           entityId: actionContext.entityId,
           marketingEntityId: actionContext.marketingEntityId,
           platform: apiPlatform,
-          placement:
-            platform === "ig_story" || isVideo
-              ? "story"
-              : "feed",
+          placement: platform === "ig_story" ? "story" : "feed",
           mediaUrl: media,
           caption: activeSlideText || content.caption || content.headline,
           destinationUrl: actionContext.destinationUrl,

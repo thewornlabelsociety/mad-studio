@@ -14,6 +14,7 @@ import {
   sendVipEmailViaResend,
   WLS_DEFAULT_ENTITY_ID,
 } from "@/lib/social/outbound-dispatch"
+import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
 import {
   isUuid,
   normalizeBrandKey,
@@ -388,6 +389,10 @@ export async function POST(request: Request) {
           { error: "mediaUrl is required for TikTok dispatch." },
           { status: 400 }
         )
+      }
+      const tiktokMediaError = tikTokMediaGuardError(mediaUrl)
+      if (tiktokMediaError) {
+        return NextResponse.json({ error: tiktokMediaError }, { status: 400 })
       }
       const webhookUrl = await resolveOutboundWebhookUrl(supabase, entity.id)
       if (!webhookUrl) {

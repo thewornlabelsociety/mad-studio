@@ -208,8 +208,9 @@ export function MultiChannelScheduler({
           ⚡ Apply Optimal Brain Timing
         </button>
         <p className="min-w-0 flex-1 font-typewriter text-[0.5rem] leading-relaxed text-neutral-600 normal-case">
-          Staggers each channel to its audience window — IG lunch / commute,
-          TikTok evening, Facebook morning, VIP email Tue / Thu 10am.
+          Staggers each channel to its audience window — IG Story lunch /
+          commute, IG Feed midday / evening, TikTok night, Facebook morning,
+          VIP email Tue / Thu 10am.
         </p>
       </div>
 

@@ -1,5 +1,6 @@
 export const SCHEDULER_CHANNELS = [
   "instagram_story",
+  "instagram_feed",
   "tiktok",
   "facebook",
   "email",
@@ -40,6 +41,11 @@ export const CHANNEL_META: Record<
     short: "Instagram",
     dispatchChannel: "instagram_story",
   },
+  instagram_feed: {
+    label: "Instagram Feed",
+    short: "IG Feed",
+    dispatchChannel: "instagram_feed",
+  },
   tiktok: { label: "TikTok Reel", short: "TikTok", dispatchChannel: "tiktok" },
   facebook: {
     label: "Facebook Page",
@@ -66,6 +72,10 @@ const TARGET_WINDOWS: Record<SchedulerChannel, TargetWindow[]> = {
     { hour: 12, minute: 30, tag: "Lunch Break Scroll" },
     { hour: 17, minute: 30, tag: "Commute Wind-Down" },
   ],
+  instagram_feed: [
+    { hour: 18, minute: 30, tag: "Evening Feed Browse" },
+    { hour: 12, minute: 0, tag: "Midday Feed Catch-up" },
+  ],
   tiktok: [{ hour: 20, minute: 15, tag: "Night Leisure Discovery" }],
   facebook: [{ hour: 7, minute: 30, tag: "Morning Feed Check-In" }],
   email: [
@@ -84,9 +94,13 @@ export function demographicTagFor(channel: SchedulerChannel, at?: Date): string 
     )
     if (match) return `${CHANNEL_META[channel].short}: ${match.tag}`
   }
-  if (channel === "instagram_story" && at) {
+  if (
+    (channel === "instagram_story" || channel === "instagram_feed") &&
+    at
+  ) {
+    const later = windows[1]?.tag ?? windows[0].tag
     return `${CHANNEL_META[channel].short}: ${
-      at.getHours() < 15 ? windows[0].tag : windows[1].tag
+      at.getHours() < 15 ? windows[0].tag : later
     }`
   }
   return `${CHANNEL_META[channel].short}: ${windows[0].tag}`
@@ -160,7 +174,7 @@ export function applyBrainTiming(
 
 const LEGACY_CHANNEL_MAP: Record<string, SchedulerChannel> = {
   instagram_story: "instagram_story",
-  instagram_feed: "instagram_story",
+  instagram_feed: "instagram_feed",
   instagram: "instagram_story",
   tiktok: "tiktok",
   facebook: "facebook",

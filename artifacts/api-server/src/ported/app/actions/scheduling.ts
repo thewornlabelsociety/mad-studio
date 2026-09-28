@@ -13,6 +13,7 @@ import {
   type ArmDispatchResult,
 } from "@/lib/scheduling/arm-queue"
 import type { ChannelSlot, SchedulerChannel } from "@/lib/scheduling/brain-timing"
+import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
 import type { ScheduledPostPayload } from "@/lib/scheduling/process-scheduled-posts"
 import { createClient } from "@/lib/supabase/server"
 
@@ -123,6 +124,13 @@ export async function armCampaignMultiChannelDispatch(input: {
       ok: false,
       error:
         "Arming needs a public https media URL — add or finish uploading media first.",
+    }
+  }
+
+  if (slots.some((slot) => slot.channel === "tiktok")) {
+    const tiktokMediaError = tikTokMediaGuardError(input.mediaUrl)
+    if (tiktokMediaError) {
+      return { ok: false, error: tiktokMediaError }
     }
   }
 

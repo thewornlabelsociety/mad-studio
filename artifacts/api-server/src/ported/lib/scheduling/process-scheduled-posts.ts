@@ -5,6 +5,7 @@ import {
   type CampaignPublishResult,
   type ServiceDispatchContext,
 } from "@/lib/social/publish-campaign"
+import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 type ScheduledPostRow = Database["public"]["Tables"]["scheduled_posts"]["Row"]
@@ -74,8 +75,13 @@ async function dispatchRow(
         platform: "facebook",
         placement: "feed",
       })
-    case "tiktok":
+    case "tiktok": {
+      const tiktokMediaError = tikTokMediaGuardError(mediaUrl)
+      if (tiktokMediaError) {
+        return { ok: false, error: tiktokMediaError }
+      }
       return dispatchOutboundChannel(ctx, { ...base, platform: "tiktok" })
+    }
     case "email":
       return dispatchOutboundChannel(ctx, { ...base, platform: "email" })
     default:
