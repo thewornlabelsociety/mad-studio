@@ -9,6 +9,7 @@ import type {
   StudioIntentChip,
 } from "@/lib/studio/entity-presets"
 import { scrubAgencyLeak } from "@/lib/inventory/context-hooks"
+import { fudiPlatformDefinitionBlock } from "@/lib/studio/fudi-platform"
 
 export type FudiAudienceTrack = "diners" | "partners"
 
@@ -46,37 +47,43 @@ const DINERS_TRACK: FudiTrackPresets = {
   label: "Track A: Diners & Foodies",
   shortLabel: "Track A · Diners",
   sparkPlaceholder:
-    'e.g. "Friday 4:30 PM decision fatigue? 3 local Whangārei spots with exclusive FÜDI Tap specials this weekend..."',
+    "e.g. Jovial Judge Tavern just dropped a Pavlova Cocktail for $14, or Mean's Vietnamese has 15 pork belly bao specials tonight only...",
   intentChips: [
-    { id: "friday_rush", label: "Friday Rush", intent: "Drive Sales" },
-    { id: "daily_special", label: "Daily Special", intent: "Drive Sales" },
-    { id: "fudi_tap_demo", label: "FÜDI Tap Demo", intent: "Build Hype" },
-    { id: "secret_menu", label: "Secret Menu", intent: "Build Hype" },
+    { id: "dish_drop", label: "Fresh Dish / Pass Drop", intent: "Build Hype" },
+    { id: "live_deal", label: "Live Deal / Mid-Week Drop", intent: "Drive Sales" },
+    { id: "weekend_event", label: "Weekend Event / Tour", intent: "Build Hype" },
+    { id: "pantry_maker", label: "Local Pantry / Maker", intent: "Drive Sales" },
   ],
   objectives: [
-    "Drive Friday Covers",
-    "Promote Daily Special",
-    "Demo FÜDI Tap",
-    "Unlock Secret Menu",
+    "Promote a Live Dish Drop",
+    "Push a Mid-Week Deal",
+    "Fill a Weekend Event",
+    "Spotlight a Pantry Maker",
   ],
   hookChips: [
     {
-      id: "appetite",
-      label: "Appetite Hook (0–2s)",
+      id: "dish_drop",
+      label: "🍕 Kitchen Pass Drop",
       template:
-        "Steam, crunch, first bite — your Friday table is one FÜDI Tap away.",
+        "Plated tonight at [Eatery Name]: [Dish Title]. Sizzling hot, live on the FÜDI map.",
     },
     {
-      id: "nfc",
-      label: "NFC Tap Convenience",
+      id: "live_deal",
+      label: "🏷️ Live Deal / Perk",
       template:
-        "No PDF menus. No scroll fatigue. Tap the table, claim the special, eat.",
+        "Just dropped on FÜDI: [Eatery Name] has [Deal Title]. Limited portions, claim via table tap.",
     },
     {
-      id: "local",
-      label: "Neighbourhood Guide",
+      id: "weekend_event",
+      label: "🎟️ Weekend Event / Tour",
       template:
-        "Whangārei weekend shortlist: three local kitchens with exclusive FÜDI Tap drops.",
+        "Weekend plans? [Event Title] hosted by [Eatery Name]. Check the lineup and RSVP on FÜDI.",
+    },
+    {
+      id: "pantry_maker",
+      label: "🍯 Local Hands Market",
+      template:
+        "Fresh from local hands: [Product Name] by [Maker]. Order direct on FÜDI Marketplace.",
     },
   ],
   outputFormats: [
@@ -84,15 +91,19 @@ const DINERS_TRACK: FudiTrackPresets = {
     "IG Story",
     "Search-optimized food tags",
   ],
-  defaultPersonaName: "The Local Foodie & Social Diner",
+  defaultPersonaName: "Unified Local Food Enthusiasts",
   fallbackAudience: [
     {
-      name: "The Local Foodie & Social Diner",
-      role: "Weekend diner",
-      pain: "Decision fatigue when picking where to eat with friends.",
-      desire: "Trusted local specials and instant discovery via FÜDI Tap.",
-      trigger: "A Friday rush or daily special that looks too good to skip.",
-      winning_rebuttal: "Skip the scroll — tap the special and claim the table.",
+      name: "Unified Local Food Enthusiasts",
+      role: "Local diners & weekend planners",
+      pain:
+        "Fragmented platform overload: bouncing between Google (outdated PDF menus), Instagram (non-shoppable photos), Facebook (buried flyers), and UberEats (marked-up fees). Disjointed apps cluttered with non-food noise.",
+      desire:
+        "One single place for everything local food: visual dish feeds, live mid-week deals, weekend event tickets, pantry marketplace, and instant tap-and-pay at the table.",
+      trigger:
+        "A concrete dish drop, limited deal, or weekend event from a venue they trust — surfaced on one map.",
+      winning_rebuttal:
+        "Stop app-hopping. FÜDI puts every dish, drop, event, and table menu in your town onto one live map.",
     },
   ],
   assetTabLabels: {
@@ -103,15 +114,14 @@ const DINERS_TRACK: FudiTrackPresets = {
     dm: "05 · Social Invite",
   },
   promptDirectives: [
-    "### FÜDI TRACK A — CONSUMER DINERS & FOODIES",
-    "Audience: local diners, foodies, and social groups deciding where to eat.",
-    "Lead with sensory food cues — aroma, texture, heat, crunch, steam, first-bite payoff.",
-    "Video hooks must land in 0–2 seconds with appetite-inducing visuals and spoken desire.",
-    "Sell instant NFC / FÜDI Tap convenience: one tap at the table, zero friction.",
-    "Explicitly eliminate clunky PDF menus, endless scrolling, and decision fatigue.",
+    "### FÜDI TRACK A — CONSUMER / UNIFIED LOCAL FOOD NETWORK",
+    "Audience: Unified Local Food Enthusiasts — tired of app-hopping across Google, Instagram, Facebook, and delivery markups.",
+    "Lead with sensory dish cues — pass timing, steam, crunch, real plates on a dark kinetic canvas.",
+    "Extract exact [Venue Name] and offer titles from the operator spark — never invent generic placeholders if the spark names them.",
+    "Frame Deals as exclusive local drops or limited-quantity perks — NEVER vouchers, discount codes, or coupon jargon.",
+    "Frame Events as weekend/evening social gatherings or food trails — NEVER sterile registrations or webinar tone.",
     "CTA links MUST use consumer redirect shape: /r/fudi-[dish-or-event] (kebab-case).",
-    "Prioritize TikTok Reel script, IG Story copy, and search-optimized food tags.",
-    "Default persona voice: The Local Foodie & Social Diner.",
+    "Default persona voice: Unified Local Food Enthusiasts.",
   ].join("\n"),
   slugPrefix: "fudi",
 }
@@ -295,12 +305,18 @@ function weaveFudiHook(input: {
   if (!visualCue && !textCue) return template
 
   const isAppetite =
-    chipId === "appetite" || chipId === "vibe" || chipId === "craving"
+    chipId === "appetite" ||
+    chipId === "vibe" ||
+    chipId === "craving" ||
+    chipId === "dish_drop" ||
+    chipId === "pantry_maker"
   const isConvenience =
     chipId === "nfc" ||
     chipId === "investment" ||
     chipId === "weekend" ||
-    chipId === "partner"
+    chipId === "partner" ||
+    chipId === "live_deal" ||
+    chipId === "weekend_event"
 
   if (isAppetite) {
     if (visualCue && textCue) {
@@ -360,11 +376,17 @@ export function buildFudiRedirectSlugSeed(
   return `${presets.slugPrefix}-${body}`
 }
 
+export function fudiMasterOperatingLawBlock(): string {
+  return fudiPlatformDefinitionBlock()
+}
+
 export function fudiTrackPromptBlock(
   track: FudiAudienceTrack | null | undefined
 ): string {
   if (!track) return ""
-  return resolveFudiTrackPresets(track).promptDirectives
+  return [fudiMasterOperatingLawBlock(), resolveFudiTrackPresets(track).promptDirectives]
+    .filter(Boolean)
+    .join("\n\n")
 }
 
 export function intentBiasForFudiChip(

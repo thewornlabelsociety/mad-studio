@@ -93,70 +93,73 @@ const WORN_LABEL_PRESETS: StudioEntityPresets = {
 const FUDI_PRESETS: StudioEntityPresets = {
   profileId: "fudi",
   sparkPlaceholder:
-    'e.g. "Friday 4:30 PM decision fatigue? 3 local Whangārei spots offering exclusive FÜDI Tap specials this weekend..." or "Announcing zero-commission founder partner onboarding for local cafes..."',
+    'e.g. Jovial Judge Tavern just dropped a Pavlova Cocktail for $14, or Mean\'s Vietnamese has 15 pork belly bao specials tonight only...',
   intentChips: [
     {
-      id: "fill_tables",
-      label: "Fill Tables / Specials",
-      intent: "Drive Sales",
-    },
-    {
-      id: "diner_app",
-      label: "Diner App / Tap Discovery",
+      id: "dish_drop",
+      label: "Fresh Dish / Pass Drop",
       intent: "Build Hype",
     },
     {
-      id: "b2b_partner",
-      label: "B2B Eatery Partner",
-      intent: "Get Inventory",
+      id: "live_deal",
+      label: "Live Deal / Mid-Week Drop",
+      intent: "Drive Sales",
     },
     {
-      id: "community",
-      label: "Community Event",
-      intent: "Teach AI",
+      id: "weekend_event",
+      label: "Weekend Event / Tour",
+      intent: "Build Hype",
+    },
+    {
+      id: "pantry_maker",
+      label: "Local Pantry / Maker",
+      intent: "Drive Sales",
     },
   ],
   objectives: [
-    "Promote Friday Specials",
-    "Onboard Eatery Partners",
-    "Drive FÜDI Tap Scans",
+    "Promote a Live Dish Drop",
+    "Push a Mid-Week Deal",
+    "Fill a Weekend Event",
+    "Spotlight a Pantry Maker",
   ],
   hookChips: [
     {
-      id: "craving",
-      label: "Craving / Dish Hook",
+      id: "dish_drop",
+      label: "🍕 Kitchen Pass Drop",
       template:
-        "Hot plate, cold drink, zero decision fatigue — tonight's neighbourhood special is waiting on FÜDI Tap.",
+        "Plated tonight at [Eatery Name]: [Dish Title]. Sizzling hot, live on the FÜDI map.",
     },
     {
-      id: "weekend",
-      label: "Weekend Dining Guide",
+      id: "live_deal",
+      label: "🏷️ Live Deal / Perk",
       template:
-        "Your Whangārei weekend table shortlist: three local spots with exclusive FÜDI Tap specials.",
+        "Just dropped on FÜDI: [Eatery Name] has [Deal Title]. Limited portions, claim via table tap.",
     },
     {
-      id: "spotlight",
-      label: "Local Eatery Spotlight",
+      id: "weekend_event",
+      label: "🎟️ Weekend Event / Tour",
       template:
-        "Independent kitchens, zero commission onboarding — meet the founder partners joining FÜDI this week.",
+        "Weekend plans? [Event Title] hosted by [Eatery Name]. Check the lineup and RSVP on FÜDI.",
+    },
+    {
+      id: "pantry_maker",
+      label: "🍯 Local Hands Market",
+      template:
+        "Fresh from local hands: [Product Name] by [Maker]. Order direct on FÜDI Marketplace.",
     },
   ],
   fallbackAudience: [
     {
-      name: "The Local Foodie & Social Diner",
-      role: "Weekend diner",
-      pain: "Decision fatigue when picking where to eat with friends.",
-      desire: "Trusted local specials and easy discovery via FÜDI Tap.",
-      trigger: "A Friday special or weekend dining guide from a spot they trust.",
-      winning_rebuttal: "Skip the scroll — tap the special and claim the table.",
-    },
-    {
-      name: "The Independent Eatery Owner / Chef",
-      role: "Hospitality partner",
-      pain: "Paying fees to fill seats and struggling to reach local diners.",
-      desire: "Zero-commission discovery that drives real covers.",
-      trigger: "Founder partner onboarding with neighbourhood reach.",
-      winning_rebuttal: "Fill tables with locals who already crave what you cook.",
+      name: "Unified Local Food Enthusiasts",
+      role: "Local diners & weekend planners",
+      pain:
+        "Fragmented platform overload: bouncing between Google (outdated PDF menus), Instagram (non-shoppable photos), Facebook (buried flyers), and UberEats (marked-up fees). Disjointed apps cluttered with non-food noise.",
+      desire:
+        "One single place for everything local food: visual dish feeds, live mid-week deals, weekend event tickets, pantry marketplace, and instant tap-and-pay at the table.",
+      trigger:
+        "A concrete dish drop, limited deal, or weekend event from a venue they trust — surfaced on one map.",
+      winning_rebuttal:
+        "Stop app-hopping. FÜDI puts every dish, drop, event, and table menu in your town onto one live map.",
     },
   ],
 }
@@ -278,6 +281,18 @@ function weaveStudioHook(input: {
   const isFood = profileId === "fudi"
 
   if (!visualCue && !textCue) return template
+
+  if (
+    chipId === "dish_drop" ||
+    chipId === "live_deal" ||
+    chipId === "weekend_event" ||
+    chipId === "pantry_maker"
+  ) {
+    if (textCue && textCue.length > 20) {
+      return ensurePeriod(textCue)
+    }
+    return template
+  }
 
   if (chipId === "vibe") {
     if (visualCue && textCue) {

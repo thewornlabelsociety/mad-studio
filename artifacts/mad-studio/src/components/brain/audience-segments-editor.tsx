@@ -11,6 +11,18 @@ import type { AudienceSegment } from "@/lib/entities/dna-schema"
 
 const SEGMENT_PRESETS: AudienceSegment[] = [
   {
+    name: "Unified Local Food Enthusiasts",
+    role: "Local diners & weekend planners",
+    pain:
+      "Fragmented platform overload: bouncing between Google (outdated PDF menus), Instagram (non-shoppable photos), Facebook (buried flyers), and UberEats (marked-up fees). Disjointed apps cluttered with non-food noise.",
+    desire:
+      "One single place for everything local food: visual dish feeds, live mid-week deals, weekend event tickets, pantry marketplace, and instant tap-and-pay at the table.",
+    trigger:
+      "A concrete dish drop, limited deal, or weekend event from a venue they trust — surfaced on one map.",
+    winning_rebuttal:
+      "Stop app-hopping. FÜDI puts every dish, drop, event, and table menu in your town onto one live map.",
+  },
+  {
     name: "18–27 Gen Z Quick Casual",
     role: "Students & young professionals",
     pain: "Decision fatigue on where to eat or shop on a budget",
@@ -172,7 +184,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
             </label>
             <label className="grid gap-1">
               <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
-                Acute pain
+                Pain we solve
               </span>
               <textarea
                 value={segment.pain}
@@ -185,7 +197,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
             </label>
             <label className="grid gap-1">
               <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
-                Core desire
+                What they really want
               </span>
               <textarea
                 value={segment.desire}
@@ -210,7 +222,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
             </label>
             <label className="grid gap-1">
               <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
-                Winning rebuttal
+                Objection / winning rebuttal
               </span>
               <textarea
                 value={segment.winning_rebuttal}

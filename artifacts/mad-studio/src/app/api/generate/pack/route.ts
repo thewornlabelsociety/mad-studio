@@ -17,9 +17,9 @@ import { buildStudioContext } from "@/lib/campaigns/pack-hydrate"
 import { packToStudioPreview } from "@/lib/campaigns/studio-preview"
 import type { Json } from "@/lib/database.types"
 import { scrubAgencyLeak } from "@/lib/inventory/context-hooks"
+import { isFudiHospitalityEntity } from "@/lib/studio/fudi-platform"
 import {
   buildFudiRedirectSlugSeed,
-  isFudiStudioEntity,
   type FudiAudienceTrack,
 } from "@/lib/studio/fudi-tracks"
 import { createClient } from "@/lib/supabase/server"
@@ -176,7 +176,8 @@ export async function POST(request: Request) {
 
     const entity = parseStudioEntity(entityRow)
 
-    const fudiTrack: FudiAudienceTrack | null = isFudiStudioEntity({
+    const fudiTrack: FudiAudienceTrack | null = isFudiHospitalityEntity({
+      id: entity.id,
       name: entity.name,
       industry: entity.industry,
     })

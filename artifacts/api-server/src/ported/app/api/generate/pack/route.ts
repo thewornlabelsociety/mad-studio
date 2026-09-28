@@ -1,4 +1,4 @@
-import { HttpResponse } from "@server/http-response"
+import { NextResponse } from "next/server"
 
 import { recordOrchestratedCall } from "@/lib/ai/metering"
 import { generateObjectWithFallback } from "@/lib/ai/orchestrator"
@@ -14,20 +14,12 @@ import {
   packToAssetPack,
 } from "@/lib/campaigns/pack-schema"
 import { buildStudioContext } from "@/lib/campaigns/pack-hydrate"
-import {
-  cleanHashtags,
-  dedupeSentences,
-  scrubCopyMarkers,
-  scrubInlineHashtags,
-  stripBareUrls,
-  stripInternalMarkers,
-} from "@/lib/copy/caption-hygiene"
 import { packToStudioPreview } from "@/lib/campaigns/studio-preview"
 import type { Json } from "@/lib/database.types"
 import { scrubAgencyLeak } from "@/lib/inventory/context-hooks"
+import { isFudiHospitalityEntity } from "@/lib/studio/fudi-platform"
 import {
   buildFudiRedirectSlugSeed,
-  isFudiStudioEntity,
   type FudiAudienceTrack,
 } from "@/lib/studio/fudi-tracks"
 import { createClient } from "@/lib/supabase/server"
@@ -95,13 +87,13 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return HttpResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.json()
     const parsed = generatePackRequestSchema.safeParse(body)
     if (!parsed.success) {
-      return HttpResponse.json(
+      return NextResponse.json(
         {
           error:
             "Intent, objective, persona, and raw spark (8–500 chars) are required.",
@@ -154,11 +146,11 @@ export async function POST(request: Request) {
     )
 
     if (accessError) {
-      return HttpResponse.json({ error: accessError.message }, { status: 500 })
+      return NextResponse.json({ error: accessError.message }, { status: 500 })
     }
 
     if (!canAccess) {
-      return HttpResponse.json(
+      return NextResponse.json(
         {
           error:
             "MULTI-BRAND ISOLATION ACTIVE. Verify Entity Access.",
@@ -176,7 +168,7 @@ export async function POST(request: Request) {
       .single()
 
     if (entityError || !entityRow) {
-      return HttpResponse.json(
+      return NextResponse.json(
         { error: entityError?.message ?? "Entity not found." },
         { status: 404 }
       )
@@ -184,7 +176,8 @@ export async function POST(request: Request) {
 
     const entity = parseStudioEntity(entityRow)
 
-    const fudiTrack: FudiAudienceTrack | null = isFudiStudioEntity({
+    const fudiTrack: FudiAudienceTrack | null = isFudiHospitalityEntity({
+      id: entity.id,
       name: entity.name,
       industry: entity.industry,
     })
@@ -296,42 +289,27 @@ export async function POST(request: Request) {
     })
     const durationMs = Date.now() - startTime
 
-    const scrubCopy = (text: string) => scrubCopyMarkers(scrubAgencyLeak(text))
-    const cleanTags = cleanHashtags(object.seo_caption.search_optimized_tags)
-    for (const fallback of [
-      entity.name,
-      "shoplocal",
-      "whangarei",
-      "newarrival",
-    ]) {
-      if (cleanTags.length >= 3) break
-      const [tag] = cleanHashtags([fallback])
-      if (tag && !cleanTags.includes(tag)) cleanTags.push(tag)
-    }
-
     const scrubbedPack = {
       ...object,
-      campaign_title:
-        stripInternalMarkers(object.campaign_title) || object.campaign_title,
       creative_hooks: object.creative_hooks
         ? {
-            vibe_styling: scrubCopy(object.creative_hooks.vibe_styling),
-            investment_condition: scrubCopy(
+            vibe_styling: scrubAgencyLeak(object.creative_hooks.vibe_styling),
+            investment_condition: scrubAgencyLeak(
               object.creative_hooks.investment_condition
             ),
-            local_instore: scrubCopy(object.creative_hooks.local_instore),
+            local_instore: scrubAgencyLeak(object.creative_hooks.local_instore),
           }
         : undefined,
       algorithmic_signals: {
         ...object.algorithmic_signals,
-        spoken_hook: scrubCopy(object.algorithmic_signals.spoken_hook),
-        on_screen_text: scrubCopy(object.algorithmic_signals.on_screen_text),
+        spoken_hook: scrubAgencyLeak(object.algorithmic_signals.spoken_hook),
+        on_screen_text: scrubAgencyLeak(
+          object.algorithmic_signals.on_screen_text
+        ),
       },
       seo_caption: {
-        caption_body: dedupeSentences(
-          scrubInlineHashtags(stripBareUrls(scrubCopy(object.seo_caption.caption_body)))
-        ),
-        search_optimized_tags: cleanTags,
+        ...object.seo_caption,
+        caption_body: scrubAgencyLeak(object.seo_caption.caption_body),
       },
     }
 
@@ -392,7 +370,7 @@ export async function POST(request: Request) {
 
     const preview = packToStudioPreview(scrubbedPack, campaignId)
 
-    return HttpResponse.json({
+    return NextResponse.json({
       pack: scrubbedPack,
       preview,
       campaignId,
@@ -403,6 +381,6 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     const { message, status } = humanizeRouteError(error)
-    return HttpResponse.json({ error: message }, { status })
+    return NextResponse.json({ error: message }, { status })
   }
 }

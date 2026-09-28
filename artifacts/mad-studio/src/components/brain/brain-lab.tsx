@@ -14,6 +14,7 @@ import {
 } from "@/lib/actions"
 import { BrainChat } from "@/app/brain/components/brain-chat"
 import { AudienceSegmentsEditor } from "@/components/brain/audience-segments-editor"
+import { ForbiddenWordsEditor } from "@/components/brain/forbidden-words-editor"
 import { BrainSuggestionBar } from "@/components/brain/brain-suggestion-bar"
 import { DnaIntakeWizard } from "@/components/brain/dna-intake-wizard"
 import { customerQuotePlaceholder } from "@/lib/brain/brain-industry-ui"
@@ -209,6 +210,7 @@ export function BrainLab({
         <TabsContent value="dna" className="mt-0 space-y-4">
           <VisualPresetCard entity={entity} />
           <DnaIntakeWizard entity={entity} />
+          <ForbiddenWordsEditor entity={entity} />
           <AudienceSegmentsEditor entity={entity} />
         </TabsContent>
 

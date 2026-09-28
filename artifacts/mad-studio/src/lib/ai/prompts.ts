@@ -3,9 +3,11 @@ import { industryBiasCopy, resolveIndustryProfile } from "@/lib/brands/industry-
 import type { MultiplexerIntent } from "@/lib/campaigns/multiplexer"
 import { intentBiasCopy } from "@/lib/campaigns/multiplexer"
 import {
+  fudiMasterOperatingLawBlock,
   fudiTrackPromptBlock,
   type FudiAudienceTrack,
 } from "@/lib/studio/fudi-tracks"
+import { isFudiHospitalityEntity } from "@/lib/studio/fudi-platform"
 
 /** Platform terms that must never appear in customer-facing copy. */
 export const PLATFORM_LEAK_BANS = [
@@ -112,7 +114,25 @@ export function buildClientPersonaLayer(input: {
     (Array.isArray((identity as { vibes?: string[] }).vibes) &&
       (identity as { vibes?: string[] }).vibes) ||
     profile.vibeTags
-  const forbidden = mergeForbiddenWords(identity.forbidden_words).join(", ")
+  const fudiExtras = isFudiHospitalityEntity({
+    id: input.entity.id,
+    name: input.entity.name,
+    industry: input.entity.industry,
+  })
+    ? [
+        "SYNERGY",
+        "DISRUPT",
+        "SAAS",
+        "SOFTWARE",
+        "CHEAP EATS",
+        "VOUCHER CODE",
+        "AGGREGATOR",
+        "THIRD-PARTY DELIVERY",
+      ]
+    : []
+  const forbidden = mergeForbiddenWords(identity.forbidden_words, fudiExtras).join(
+    ", "
+  )
   const valueProps = Object.entries(input.entity.value_propositions)
     .map(([key, value]) => `- ${key}: ${value}`)
     .join("\n")
@@ -268,7 +288,16 @@ export function buildCampaignPackPrompt(input: {
   fudiTrack?: FudiAudienceTrack | null
   fudiRedirectSlugSeed?: string | null
 }): string {
-  const trackBlock = fudiTrackPromptBlock(input.fudiTrack)
+  const isFudi = isFudiHospitalityEntity({
+    id: input.entity.id,
+    name: input.entity.name,
+    industry: input.entity.industry,
+  })
+  const trackBlock = isFudi
+    ? input.fudiTrack
+      ? fudiTrackPromptBlock(input.fudiTrack)
+      : fudiMasterOperatingLawBlock()
+    : ""
   const slugLine = input.fudiRedirectSlugSeed
     ? `Preferred trackable CTA slug for this pack: /r/${input.fudiRedirectSlugSeed} (append uniqueness if needed; keep the fudi- or partner- prefix).`
     : ""

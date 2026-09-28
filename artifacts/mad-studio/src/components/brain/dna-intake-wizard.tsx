@@ -8,6 +8,10 @@ import { toast } from "sonner"
 import { commitScrapedDna } from "@/lib/actions"
 import type { StudioEntityDna } from "@/lib/campaigns/entity-dna"
 import type { EntityDna } from "@/lib/entities/dna-schema"
+import {
+  FUDI_BRAND_COLORS,
+  isFudiHospitalityEntity,
+} from "@/lib/studio/fudi-platform"
 import { cn } from "@/lib/utils"
 
 type WizardStep = "source" | "proofing" | "calibrated"
@@ -52,7 +56,17 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
   const [draftDna, setDraftDna] = useState<EntityDna | null>(null)
   const [draftSourceUrl, setDraftSourceUrl] = useState<string | null>(null)
 
-  const displayDna = draftDna ?? (hasCoreDna(entity) ? toEntityDna(entity) : null)
+  const isFudi = isFudiHospitalityEntity({
+    id: entity.id,
+    name: entity.name,
+    industry: entity.industry,
+  })
+
+  const displayDna =
+    draftDna ??
+    (hasCoreDna(entity) || step === "calibrated"
+      ? toEntityDna(entity)
+      : null)
   const toneChips = useMemo(
     () =>
       displayDna ? splitToneDescriptors(displayDna.brand_identity.tone) : [],
@@ -262,26 +276,49 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
                 Visual Vibe
               </p>
               <p className="mt-3 text-sm leading-relaxed text-neutral-700">
-                {displayDna.brand_identity.visual_vibe}
+                {displayDna.brand_identity.visual_vibe?.trim() || "—"}
               </p>
-            </article>
-
-            <article className="border-2 border-mad-black bg-mad-white p-5 shadow-keycap lg:col-span-2">
-              <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase">
-                Forbidden Words · Brand Safety
+              {isFudi ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+                    Brand palette
+                  </span>
+                  {(
+                    [
+                      ["Canvas", FUDI_BRAND_COLORS.canvas],
+                      ["Accent", FUDI_BRAND_COLORS.accent],
+                      ["Pop", FUDI_BRAND_COLORS.pop],
+                    ] as const
+                  ).map(([label, hex]) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-white px-2 py-1 font-mono text-[0.6rem]"
+                    >
+                      <span
+                        className="size-4 border border-mad-black"
+                        style={{ background: hex }}
+                        aria-hidden
+                      />
+                      {label} {hex}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <p className="mt-4 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+                Forbidden words · brand safety
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {displayDna.brand_identity.forbidden_words.length === 0 ? (
                   <span className="text-sm text-neutral-500">
-                    No brand-safety tags extracted.
+                    No brand-safety tags on file — edit below on Core DNA.
                   </span>
                 ) : (
                   displayDna.brand_identity.forbidden_words.map((word) => (
                     <span
                       key={word}
-                      className="border border-mad-black bg-mad-lime px-2.5 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase"
+                      className="border-2 border-mad-black bg-mad-lime px-2.5 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase"
                     >
-                      #{word.replace(/^#/, "")}
+                      {word.startsWith("#") ? word : `#${word.replace(/^#/, "")}`}
                     </span>
                   ))
                 )}
@@ -309,19 +346,28 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
                     <div className="mt-2 grid gap-3 sm:grid-cols-2">
                       <p className="text-sm leading-relaxed text-neutral-700">
                         <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                          Acute pain
+                          Pain we solve
                         </span>
                         <br />
                         {segment.pain || "—"}
                       </p>
                       <p className="text-sm leading-relaxed text-neutral-700">
                         <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                          Core desire
+                          What they really want
                         </span>
                         <br />
                         {segment.desire || "—"}
                       </p>
                     </div>
+                    {segment.winning_rebuttal ? (
+                      <p className="mt-2 text-sm leading-relaxed text-neutral-700">
+                        <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+                          Objection / winning rebuttal
+                        </span>
+                        <br />
+                        {segment.winning_rebuttal}
+                      </p>
+                    ) : null}
                   </div>
                 ))}
               </div>

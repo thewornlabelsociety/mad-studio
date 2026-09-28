@@ -43,7 +43,12 @@ export function visualPresetsFromTheme(theme: BrandColorTheme): VisualPresets {
     canvas_color: theme.canvas,
     accent_color: theme.accent,
     text_color: theme.onCanvas,
-    font_family: theme.id.includes("obsidian") ? "serif" : "sans",
+    font_family:
+      theme.id.includes("obsidian") || theme.id.includes("kinetic")
+        ? "sans"
+        : theme.id.includes("warm")
+          ? "sans"
+          : "sans",
   }
 }
 

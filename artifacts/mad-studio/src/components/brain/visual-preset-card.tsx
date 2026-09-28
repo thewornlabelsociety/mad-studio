@@ -26,15 +26,15 @@ type Props = {
 
 /** MAD studio palette first, then brand-friendly neutrals. */
 const SWATCH_PRESETS = [
+  "#0A0A0A",
+  "#CCFF00",
+  "#FF007F",
   "#000000",
   "#FFFFFF",
-  "#CCFF00",
-  "#FF3B00",
   "#121211",
   "#0F3B2E",
   "#EDECE8",
-  "#FBF8F3",
-  "#E05A36",
+  "#FF3B00",
   "#241C18",
 ]
 
@@ -140,6 +140,11 @@ export function VisualPresetCard({ entity, className }: Props) {
               entity.brand_identity.core_mission ||
               "Brand visual tokens"}
           </p>
+          {entity.brand_identity.visual_vibe ? (
+            <p className="mt-2 text-xs leading-relaxed opacity-90">
+              {entity.brand_identity.visual_vibe}
+            </p>
+          ) : null}
         </div>
       </div>
 

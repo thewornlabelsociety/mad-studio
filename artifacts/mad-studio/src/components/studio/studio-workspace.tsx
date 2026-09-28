@@ -183,7 +183,7 @@ export function StudioWorkspace({
     const nextChips = trackPresets.intentChips
     const nextIntent = nextChips[0]
     skipIntentObjectiveSync.current = true
-    setIntentChipId(nextIntent?.id ?? "friday_rush")
+    setIntentChipId(nextIntent?.id ?? "dish_drop")
     setIntent(nextIntent?.intent ?? "Drive Sales")
     setObjective(trackPresets.objectives[0] ?? "")
     const preferredName = trackPresets.defaultPersonaName.toLowerCase()
