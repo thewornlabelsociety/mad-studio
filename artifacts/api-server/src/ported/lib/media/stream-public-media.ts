@@ -3,7 +3,10 @@ import { request as httpsRequest } from "node:https"
 import type { IncomingMessage } from "node:http"
 
 import { resolvePublicAddress } from "@/lib/media/safe-image-fetch"
-import { assertAllowedProxyMediaUrl } from "@/lib/media/proxy-allowed-hosts"
+import {
+  assertAllowedProxyMediaUrl,
+  parseProxyTargetUrl,
+} from "@/lib/media/proxy-allowed-hosts"
 
 const MAX_REDIRECTS = 4
 const PROXY_TIMEOUT_MS = 120_000
@@ -32,16 +35,27 @@ function requestStream(
 ): Promise<StreamResult> {
   return new Promise(async (resolve, reject) => {
     try {
-      const address = await resolvePublicAddress(
-        target.hostname.replace(/^\[|\]$/g, "")
-      )
+      const hostname = target.hostname.replace(/^\[|\]$/g, "").trim()
+      if (!hostname) {
+        reject(new Error("Media URL is missing a hostname."))
+        return
+      }
+
+      const address = await resolvePublicAddress(hostname)
+      if (!address.address?.trim()) {
+        reject(new Error(`Could not resolve ${hostname}.`))
+        return
+      }
+      const pinnedIp = address.address.trim()
+      const pinnedFamily = address.family === 6 ? 6 : 4
+
       const transport = target.protocol === "https:" ? httpsRequest : httpRequest
       const pinnedLookup = (
         _hostname: string,
         _options: unknown,
-        callback: (...args: unknown[]) => void
+        callback: (err: Error | null, ip: string, family: number) => void
       ) => {
-        callback(null, address.address, address.family)
+        callback(null, pinnedIp, pinnedFamily)
       }
 
       const headers: Record<string, string> = {
@@ -109,7 +123,7 @@ export async function openProxiedMediaStream(input: {
   sourceUrl: string
   rangeHeader?: string | undefined
 }): Promise<StreamResult & { contentType: string }> {
-  let target = assertAllowedProxyMediaUrl(input.sourceUrl)
+  let target = parseProxyTargetUrl(input.sourceUrl)
 
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
     const upstream = await requestStream(target, input.rangeHeader)

@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express"
 import { pipeline } from "node:stream/promises"
 
+import { parseProxyTargetUrl } from "../ported/lib/media/proxy-allowed-hosts"
 import { openProxiedMediaStream } from "../ported/lib/media/stream-public-media"
 
 const router = Router()
@@ -10,15 +11,32 @@ const router = Router()
  * GET /api/media/proxy?url=<encoded https://…supabase.co/…>
  */
 router.get("/api/media/proxy", async (req: Request, res: Response): Promise<void> => {
-  const rawUrl = typeof req.query.url === "string" ? req.query.url.trim() : ""
-  if (!rawUrl) {
-    res.status(400).json({ error: "url query parameter is required." })
+  const rawParam = req.query.url
+  const rawUrl =
+    typeof rawParam === "string"
+      ? rawParam.trim()
+      : Array.isArray(rawParam) && typeof rawParam[0] === "string"
+        ? rawParam[0].trim()
+        : ""
+
+  let targetUrl: URL
+  try {
+    targetUrl = parseProxyTargetUrl(rawUrl)
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Invalid target URL format"
+    const status = message.includes("Missing") || message.includes("Invalid")
+      ? 400
+      : message.includes("not allowed")
+        ? 403
+        : 400
+    res.status(status).json({ error: message })
     return
   }
 
   try {
     const upstream = await openProxiedMediaStream({
-      sourceUrl: rawUrl,
+      sourceUrl: targetUrl.href,
       rangeHeader: req.header("range") ?? undefined,
     })
 
@@ -49,7 +67,13 @@ router.get("/api/media/proxy", async (req: Request, res: Response): Promise<void
   } catch (error) {
     const message = error instanceof Error ? error.message : "Media proxy failed."
     if (!res.headersSent) {
-      res.status(message.includes("not allowed") ? 403 : 502).json({ error: message })
+      const status =
+        message.includes("Missing") || message.includes("Invalid target")
+          ? 400
+          : message.includes("not allowed") || message.includes("hostname")
+            ? 403
+            : 502
+      res.status(status).json({ error: message })
     }
   }
 })

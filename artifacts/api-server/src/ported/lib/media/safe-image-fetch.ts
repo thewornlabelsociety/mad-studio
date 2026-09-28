@@ -95,14 +95,22 @@ export function isPublicAddress(address: string): boolean {
 export async function resolvePublicAddress(hostname: string, lookup: Lookup = (host) =>
   dnsLookup(host, { all: true, verbatim: true })
 ): Promise<Address> {
-  const literalFamily = isIP(hostname);
+  const normalized = hostname.replace(/^\[|\]$/g, "").trim();
+  if (!normalized) {
+    throw new Error("Media URL is missing a hostname.");
+  }
+  const literalFamily = isIP(normalized);
   const records: Address[] = literalFamily
-    ? [{ address: hostname, family: literalFamily }]
-    : await lookup(hostname);
-  if (!records.length || records.some(({ address }) => !isPublicAddress(address))) {
+    ? [{ address: normalized, family: literalFamily }]
+    : await lookup(normalized);
+  if (!records.length || records.some(({ address }) => !address || !isPublicAddress(address))) {
     throw new Error("Image source must resolve only to public IP addresses.");
   }
-  return records[0]!;
+  const record = records.find((row) => row.address?.trim()) ?? records[0]!;
+  if (!record.address?.trim()) {
+    throw new Error(`Could not resolve ${normalized}.`);
+  }
+  return record;
 }
 
 function requestOnce(url: URL, address: Address): Promise<ImageResponse> {

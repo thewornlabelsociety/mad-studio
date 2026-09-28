@@ -14,18 +14,62 @@ export function isAllowedProxyMediaHost(hostname: string): boolean {
   )
 }
 
+function normalizeHostname(hostname: string): string {
+  return hostname.replace(/^\[|\]$/g, "").trim().toLowerCase()
+}
+
 export function assertAllowedProxyMediaUrl(raw: string): URL {
   let url: URL
   try {
-    url = new URL(raw)
+    url = new URL(raw.trim())
   } catch {
-    throw new Error("Media URL is invalid.")
+    throw new Error("Invalid target URL format")
   }
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
     throw new Error("Media URL must be a public HTTP(S) URL.")
   }
-  if (!isAllowedProxyMediaHost(url.hostname)) {
+  const host = normalizeHostname(url.hostname)
+  if (!host) {
+    throw new Error("Media URL is missing a hostname.")
+  }
+  if (!isAllowedProxyMediaHost(host)) {
     throw new Error("Media URL host is not allowed for proxying.")
   }
   return url
+}
+
+/** Decode nested `?url=` values (often double-encoded) and validate allowed upstream hosts. */
+export function parseProxyTargetUrl(raw: string): URL {
+  const trimmed = raw.trim()
+  if (!trimmed) {
+    throw new Error("Missing required 'url' query parameter")
+  }
+
+  let candidate = trimmed
+  for (let pass = 0; pass < 2; pass += 1) {
+    if (!candidate.includes("%")) break
+    try {
+      const decoded = decodeURIComponent(candidate)
+      if (
+        decoded !== candidate &&
+        (decoded.startsWith("http://") || decoded.startsWith("https://"))
+      ) {
+        candidate = decoded
+      } else {
+        break
+      }
+    } catch {
+      break
+    }
+  }
+
+  try {
+    return assertAllowedProxyMediaUrl(candidate)
+  } catch (firstError) {
+    try {
+      return assertAllowedProxyMediaUrl(new URL(candidate).href)
+    } catch {
+      throw firstError instanceof Error ? firstError : new Error("Invalid target URL format")
+    }
+  }
 }
