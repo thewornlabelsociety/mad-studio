@@ -179,6 +179,12 @@ type Props = {
   storyPreview?: StoryPreviewState
   onStoryPreviewChange?: (next: StoryPreviewState) => void
   actionContext?: ActionContext | null
+  /** Limit switcher to IG Story, IG Feed, and Facebook. */
+  metaChannelsOnly?: boolean
+  /** Parent owns platform tabs (e.g. pack editor). */
+  hidePlatformSwitcher?: boolean
+  /** Fixed 360×700 preview — no layout jump between channels. */
+  lockedViewport?: boolean
   className?: string
 }
 
@@ -225,6 +231,9 @@ export function MultiPlatformSimulator({
   storyPreview: controlledPreview,
   onStoryPreviewChange,
   actionContext = null,
+  metaChannelsOnly = false,
+  hidePlatformSwitcher = false,
+  lockedViewport = false,
   className,
 }: Props) {
   const captureRef = useRef<HTMLDivElement>(null)
@@ -481,10 +490,22 @@ export function MultiPlatformSimulator({
     })
   }, [item, content, industry, imageForCanvas, activeSlideText])
 
+  const platformOptions = useMemo(
+    () =>
+      metaChannelsOnly
+        ? PLATFORM_OPTIONS.filter((row) =>
+            ["ig_story", "ig_feed", "facebook"].includes(row.id)
+          )
+        : PLATFORM_OPTIONS,
+    [metaChannelsOnly]
+  )
+
   const pillMeta =
-    PLATFORM_OPTIONS.find((row) => row.id === platform) ?? PLATFORM_OPTIONS[0]
+    platformOptions.find((row) => row.id === platform) ?? platformOptions[0]
   // Compact shells sit in shrink-to-fit columns, so they need a fixed width.
-  const shellMax = compact
+  const shellMax = lockedViewport
+    ? "h-[700px] w-[360px] shrink-0"
+    : compact
     ? pillMeta.aspect === "email"
       ? "w-[280px] max-w-full"
       : pillMeta.aspect === "feed"
@@ -751,8 +772,8 @@ export function MultiPlatformSimulator({
   const phoneShell = (
     <div
       className={cn(
-        "transition-[max-width,width] duration-300 ease-out",
-        compact ? "shrink-0" : "w-full",
+        lockedViewport ? "" : "transition-[max-width,width] duration-300 ease-out",
+        compact || lockedViewport ? "shrink-0" : "w-full",
         shellMax
       )}
     >
@@ -900,7 +921,7 @@ export function MultiPlatformSimulator({
         Platform
       </p>
       <ul className="space-y-1">
-        {PLATFORM_OPTIONS.map((option) => {
+        {platformOptions.map((option) => {
           const active = platform === option.id
           return (
             <li key={option.id}>
@@ -1141,6 +1162,104 @@ export function MultiPlatformSimulator({
             </div>
           ) : null
 
+  const stylingDock =
+    showCreativeControls || platform === "ig_story" ? (
+      <div className="flex w-full max-w-[360px] flex-wrap items-center gap-1.5 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
+        <Select
+          value={bgPresetId}
+          onValueChange={(value) => {
+            if (value === "custom") {
+              patchPreview({ bgPresetId: "custom" })
+              colorInputRef.current?.click()
+              return
+            }
+            const preset = CANVAS_BG_PRESETS.find((row) => row.id === value)
+            if (!preset) return
+            patchPreview({
+              bgPresetId: preset.id,
+              canvasColor: preset.hex,
+            })
+          }}
+          disabled={platform !== "ig_story" || isVideo}
+        >
+          <SelectTrigger className="h-8 min-w-[7rem] flex-1 rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.6rem] uppercase shadow-keycap-sm disabled:opacity-40">
+            <span
+              className="size-3 border border-mad-black"
+              style={{ background: canvasColor }}
+            />
+            <SelectValue placeholder="Canvas" />
+          </SelectTrigger>
+          <SelectContent className="rounded-none border-2 border-mad-black">
+            {CANVAS_BG_PRESETS.slice(0, 4).map((preset) => (
+              <SelectItem
+                key={preset.id}
+                value={preset.id}
+                className="font-typewriter text-[0.65rem] uppercase"
+              >
+                {preset.label}
+              </SelectItem>
+            ))}
+            <SelectItem value="custom" className="font-typewriter text-[0.65rem] uppercase">
+              Custom…
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <input
+          ref={colorInputRef}
+          type="color"
+          value={canvasColor}
+          onChange={(event) => {
+            patchPreview({
+              bgPresetId: "custom",
+              canvasColor: event.target.value.toUpperCase(),
+            })
+          }}
+          className="sr-only"
+          aria-label="Custom canvas color"
+        />
+        {!isVideo ? (
+          <button
+            type="button"
+            onClick={() =>
+              cutoutActive
+                ? patchPreview({
+                    cutoutMode: "original",
+                    cutoutImageUrl: null,
+                  })
+                : void onIsolate()
+            }
+            disabled={busy === "cutout" || platform !== "ig_story"}
+            className={cn(
+              "inline-flex h-8 shrink-0 items-center gap-1 border-2 border-mad-black px-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm",
+              cutoutActive
+                ? "bg-mad-black text-mad-white"
+                : "bg-mad-white text-mad-black hover:bg-mad-lime",
+              platform !== "ig_story" && "opacity-40"
+            )}
+          >
+            {busy === "cutout" ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : cutoutActive ? (
+              <Undo2 className="size-3.5" />
+            ) : (
+              <Scissors className="size-3.5" />
+            )}
+            Cutout
+          </button>
+        ) : null}
+      </div>
+    ) : null
+
+  if (workbench && stacked && lockedViewport) {
+    return (
+      <div className={cn("flex w-full flex-col items-center gap-2", className)}>
+        {stylingDock}
+        {phoneShell}
+        {actionDock}
+      </div>
+    )
+  }
+
   if (workbench && stacked) {
     return (
       <div className={cn("flex w-full flex-col gap-3", className)}>
@@ -1148,8 +1267,9 @@ export function MultiPlatformSimulator({
           {phoneShell}
           {actionDock}
         </div>
+        {hidePlatformSwitcher ? null : (
         <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1">
-          {PLATFORM_OPTIONS.map((option) => {
+          {platformOptions.map((option) => {
             const active = platform === option.id
             return (
               <button
@@ -1173,7 +1293,8 @@ export function MultiPlatformSimulator({
             )
           })}
         </div>
-        {stylingColumn}
+        )}
+        {hidePlatformSwitcher ? null : stylingColumn}
       </div>
     )
   }
@@ -1187,8 +1308,8 @@ export function MultiPlatformSimulator({
         )}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-3">
-          {platformColumn}
-          {stylingColumn}
+          {hidePlatformSwitcher ? null : platformColumn}
+          {hidePlatformSwitcher ? stylingDock : stylingColumn}
         </div>
         <div className="mx-auto w-full max-w-[300px] shrink-0 sm:mx-0">
           {phoneShell}
@@ -1201,29 +1322,31 @@ export function MultiPlatformSimulator({
   return (
     <div className={cn("flex flex-col items-center gap-2", className)}>
       <div className="flex w-[280px] max-w-full flex-wrap justify-center gap-1">
-        {PLATFORM_OPTIONS.map((option) => {
-          const active = platform === option.id
-          return (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => setPlatform(option.id)}
-              className={cn(
-                "flex items-center gap-1.5 border-2 border-mad-black px-2 py-1 text-left",
-                active
-                  ? "bg-mad-black text-mad-white"
-                  : "bg-mad-white text-mad-black hover:bg-mad-lime"
-              )}
-            >
-              <span className="font-typewriter text-[0.6rem] font-bold tracking-wider uppercase">
-                {option.label}
-              </span>
-              <span className="font-typewriter text-[0.5rem] opacity-70">
-                {option.ratio}
-              </span>
-            </button>
-          )
-        })}
+        {hidePlatformSwitcher
+          ? null
+          : platformOptions.map((option) => {
+              const active = platform === option.id
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setPlatform(option.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 border-2 border-mad-black px-2 py-1 text-left",
+                    active
+                      ? "bg-mad-black text-mad-white"
+                      : "bg-mad-white text-mad-black hover:bg-mad-lime"
+                  )}
+                >
+                  <span className="font-typewriter text-[0.6rem] font-bold tracking-wider uppercase">
+                    {option.label}
+                  </span>
+                  <span className="font-typewriter text-[0.5rem] opacity-70">
+                    {option.ratio}
+                  </span>
+                </button>
+              )
+            })}
       </div>
       {phoneShell}
     </div>
@@ -1308,6 +1431,7 @@ function FeedChrome({
 }
 
 function VideoFill({ src }: { src: string }) {
+  const [muted, setMuted] = useState(true)
   return (
     <div className="absolute inset-0">
       <video
@@ -1315,9 +1439,16 @@ function VideoFill({ src }: { src: string }) {
         className="h-full w-full object-cover"
         autoPlay
         loop
-        muted
+        muted={muted}
         playsInline
       />
+      <button
+        type="button"
+        onClick={() => setMuted((value) => !value)}
+        className="absolute right-2 bottom-2 z-30 border border-white/40 bg-black/55 px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-white uppercase"
+      >
+        {muted ? "Sound off" : "Sound on"}
+      </button>
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
     </div>
   )

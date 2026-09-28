@@ -1,16 +1,16 @@
 "use client"
 
 import {
-  resolveFudiTrackPresets,
-  type FudiAudienceTrack,
-} from "@/lib/studio/fudi-tracks"
+  AUDIENCE_TONE_META,
+  AUDIENCE_TONES,
+  type AudienceTone,
+} from "@/lib/studio/audience-tone"
 import type { StudioIntentChip } from "@/lib/studio/entity-presets"
 import { cn } from "@/lib/utils"
 
 type IntentMatrixProps = {
-  showFudiTracks: boolean
-  fudiTrack: FudiAudienceTrack
-  onFudiTrackChange: (track: FudiAudienceTrack) => void
+  audienceTone: AudienceTone
+  onAudienceToneChange: (tone: AudienceTone) => void
   intentChips: StudioIntentChip[]
   intentChipId: string
   onIntentChipSelect: (chip: StudioIntentChip) => void
@@ -18,69 +18,51 @@ type IntentMatrixProps = {
 }
 
 export function IntentMatrix({
-  showFudiTracks,
-  fudiTrack,
-  onFudiTrackChange,
+  audienceTone,
+  onAudienceToneChange,
   intentChips,
   intentChipId,
   onIntentChipSelect,
   outputFormats = [],
 }: IntentMatrixProps) {
-  const trackPresets = showFudiTracks
-    ? resolveFudiTrackPresets(fudiTrack)
-    : null
-
   return (
     <div className="space-y-4">
-      {showFudiTracks ? (
-        <div className="space-y-2">
-          <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
-            Audience track
-          </p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {(
-              [
-                {
-                  id: "diners" as const,
-                  emoji: "🍽",
-                  label: "Track A: Diners & Foodies",
-                },
-                {
-                  id: "partners" as const,
-                  emoji: "🏢",
-                  label: "Track B: Eatery Partners (B2B)",
-                },
-              ] as const
-            ).map((option) => {
-              const active = fudiTrack === option.id
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => onFudiTrackChange(option.id)}
+      <div className="space-y-2">
+        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+          Audience tone
+        </p>
+        <div className="grid grid-cols-1 gap-2">
+          {AUDIENCE_TONES.map((tone) => {
+            const meta = AUDIENCE_TONE_META[tone]
+            const active = audienceTone === tone
+            return (
+              <button
+                key={tone}
+                type="button"
+                onClick={() => onAudienceToneChange(tone)}
+                className={cn(
+                  "border-2 border-mad-black px-3 py-2.5 text-left transition-colors",
+                  active
+                    ? "bg-mad-black text-mad-white shadow-keycap-sm"
+                    : "bg-mad-white text-mad-black hover:bg-mad-lime"
+                )}
+              >
+                <p className="font-typewriter text-[0.65rem] font-bold tracking-wider uppercase">
+                  {meta.label}
+                </p>
+                <p
                   className={cn(
-                    "border-2 border-mad-black px-3 py-2.5 text-left font-typewriter text-[0.65rem] font-bold tracking-wider uppercase transition-colors",
-                    active
-                      ? "bg-mad-black text-mad-white shadow-keycap-sm"
-                      : "bg-mad-white text-mad-black hover:bg-mad-lime"
+                    "mt-1 text-[0.65rem] leading-relaxed normal-case",
+                    active ? "text-white/75" : "text-neutral-600"
                   )}
                 >
-                  <span className="mr-1.5" aria-hidden>
-                    {option.emoji}
-                  </span>
-                  {option.label}
-                </button>
-              )
-            })}
-          </div>
-          {trackPresets ? (
-            <p className="text-xs leading-relaxed text-neutral-600">
-              Formats: {trackPresets.outputFormats.join(" · ")}. Default
-              persona: {trackPresets.defaultPersonaName}.
-            </p>
-          ) : null}
+                  {meta.promptCue}
+                </p>
+              </button>
+            )
+          })}
         </div>
-      ) : null}
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         {intentChips.map((chip) => {

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { Link } from "wouter"
 import { useRouter, useSearchParams } from "@/lib/next-compat"
-import { Loader2, Radio, Save } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -62,6 +62,10 @@ import {
   type ChannelSlot,
 } from "@/lib/scheduling/brain-timing"
 import {
+  AUDIENCE_TONE_META,
+  type AudienceTone,
+} from "@/lib/studio/audience-tone"
+import {
   buildStudioHookChips,
   resolveStudioPresets,
   type StudioIntentChip,
@@ -99,6 +103,8 @@ export function StudioWorkspace({
     [activeEntity.name, activeEntity.industry]
   )
   const [fudiTrack, setFudiTrack] = useState<FudiAudienceTrack>("diners")
+  const [audienceTone, setAudienceTone] =
+    useState<AudienceTone>("curated_millennial")
   const studioPresets = useMemo(() => {
     const base = resolveStudioPresets({
       name: activeEntity.name,
@@ -125,7 +131,18 @@ export function StudioWorkspace({
     () => studioPresets.intentChips[0]?.id ?? "drive_sales"
   )
   const objectives = studioPresets.objectives
+  const consumerIntentChips = useMemo(
+    () =>
+      studioPresets.intentChips.filter(
+        (chip) =>
+          !/commission|table talk|b2b|partner pitch|nfc table|linkedin update/i.test(
+            chip.label
+          )
+      ),
+    [studioPresets.intentChips]
+  )
   const [objective, setObjective] = useState(objectives[0] ?? "")
+  const toneGoalSuffix = AUDIENCE_TONE_META[audienceTone].promptCue
   const [personaId, setPersonaId] = useState(personas[0]?.id ?? "")
   const [rawSpark, setRawSpark] = useState("")
   const [activeHookId, setActiveHookId] = useState<string | null>(null)
@@ -667,7 +684,7 @@ export function StudioWorkspace({
         body: JSON.stringify({
           entityId: activeEntity.id,
           eventDescription: spark,
-          targetGoal: objective,
+          targetGoal: `${objective} — ${toneGoalSuffix}`,
           personaName: selectedPersona.name,
           intent,
           attachedImageUrl: apiImageUrl,
@@ -740,7 +757,7 @@ export function StudioWorkspace({
       const result = await saveCampaign({
         entityId: activeEntity.id,
         eventDescription: rawSpark.trim(),
-        targetGoal: objective,
+        targetGoal: `${objective} — ${toneGoalSuffix}`,
         targetSegment: selectedPersona?.name ?? null,
         pack,
         status,
@@ -785,7 +802,7 @@ export function StudioWorkspace({
       const result = await dispatchCampaignPack({
         entityId: activeEntity.id,
         eventDescription: rawSpark.trim(),
-        targetGoal: objective,
+        targetGoal: `${objective} — ${toneGoalSuffix}`,
         targetSegment: selectedPersona?.name ?? null,
         pack,
         status: "published",
@@ -825,7 +842,7 @@ export function StudioWorkspace({
       const saved = await saveCampaign({
         entityId: activeEntity.id,
         eventDescription: rawSpark.trim(),
-        targetGoal: objective,
+        targetGoal: `${objective} — ${toneGoalSuffix}`,
         targetSegment: selectedPersona?.name ?? null,
         pack,
         status: "draft",
@@ -921,10 +938,6 @@ export function StudioWorkspace({
         return
       }
       setWorkbenchStep(3)
-      return
-    }
-    if (showStudio) {
-      onArmPack()
       return
     }
     void activateMultiplexer()
@@ -1045,13 +1058,12 @@ export function StudioWorkspace({
 
               <div className="mt-4">
                 <IntentMatrix
-                  showFudiTracks={isFudi}
-                  fudiTrack={fudiTrack}
-                  onFudiTrackChange={applyFudiTrack}
-                  intentChips={studioPresets.intentChips}
+                  audienceTone={audienceTone}
+                  onAudienceToneChange={setAudienceTone}
+                  intentChips={consumerIntentChips}
                   intentChipId={intentChipId}
                   onIntentChipSelect={onIntentChipSelect}
-                  outputFormats={fudiTrackPresets?.outputFormats}
+                  outputFormats={fudiTrackPresets?.outputFormats ?? []}
                 />
               </div>
 
@@ -1237,31 +1249,6 @@ export function StudioWorkspace({
                   ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-none border-2 border-mad-black shadow-keycap-sm"
-                    disabled={pending}
-                    onClick={() => runSave("draft")}
-                  >
-                    <Save data-icon="inline-start" />
-                    Save Pack
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="rounded-none border-2 border-mad-black bg-mad-black text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
-                    disabled={pending}
-                    onClick={runDispatch}
-                  >
-                    {pending ? (
-                      <Loader2 className="animate-spin" data-icon="inline-start" />
-                    ) : (
-                      <Radio data-icon="inline-start" />
-                    )}
-                    Dispatch
-                  </Button>
                   <button
                     type="button"
                     onClick={startNewPack}
@@ -1296,6 +1283,7 @@ export function StudioWorkspace({
           onArm={onArmPack}
           saving={pending && !arming}
           arming={arming}
+          hideFooterActions
         />
       ) : null}
 
@@ -1314,7 +1302,6 @@ export function StudioWorkspace({
           intent={intent}
           industry={activeEntity.industry}
           visualPresets={activeEntity.brand_identity.visual_presets ?? null}
-          fudiTrack={isFudi ? fudiTrack : null}
           redirectSlugSeed={liveRedirectSlugSeed}
           onPackChange={onPackChange}
           onCampaignIdChange={onCampaignIdChange}
@@ -1325,15 +1312,15 @@ export function StudioWorkspace({
         step={workbenchStep}
         onBack={onStudioBack}
         onNext={onStudioNext}
-        nextBusy={multiplexing || pending}
-        nextLabel={
-          workbenchStep === 3
-            ? showStudio
-              ? "Confirm & Arm"
-              : "Generate pack"
-            : undefined
-        }
+        nextBusy={multiplexing || (pending && !arming)}
+        nextLabel={workbenchStep === 3 && !showStudio ? "Generate pack" : undefined}
         nextDisabled={workbenchStep === 2 && rawSpark.trim().length < 8}
+        showScheduleActions={workbenchStep === 3 && showStudio}
+        onSaveDraft={() => runSave("draft")}
+        saveDraftBusy={pending && !arming}
+        onConfirmArm={onArmPack}
+        confirmArmBusy={arming}
+        confirmArmDisabled={pending && !arming}
         className="fixed inset-x-0 bottom-0 z-40"
       />
     </div>

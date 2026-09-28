@@ -5,7 +5,7 @@ import { Check, Copy, Loader2, Redo2, Save, Undo2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { saveCampaign } from "@/lib/actions"
-import { MultiPlatformSimulator, type SimulatorPlatform } from "@/components/marketing/multi-platform-simulator"
+import { MultiPlatformSimulator } from "@/components/marketing/multi-platform-simulator"
 import { detectMediaKindFromUrl } from "@/components/marketing/media-tray"
 import { AutoTextarea } from "@/components/studio/auto-textarea"
 import { usePackHistory } from "@/components/studio/use-pack-history"
@@ -13,18 +13,11 @@ import type { MultiplexerIntent } from "@/lib/campaigns/multiplexer"
 import type { CampaignPack } from "@/lib/campaigns/pack-schema"
 import { stripMarkdown } from "@/lib/campaigns/pack-schema"
 import {
-  resolveFudiTrackPresets,
-  type FudiAudienceTrack,
-} from "@/lib/studio/fudi-tracks"
+  META_PREVIEW_CHANNELS,
+  type MetaPreviewChannel,
+} from "@/components/studio/meta-preview-channels"
 import { cn } from "@/lib/utils"
 import { trackableUrl } from "@/lib/social/types"
-
-export type PackAssetKey =
-  | "video"
-  | "carousel"
-  | "caption"
-  | "email"
-  | "dm"
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error"
 
@@ -41,73 +34,9 @@ type PackResultsEditorProps = {
   intent?: MultiplexerIntent
   visualPresets?: import("@/lib/entities/dna-schema").VisualPresets | null
   industry?: string | null
-  fudiTrack?: FudiAudienceTrack | null
   redirectSlugSeed?: string | null
   onPackChange: (pack: CampaignPack) => void
   onCampaignIdChange: (id: string) => void
-}
-
-function buildAssetTabs(fudiTrack?: FudiAudienceTrack | null): Array<{
-  key: PackAssetKey
-  label: string
-  subtitle: string
-  platform: SimulatorPlatform
-}> {
-  const labels = fudiTrack
-    ? resolveFudiTrackPresets(fudiTrack).assetTabLabels
-    : null
-
-  return [
-    {
-      key: "video",
-      label: labels?.video ?? "01 · Video Script",
-      subtitle:
-        fudiTrack === "diners"
-          ? "TikTok Reel · appetite hook"
-          : fudiTrack === "partners"
-            ? "Partner reel · covers pitch"
-            : "Hook · OCR · lines · CTA",
-      platform: "tiktok",
-    },
-    {
-      key: "carousel",
-      label: labels?.carousel ?? "02 · Carousel Slides",
-      subtitle:
-        fudiTrack === "partners"
-          ? "LinkedIn update frames"
-          : "Headline + body per slide",
-      platform: "ig_feed",
-    },
-    {
-      key: "caption",
-      label: labels?.caption ?? "03 · Caption",
-      subtitle:
-        fudiTrack === "diners"
-          ? "IG Story + search food tags"
-          : "Body + search tags",
-      platform: "ig_story",
-    },
-    {
-      key: "email",
-      label: labels?.email ?? "04 · Email",
-      subtitle:
-        fudiTrack === "partners"
-          ? "Founder cold email"
-          : "Subject · preview · body",
-      platform: "email",
-    },
-    {
-      key: "dm",
-      label: labels?.dm ?? "05 · B2B DM",
-      subtitle:
-        fudiTrack === "partners"
-          ? "Direct B2B Instagram DM"
-          : fudiTrack === "diners"
-            ? "Social invite DM"
-            : "Platform outreach message",
-      platform: "facebook",
-    },
-  ]
 }
 
 const AUTO_SAVE_MS = 800
@@ -133,14 +62,12 @@ export function PackResultsEditor({
   intent = "Drive Sales",
   visualPresets = null,
   industry = null,
-  fudiTrack = null,
   redirectSlugSeed = null,
   onPackChange,
   onCampaignIdChange,
 }: PackResultsEditorProps) {
-  const [activeKey, setActiveKey] = useState<PackAssetKey>(
-    fudiTrack === "partners" ? "dm" : "video"
-  )
+  const [metaChannel, setMetaChannel] =
+    useState<MetaPreviewChannel>("ig_story")
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const [manualSaving, setManualSaving] = useState(false)
   const [slugCopied, setSlugCopied] = useState(false)
@@ -149,10 +76,9 @@ export function PackResultsEditor({
   const skipAutoSaveRef = useRef(false)
   const packFingerprint = useMemo(() => JSON.stringify(pack), [pack])
   const mountedRef = useRef(false)
-  const assetTabs = useMemo(() => buildAssetTabs(fudiTrack), [fudiTrack])
-
-  const activeTab =
-    assetTabs.find((tab) => tab.key === activeKey) ?? assetTabs[0]
+  const activeChannelMeta =
+    META_PREVIEW_CHANNELS.find((row) => row.id === metaChannel) ??
+    META_PREVIEW_CHANNELS[0]
 
   function patchPack(updater: (current: CampaignPack) => CampaignPack) {
     history.beginEditBurst()
@@ -178,7 +104,7 @@ export function PackResultsEditor({
         mediaUrl,
         campaignId,
         intent,
-        fudiTrack,
+        fudiTrack: null,
       })
       if (!result.ok) {
         setSaveStatus("error")
@@ -259,40 +185,33 @@ export function PackResultsEditor({
   })
 
   async function copyActive() {
-    const text = (() => {
-      switch (activeKey) {
-        case "video":
-          return [
+    const text =
+      metaChannel === "ig_story"
+        ? [
             pack.algorithmic_signals.spoken_hook,
             pack.algorithmic_signals.on_screen_text,
             ...pack.short_video_script.spoken_lines,
             pack.short_video_script.cta_spoken,
           ].join("\n\n")
-        case "carousel":
-          return [
-            pack.carousel.title,
-            ...pack.carousel.slides.map(
-              (slide) =>
-                `Slide ${slide.slide_number}: ${slide.headline}\n${slide.body_text}`
-            ),
-          ].join("\n\n")
-        case "caption":
-          return [
+        : [
             pack.seo_caption.caption_body,
             pack.seo_caption.search_optimized_tags.join(" "),
           ].join("\n\n")
-        case "email":
-          return [
-            pack.email_drop.subject_line,
-            pack.email_drop.preview_text,
-            pack.email_drop.body_markdown,
-          ].join("\n\n")
-        case "dm":
-          return pack.b2b_dm.message_text
-      }
-    })()
     await navigator.clipboard.writeText(text)
-    toast.success(`${activeTab.label} copied.`)
+    toast.success(`${activeChannelMeta.label} copy ready.`)
+  }
+
+  async function copyForCapCut() {
+    const link = redirectSlugSeed ? trackableUrl(redirectSlugSeed) : ""
+    const text = [
+      pack.algorithmic_signals.spoken_hook,
+      pack.algorithmic_signals.on_screen_text,
+      link,
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+    await navigator.clipboard.writeText(text)
+    toast.success("CapCut clipboard ready — hook, on-screen text, and link.")
   }
 
   function runUndo() {
@@ -326,14 +245,11 @@ export function PackResultsEditor({
             Asset Studio Preview
           </p>
           <h2 className="font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-            Editable five-pack · live device sync
+            Meta channels · live preview
           </h2>
           <p className="mt-1 max-w-xl text-xs leading-relaxed text-neutral-600">
-            Open one tab to edit that channel. Use{" "}
-            <span className="font-medium text-mad-black">Copy this asset</span>{" "}
-            when you only need that piece.{" "}
-            <span className="font-medium text-mad-black">Dispatch</span> still
-            sends the full five-pack to automation.
+            One switcher drives copy and the locked phone preview. Schedule and
+            publish from the dock below.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -343,11 +259,7 @@ export function PackResultsEditor({
               type="button"
               onClick={() => void copyRedirectSlug()}
               className="inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-lime px-2.5 py-2 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase shadow-keycap-sm"
-              title={
-                fudiTrack === "partners"
-                  ? "Partner onboarding redirect"
-                  : "Consumer diner redirect"
-              }
+              title="Trackable redirect link"
             >
               {slugCopied ? (
                 <Check className="size-3.5" />
@@ -396,35 +308,32 @@ export function PackResultsEditor({
         </div>
       </div>
 
-      <div className="flex flex-nowrap gap-2 overflow-x-auto pb-2">
-        {assetTabs.map((tab) => {
-          const active = tab.key === activeKey
+      <div className="flex flex-wrap gap-2 pb-2">
+        {META_PREVIEW_CHANNELS.map((tab) => {
+          const active = tab.id === metaChannel
           return (
             <button
-              key={tab.key}
+              key={tab.id}
               type="button"
-              onClick={() => setActiveKey(tab.key)}
+              onClick={() => setMetaChannel(tab.id)}
               className={cn(
-                "shrink-0 whitespace-nowrap border-2 border-mad-black px-3 py-2 text-left shadow-keycap-sm",
+                "shrink-0 whitespace-nowrap border-2 border-mad-black px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest uppercase shadow-keycap-sm",
                 active
                   ? "bg-mad-black text-mad-white"
                   : "bg-mad-white text-mad-black hover:bg-mad-lime"
               )}
             >
-              <p className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
-                {tab.label}
-              </p>
-              <p
-                className={cn(
-                  "mt-0.5 text-[0.65rem]",
-                  active ? "text-white/70" : "text-neutral-500"
-                )}
-              >
-                {tab.subtitle}
-              </p>
+              {tab.label}
             </button>
           )
         })}
+        <button
+          type="button"
+          onClick={() => void copyForCapCut()}
+          className="shrink-0 border-2 border-mad-black bg-mad-lime px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-lime"
+        >
+          🎬 Copy for CapCut
+        </button>
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -434,7 +343,7 @@ export function PackResultsEditor({
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
-                    {activeTab.label}
+                    {activeChannelMeta.label}
                   </p>
                   <SaveStatusPill status={saveStatus} compact />
                 </div>
@@ -464,7 +373,7 @@ export function PackResultsEditor({
             </header>
 
             <div className="space-y-4 px-3 py-3">
-              {activeKey === "video" ? (
+              {metaChannel === "ig_story" ? (
                 <>
                   <div>
                     <FieldLabel>Spoken hook</FieldLabel>
@@ -537,80 +446,7 @@ export function PackResultsEditor({
                 </>
               ) : null}
 
-              {activeKey === "carousel" ? (
-                <>
-                  <div>
-                    <FieldLabel>Deck title</FieldLabel>
-                    <AutoTextarea
-                      value={pack.carousel.title}
-                      onValueChange={(value) =>
-                        patchPack((current) => ({
-                          ...current,
-                          carousel: { ...current.carousel, title: value },
-                        }))
-                      }
-                      onCommit={commitEdit}
-                      rows={1}
-                    />
-                  </div>
-                  {pack.carousel.slides.map((slide, index) => (
-                    <div
-                      key={`slide-${slide.slide_number}-${index}`}
-                      className="space-y-2 border border-neutral-200 p-2"
-                    >
-                      <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                        Slide {slide.slide_number}
-                      </p>
-                      <div>
-                        <FieldLabel>Headline</FieldLabel>
-                        <AutoTextarea
-                          value={slide.headline}
-                          onValueChange={(value) =>
-                            patchPack((current) => ({
-                              ...current,
-                              carousel: {
-                                ...current.carousel,
-                                slides: current.carousel.slides.map(
-                                  (entry, entryIndex) =>
-                                    entryIndex === index
-                                      ? { ...entry, headline: value }
-                                      : entry
-                                ),
-                              },
-                            }))
-                          }
-                          onCommit={commitEdit}
-                          rows={1}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel>Body</FieldLabel>
-                        <AutoTextarea
-                          value={slide.body_text}
-                          onValueChange={(value) =>
-                            patchPack((current) => ({
-                              ...current,
-                              carousel: {
-                                ...current.carousel,
-                                slides: current.carousel.slides.map(
-                                  (entry, entryIndex) =>
-                                    entryIndex === index
-                                      ? { ...entry, body_text: value }
-                                      : entry
-                                ),
-                              },
-                            }))
-                          }
-                          onCommit={commitEdit}
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : null}
-
-              {activeKey === "caption" ? (
+              {metaChannel === "ig_feed" || metaChannel === "facebook" ? (
                 <>
                   <div>
                     <FieldLabel>Caption body</FieldLabel>
@@ -652,99 +488,11 @@ export function PackResultsEditor({
                 </>
               ) : null}
 
-              {activeKey === "email" ? (
-                <>
-                  <div>
-                    <FieldLabel>Subject / headline</FieldLabel>
-                    <AutoTextarea
-                      value={pack.email_drop.subject_line}
-                      onValueChange={(value) =>
-                        patchPack((current) => ({
-                          ...current,
-                          email_drop: {
-                            ...current.email_drop,
-                            subject_line: value,
-                          },
-                        }))
-                      }
-                      onCommit={commitEdit}
-                      rows={1}
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>Preview text</FieldLabel>
-                    <AutoTextarea
-                      value={pack.email_drop.preview_text}
-                      onValueChange={(value) =>
-                        patchPack((current) => ({
-                          ...current,
-                          email_drop: {
-                            ...current.email_drop,
-                            preview_text: value,
-                          },
-                        }))
-                      }
-                      onCommit={commitEdit}
-                      rows={2}
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>Body</FieldLabel>
-                    <AutoTextarea
-                      value={pack.email_drop.body_markdown}
-                      onValueChange={(value) =>
-                        patchPack((current) => ({
-                          ...current,
-                          email_drop: {
-                            ...current.email_drop,
-                            body_markdown: value,
-                          },
-                        }))
-                      }
-                      onCommit={commitEdit}
-                      rows={8}
-                    />
-                  </div>
-                </>
-              ) : null}
-
-              {activeKey === "dm" ? (
-                <>
-                  <div>
-                    <FieldLabel>Platform</FieldLabel>
-                    <AutoTextarea
-                      value={pack.b2b_dm.platform}
-                      onValueChange={(value) =>
-                        patchPack((current) => ({
-                          ...current,
-                          b2b_dm: { ...current.b2b_dm, platform: value },
-                        }))
-                      }
-                      onCommit={commitEdit}
-                      rows={1}
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>Message / CTA</FieldLabel>
-                    <AutoTextarea
-                      value={pack.b2b_dm.message_text}
-                      onValueChange={(value) =>
-                        patchPack((current) => ({
-                          ...current,
-                          b2b_dm: { ...current.b2b_dm, message_text: value },
-                        }))
-                      }
-                      onCommit={commitEdit}
-                      rows={8}
-                    />
-                  </div>
-                </>
-              ) : null}
             </div>
           </article>
         </div>
 
-        <div className="mx-auto w-full max-w-[380px] shrink-0 xl:sticky xl:top-4 xl:mx-0 xl:w-[380px] xl:self-start">
+        <div className="mx-auto w-[360px] shrink-0 xl:sticky xl:top-4 xl:mx-0 xl:self-start">
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase">
               Live preview
@@ -778,11 +526,9 @@ export function PackResultsEditor({
                 pack.carousel.slides[0]?.headline ||
                 pack.campaign_title,
               caption:
-                activeKey === "dm"
-                  ? pack.b2b_dm.message_text
-                  : activeKey === "video"
-                    ? pack.algorithmic_signals.spoken_hook
-                    : pack.seo_caption.caption_body,
+                metaChannel === "ig_story"
+                  ? pack.algorithmic_signals.spoken_hook
+                  : pack.seo_caption.caption_body,
               imageUrl: mediaUrl,
               stickerLabel: "SHOP HERE",
               emailSubject: pack.email_drop.subject_line,
@@ -821,13 +567,22 @@ export function PackResultsEditor({
                 },
               }))
             }}
-            platform={activeTab.platform}
+            platform={metaChannel}
             onPlatformChange={(next) => {
-              const match = assetTabs.find((tab) => tab.platform === next)
-              if (match) setActiveKey(match.key)
+              if (
+                next === "ig_story" ||
+                next === "ig_feed" ||
+                next === "facebook"
+              ) {
+                setMetaChannel(next)
+              }
             }}
             industry={industry}
             visualPresets={visualPresets}
+            metaChannelsOnly
+            hidePlatformSwitcher
+            lockedViewport
+            showCreativeControls
             stacked
           />
         </div>

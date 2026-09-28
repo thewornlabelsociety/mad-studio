@@ -98,14 +98,14 @@ type StepDockProps = {
   nextLabel?: string
   nextDisabled?: boolean
   nextBusy?: boolean
-  /** When set on step 3, next CTA reflects the active simulator channel. */
-  dispatchPlatform?:
-    | "ig_story"
-    | "ig_feed"
-    | "tiktok"
-    | "facebook"
-    | "email"
-    | null
+  /** Step 3 schedule: save draft without arming. */
+  onSaveDraft?: () => void
+  saveDraftBusy?: boolean
+  /** Step 3 with pack: show Save Draft + Confirm & Arm instead of a single Continue. */
+  showScheduleActions?: boolean
+  onConfirmArm?: () => void
+  confirmArmBusy?: boolean
+  confirmArmDisabled?: boolean
   className?: string
 }
 
@@ -116,22 +116,16 @@ export function StepDock({
   nextLabel,
   nextDisabled = false,
   nextBusy = false,
-  dispatchPlatform = null,
+  onSaveDraft,
+  saveDraftBusy = false,
+  showScheduleActions = false,
+  onConfirmArm,
+  confirmArmBusy = false,
+  confirmArmDisabled = false,
   className,
 }: StepDockProps) {
-  const platformLabel =
-    dispatchPlatform === "tiktok"
-      ? "Dispatch TikTok"
-      : dispatchPlatform === "email"
-        ? "Dispatch Email"
-        : dispatchPlatform === "facebook"
-          ? "Dispatch Facebook"
-          : dispatchPlatform === "ig_feed"
-            ? "Dispatch Feed"
-            : "Publish Now"
   const primary =
-    nextLabel ??
-    (step === 3 ? platformLabel : `Continue`)
+    nextLabel ?? (step === 3 ? "Generate pack" : "Continue")
 
   return (
     <div
@@ -152,17 +146,38 @@ export function StepDock({
         >
           Back
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            onNext()
-            window.scrollTo({ top: 0, behavior: "smooth" })
-          }}
-          disabled={nextDisabled || nextBusy}
-          className="inline-flex min-w-[8.5rem] items-center justify-center border-2 border-mad-black bg-mad-black px-4 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
-        >
-          {nextBusy ? "Working…" : primary}
-        </button>
+        {showScheduleActions ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => onSaveDraft?.()}
+              disabled={saveDraftBusy || confirmArmBusy}
+              className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime disabled:opacity-40"
+            >
+              {saveDraftBusy ? "Saving…" : "💾 Save Draft"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onConfirmArm?.()}
+              disabled={confirmArmDisabled || confirmArmBusy || saveDraftBusy}
+              className="inline-flex min-w-[10rem] items-center justify-center border-2 border-mad-black bg-mad-black px-4 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
+            >
+              {confirmArmBusy ? "Arming…" : "🚀 Confirm & Arm"}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              onNext()
+              window.scrollTo({ top: 0, behavior: "smooth" })
+            }}
+            disabled={nextDisabled || nextBusy}
+            className="inline-flex min-w-[8.5rem] items-center justify-center border-2 border-mad-black bg-mad-black px-4 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
+          >
+            {nextBusy ? "Working…" : primary}
+          </button>
+        )}
       </div>
     </div>
   )

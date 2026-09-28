@@ -34,6 +34,8 @@ type Props = {
   arming?: boolean
   /** Already published — the queue can't be re-armed. */
   locked?: boolean
+  /** When true, primary Save / Arm actions live in the workspace dock only. */
+  hideFooterActions?: boolean
   className?: string
 }
 
@@ -46,6 +48,7 @@ export function MultiChannelScheduler({
   saving = false,
   arming = false,
   locked = false,
+  hideFooterActions = false,
   className,
 }: Props) {
   // Re-render periodically so "time has passed" warnings stay current.
@@ -307,24 +310,26 @@ export function MultiChannelScheduler({
         </ul>
       )}
 
-      <div className="flex flex-col gap-2 border-t border-mad-black/15 pt-3 sm:flex-row sm:items-center sm:justify-end">
-        <button
-          type="button"
-          onClick={onSaveDraft}
-          disabled={busy || locked}
-          className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime disabled:opacity-40"
-        >
-          {saving ? "Saving…" : "💾 Save Draft"}
-        </button>
-        <button
-          type="button"
-          onClick={onArm}
-          disabled={busy || locked || enabled.length === 0 || hasPastSlot}
-          className="border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-40"
-        >
-          {arming ? "Arming…" : "🚀 Confirm & Arm Multi-Channel Post"}
-        </button>
-      </div>
+      {hideFooterActions ? null : (
+        <div className="flex flex-col gap-2 border-t border-mad-black/15 pt-3 sm:flex-row sm:items-center sm:justify-end">
+          <button
+            type="button"
+            onClick={onSaveDraft}
+            disabled={busy || locked}
+            className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime disabled:opacity-40"
+          >
+            {saving ? "Saving…" : "💾 Save Draft"}
+          </button>
+          <button
+            type="button"
+            onClick={onArm}
+            disabled={busy || locked || enabled.length === 0 || hasPastSlot}
+            className="border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-40"
+          >
+            {arming ? "Arming…" : "🚀 Confirm & Arm Multi-Channel Post"}
+          </button>
+        </div>
+      )}
       {locked ? (
         <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
           Published — queue locked
