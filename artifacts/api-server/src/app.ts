@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import mediaProxyRouter from "./routes/media-proxy";
 import portedRouter from "./routes/ported";
 
 const app: Express = express();
@@ -34,6 +35,7 @@ app.use(["/api/actions/uploadEntityDocument", "/api/media/inspect", "/api/media/
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+app.use(mediaProxyRouter);
 app.use(portedRouter);
 app.use("/api", router);
 

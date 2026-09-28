@@ -7,6 +7,36 @@ type DbClient = ReturnType<typeof createAdminClient> | {
 const TIKTOK_API = "https://open.tiktokapis.com/v2"
 /** Unaudited / sandbox apps must post as private until TikTok approves the client. */
 const TIKTOK_POST_PRIVACY = "SELF_ONLY" as const
+const CANONICAL_SITE = "https://madstudio.nz"
+
+/** Wrap storage URLs so TikTok pulls from verified madstudio.nz, not supabase.co. */
+export function tiktokVerifiedMediaUrl(originalMediaUrl: string): string {
+  try {
+    const parsed = new URL(originalMediaUrl)
+    if (
+      parsed.hostname === "madstudio.nz" &&
+      parsed.pathname.startsWith("/api/media/proxy")
+    ) {
+      return originalMediaUrl
+    }
+  } catch {
+    /* invalid — still attempt wrap below */
+  }
+
+  const base = (() => {
+    const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+    if (!raw) return CANONICAL_SITE
+    try {
+      const url = new URL(raw)
+      if (url.hostname === "madstudio.nz") return url.origin
+    } catch {
+      /* fall through */
+    }
+    return CANONICAL_SITE
+  })()
+
+  return `${base.replace(/\/$/, "")}/api/media/proxy?url=${encodeURIComponent(originalMediaUrl)}`
+}
 
 export type TikTokConnection = {
   id: string
@@ -94,6 +124,7 @@ export async function publishToTikTok(input: {
   caption: string
 }): Promise<TikTokPublishResult> {
   const video = isVideoUrl(input.mediaUrl)
+  const mediaUrl = tiktokVerifiedMediaUrl(input.mediaUrl)
 
   try {
     const { status, envelope } = video
@@ -108,7 +139,7 @@ export async function publishToTikTok(input: {
               disable_duet: false,
               disable_stitch: false,
             },
-            source_info: { source: "PULL_FROM_URL", video_url: input.mediaUrl },
+            source_info: { source: "PULL_FROM_URL", video_url: mediaUrl },
           }
         )
       : await tiktokPost<{ publish_id?: string }>(
@@ -125,7 +156,7 @@ export async function publishToTikTok(input: {
             source_info: {
               source: "PULL_FROM_URL",
               photo_cover_index: 0,
-              photo_images: [input.mediaUrl],
+              photo_images: [mediaUrl],
             },
             post_mode: "DIRECT_POST",
             media_type: "PHOTO",
