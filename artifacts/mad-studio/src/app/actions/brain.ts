@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
+import { assertBrainEntityAccess } from "@/lib/brain/entity-access"
 import {
   guessDocType,
   type QuoteSource,
@@ -32,21 +33,14 @@ async function assertCanEdit(entityId: string) {
     return { supabase, user: null as null, error: "You must be signed in." }
   }
 
-  const { data: canEdit, error } = await supabase.rpc("has_entity_access", {
-    ent_id: entityId,
-    allowed_roles: ["entity_manager", "creator"],
+  const access = await assertBrainEntityAccess({
+    supabase,
+    userId: user.id,
+    entityId,
+    mode: "edit",
   })
-
-  if (error) {
-    return { supabase, user, error: error.message }
-  }
-
-  if (!canEdit) {
-    return {
-      supabase,
-      user,
-      error: "You need creator or manager access to edit the Brain Lab.",
-    }
+  if (!access.ok) {
+    return { supabase, user, error: access.error }
   }
 
   return { supabase, user, error: null as null }

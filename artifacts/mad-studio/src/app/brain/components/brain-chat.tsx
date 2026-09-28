@@ -9,31 +9,13 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { brandDirectorChips } from "@/lib/brain/brain-industry-ui"
 
 type BrainChatProps = {
   entityId: string
   entityName: string
+  industry: string
 }
-
-const SUGGESTION_CHIPS = [
-  {
-    id: "angles",
-    label: "💡 What should our next 3 content angles be?",
-    prompt: "What should our next 3 content angles be?",
-  },
-  {
-    id: "tone",
-    label: "🎯 Critique our current tone and suggest 3 new hooks",
-    prompt: "Critique our current tone and suggest 3 new hooks.",
-  },
-  {
-    id: "pitch",
-    label:
-      "🛍️ How would we pitch archival luxury to a skeptical first-time consignor?",
-    prompt:
-      "How would we pitch archival luxury to a skeptical first-time consignor?",
-  },
-] as const
 
 function messagePlainText(message: UIMessage): string {
   return message.parts
@@ -45,16 +27,58 @@ function messagePlainText(message: UIMessage): string {
     .trim()
 }
 
-export function BrainChat({ entityId, entityName }: BrainChatProps) {
+async function parseChatErrorResponse(response: Response): Promise<string> {
+  const contentType = response.headers.get("content-type") ?? ""
+  if (contentType.includes("application/json")) {
+    try {
+      const payload = (await response.json()) as {
+        error?: string
+        detail?: unknown
+        code?: string
+      }
+      if (payload.error) {
+        if (payload.code) {
+          return `${payload.error} (${payload.code})`
+        }
+        return payload.error
+      }
+    } catch {
+      // fall through
+    }
+  }
+  return `Chat request failed (${response.status}).`
+}
+
+export function BrainChat({
+  entityId,
+  entityName,
+  industry,
+}: BrainChatProps) {
   const router = useRouter()
   const [input, setInput] = useState("")
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [transportError, setTransportError] = useState<string | null>(null)
+
+  const suggestionChips = useMemo(
+    () => brandDirectorChips(industry, entityName),
+    [industry, entityName]
+  )
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/brain/chat",
         body: { entityId },
+        fetch: async (url, init) => {
+          setTransportError(null)
+          const response = await fetch(url, init)
+          if (!response.ok) {
+            const message = await parseChatErrorResponse(response)
+            setTransportError(message)
+            throw new Error(message)
+          }
+          return response
+        },
       }),
     [entityId]
   )
@@ -62,13 +86,18 @@ export function BrainChat({ entityId, entityName }: BrainChatProps) {
   const { messages, sendMessage, status, error, stop } = useChat({
     id: `brain-director-${entityId}`,
     transport,
+    onError: (err) => {
+      setTransportError(err.message)
+    },
   })
 
+  const displayError = transportError ?? error?.message ?? null
   const isBusy = status === "submitted" || status === "streaming"
 
   async function handleSend(text: string) {
     const trimmed = text.trim()
     if (!trimmed || isBusy) return
+    setTransportError(null)
     setInput("")
     await sendMessage({ text: trimmed })
   }
@@ -142,7 +171,7 @@ export function BrainChat({ entityId, entityName }: BrainChatProps) {
       </header>
 
       <div className="flex flex-wrap gap-2 border-b-2 border-mad-black px-4 py-3 sm:px-5">
-        {SUGGESTION_CHIPS.map((chip) => (
+        {suggestionChips.map((chip) => (
           <button
             key={chip.id}
             type="button"
@@ -222,9 +251,9 @@ export function BrainChat({ entityId, entityName }: BrainChatProps) {
             )
           })
         )}
-        {error ? (
+        {displayError ? (
           <p className="border-2 border-mad-vermillion px-3 py-2 text-sm text-mad-vermillion">
-            {error.message || "Chat failed. Try again."}
+            {displayError}
           </p>
         ) : null}
       </div>

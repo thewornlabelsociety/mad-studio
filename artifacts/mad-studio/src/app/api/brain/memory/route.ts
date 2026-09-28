@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { assertBrainEntityAccess } from "@/lib/brain/entity-access"
 import type { Json } from "@/lib/database.types"
 import { createClient } from "@/lib/supabase/server"
 
@@ -34,18 +35,14 @@ export async function POST(request: Request) {
 
     const { entityId, text, title } = parsed.data
 
-    const { data: canEdit, error: accessError } = await supabase.rpc(
-      "has_entity_access",
-      {
-        ent_id: entityId,
-        allowed_roles: ["entity_manager", "creator"],
-      }
-    )
-    if (accessError || !canEdit) {
-      return NextResponse.json(
-        { error: "You need creator or manager access to save memory." },
-        { status: 403 }
-      )
+    const access = await assertBrainEntityAccess({
+      supabase,
+      userId: user.id,
+      entityId,
+      mode: "edit",
+    })
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     const now = new Date().toISOString()

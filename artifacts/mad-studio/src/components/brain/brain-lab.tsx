@@ -13,8 +13,10 @@ import {
   uploadEntityDocument,
 } from "@/lib/actions"
 import { BrainChat } from "@/app/brain/components/brain-chat"
+import { AudienceSegmentsEditor } from "@/components/brain/audience-segments-editor"
 import { BrainSuggestionBar } from "@/components/brain/brain-suggestion-bar"
 import { DnaIntakeWizard } from "@/components/brain/dna-intake-wizard"
+import { customerQuotePlaceholder } from "@/lib/brain/brain-industry-ui"
 import { VisualPresetCard } from "@/components/brain/visual-preset-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -93,6 +95,11 @@ export function BrainLab({
       QUOTE_SOURCES.map((source) => [source.value, source.label])
     ) as Record<string, string>
   }, [])
+
+  const quotePlaceholder = useMemo(
+    () => customerQuotePlaceholder(entity.industry, entity.name),
+    [entity.industry, entity.name]
+  )
 
   async function handleFile(file: File) {
     setUploading(true)
@@ -202,6 +209,7 @@ export function BrainLab({
         <TabsContent value="dna" className="mt-0 space-y-4">
           <VisualPresetCard entity={entity} />
           <DnaIntakeWizard entity={entity} />
+          <AudienceSegmentsEditor entity={entity} />
         </TabsContent>
 
         <TabsContent value="docs" className="mt-0 space-y-4">
@@ -353,7 +361,7 @@ export function BrainLab({
               rows={3}
               value={quoteText}
               onChange={(event) => setQuoteText(event.target.value)}
-              placeholder='e.g. "Loved the dress, nobody could believe it was pre-loved!"'
+              placeholder={quotePlaceholder}
               className="rounded-none border-2 border-mad-black"
             />
             <div className="flex flex-wrap items-end gap-2">
@@ -485,7 +493,11 @@ export function BrainLab({
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0">
-          <BrainChat entityId={entity.id} entityName={entity.name} />
+          <BrainChat
+            entityId={entity.id}
+            entityName={entity.name}
+            industry={entity.industry}
+          />
         </TabsContent>
       </Tabs>
 

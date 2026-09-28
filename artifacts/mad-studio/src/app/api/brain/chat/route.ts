@@ -6,8 +6,23 @@ import {
 import { z } from "zod"
 
 import { resolvePrimaryLanguageModel } from "@/lib/ai/orchestrator"
+import { assertBrainEntityAccess } from "@/lib/brain/entity-access"
 import { parseStudioEntity } from "@/lib/campaigns/entity-dna"
 import { createClient } from "@/lib/supabase/server"
+
+function jsonError(
+  status: number,
+  error: string,
+  extra?: Record<string, unknown>
+) {
+  return new Response(
+    JSON.stringify({
+      error,
+      ...extra,
+    }),
+    { status, headers: { "Content-Type": "application/json" } }
+  )
+}
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -98,19 +113,15 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      })
+      return jsonError(401, "Unauthorized")
     }
 
     const raw = await request.json()
     const parsed = chatBodySchema.safeParse(raw)
     if (!parsed.success) {
-      return new Response(
-        JSON.stringify({ error: "Invalid chat payload." }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      )
+      return jsonError(400, "Invalid chat payload.", {
+        detail: parsed.error.flatten(),
+      })
     }
 
     const entityId =
@@ -121,24 +132,17 @@ export async function POST(request: Request) {
         : null)
 
     if (!entityId) {
-      return new Response(
-        JSON.stringify({ error: "entityId is required." }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      )
+      return jsonError(400, "entityId is required.")
     }
 
-    const { data: canAccess, error: accessError } = await supabase.rpc(
-      "has_entity_access",
-      {
-        ent_id: entityId,
-        allowed_roles: ["entity_manager", "creator", "viewer"],
-      }
-    )
-    if (accessError || !canAccess) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      })
+    const access = await assertBrainEntityAccess({
+      supabase,
+      userId: user.id,
+      entityId,
+      mode: "view",
+    })
+    if (!access.ok) {
+      return jsonError(access.status, access.error)
     }
 
     const { data: entityRow, error: entityError } = await supabase
@@ -150,10 +154,7 @@ export async function POST(request: Request) {
       .single()
 
     if (entityError || !entityRow) {
-      return new Response(JSON.stringify({ error: "Entity not found." }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      })
+      return jsonError(404, entityError?.message ?? "Entity not found.")
     }
 
     const entity = parseStudioEntity(entityRow)
@@ -190,12 +191,34 @@ export async function POST(request: Request) {
     })
 
     const messages = parsed.data.messages as UIMessage[]
-    const { model } = resolvePrimaryLanguageModel()
+
+    let model
+    try {
+      const resolved = resolvePrimaryLanguageModel()
+      model = resolved.model
+    } catch (modelError) {
+      const message =
+        modelError instanceof Error
+          ? modelError.message
+          : "AI model is not configured."
+      return jsonError(503, message, { code: "AI_MODEL_CONFIG" })
+    }
+
+    let modelMessages
+    try {
+      modelMessages = await convertToModelMessages(messages)
+    } catch (convertError) {
+      const message =
+        convertError instanceof Error
+          ? convertError.message
+          : "Could not read chat messages."
+      return jsonError(400, message, { code: "INVALID_MESSAGES" })
+    }
 
     const result = streamText({
       model,
       system,
-      messages: await convertToModelMessages(messages),
+      messages: modelMessages,
       temperature: 0.7,
       maxOutputTokens: 2048,
       abortSignal: request.signal,
@@ -206,9 +229,13 @@ export async function POST(request: Request) {
     console.error("[brain/chat]", error)
     const message =
       error instanceof Error ? error.message : "Brand Director chat failed."
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
+    const name = error instanceof Error ? error.name : "Error"
+    return jsonError(500, message, {
+      code: "BRAIN_CHAT_FAILED",
+      name,
+      ...(process.env.NODE_ENV !== "production"
+        ? { stack: error instanceof Error ? error.stack : String(error) }
+        : {}),
     })
   }
 }
