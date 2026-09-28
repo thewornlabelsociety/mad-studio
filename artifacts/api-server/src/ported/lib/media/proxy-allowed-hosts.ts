@@ -1,6 +1,20 @@
+function normalizeHostname(hostname: string): string {
+  return hostname.replace(/^\[|\]$/g, "").trim().toLowerCase()
+}
+
+/** Basic hostname shape before allowlist matching. */
+export function isValidProxyHostname(hostname: string): boolean {
+  const host = normalizeHostname(hostname)
+  if (!host || host.length > 253) return false
+  if (!/^[a-z0-9.-]+$/.test(host)) return false
+  if (host.startsWith(".") || host.endsWith(".") || host.includes("..")) return false
+  return true
+}
+
 /** Hostnames TikTok may pull from via /api/media/proxy (origin storage, not madstudio.nz). */
 export function isAllowedProxyMediaHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "")
+  if (!isValidProxyHostname(hostname)) return false
+  const host = normalizeHostname(hostname)
   if (host.endsWith(".supabase.co")) return true
   if (host.endsWith(".r2.dev")) return true
 
@@ -12,10 +26,6 @@ export function isAllowedProxyMediaHost(hostname: string): boolean {
   return extras.some(
     (allowed) => host === allowed || host.endsWith(`.${allowed}`)
   )
-}
-
-function normalizeHostname(hostname: string): string {
-  return hostname.replace(/^\[|\]$/g, "").trim().toLowerCase()
 }
 
 export function assertAllowedProxyMediaUrl(raw: string): URL {

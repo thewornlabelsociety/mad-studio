@@ -2,9 +2,10 @@ import { request as httpRequest } from "node:http"
 import { request as httpsRequest } from "node:https"
 import type { IncomingMessage } from "node:http"
 
-import { resolvePublicAddress } from "@/lib/media/safe-image-fetch"
+import { normalizePinnedAddress, resolvePublicAddress } from "@/lib/media/safe-image-fetch"
 import {
   assertAllowedProxyMediaUrl,
+  isAllowedProxyMediaHost,
   parseProxyTargetUrl,
 } from "@/lib/media/proxy-allowed-hosts"
 
@@ -36,18 +37,16 @@ function requestStream(
   return new Promise(async (resolve, reject) => {
     try {
       const hostname = target.hostname.replace(/^\[|\]$/g, "").trim()
-      if (!hostname) {
-        reject(new Error("Media URL is missing a hostname."))
+      if (!hostname || !isAllowedProxyMediaHost(hostname)) {
+        reject(new Error("Media URL host is not allowed for proxying."))
         return
       }
 
-      const address = await resolvePublicAddress(hostname)
-      if (!address.address?.trim()) {
-        reject(new Error(`Could not resolve ${hostname}.`))
-        return
-      }
-      const pinnedIp = address.address.trim()
-      const pinnedFamily = address.family === 6 ? 6 : 4
+      const resolved = await resolvePublicAddress(hostname)
+      const { address: pinnedIp, family: pinnedFamily } = normalizePinnedAddress(
+        resolved,
+        hostname
+      )
 
       const transport = target.protocol === "https:" ? httpsRequest : httpRequest
       const pinnedLookup = (

@@ -107,10 +107,34 @@ export async function resolvePublicAddress(hostname: string, lookup: Lookup = (h
     throw new Error("Image source must resolve only to public IP addresses.");
   }
   const record = records.find((row) => row.address?.trim()) ?? records[0]!;
-  if (!record.address?.trim()) {
-    throw new Error(`Could not resolve ${normalized}.`);
+  return normalizePinnedAddress(record, normalized);
+}
+
+export type PinnedAddress = { address: string; family: 4 | 6 };
+
+/** Normalize DNS results for Node HTTP pinned lookup (family must be 4 or 6). */
+export function normalizePinnedAddress(
+  record: Address,
+  hostnameForErrors: string
+): PinnedAddress {
+  const address = record.address?.trim();
+  if (!address) {
+    throw new Error(`Could not resolve ${hostnameForErrors}.`);
   }
-  return record;
+  const familyHint = isIP(address);
+  if (!familyHint) {
+    throw new Error(`Could not resolve ${hostnameForErrors}.`);
+  }
+  if (!isPublicAddress(address)) {
+    throw new Error("Image source must resolve only to public IP addresses.");
+  }
+  const family: 4 | 6 =
+    record.family === 6 || familyHint === 6
+      ? 6
+      : record.family === 4 || familyHint === 4
+        ? 4
+        : 4;
+  return { address, family };
 }
 
 function requestOnce(url: URL, address: Address): Promise<ImageResponse> {
