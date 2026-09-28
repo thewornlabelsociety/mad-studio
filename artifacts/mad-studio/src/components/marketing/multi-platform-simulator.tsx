@@ -10,8 +10,6 @@ import {
 import {
   Bookmark,
   Check,
-  ChevronLeft,
-  ChevronRight,
   ClipboardCopy,
   Disc3,
   Download,
@@ -185,6 +183,9 @@ type Props = {
   hidePlatformSwitcher?: boolean
   /** Fixed 360×700 preview — no layout jump between channels. */
   lockedViewport?: boolean
+  /** Controlled carousel slide (sync with Media Tray selection). */
+  slideIndex?: number
+  onSlideIndexChange?: (index: number) => void
   className?: string
 }
 
@@ -234,6 +235,8 @@ export function MultiPlatformSimulator({
   metaChannelsOnly = false,
   hidePlatformSwitcher = false,
   lockedViewport = false,
+  slideIndex: controlledSlideIndex,
+  onSlideIndexChange,
   className,
 }: Props) {
   const captureRef = useRef<HTMLDivElement>(null)
@@ -277,8 +280,21 @@ export function MultiPlatformSimulator({
     "link" | "publish" | "download" | "cutout" | null
   >(null)
   const [copied, setCopied] = useState(false)
-  const [slideIndex, setSlideIndex] = useState(0)
+  const [uncontrolledSlideIndex, setUncontrolledSlideIndex] = useState(0)
   const [localSlideTexts, setLocalSlideTexts] = useState<string[]>([])
+
+  const slideIndex = controlledSlideIndex ?? uncontrolledSlideIndex
+
+  function setSlideIndex(next: number) {
+    const clamped = Math.min(
+      Math.max(next, 0),
+      Math.max(slides.length - 1, 0)
+    )
+    if (controlledSlideIndex == null) {
+      setUncontrolledSlideIndex(clamped)
+    }
+    onSlideIndexChange?.(clamped)
+  }
 
   const slides = useMemo((): SimulatorCarouselItem[] => {
     if (carouselMedia && carouselMedia.length > 0) {
@@ -322,15 +338,35 @@ export function MultiPlatformSimulator({
   ])
 
   const isCarousel = slides.length > 1
+  const feedCarousel =
+    isCarousel && (platform === "ig_feed" || platform === "facebook")
   const safeSlideIndex = Math.min(
     Math.max(slideIndex, 0),
     Math.max(slides.length - 1, 0)
   )
   const activeSlide = slides[safeSlideIndex] ?? null
 
+  const slidesFingerprint = slides.map((row) => row.id ?? row.url).join("|")
+
   useEffect(() => {
     setSlideIndex(0)
-  }, [slides.map((row) => row.url).join("|")])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when slide set changes
+  }, [slidesFingerprint])
+
+  useEffect(() => {
+    if (slides.length === 0 || !activeMedia?.url) return
+    const needle = activeMedia.url.trim()
+    const idx = slides.findIndex(
+      (row) =>
+        row.url === needle ||
+        (row.publicUrl && row.publicUrl === needle) ||
+        row.url === activeMedia.url
+    )
+    if (idx >= 0 && idx !== safeSlideIndex) {
+      setSlideIndex(idx)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync tray → slide
+  }, [activeMedia?.url, slidesFingerprint])
 
   useEffect(() => {
     if (controlledSlideTexts) {
@@ -358,12 +394,10 @@ export function MultiPlatformSimulator({
 
   function goSlide(delta: number) {
     if (slides.length <= 1) return
-    setSlideIndex((current) => {
-      const next = current + delta
-      if (next < 0) return slides.length - 1
-      if (next >= slides.length) return 0
-      return next
-    })
+    const next = safeSlideIndex + delta
+    if (next < 0) setSlideIndex(slides.length - 1)
+    else if (next >= slides.length) setSlideIndex(0)
+    else setSlideIndex(next)
   }
 
   useEffect(() => {
@@ -769,6 +803,15 @@ export function MultiPlatformSimulator({
   const mediaUrl = resolvedMedia?.url ?? null
   const workbench = !compact
 
+  const stageAspectClass =
+    platform === "ig_feed" || platform === "facebook"
+      ? "aspect-[4/5]"
+      : platform === "ig_story" || platform === "tiktok"
+        ? "aspect-[9/16]"
+        : platform === "email"
+          ? "aspect-[9/16]"
+          : "aspect-[9/16]"
+
   const phoneShell = (
     <div
       className={cn(
@@ -786,117 +829,107 @@ export function MultiPlatformSimulator({
           <div className="pointer-events-none absolute top-[16px] left-1/2 z-30 h-[22px] w-[96px] -translate-x-1/2 rounded-full bg-black shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" />
 
           <div
-            className="relative overflow-hidden bg-black"
+            className={cn(
+              "relative flex overflow-hidden bg-black",
+              lockedViewport
+                ? "h-[622px] w-full items-center justify-center"
+                : "min-h-[280px] w-full items-center justify-center"
+            )}
             style={{ borderRadius: 35 }}
           >
-            {isCarousel ? (
-              <span className="pointer-events-none absolute top-3 right-3 z-40 border border-mad-black bg-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold text-mad-white">
-                {safeSlideIndex + 1} / {slides.length}
-              </span>
-            ) : null}
+            <div
+              className={cn(
+                "relative max-h-full max-w-full overflow-hidden",
+                stageAspectClass,
+                lockedViewport ? "h-full w-auto" : "w-full"
+              )}
+            >
+              {platform === "ig_story" ? (
+                <IgStoryChrome
+                  handle={handle}
+                  slideCount={slides.length}
+                  activeSlideIndex={safeSlideIndex}
+                  linkLabel={content.stickerLabel ?? "TAP TO VIEW"}
+                >
+                  {isVideo && mediaUrl ? (
+                    <VideoFill src={mediaUrl} fit="contain" />
+                  ) : imageForCanvas ? (
+                    <StoryMediaStage
+                      imageUrl={imageForCanvas}
+                      canvasColor={canvasColor}
+                      storyCanvas={
+                        <StoryCanvas
+                          model={storyModel}
+                          stylePreset={stylePreset}
+                          format="story_9_16"
+                          canvasColor={canvasColor}
+                          cutoutMode={cutoutMode}
+                          visualPresets={resolvedPresets}
+                          className="!aspect-auto h-full w-full max-w-none"
+                        />
+                      }
+                      useStoryCanvas={cutoutMode !== "original" || Boolean(item)}
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center bg-neutral-950 text-xs text-neutral-500">
+                      Add media
+                    </div>
+                  )}
+                </IgStoryChrome>
+              ) : null}
 
-            {platform === "ig_story" ? (
-              <IgStoryChrome handle={handle}>
-                {isVideo && mediaUrl ? (
-                  <VideoFill src={mediaUrl} />
-                ) : (
-                  <StoryCanvas
-                    model={storyModel}
-                    stylePreset={stylePreset}
-                    format="story_9_16"
-                    canvasColor={canvasColor}
-                    cutoutMode={cutoutMode}
-                    visualPresets={resolvedPresets}
-                    className="!aspect-auto absolute inset-0 h-full max-w-none"
+              {platform === "ig_feed" || platform === "facebook" ? (
+                <FeedChrome
+                  brandName={content.brandName}
+                  handle={handle}
+                  network={platform === "facebook" ? "facebook" : "instagram"}
+                >
+                  <FeedMediaStage
+                    slides={slides}
+                    slideIndex={safeSlideIndex}
+                    onSlideIndexChange={setSlideIndex}
+                    onPrev={() => goSlide(-1)}
+                    onNext={() => goSlide(1)}
+                    showCarousel={feedCarousel}
+                    headline={activeSlideText || content.headline}
+                    caption={content.caption}
                   />
-                )}
-              </IgStoryChrome>
-            ) : null}
+                </FeedChrome>
+              ) : null}
 
-            {platform === "ig_feed" || platform === "facebook" ? (
-              <FeedChrome
-                brandName={content.brandName}
-                handle={handle}
-                network={platform === "facebook" ? "facebook" : "instagram"}
-              >
-                <FeedBody
+              {platform === "tiktok" ? (
+                <TikTokChrome
+                  handle={handle}
+                  caption={
+                    activeSlideText || content.caption || content.headline
+                  }
                   mediaUrl={mediaUrl}
                   mediaType={isVideo ? "video" : "image"}
-                  headline={activeSlideText || content.headline}
-                  caption={content.caption}
                 />
-              </FeedChrome>
-            ) : null}
+              ) : null}
 
-            {platform === "tiktok" ? (
-              <TikTokChrome
-                handle={handle}
-                caption={
-                  activeSlideText || content.caption || content.headline
-                }
-                mediaUrl={mediaUrl}
-                mediaType={isVideo ? "video" : "image"}
-              />
-            ) : null}
-
-            {platform === "email" ? (
-              <EmailChrome
-                brandName={content.brandName}
-                subject={
-                  content.emailSubject || content.headline || "New arrival"
-                }
-                preview={
-                  content.emailPreview ||
-                  content.caption.slice(0, 90) ||
-                  "View the piece"
-                }
-                mediaUrl={mediaUrl}
-                mediaType={isVideo ? "video" : "image"}
-                cta={content.stickerLabel || "Shop now"}
-              />
-            ) : null}
+              {platform === "email" ? (
+                <EmailChrome
+                  brandName={content.brandName}
+                  subject={
+                    content.emailSubject || content.headline || "New arrival"
+                  }
+                  preview={
+                    content.emailPreview ||
+                    content.caption.slice(0, 90) ||
+                    "View the piece"
+                  }
+                  mediaUrl={mediaUrl}
+                  mediaType={isVideo ? "video" : "image"}
+                  cta={content.stickerLabel || "Shop now"}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
-
-        {isCarousel ? (
-          <>
-            <button
-              type="button"
-              aria-label="Previous slide"
-              onClick={() => goSlide(-1)}
-              className="absolute top-1/2 left-1 z-40 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white text-mad-black shadow-keycap-sm"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Next slide"
-              onClick={() => goSlide(1)}
-              className="absolute top-1/2 right-1 z-40 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white text-mad-black shadow-keycap-sm"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-            <div className="absolute inset-x-0 bottom-3 z-40 flex justify-center gap-1.5">
-              {slides.map((slide, index) => (
-                <button
-                  key={slide.id ?? slide.url}
-                  type="button"
-                  aria-label={`Go to slide ${index + 1}`}
-                  onClick={() => setSlideIndex(index)}
-                  className={cn(
-                    "size-2 border border-mad-black transition",
-                    index === safeSlideIndex
-                      ? "bg-mad-lime"
-                      : "bg-mad-white/40 hover:bg-mad-white/70"
-                  )}
-                />
-              ))}
-            </div>
-          </>
-        ) : null}
       </div>
 
-      {isCarousel ? (
+      {feedCarousel ? (
         <div className="mt-2 space-y-1 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
           <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
             Slide caption · {safeSlideIndex + 1}/{slides.length}
@@ -1356,18 +1389,30 @@ export function MultiPlatformSimulator({
 function IgStoryChrome({
   handle,
   children,
+  slideCount = 1,
+  activeSlideIndex = 0,
+  linkLabel,
 }: {
   handle: string
   children: ReactNode
+  slideCount?: number
+  activeSlideIndex?: number
+  linkLabel?: string
 }) {
+  const segments = Math.max(slideCount, 1)
   return (
-    <div className="relative aspect-[9/16] w-full overflow-hidden bg-neutral-950">
-      {children}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 space-y-2 px-3 pt-3">
+    <div className="relative flex aspect-[9/16] h-full w-full flex-col overflow-hidden bg-neutral-950">
+      <div className="relative z-10 flex h-[15%] min-h-[72px] shrink-0 flex-col justify-end gap-2 px-3 pb-2">
         <div className="flex gap-1">
-          <span className="h-[2px] flex-1 rounded-full bg-white" />
-          <span className="h-[2px] flex-1 rounded-full bg-white/35" />
-          <span className="h-[2px] flex-1 rounded-full bg-white/35" />
+          {Array.from({ length: segments }).map((_, index) => (
+            <span
+              key={`seg-${index}`}
+              className={cn(
+                "h-[2px] flex-1 rounded-full",
+                index === activeSlideIndex ? "bg-white" : "bg-white/35"
+              )}
+            />
+          ))}
         </div>
         <div className="flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-rose-400 text-[0.55rem] font-bold text-white">
@@ -1376,15 +1421,65 @@ function IgStoryChrome({
           <span className="text-[0.7rem] font-semibold text-white drop-shadow">
             @{handle}
           </span>
-          <span className="text-[0.65rem] text-white/70">3h</span>
+          <span className="text-[0.65rem] text-white/70">2h ago</span>
         </div>
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 bg-gradient-to-t from-black/50 to-transparent px-3 pt-8 pb-4">
+
+      <div className="relative z-0 min-h-0 flex-1">{children}</div>
+
+      <div className="pointer-events-none absolute inset-x-0 top-[58%] z-20 flex justify-center px-4">
+        <span className="rounded-full border border-white/50 bg-black/45 px-3 py-1.5 text-[0.65rem] font-semibold tracking-wide text-white shadow-lg backdrop-blur-sm">
+          🔗 {linkLabel ?? "TAP TO VIEW"}
+        </span>
+      </div>
+
+      <div className="relative z-10 flex h-[15%] min-h-[64px] shrink-0 items-center gap-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pt-4 pb-3">
         <div className="flex-1 rounded-full border border-white/40 px-3 py-2 text-[0.7rem] text-white/80">
-          Send message
+          Send message…
         </div>
-        <Heart className="size-5 text-white" />
-        <Share2 className="size-5 text-white" />
+        <Heart className="size-5 shrink-0 text-white" />
+        <Share2 className="size-5 shrink-0 text-white" />
+      </div>
+    </div>
+  )
+}
+
+function StoryMediaStage({
+  imageUrl,
+  canvasColor,
+  storyCanvas,
+  useStoryCanvas,
+}: {
+  imageUrl: string
+  canvasColor: string
+  storyCanvas: ReactNode
+  useStoryCanvas: boolean
+}) {
+  if (useStoryCanvas) {
+    return (
+      <div className="relative size-full overflow-hidden">{storyCanvas}</div>
+    )
+  }
+
+  return (
+    <div
+      className="relative size-full overflow-hidden"
+      style={{ backgroundColor: canvasColor }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={imageUrl}
+        alt=""
+        aria-hidden
+        className="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-xl"
+      />
+      <div className="absolute inset-0 flex items-center justify-center p-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt=""
+          className="max-h-full max-w-full object-contain shadow-lg"
+        />
       </div>
     </div>
   )
@@ -1402,8 +1497,8 @@ function FeedChrome({
   children: ReactNode
 }) {
   return (
-    <div className="flex aspect-[4/5] w-full flex-col overflow-hidden bg-white">
-      <div className="flex shrink-0 items-center gap-2.5 border-b border-neutral-100 px-3 py-2.5">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-white">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-neutral-100 px-3 py-2">
         <span className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-[0.65rem] font-bold text-white">
           {brandName.slice(0, 1).toUpperCase()}
         </span>
@@ -1417,8 +1512,8 @@ function FeedChrome({
         </div>
         <MoreHorizontal className="size-4 text-neutral-500" />
       </div>
-      <div className="min-h-0 flex-1">{children}</div>
-      <div className="flex shrink-0 items-center justify-between px-3 py-2.5">
+      <div className="min-h-0 shrink-0">{children}</div>
+      <div className="flex shrink-0 items-center justify-between px-3 py-2">
         <div className="flex items-center gap-3.5">
           <Heart className="size-5 text-neutral-900" />
           <MessageCircle className="size-5 text-neutral-900" />
@@ -1430,13 +1525,22 @@ function FeedChrome({
   )
 }
 
-function VideoFill({ src }: { src: string }) {
+function VideoFill({
+  src,
+  fit = "cover",
+}: {
+  src: string
+  fit?: "cover" | "contain"
+}) {
   const [muted, setMuted] = useState(true)
   return (
     <div className="absolute inset-0">
       <video
         src={src}
-        className="h-full w-full object-cover"
+        className={cn(
+          "h-full w-full",
+          fit === "contain" ? "object-contain" : "object-cover"
+        )}
         autoPlay
         loop
         muted={muted}
@@ -1454,40 +1558,114 @@ function VideoFill({ src }: { src: string }) {
   )
 }
 
-function FeedBody({
-  mediaUrl,
-  mediaType,
+function FeedMediaStage({
+  slides,
+  slideIndex,
+  onSlideIndexChange,
+  onPrev,
+  onNext,
+  showCarousel,
   headline,
   caption,
 }: {
-  mediaUrl: string | null
-  mediaType: "image" | "video"
+  slides: SimulatorCarouselItem[]
+  slideIndex: number
+  onSlideIndexChange: (index: number) => void
+  onPrev: () => void
+  onNext: () => void
+  showCarousel: boolean
   headline: string
   caption: string
 }) {
+  const active = slides[slideIndex] ?? slides[0] ?? null
+  const mediaUrl = active?.url ?? null
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="relative min-h-0 flex-1 overflow-hidden bg-neutral-100">
-        {mediaUrl && mediaType === "video" ? (
-          <VideoFill src={mediaUrl} />
-        ) : mediaUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={mediaUrl}
-            alt=""
-            className="absolute inset-0 size-full object-cover"
-          />
-        ) : (
-          <div className="flex size-full items-center justify-center text-xs text-neutral-400">
+    <div className="flex w-full flex-col">
+      <div className="relative aspect-[4/5] w-full shrink-0 overflow-hidden bg-neutral-100">
+        <div
+          className="flex h-full w-full transition-transform duration-300 ease-out"
+          style={{
+            transform: `translateX(-${(slideIndex * 100) / Math.max(slides.length, 1)}%)`,
+          }}
+        >
+          {slides.map((slide) => {
+            const kind =
+              slide.type === "video" ||
+              detectMediaKindFromUrl(slide.url) === "video"
+                ? "video"
+                : "image"
+            return (
+              <div
+                key={slide.id ?? slide.url}
+                className="relative h-full w-full shrink-0 basis-full overflow-hidden"
+              >
+                {kind === "video" ? (
+                  <VideoFill src={slide.url} />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={slide.url}
+                    alt=""
+                    className="absolute inset-0 size-full object-cover"
+                  />
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {!mediaUrl && slides.length === 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-neutral-400">
             Add media
           </div>
-        )}
+        ) : null}
+
+        {showCarousel ? (
+          <>
+            <span className="absolute top-2 right-2 z-30 border border-mad-black bg-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold text-mad-white">
+              {slideIndex + 1}/{slides.length}
+            </span>
+            <button
+              type="button"
+              aria-label="Previous slide"
+              onClick={onPrev}
+              className="absolute top-1/2 left-1 z-30 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white/95 font-typewriter text-xs font-bold text-mad-black shadow-keycap-sm transition hover:bg-mad-lime"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              aria-label="Next slide"
+              onClick={onNext}
+              className="absolute top-1/2 right-1 z-30 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white/95 font-typewriter text-xs font-bold text-mad-black shadow-keycap-sm transition hover:bg-mad-lime"
+            >
+              ›
+            </button>
+            <div className="absolute inset-x-0 bottom-2 z-30 flex justify-center gap-1.5">
+              {slides.map((slide, index) => (
+                <button
+                  key={slide.id ?? slide.url}
+                  type="button"
+                  aria-label={`Go to slide ${index + 1}`}
+                  onClick={() => onSlideIndexChange(index)}
+                  className={cn(
+                    "size-2.5 rounded-full border border-mad-black transition",
+                    index === slideIndex
+                      ? "scale-110 bg-mad-lime"
+                      : "bg-mad-white/70 hover:bg-mad-white"
+                  )}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
-      <div className="shrink-0 space-y-1 px-3 py-2">
-        <p className="line-clamp-1 text-[0.75rem] font-semibold text-neutral-900">
+      <div className="shrink-0 space-y-0.5 px-3 py-1.5">
+        <p className="line-clamp-1 text-[0.7rem] font-semibold text-neutral-900">
           {headline}
         </p>
-        <p className="line-clamp-2 text-[0.7rem] leading-relaxed text-neutral-600">
+        <p className="line-clamp-2 text-[0.65rem] leading-relaxed text-neutral-600">
           {caption}
         </p>
       </div>

@@ -1298,6 +1298,7 @@ export function StudioWorkspace({
           targetGoal={objective}
           targetSegment={selectedPersona?.name ?? null}
           mediaUrl={studioMediaUrl}
+          mediaAssets={mediaAssets}
           activeMedia={activeMedia}
           intent={intent}
           industry={activeEntity.industry}

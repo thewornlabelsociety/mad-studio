@@ -6,7 +6,10 @@ import { toast } from "sonner"
 
 import { saveCampaign } from "@/lib/actions"
 import { MultiPlatformSimulator } from "@/components/marketing/multi-platform-simulator"
-import { detectMediaKindFromUrl } from "@/components/marketing/media-tray"
+import {
+  detectMediaKindFromUrl,
+  type MediaAsset,
+} from "@/components/marketing/media-tray"
 import { AutoTextarea } from "@/components/studio/auto-textarea"
 import { usePackHistory } from "@/components/studio/use-pack-history"
 import type { MultiplexerIntent } from "@/lib/campaigns/multiplexer"
@@ -30,6 +33,7 @@ type PackResultsEditorProps = {
   targetGoal: string
   targetSegment: string | null
   mediaUrl: string | null
+  mediaAssets?: MediaAsset[]
   activeMedia?: import("@/components/marketing/media-tray").ActiveMedia | null
   intent?: MultiplexerIntent
   visualPresets?: import("@/lib/entities/dna-schema").VisualPresets | null
@@ -58,6 +62,7 @@ export function PackResultsEditor({
   targetGoal,
   targetSegment,
   mediaUrl,
+  mediaAssets = [],
   activeMedia = null,
   intent = "Drive Sales",
   visualPresets = null,
@@ -546,13 +551,29 @@ export function PackResultsEditor({
                 : null)
             }
             carouselMedia={
-              mediaUrl && pack.carousel.slides.length > 1
-                ? pack.carousel.slides.map((slide, index) => ({
-                    id: `pack-slide-${slide.slide_number ?? index}`,
-                    url: mediaUrl,
-                    type: detectMediaKindFromUrl(mediaUrl),
+              mediaAssets.length > 1
+                ? mediaAssets.map((asset) => ({
+                    id: asset.id,
+                    url: asset.url,
+                    publicUrl: asset.publicUrl,
+                    type: asset.type,
                   }))
-                : null
+                : mediaUrl && pack.carousel.slides.length > 1
+                  ? pack.carousel.slides.map((slide, index) => ({
+                      id: `pack-slide-${slide.slide_number ?? index}`,
+                      url: mediaUrl,
+                      type: detectMediaKindFromUrl(mediaUrl),
+                    }))
+                  : mediaAssets.length === 1
+                    ? [
+                        {
+                          id: mediaAssets[0].id,
+                          url: mediaAssets[0].url,
+                          publicUrl: mediaAssets[0].publicUrl,
+                          type: mediaAssets[0].type,
+                        },
+                      ]
+                    : null
             }
             slideTexts={pack.carousel.slides.map((slide) => slide.headline)}
             onSlideTextsChange={(texts) => {
