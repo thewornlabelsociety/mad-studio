@@ -17,6 +17,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ]);
 
 type Address = { address: string; family: number };
+export type PinnedAddress = { address: string; family: 4 | 6 };
 type Lookup = (hostname: string) => Promise<Address[]>;
 type ImageResponse = {
   status: number;
@@ -25,7 +26,7 @@ type ImageResponse = {
 };
 export type SafeImageDependencies = {
   lookup?: Lookup;
-  request?: (url: URL, address: Address) => Promise<ImageResponse>;
+  request?: (url: URL, address: Address | PinnedAddress) => Promise<ImageResponse>;
 };
 
 function ipv4IsPublic(address: string): boolean {
@@ -112,8 +113,6 @@ export async function resolvePublicAddress(hostname: string, lookup: Lookup = (h
   return normalizePinnedAddress(record, normalized);
 }
 
-export type PinnedAddress = { address: string; family: 4 | 6 };
-
 /** Normalize DNS results for Node HTTP pinned lookup (family must be 4 or 6). */
 export function normalizePinnedAddress(
   record: Address | Address[],
@@ -138,11 +137,11 @@ export function normalizePinnedAddress(
   return { address, family };
 }
 
-function requestOnce(url: URL, address: Address): Promise<ImageResponse> {
+function requestOnce(url: URL, address: Address | PinnedAddress): Promise<ImageResponse> {
   return new Promise((resolve, reject) => {
     const transport = url.protocol === "https:" ? httpsRequest : httpRequest;
-    const pinned = normalizePinnedAddress(address, url.hostname);
-    const pinnedLookup = createPinnedLookup(pinned.address);
+    const pinnedIp = address.address;
+    const pinnedLookup = createPinnedLookup(pinnedIp);
     const outgoing = transport(
       {
         protocol: url.protocol,
