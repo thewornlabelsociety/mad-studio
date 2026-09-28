@@ -96,7 +96,7 @@ export function isPublicAddress(address: string): boolean {
 
 export async function resolvePublicAddress(hostname: string, lookup: Lookup = (host) =>
   dnsLookup(host, { all: true, verbatim: true })
-): Promise<Address> {
+): Promise<PinnedAddress> {
   const normalized = hostname.replace(/^\[|\]$/g, "").trim();
   if (!normalized) {
     throw new Error("Media URL is missing a hostname.");
@@ -116,10 +116,11 @@ export type PinnedAddress = { address: string; family: 4 | 6 };
 
 /** Normalize DNS results for Node HTTP pinned lookup (family must be 4 or 6). */
 export function normalizePinnedAddress(
-  record: Address,
+  record: Address | Address[],
   hostnameForErrors: string
 ): PinnedAddress {
-  const address = record.address?.trim();
+  const rec = Array.isArray(record) ? record[0] : record;
+  const address = rec?.address?.trim();
   if (!address) {
     throw new Error(`Could not resolve ${hostnameForErrors}.`);
   }
@@ -131,11 +132,9 @@ export function normalizePinnedAddress(
     throw new Error("Image source must resolve only to public IP addresses.");
   }
   const family: 4 | 6 =
-    record.family === 6 || familyHint === 6
+    rec.family === 6 || familyHint === 6
       ? 6
-      : record.family === 4 || familyHint === 4
-        ? 4
-        : 4;
+      : 4;
   return { address, family };
 }
 

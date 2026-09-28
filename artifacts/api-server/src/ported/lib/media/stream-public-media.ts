@@ -44,7 +44,8 @@ function requestStream(
       }
 
       const resolved = await resolvePublicAddress(hostname)
-      const { address: pinnedIp } = normalizePinnedAddress(resolved, hostname)
+      const addressRecord = Array.isArray(resolved) ? resolved[0] : resolved
+      const { address: pinnedIp } = normalizePinnedAddress(addressRecord, hostname)
 
       const transport = target.protocol === "https:" ? httpsRequest : httpRequest
       const pinnedLookup = createPinnedLookup(pinnedIp)
