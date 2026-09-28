@@ -2,6 +2,7 @@ import { request as httpRequest } from "node:http"
 import { request as httpsRequest } from "node:https"
 import type { IncomingMessage } from "node:http"
 
+import { createPinnedLookup } from "@/lib/media/pinned-dns-lookup"
 import { normalizePinnedAddress, resolvePublicAddress } from "@/lib/media/safe-image-fetch"
 import {
   assertAllowedProxyMediaUrl,
@@ -43,19 +44,10 @@ function requestStream(
       }
 
       const resolved = await resolvePublicAddress(hostname)
-      const { address: pinnedIp, family: pinnedFamily } = normalizePinnedAddress(
-        resolved,
-        hostname
-      )
+      const { address: pinnedIp } = normalizePinnedAddress(resolved, hostname)
 
       const transport = target.protocol === "https:" ? httpsRequest : httpRequest
-      const pinnedLookup = (
-        _hostname: string,
-        _options: unknown,
-        callback: (err: Error | null, ip: string, family: number) => void
-      ) => {
-        callback(null, pinnedIp, pinnedFamily)
-      }
+      const pinnedLookup = createPinnedLookup(pinnedIp)
 
       const headers: Record<string, string> = {
         Accept: "*/*",

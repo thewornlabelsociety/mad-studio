@@ -1,5 +1,7 @@
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
+
+import { createPinnedLookup } from "@/lib/media/pinned-dns-lookup";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 
@@ -140,9 +142,8 @@ export function normalizePinnedAddress(
 function requestOnce(url: URL, address: Address): Promise<ImageResponse> {
   return new Promise((resolve, reject) => {
     const transport = url.protocol === "https:" ? httpsRequest : httpRequest;
-    const pinnedLookup = (_hostname: string, _options: unknown, callback: (...args: any[]) => void) => {
-      callback(null, address.address, address.family);
-    };
+    const pinned = normalizePinnedAddress(address, url.hostname);
+    const pinnedLookup = createPinnedLookup(pinned.address);
     const outgoing = transport(
       {
         protocol: url.protocol,
