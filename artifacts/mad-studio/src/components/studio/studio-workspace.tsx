@@ -735,7 +735,7 @@ export function StudioWorkspace({
   }
 
   function runSave(status: "draft" | "published") {
-    if (!pack) return
+    if (!pack) { toast.error("Generate or select your pack copy in Step 2 before arming."); return; }
     startTransition(async () => {
       const result = await saveCampaign({
         entityId: activeEntity.id,
@@ -780,7 +780,7 @@ export function StudioWorkspace({
   }
 
   function runDispatch() {
-    if (!pack) return
+    if (!pack) { toast.error("Generate or select your pack copy in Step 2 before arming."); return; }
     startTransition(async () => {
       const result = await dispatchCampaignPack({
         entityId: activeEntity.id,
@@ -807,7 +807,7 @@ export function StudioWorkspace({
   }
 
   function onArmPack() {
-    if (!pack) return
+    if (!pack) { toast.error("Generate or select your pack copy in Step 2 before arming."); return; }
     const slots = (dispatchPlan ?? []).filter((slot) => slot.enabled)
     if (slots.length === 0) {
       toast.message("Tick at least one channel to arm.")
