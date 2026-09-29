@@ -33,6 +33,32 @@ const FUDI_FEED_TABLES = [
   "dishes",
 ] as const
 
+const DEFAULT_FUDI_PULL_LIMIT = 20
+
+export function resolveFudiSupabasePullLimit(): number {
+  const raw = process.env.FUDI_SUPABASE_PULL_LIMIT?.trim()
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10)
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 100) {
+      return parsed
+    }
+  }
+  return DEFAULT_FUDI_PULL_LIMIT
+}
+
+function rowCreatedAtMs(record: Record<string, unknown>): number {
+  const raw = stringField(
+    record,
+    "created_at",
+    "published_at",
+    "posted_at",
+    "updated_at"
+  )
+  if (!raw) return 0
+  const ts = Date.parse(raw)
+  return Number.isFinite(ts) ? ts : 0
+}
+
 export type FudiSupabaseSyncResult = {
   imported: number
   updated: number
@@ -217,6 +243,7 @@ function mapRowToIntake(
     targetUrl: stringField(row, "target_url", "permalink", "url", "link"),
     expiresAt: stringField(row, "expires_at", "ends_at"),
     eventDate: stringField(row, "event_date", "starts_at", "start_time"),
+    sourceCreatedAtMs: rowCreatedAtMs(row),
   }
 }
 
@@ -231,7 +258,8 @@ function isMissingTableError(message: string): boolean {
 
 async function fetchTableRows(
   client: SupabaseClient,
-  table: string
+  table: string,
+  rowLimit: number
 ): Promise<Record<string, unknown>[]> {
   const selects = [
     "*, venues(name, display_name, instagram_handle, handle, slug)",
@@ -245,7 +273,7 @@ async function fetchTableRows(
       .from(table)
       .select(select)
       .order("created_at", { ascending: false })
-      .limit(100)
+      .limit(rowLimit)
 
     if (!error) {
       return (data ?? []) as unknown as Record<string, unknown>[]
@@ -268,13 +296,15 @@ export async function pullFudiSupabaseFeedRows(): Promise<{
 }> {
   const client = getFudiSupabaseClient()
   const projectUrl = getFudiSupabaseProjectUrl()
+  const pullLimit = resolveFudiSupabasePullLimit()
+  const perTableFetch = Math.min(100, Math.max(pullLimit, 20))
   const mapped: MappedFudiSupabaseRow[] = []
   const sources: string[] = []
   let scanned = 0
   const seen = new Set<string>()
 
   for (const table of FUDI_FEED_TABLES) {
-    const rows = await fetchTableRows(client, table)
+    const rows = await fetchTableRows(client, table, perTableFetch)
     if (rows.length === 0) continue
     sources.push(table)
     scanned += rows.length
@@ -289,7 +319,13 @@ export async function pullFudiSupabaseFeedRows(): Promise<{
     }
   }
 
-  return { mapped, sources, scanned }
+  mapped.sort((a, b) => b.sourceCreatedAtMs - a.sourceCreatedAtMs)
+
+  return {
+    mapped: mapped.slice(0, pullLimit),
+    sources,
+    scanned,
+  }
 }
 
 export async function syncFudiSupabaseToMarketingEntities(input: {

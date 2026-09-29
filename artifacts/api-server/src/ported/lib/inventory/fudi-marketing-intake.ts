@@ -25,6 +25,8 @@ export type MappedFudiSupabaseRow = {
   targetUrl?: string | null
   expiresAt?: string | null
   eventDate?: string | null
+  /** Used to pick the newest rows when capping a pull batch. */
+  sourceCreatedAtMs: number
 }
 
 function normalizeImages(images: string[]): string[] {

@@ -5,7 +5,7 @@ import { useRouter } from "@/lib/next-compat"
 import { useTransition } from "react"
 import { toast } from "sonner"
 
-import { repurposeMarketingEntity } from "@/lib/actions"
+import { removeInventoryItem, repurposeMarketingEntity } from "@/lib/actions"
 import {
   formatInventoryPrice,
   type MarketingEntity,
@@ -23,6 +23,47 @@ const STATUS_TONE: Record<string, string> = {
   approved: "bg-emerald-50 text-emerald-700",
   scheduled: "bg-neutral-900 text-white",
   published: "bg-neutral-800 text-white",
+}
+
+function RemoveIntakeButton({
+  entityId,
+  itemId,
+  title,
+}: {
+  entityId: string
+  itemId: string
+  title: string
+}) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => {
+        if (
+          !window.confirm(
+            `Remove "${title}" from MAD Studio intake? This does not delete anything in the FÜDI app.`
+          )
+        ) {
+          return
+        }
+        startTransition(async () => {
+          const result = await removeInventoryItem({ entityId, itemId })
+          if (!result.ok) {
+            toast.error(result.error)
+            return
+          }
+          toast.success("Removed from intake.")
+          router.refresh()
+        })
+      }}
+      className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 shadow-sm hover:bg-neutral-50 disabled:opacity-60"
+    >
+      {pending ? "Removing…" : "Remove from intake"}
+    </button>
+  )
 }
 
 function RepurposeButton({
@@ -134,6 +175,16 @@ export function InventoryList({ entityId, items }: Props) {
                     {item.status}
                   </span>
                 </div>
+
+                {item.status === "unfeatured" ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <RemoveIntakeButton
+                      entityId={entityId}
+                      itemId={item.id}
+                      title={item.title}
+                    />
+                  </div>
+                ) : null}
 
                 {(isPublished || isScheduled) && (
                   <div className="flex flex-wrap items-center gap-2">

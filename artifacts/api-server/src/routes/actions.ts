@@ -39,6 +39,7 @@ const actions: Record<string, (...args: any[]) => Promise<unknown>> = {
   createEntity: createEntity.createEntity,
   appendInventoryImage: inventory.appendInventoryImage,
   removeInventoryImage: inventory.removeInventoryImage,
+  removeInventoryItem: inventory.removeInventoryItem,
   approveMarketingEntity: inventory.approveMarketingEntity,
   scheduleMarketingEntity: inventory.scheduleMarketingEntity,
   saveDropDraft: inventory.saveDropDraft,

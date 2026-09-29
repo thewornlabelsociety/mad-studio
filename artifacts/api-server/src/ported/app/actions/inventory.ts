@@ -20,6 +20,7 @@ import {
 import { CHANNEL_META, type ChannelSlot } from "@/lib/scheduling/brain-timing"
 import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
 import type { ScheduledPostPayload } from "@/lib/scheduling/process-scheduled-posts"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 export type InventoryActionResult<T = void> =
@@ -165,6 +166,61 @@ export async function removeInventoryImage(input: {
   revalidatePath(`/inventory/${input.itemId}`)
   revalidatePath("/inventory")
   return { ok: true, data: { images: updated.images ?? images } }
+}
+
+export async function removeInventoryItem(input: {
+  entityId: string
+  itemId: string
+}): Promise<InventoryActionResult> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error || !auth.user) {
+    return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+
+  const { data: row, error: fetchError } = await auth.supabase
+    .from("marketing_entities")
+    .select("id, status, title")
+    .eq("id", input.itemId)
+    .eq("entity_id", input.entityId)
+    .maybeSingle()
+
+  if (fetchError || !row) {
+    return { ok: false, error: fetchError?.message ?? "Inventory item not found." }
+  }
+
+  if (row.status !== "unfeatured") {
+    return {
+      ok: false,
+      error:
+        "Only unfeatured intake items can be removed. Scheduled or published drops must stay in the ledger.",
+    }
+  }
+
+  await cancelPendingQueueRows(auth.supabase, input.entityId, input.itemId)
+
+  const admin = createAdminClient()
+  const { error: deleteError } = await admin
+    .from("marketing_entities")
+    .delete()
+    .eq("id", input.itemId)
+    .eq("entity_id", input.entityId)
+    .eq("status", "unfeatured")
+
+  if (deleteError) {
+    return { ok: false, error: deleteError.message }
+  }
+
+  await auth.supabase.from("activity_logs").insert({
+    entity_id: input.entityId,
+    user_id: auth.user.id,
+    action: "removed_inventory_item",
+    details: { item_id: input.itemId, title: row.title },
+  })
+
+  revalidatePath("/today")
+  revalidatePath("/inventory")
+  revalidatePath("/studio")
+  return { ok: true, data: undefined }
 }
 
 export async function approveMarketingEntity(input: {
