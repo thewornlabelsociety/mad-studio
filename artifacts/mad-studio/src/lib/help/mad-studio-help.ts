@@ -144,7 +144,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         "Remove unwanted rows from /inventory if needed (unfeatured only).",
       ],
       tips: [
-        "Pull requires FUDI_SUPABASE_* on the API server and MAD SUPABASE_SERVICE_ROLE_KEY for writes.",
+        "Pull reads FÜDI Supabase tables (board items, menu items, events, craving offers) via FUDI_SUPABASE_* on the API server; writes go to MAD marketing_entities only.",
       ],
     },
   },

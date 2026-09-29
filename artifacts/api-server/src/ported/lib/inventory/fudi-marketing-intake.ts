@@ -16,6 +16,7 @@ export type MappedFudiSupabaseRow = {
   originalId: string
   sourceTable: string
   itemType: FudiFeedItemType
+  metadataItemType?: string
   title: string
   brand: string
   price: number | null
@@ -126,6 +127,7 @@ export async function upsertFudiSupabaseMappedRow(
 
   const copy_draft = fudiSupabaseCopyDraft({
     itemType: row.itemType,
+    metadataItemType: row.metadataItemType,
     originalId: row.originalId,
     sourceTable: row.sourceTable,
     location: row.location,

@@ -13,25 +13,36 @@ import {
 } from "@/lib/supabase/fudi-client"
 import type { createAdminClient } from "@/lib/supabase/admin"
 
-const FUDI_TABLE_ITEM_TYPE: Record<string, FudiFeedItemType> = {
-  feed_posts: "drop",
-  posts: "drop",
-  specials: "deal",
-  deals: "deal",
-  drops: "drop",
-  events: "event",
-  dishes: "marketplace",
-}
-
+/** Real FÜDI Supabase tables, queried in priority order. */
 const FUDI_FEED_TABLES = [
-  "feed_posts",
-  "posts",
-  "specials",
-  "drops",
-  "deals",
-  "events",
-  "dishes",
+  "fudi_board_items",
+  "eatery_menu_items",
+  "eats_community_events",
+  "foodie_events",
+  "craving_offer_responses",
 ] as const
+
+type FudiFeedTable = (typeof FUDI_FEED_TABLES)[number]
+
+const TABLE_SELECTS: Record<FudiFeedTable, string[]> = {
+  fudi_board_items: [
+    "*, fudi_boards(name, title, display_name)",
+    "*, board:fudi_boards(name, title, display_name)",
+    "*",
+  ],
+  eatery_menu_items: [
+    "*, eatery_menus(name), eatery_menu_images(image_url, url, path, storage_path)",
+    "*, eatery_menu_images(image_url, url, path, storage_path)",
+    "*",
+  ],
+  eats_community_events: ["*"],
+  foodie_events: ["*"],
+  craving_offer_responses: [
+    "*, eateries(name, display_name, venue_name)",
+    "*, eatery:eateries(name, display_name)",
+    "*",
+  ],
+}
 
 const DEFAULT_FUDI_PULL_LIMIT = 20
 
@@ -44,19 +55,6 @@ export function resolveFudiSupabasePullLimit(): number {
     }
   }
   return DEFAULT_FUDI_PULL_LIMIT
-}
-
-function rowCreatedAtMs(record: Record<string, unknown>): number {
-  const raw = stringField(
-    record,
-    "created_at",
-    "published_at",
-    "posted_at",
-    "updated_at"
-  )
-  if (!raw) return 0
-  const ts = Date.parse(raw)
-  return Number.isFinite(ts) ? ts : 0
 }
 
 export type FudiSupabaseSyncResult = {
@@ -85,30 +83,43 @@ function stringField(
   return null
 }
 
-function nestedVenueBrand(record: Record<string, unknown>): string | null {
-  for (const key of ["venues", "venue", "eatery", "restaurant", "profile", "profiles"]) {
-    const nested = asRecord(record[key])
-    if (!nested) continue
-    const name = stringField(
-      nested,
-      "name",
-      "display_name",
-      "venue_name",
-      "business_name",
-      "title"
-    )
-    if (name) return name
+function nestedName(
+  record: Record<string, unknown>,
+  relationKeys: string[],
+  nameKeys: string[] = ["name", "title", "display_name", "venue_name"]
+): string | null {
+  for (const rel of relationKeys) {
+    const raw = record[rel]
+    const nested = asRecord(raw)
+    if (nested) {
+      const name = stringField(nested, ...nameKeys)
+      if (name) return name
+    }
+    if (Array.isArray(raw)) {
+      for (const entry of raw) {
+        const row = asRecord(entry)
+        if (!row) continue
+        const name = stringField(row, ...nameKeys)
+        if (name) return name
+      }
+    }
   }
-  return (
-    stringField(
-      record,
-      "venue_name",
-      "eatery_name",
-      "restaurant_name",
-      "brand",
-      "business_name"
-    ) ?? null
+  return null
+}
+
+function rowCreatedAtMs(record: Record<string, unknown>): number {
+  const raw = stringField(
+    record,
+    "created_at",
+    "published_at",
+    "posted_at",
+    "updated_at",
+    "start_time",
+    "date"
   )
+  if (!raw) return 0
+  const ts = Date.parse(raw)
+  return Number.isFinite(ts) ? ts : 0
 }
 
 function resolveFudiMediaUrl(raw: string, projectUrl: string): string | null {
@@ -120,42 +131,49 @@ function resolveFudiMediaUrl(raw: string, projectUrl: string): string | null {
   return `${base}/storage/v1/object/public/${trimmed.replace(/^\//, "")}`
 }
 
+function pushMediaUrl(urls: string[], value: unknown, projectUrl: string) {
+  if (typeof value !== "string") return
+  const resolved = resolveFudiMediaUrl(value, projectUrl)
+  if (resolved) urls.push(resolved)
+}
+
 function collectMedia(record: Record<string, unknown>, projectUrl: string): string[] {
   const urls: string[] = []
-  const push = (value: unknown) => {
-    if (typeof value !== "string") return
-    const resolved = resolveFudiMediaUrl(value, projectUrl)
-    if (resolved) urls.push(resolved)
+
+  for (const key of [
+    "photo_url",
+    "photoUrl",
+    "image_url",
+    "imageUrl",
+    "cover_url",
+    "coverUrl",
+    "cover_image_url",
+    "media_url",
+    "mediaUrl",
+    "thumbnail_url",
+    "thumbnailUrl",
+    "poster_url",
+    "poster",
+  ]) {
+    pushMediaUrl(urls, record[key], projectUrl)
   }
 
-  push(record.photo_url)
-  push(record.photoUrl)
-  push(record.image_url)
-  push(record.imageUrl)
-  push(record.cover_url)
-  push(record.coverUrl)
-  push(record.cover_image_url)
-  push(record.media_url)
-  push(record.mediaUrl)
-  push(record.thumbnail_url)
-  push(record.thumbnailUrl)
-  push(record.video_url)
-  push(record.videoUrl)
-  push(record.poster_url)
-
-  for (const key of ["images", "photos", "media", "gallery"]) {
+  for (const key of ["images", "photos", "media", "gallery", "eatery_menu_images"]) {
     const value = record[key]
     if (!Array.isArray(value)) continue
     for (const entry of value) {
       if (typeof entry === "string") {
-        push(entry)
+        pushMediaUrl(urls, entry, projectUrl)
         continue
       }
       const nested = asRecord(entry)
       if (!nested) continue
-      push(nested.url)
-      push(nested.src)
-      push(nested.publicUrl)
+      pushMediaUrl(urls, nested.image_url, projectUrl)
+      pushMediaUrl(urls, nested.url, projectUrl)
+      pushMediaUrl(urls, nested.path, projectUrl)
+      pushMediaUrl(urls, nested.storage_path, projectUrl)
+      pushMediaUrl(urls, nested.src, projectUrl)
+      pushMediaUrl(urls, nested.publicUrl, projectUrl)
     }
   }
 
@@ -187,63 +205,210 @@ function isInactiveRow(record: Record<string, unknown>): boolean {
   return false
 }
 
-function mapRowToIntake(
-  table: string,
+function baseMappedRow(input: {
+  table: FudiFeedTable
+  row: Record<string, unknown>
+  projectUrl: string
+  itemType: FudiFeedItemType
+  metadataItemType: string
+  originalId: string
+  title: string
+  brand: string
+  price: number | null
+  description: string | null
+  eventDate?: string | null
+}): MappedFudiSupabaseRow | null {
+  if (isInactiveRow(input.row)) return null
+  const images = collectMedia(input.row, input.projectUrl)
+  if (images.length === 0) return null
+
+  return {
+    originalId: input.originalId,
+    sourceTable: input.table,
+    itemType: input.itemType,
+    metadataItemType: input.metadataItemType,
+    title: input.title,
+    brand: input.brand,
+    price: input.price,
+    description: input.description,
+    images,
+    location: stringField(
+      input.row,
+      "location",
+      "suburb",
+      "city",
+      "address",
+      "venue_name"
+    ),
+    targetUrl: stringField(input.row, "target_url", "permalink", "url", "link"),
+    expiresAt: stringField(input.row, "expires_at", "ends_at"),
+    eventDate:
+      input.eventDate ??
+      stringField(input.row, "event_date", "starts_at", "start_time", "date"),
+    sourceCreatedAtMs: rowCreatedAtMs(input.row),
+  }
+}
+
+function mapFudiBoardItem(
+  table: FudiFeedTable,
   row: Record<string, unknown>,
   projectUrl: string
 ): MappedFudiSupabaseRow | null {
-  const itemType = FUDI_TABLE_ITEM_TYPE[table] ?? "drop"
-  const originalId =
-    stringField(row, "id", "uuid", "post_id", "special_id", "drop_id") ?? null
+  const originalId = stringField(row, "id", "uuid") ?? null
   if (!originalId) return null
-  if (isInactiveRow(row)) return null
 
   const caption = stringField(row, "caption", "body", "text")
   const title =
-    stringField(
-      row,
-      "title",
-      "name",
-      "headline",
-      "dish_name",
-      "dish",
-      "special_name",
-      "event_name"
-    ) ??
+    stringField(row, "title", "caption", "headline") ??
     (caption ? caption.split("\n")[0]?.slice(0, 120) ?? null : null)
   if (!title) return null
 
-  const images = collectMedia(row, projectUrl)
-  if (images.length === 0) return null
+  const brand =
+    nestedName(row, ["fudi_boards", "board", "eatery", "author", "profile"]) ??
+    stringField(row, "author_name", "eatery_name", "venue_name") ??
+    "FÜDI Community"
 
-  const brand = nestedVenueBrand(row) ?? "FÜDI"
-  const price = parseMappedRowPrice(
-    row.price ?? row.offer_price ?? row.sale_price ?? row.amount
-  )
+  const description =
+    stringField(row, "content", "body", "description", "caption") ??
+    caption
 
-  const descriptionParts = [
-    stringField(row, "description", "details", "notes", "ingredients"),
-    caption,
-    stringField(row, "dietary_tags", "tags"),
-  ].filter(Boolean)
-
-  return {
+  return baseMappedRow({
+    table,
+    row,
+    projectUrl,
+    itemType: "drop",
+    metadataItemType: "drop",
     originalId,
-    sourceTable: table,
-    itemType,
     title,
     brand,
-    price,
+    price: parseMappedRowPrice(row.price ?? row.offer_price),
+    description: description?.slice(0, 8000) ?? null,
+  })
+}
+
+function mapEateryMenuItem(
+  table: FudiFeedTable,
+  row: Record<string, unknown>,
+  projectUrl: string
+): MappedFudiSupabaseRow | null {
+  const originalId = stringField(row, "id", "uuid", "menu_item_id") ?? null
+  if (!originalId) return null
+
+  const title = stringField(row, "name", "title") ?? null
+  if (!title) return null
+
+  const brand =
+    nestedName(row, ["eatery_menus", "menu", "eatery", "eateries"]) ??
+    stringField(row, "eatery_name", "venue_name") ??
+    "FÜDI Partner Eatery"
+
+  const description =
+    stringField(row, "description", "tasting_notes", "dietary_summary") ??
+    null
+
+  return baseMappedRow({
+    table,
+    row,
+    projectUrl,
+    itemType: "marketplace",
+    metadataItemType: "dish",
+    originalId,
+    title,
+    brand,
+    price: parseMappedRowPrice(row.price ?? row.base_price),
+    description: description?.slice(0, 8000) ?? null,
+  })
+}
+
+function mapFoodEvent(
+  table: FudiFeedTable,
+  row: Record<string, unknown>,
+  projectUrl: string
+): MappedFudiSupabaseRow | null {
+  const originalId = stringField(row, "id", "uuid", "event_id") ?? null
+  if (!originalId) return null
+
+  const title =
+    stringField(row, "name", "event_title", "title") ?? null
+  if (!title) return null
+
+  const brand =
+    stringField(row, "organizer_name", "venue_name", "host_name") ??
+    nestedName(row, ["venue", "eatery", "organizer"]) ??
+    "Local Food Event"
+
+  const eventDate = stringField(row, "start_time", "date", "starts_at", "event_date")
+
+  return baseMappedRow({
+    table,
+    row,
+    projectUrl,
+    itemType: "event",
+    metadataItemType: "event",
+    originalId,
+    title,
+    brand,
+    price: parseMappedRowPrice(
+      row.ticket_price ?? row.entry_fee ?? row.price
+    ),
     description:
-      descriptionParts.length > 0
-        ? descriptionParts.join(" · ").slice(0, 8000)
-        : null,
-    images,
-    location: stringField(row, "location", "suburb", "city", "address"),
-    targetUrl: stringField(row, "target_url", "permalink", "url", "link"),
-    expiresAt: stringField(row, "expires_at", "ends_at"),
-    eventDate: stringField(row, "event_date", "starts_at", "start_time"),
-    sourceCreatedAtMs: rowCreatedAtMs(row),
+      stringField(row, "description", "summary")?.slice(0, 8000) ?? null,
+    eventDate,
+  })
+}
+
+function mapCravingOffer(
+  table: FudiFeedTable,
+  row: Record<string, unknown>,
+  projectUrl: string
+): MappedFudiSupabaseRow | null {
+  const originalId = stringField(row, "id", "uuid", "offer_id") ?? null
+  if (!originalId) return null
+
+  const title =
+    stringField(row, "title", "offer_title", "headline", "name") ?? null
+  if (!title) return null
+
+  const brand =
+    nestedName(row, ["eateries", "eatery", "venue"]) ??
+    stringField(row, "venue_name", "eatery_name", "brand") ??
+    "FÜDI Partner Eatery"
+
+  return baseMappedRow({
+    table,
+    row,
+    projectUrl,
+    itemType: "deal",
+    metadataItemType: "deal",
+    originalId,
+    title,
+    brand,
+    price: parseMappedRowPrice(row.price ?? row.offer_price ?? row.amount),
+    description:
+      stringField(row, "description", "details", "offer_details")?.slice(
+        0,
+        8000
+      ) ?? null,
+  })
+}
+
+function mapRowToIntake(
+  table: FudiFeedTable,
+  row: Record<string, unknown>,
+  projectUrl: string
+): MappedFudiSupabaseRow | null {
+  switch (table) {
+    case "fudi_board_items":
+      return mapFudiBoardItem(table, row, projectUrl)
+    case "eatery_menu_items":
+      return mapEateryMenuItem(table, row, projectUrl)
+    case "eats_community_events":
+    case "foodie_events":
+      return mapFoodEvent(table, row, projectUrl)
+    case "craving_offer_responses":
+      return mapCravingOffer(table, row, projectUrl)
+    default:
+      return null
   }
 }
 
@@ -258,15 +423,10 @@ function isMissingTableError(message: string): boolean {
 
 async function fetchTableRows(
   client: SupabaseClient,
-  table: string,
+  table: FudiFeedTable,
   rowLimit: number
 ): Promise<Record<string, unknown>[]> {
-  const selects = [
-    "*, venues(name, display_name, instagram_handle, handle, slug)",
-    "*, venue:venues(name, display_name, instagram_handle, handle, slug)",
-    "*, profiles(name, handle, instagram_handle, display_name)",
-    "*",
-  ]
+  const selects = TABLE_SELECTS[table]
 
   for (const select of selects) {
     const { data, error } = await client
@@ -341,7 +501,7 @@ export async function syncFudiSupabaseToMarketingEntities(input: {
   if (mapped.length === 0) {
     if (sources.length === 0) {
       throw new Error(
-        "No FÜDI feed tables returned data. Expected one of: feed_posts, posts, specials, drops, deals, events, dishes — check FUDI_SUPABASE_* credentials and RLS."
+        "No FÜDI feed tables returned data. Expected one of: fudi_board_items, eatery_menu_items, eats_community_events, foodie_events, craving_offer_responses — check FUDI_SUPABASE_* credentials and RLS."
       )
     }
     throw new Error(

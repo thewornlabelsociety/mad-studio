@@ -68,6 +68,8 @@ export function fudiSupabaseWebsiteItemId(input: {
 
 export function fudiSupabaseCopyDraft(input: {
   itemType: FudiFeedItemType
+  /** Stored in copy_draft.metadata.item_type when set (e.g. dish, drop, event). */
+  metadataItemType?: string
   originalId: string
   sourceTable: string
   location?: string | null
@@ -78,7 +80,7 @@ export function fudiSupabaseCopyDraft(input: {
   return {
     source: "fudi_supabase",
     metadata: {
-      item_type: input.itemType,
+      item_type: input.metadataItemType ?? input.itemType,
       original_id: input.originalId,
       source_table: input.sourceTable,
       location: input.location ?? null,
