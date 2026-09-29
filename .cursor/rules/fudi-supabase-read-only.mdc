@@ -1,0 +1,36 @@
+---
+description: FÜDI Supabase is external read-only; all MAD Studio writes go to the MAD Supabase project only
+alwaysApply: true
+---
+
+# FÜDI vs MAD Supabase (non-negotiable)
+
+The **FÜDI app** lives on a **separate Supabase project**. **MAD Studio** uses its **own** Supabase project for auth, Brain, campaigns, inventory, and storage.
+
+## Hard rules for agents and contributors
+
+1. **Never write to FÜDI Supabase** — no `insert`, `update`, `upsert`, `delete`, `rpc` that mutates data, or Storage uploads/deletes against the FÜDI project.
+2. **FÜDI access is read-only intake** — use `getFudiSupabaseClient()` in server code only, and only for **`select`** (feed sync in `lib/inventory/fudi-supabase-sync.ts`, triggered via `/api/intake/fudi-feed`).
+3. **All marketing data writes** go through **`createAdminClient()`** or the user-scoped MAD **`createClient()`** / `NEXT_PUBLIC_SUPABASE_URL` — never `FUDI_SUPABASE_URL`.
+4. **Never expose FÜDI credentials to the browser** — do not add `FUDI_SUPABASE_*` to Vite `define`, `NEXT_PUBLIC_*`, or client bundles. Do not call `getFudiSupabaseClient()` from UI or shared client modules.
+5. **Never point MAD env at FÜDI** — `NEXT_PUBLIC_SUPABASE_URL` / `VITE_SUPABASE_URL` must be the **MAD** project. `assertMadStudioSupabaseProject` (API server + Vite build) must stay in place; do not remove or bypass it.
+6. **Prefer FÜDI anon key** for reads — use `FUDI_SUPABASE_ANON_KEY` with RLS. Avoid `FUDI_SUPABASE_USE_SERVICE_ROLE_FOR_READ` unless ops explicitly requires it; even then, code must still only **select**.
+
+## Where things go
+
+| Data | Supabase project | Operations |
+|------|------------------|------------|
+| `marketing_entities`, Brain memory, campaigns, auth, orgs | **MAD** | read + write |
+| FÜDI board items, menus, events, craving offers (source feed) | **FÜDI** | **select only** → map → upsert on **MAD** |
+
+Entity isolation for FÜDI intake: `entity_id` **`ac5ec175-12c6-416e-9cce-fbcafee32b77`** on MAD only.
+
+## Before merging Supabase-related changes
+
+- Grep for `FUDI_SUPABASE`, `getFudiSupabaseClient`, and `fudi-client` — confirm no writes and no client imports.
+- Grep for `.from(` on a FÜDI client variable — must be chained with `.select(` only.
+- If adding a new FÜDI table probe, extend **`fudi-supabase-sync.ts`** (and **`artifacts/api-server/src/ported`** mirror); do not open a second write path.
+
+## Docs
+
+When intake or env behavior changes, update **`mad-studio-help.ts`** (see `mad-studio-help.mdc`) and mention MAD vs FÜDI in operator SOPs.

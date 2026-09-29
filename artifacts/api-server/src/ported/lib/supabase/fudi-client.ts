@@ -4,6 +4,8 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
  * READ-ONLY client for the external FÜDI app Supabase project.
  * Used only to SELECT feed rows during `/api/intake/fudi-feed` sync.
  * Never use for Brain Memory, campaigns, or marketing_entities — those use MAD Studio Supabase.
+ *
+ * Policy: `.cursor/rules/fudi-supabase-read-only.mdc` — never write to FÜDI Supabase from MAD Studio.
  */
 export function getFudiSupabaseClient() {
   const url = process.env.FUDI_SUPABASE_URL?.trim();
