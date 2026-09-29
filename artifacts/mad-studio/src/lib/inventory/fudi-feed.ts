@@ -26,6 +26,9 @@ export const fudiFeedItemSchema = z.object({
 export const fudiFeedRequestSchema = z.object({
   entity_id: z.string().uuid().optional(),
   entity_slug: z.string().min(1).max(200).optional(),
+  /** Pull active drops from external FÜDI Supabase (UI / authenticated sync). */
+  sync: z.boolean().optional(),
+  mode: z.enum(["pull", "sync"]).optional(),
   item: fudiFeedItemSchema.optional(),
   items: z.array(fudiFeedItemSchema).max(100).optional(),
 })
@@ -53,6 +56,49 @@ export function fudiFeedCopyDraft(item: FudiFeedItem): Record<string, unknown> {
       target_url: item.target_url ?? null,
     },
   }
+}
+
+export function fudiSupabaseWebsiteItemId(input: {
+  itemType: FudiFeedItemType
+  sourceTable: string
+  originalId: string
+}): string {
+  const stem = `${input.sourceTable}-${input.originalId}`.replace(/[^a-zA-Z0-9_-]+/g, "-")
+  return `fudi-${input.itemType}-${stem}`.slice(0, 200)
+}
+
+export function fudiSupabaseCopyDraft(input: {
+  itemType: FudiFeedItemType
+  originalId: string
+  sourceTable: string
+  location?: string | null
+  targetUrl?: string | null
+  expiresAt?: string | null
+  eventDate?: string | null
+}): Record<string, unknown> {
+  return {
+    source: "fudi_supabase",
+    metadata: {
+      item_type: input.itemType,
+      original_id: input.originalId,
+      source_table: input.sourceTable,
+      location: input.location ?? null,
+      target_url: input.targetUrl ?? null,
+      expires_at: input.expiresAt ?? null,
+      event_date: input.eventDate ?? null,
+    },
+  }
+}
+
+export function isFudiSupabaseSyncRequest(body: {
+  sync?: boolean
+  mode?: string
+  item?: unknown
+  items?: unknown[]
+}): boolean {
+  if (body.item || (body.items && body.items.length > 0)) return false
+  if (body.sync === true) return true
+  return body.mode === "pull" || body.mode === "sync"
 }
 
 export function fudiFeedPrice(item: FudiFeedItem): number | null {

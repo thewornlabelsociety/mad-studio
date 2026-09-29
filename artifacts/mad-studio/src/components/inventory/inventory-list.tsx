@@ -71,11 +71,13 @@ export function InventoryList({ entityId, items }: Props) {
           No inventory entities yet
         </p>
         <p className="mt-2 text-sm text-neutral-600">
-          POST stock items to{" "}
+          Use{" "}
+          <strong className="font-medium">Pull Eatery / App Feed</strong> for FÜDI,
+          or POST to{" "}
           <code className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs">
             /api/sync/website
           </code>{" "}
-          with your sync secret to populate unfeatured drops.
+          for website catalog sync.
         </p>
       </div>
     )

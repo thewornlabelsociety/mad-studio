@@ -10,6 +10,7 @@ import {
   inventoryIntakeLabel,
   type InventoryIntakeMode,
 } from "@/lib/inventory/entity-intake"
+import { FUDI_ENTITY_ID } from "@/lib/studio/fudi-platform"
 
 type Props = {
   entityId: string
@@ -24,10 +25,43 @@ export function PullNewArrivalsButton({
 }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const useFudiSupabasePull = entityId === FUDI_ENTITY_ID
 
   async function onPull() {
     setLoading(true)
     try {
+      if (useFudiSupabasePull) {
+        const response = await fetch("/api/intake/fudi-feed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sync: true,
+            entity_id: FUDI_ENTITY_ID,
+          }),
+        })
+        const payload = (await response.json()) as {
+          imported?: number
+          updated?: number
+          message?: string
+          error?: string
+        }
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Failed to pull FÜDI app feed.")
+        }
+
+        const imported = payload.imported ?? 0
+        toast.success(
+          imported === 0
+            ? (payload.message ??
+                "FÜDI app feed is up to date — no new drops to import.")
+            : (payload.message ??
+                `Successfully pulled ${imported} new drops & specials from FÜDI`)
+        )
+        router.refresh()
+        return
+      }
+
       const response = await fetch("/api/sync/pull-new-arrivals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -47,7 +81,7 @@ export function PullNewArrivalsButton({
       const imported = payload.imported ?? 0
       toast.success(
         imported === 0
-          ? payload.message ?? "No new arrivals to import."
+          ? (payload.message ?? "No new arrivals to import.")
           : `Imported ${imported} new arrival${imported === 1 ? "" : "s"}`
       )
       router.refresh()
@@ -61,6 +95,20 @@ export function PullNewArrivalsButton({
   }
 
   const agenda = variant === "agenda"
+  const label = useFudiSupabasePull
+    ? agenda
+      ? "[ ⟳ Pull Eatery / App Feed ]"
+      : "⟳ Pull Eatery / App Feed"
+    : agenda
+      ? "[ ⟳ Refresh Feed ]"
+      : inventoryIntakeLabel(intakeMode)
+  const busyLabel = useFudiSupabasePull
+    ? agenda
+      ? "Pulling FÜDI app…"
+      : "Pulling FÜDI app feed…"
+    : agenda
+      ? "Refreshing…"
+      : inventoryIntakeBusyLabel(intakeMode)
 
   return (
     <button
@@ -75,13 +123,15 @@ export function PullNewArrivalsButton({
     >
       {loading ? (
         <>
-          <Loader2 className={agenda ? "size-3.5 animate-spin" : "size-4 animate-spin"} />
-          {agenda ? "Refreshing…" : inventoryIntakeBusyLabel(intakeMode)}
+          <Loader2
+            className={agenda ? "size-3.5 animate-spin" : "size-4 animate-spin"}
+          />
+          {busyLabel}
         </>
       ) : (
         <>
           <RefreshCw className={agenda ? "size-3.5" : "size-4"} />
-          {agenda ? "[ ⟳ Refresh Feed ]" : inventoryIntakeLabel(intakeMode)}
+          {label}
         </>
       )}
     </button>
