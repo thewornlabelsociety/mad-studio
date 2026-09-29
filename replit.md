@@ -4,7 +4,17 @@ MAD STUDIO is a multi-brand marketing workspace for inventory, content generatio
 
 ## Run & verify
 
-- The managed workflows are `artifacts/mad-studio: web` and `artifacts/api-server: API Server`. Start or restart them through Replit workflows, not root-level `pnpm dev`.
+- **Preview needs two processes:** UI (port **24726**) and API (port **8080**). `/api/*` and server actions fail with **502** if only the UI is running.
+- If your Repl has a **Workflows** panel, start `artifacts/mad-studio: web` and `artifacts/api-server: API Server`.
+- If you **do not** see Workflows, use **Shell** after `git pull`:
+
+  ```bash
+  bash scripts/replit-dev.sh
+  ```
+
+  Or two tabs: (1) `PORT=8080 pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/api-server run start` (2) `PORT=24726 BASE_PATH=/ pnpm --filter @workspace/mad-studio run dev`.
+
+- **Publishing / Deploy** uses production builds from each artifact’s `.replit-artifact/artifact.toml`; that is separate from the dev preview Shell flow above.
 - `pnpm --filter @workspace/mad-studio run typecheck` and `pnpm --filter @workspace/api-server run typecheck` check the applications.
 - `pnpm --filter @workspace/api-spec run codegen` regenerates the shared API types.
 
