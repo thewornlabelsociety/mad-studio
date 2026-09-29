@@ -1,7 +1,7 @@
 import { Router, type Request as ExpressRequest, type Response as ExpressResponse } from "express";
 import { Readable } from "node:stream";
 import type { WebRequest } from "../lib/http-response";
-import { getTrustedRequestOrigin, withRequestContext } from "../lib/request-context";
+import { getInboundRequestOrigin, withRequestContext } from "../lib/request-context";
 import * as analyticsLog from "../ported/app/api/analytics/log/route";
 import * as apiSignout from "../ported/app/api/auth/signout/route";
 import * as dataDeletion from "../ported/app/api/auth/data-deletion/route";
@@ -60,7 +60,7 @@ function webHandler(handler: WebHandler, bodyExpected = true) {
           ? { duplex: "half" as const }
           : {}),
       };
-      const origin = getTrustedRequestOrigin(req);
+      const origin = getInboundRequestOrigin(req);
       const webRequest = new Request(
         `${origin}${req.originalUrl}`,
         init,

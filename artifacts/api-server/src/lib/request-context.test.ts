@@ -23,7 +23,9 @@ test("forged request hosts cannot change public links or secret-bearing dispatch
     assert.equal(getTrustedRequestOrigin(forged), "https://studio.example.test");
     assert.equal(getInternalApiOrigin(), "http://127.0.0.1:8080");
     process.env.APP_PUBLIC_ORIGIN = "https://attacker.example.test/path";
-    assert.throws(() => getTrustedRequestOrigin(forged), /Invalid configured public origin/);
+    process.env.REPLIT_DOMAINS = "";
+    process.env.NEXT_PUBLIC_SITE_URL = "";
+    assert.throws(() => getTrustedRequestOrigin(forged), /must be configured/);
   } finally {
     for (const [key, value] of Object.entries({
       APP_PUBLIC_ORIGIN: previous.app,

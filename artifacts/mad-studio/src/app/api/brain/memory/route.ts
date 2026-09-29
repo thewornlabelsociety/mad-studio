@@ -60,7 +60,10 @@ export async function POST(request: Request) {
         outcome_rating: "winner",
         ai_takeaway: text,
         studio_context: {
-          source: "brand_director_chat",
+          source:
+            title?.trim() === "Manual Directive"
+              ? "manual_directive"
+              : "brand_director_chat",
         } as unknown as Json,
         updated_at: now,
       })

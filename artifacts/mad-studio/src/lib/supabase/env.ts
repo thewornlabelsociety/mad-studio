@@ -1,8 +1,11 @@
+import { assertMadStudioSupabaseProject } from "@/lib/supabase/project-guard"
+
 export function getSupabaseUrl(): string {
   const value = import.meta.env.VITE_SUPABASE_URL
   if (!value) {
     throw new Error("Missing environment variable: VITE_SUPABASE_URL. Configure your Supabase public URL.")
   }
+  assertMadStudioSupabaseProject(value, "VITE_SUPABASE_URL")
   return value
 }
 

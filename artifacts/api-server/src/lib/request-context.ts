@@ -1,6 +1,28 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { CookieOptions, Request, Response } from "express";
 
+function normalizePublicOrigin(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+    const localhost =
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname.endsWith(".localhost");
+    if (!localhost && url.protocol !== "https:") return null;
+    if (localhost && url.protocol !== "https:" && url.protocol !== "http:") {
+      return null;
+    }
+    if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+      return null;
+    }
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
 type CookieValue = { name: string; value: string; options?: CookieOptions };
 type RequestContext = { request: Request; response: Response };
 
@@ -69,23 +91,36 @@ export function getRequestOrigin(): string {
 
 /** Public links must use a platform-configured domain, never client-supplied Host headers. */
 export function getTrustedRequestOrigin(_request?: Request): string {
-  const configured = process.env.APP_PUBLIC_ORIGIN?.trim();
-  const domain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-  const candidate = configured || (domain ? `https://${domain}` : "");
-  if (!candidate) throw new Error("APP_PUBLIC_ORIGIN or REPLIT_DOMAINS must be configured.");
-  const url = new URL(candidate);
-  if (
-    url.protocol !== "https:" ||
-    !url.hostname ||
-    url.username ||
-    url.password ||
-    url.pathname !== "/" ||
-    url.search ||
-    url.hash
-  ) {
-    throw new Error("Invalid configured public origin.");
+  const configured =
+    normalizePublicOrigin(process.env.APP_PUBLIC_ORIGIN ?? "") ??
+    normalizePublicOrigin(
+      process.env.REPLIT_DOMAINS?.split(",")[0]?.trim()
+        ? `https://${process.env.REPLIT_DOMAINS!.split(",")[0]!.trim()}`
+        : "",
+    ) ??
+    normalizePublicOrigin(process.env.NEXT_PUBLIC_SITE_URL ?? "");
+  if (!configured) {
+    throw new Error(
+      "APP_PUBLIC_ORIGIN, REPLIT_DOMAINS, or NEXT_PUBLIC_SITE_URL must be configured.",
+    );
   }
-  return url.origin;
+  return configured;
+}
+
+/** Origin for adapting Express requests to Web handlers (cookies, path). Not for public URLs. */
+export function getInboundRequestOrigin(request: Request): string {
+  const forwardedProto = request.headers["x-forwarded-proto"]
+    ?.toString()
+    .split(",")[0]
+    ?.trim();
+  const forwardedHost = request.headers["x-forwarded-host"]
+    ?.toString()
+    .split(",")[0]
+    ?.trim();
+  const proto = forwardedProto || request.protocol || "http";
+  const host = forwardedHost || request.headers.host;
+  if (host) return `${proto}://${host}`;
+  return getInternalApiOrigin();
 }
 
 /** Secret-bearing dispatches never leave this process's loopback interface. */

@@ -1,9 +1,12 @@
+import { assertMadStudioSupabaseProject } from "@/lib/supabase/project-guard";
+
 export function getSupabaseUrl(): string {
-  const value = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const value = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!value) {
-    throw new Error("Missing environment variable: NEXT_PUBLIC_SUPABASE_URL")
+    throw new Error("Missing environment variable: NEXT_PUBLIC_SUPABASE_URL");
   }
-  return value
+  assertMadStudioSupabaseProject(value, "NEXT_PUBLIC_SUPABASE_URL");
+  return value;
 }
 
 export function getSupabaseAnonKey(): string {
