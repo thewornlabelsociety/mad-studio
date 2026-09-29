@@ -127,6 +127,12 @@ export function BrainLab({
         ...prev,
       ])
       toast.success("Document uploaded and knowledge extracted.")
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Document upload failed. Check API logs and try a text-based PDF."
+      )
     } finally {
       setUploading(false)
     }
