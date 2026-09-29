@@ -1,9 +1,14 @@
-/** Prevent MAD Studio env from pointing at the external FÜDI Supabase project. */
+function readFudiSupabaseUrlFromServerEnv(): string | undefined {
+  if (typeof process === "undefined") return undefined;
+  return process.env.FUDI_SUPABASE_URL?.trim();
+}
+
+/** Prevent MAD Studio env from pointing at the external FÜDI Supabase project (server-side). */
 export function assertMadStudioSupabaseProject(
   url: string,
   label = "Supabase URL",
 ): void {
-  const fudi = process.env.FUDI_SUPABASE_URL?.trim();
+  const fudi = readFudiSupabaseUrlFromServerEnv();
   if (!fudi) return;
 
   const normalize = (value: string) => value.trim().replace(/\/$/, "").toLowerCase();

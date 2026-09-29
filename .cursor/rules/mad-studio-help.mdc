@@ -1,0 +1,42 @@
+---
+description: Keep in-app Help & SOP docs in sync when MAD Studio product behavior changes
+globs: artifacts/mad-studio/src/**/*
+alwaysApply: true
+---
+
+# MAD Studio Help documentation
+
+The in-app Help center is the **product source of truth** for features and operator SOPs.
+
+## Source files
+
+- **Content:** `artifacts/mad-studio/src/lib/help/mad-studio-help.ts`
+  - Bump `MAD_STUDIO_HELP_VERSION` (ISO date string) on every doc update.
+  - Add or edit `MAD_STUDIO_HELP_SECTIONS` entries (features + optional `sop` steps).
+- **UI:** `artifacts/mad-studio/src/components/help/help-center.tsx`
+- **Route:** `/help` — linked from the top bar **Help** button.
+
+## When to update (required)
+
+Any PR or change that affects **user-visible** behavior must update `mad-studio-help.ts`:
+
+- New or renamed routes, nav items, or primary buttons
+- Intake / sync / webhook / cron workflows (including env var names)
+- Brain, Studio, Today, Campaigns, Inventory, Socials flows
+- Role or permission changes
+- Brand-specific behavior (FÜDI vs fashion tenants)
+
+## How to update
+
+1. Find the matching section by `id` or add a new `HelpSection` with a unique `id`.
+2. Update `features[]` (what it does) and `sop` (step-by-step operator workflow).
+3. Set `route` when the section maps to a main page.
+4. Bump `MAD_STUDIO_HELP_VERSION`.
+5. Do **not** duplicate long docs elsewhere — link to this file from commit messages if needed.
+
+## Writing SOPs
+
+- Audience: creator, entity manager, or org admin.
+- Steps: numbered, imperative, start from signed-in + correct brand selected.
+- Call out MAD vs FÜDI Supabase when data crosses systems.
+- Keep secrets out of help text (name env vars only).

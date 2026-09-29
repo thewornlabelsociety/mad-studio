@@ -3,7 +3,7 @@
 import { Link } from "wouter"
 import { usePathname, useRouter } from "@/lib/next-compat"
 import { useTransition } from "react"
-import { Check, ChevronsUpDown, Menu, Plus } from "lucide-react"
+import { Check, ChevronsUpDown, CircleHelp, Menu, Plus } from "lucide-react"
 
 import { setActiveEntity } from "@/lib/actions"
 import { MadStudioLogo } from "@/components/brand/mad-logo"
@@ -169,8 +169,21 @@ export function AppTopbar({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href={`/help${entityQuery}`}
+              className={cn(
+                "inline-flex items-center gap-1.5 border-2 px-2.5 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase transition-colors",
+                isActive("/help")
+                  ? "border-mad-black bg-mad-black text-mad-white"
+                  : "border-mad-black bg-mad-white text-mad-black hover:bg-mad-lime"
+              )}
+              title="Features, SOPs & workflows"
+            >
+              <CircleHelp className="size-3.5" aria-hidden />
+              <span className="hidden sm:inline">Help</span>
+            </Link>
             <div className="md:hidden">
-              <MobileNav links={links} isActive={isActive} />
+              <MobileNav links={links} isActive={isActive} entityQuery={entityQuery} />
             </div>
             {teamSlot}
             {userEmail ? (
@@ -208,9 +221,11 @@ export function AppTopbar({
 function MobileNav({
   links,
   isActive,
+  entityQuery,
 }: {
   links: NavLink[]
   isActive: (match: string) => boolean
+  entityQuery: string
 }) {
   return (
     <DropdownMenu>
@@ -239,6 +254,12 @@ function MobileNav({
             </Link>
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator className="bg-mad-black" />
+        <DropdownMenuItem asChild className="rounded-none">
+          <Link href={`/help${entityQuery}`} className="gap-2">
+            Help &amp; SOPs
+          </Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
