@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-09-30"
+export const MAD_STUDIO_HELP_VERSION = "2026-09-30b"
 
 export type HelpSop = {
   title: string
@@ -144,7 +144,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         "Remove unwanted rows from /inventory if needed (unfeatured only).",
       ],
       tips: [
-        "Pull reads FÜDI Supabase tables (board items, menu items, events, craving offers) via FUDI_SUPABASE_* on the API server; writes go to MAD marketing_entities only.",
+        "Pull reads FÜDI Supabase tables (board items, menu items, events, craving offers) via FUDI_SUPABASE_* on the API server; writes go to MAD marketing_entities only. Tables without SELECT for the intake key are skipped (no hard fail).",
       ],
     },
   },
@@ -374,7 +374,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "FÜDI read-only env",
         description:
-          "FUDI_SUPABASE_URL, FUDI_SUPABASE_ANON_KEY; optional FUDI_SUPABASE_PULL_LIMIT (default 20).",
+          "FUDI_SUPABASE_URL, FUDI_SUPABASE_ANON_KEY; optional FUDI_SUPABASE_PULL_LIMIT (default 20). On the FÜDI project, grant SELECT (RLS) to the anon role for each table you want in the pull, or intake skips that table.",
       },
     ],
     sop: {

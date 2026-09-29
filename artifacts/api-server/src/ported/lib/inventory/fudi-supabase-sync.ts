@@ -421,12 +421,26 @@ function isMissingTableError(message: string): boolean {
   )
 }
 
+/** Table exists but this key/RLS cannot read it — skip probe, continue other tables. */
+function isPermissionOrAccessError(message: string): boolean {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes("permission denied") ||
+    lower.includes("row-level security") ||
+    lower.includes("violates row-level security") ||
+    lower.includes("insufficient privilege") ||
+    lower.includes("42501") ||
+    (lower.includes("rls") && lower.includes("policy"))
+  )
+}
+
 async function fetchTableRows(
   client: SupabaseClient,
   table: FudiFeedTable,
   rowLimit: number
 ): Promise<Record<string, unknown>[]> {
   const selects = TABLE_SELECTS[table]
+  let lastError: string | null = null
 
   for (const select of selects) {
     const { data, error } = await client
@@ -438,7 +452,9 @@ async function fetchTableRows(
     if (!error) {
       return (data ?? []) as unknown as Record<string, unknown>[]
     }
+    lastError = error.message
     if (isMissingTableError(error.message)) return []
+    if (isPermissionOrAccessError(error.message)) return []
     const joinIssue =
       error.message.toLowerCase().includes("relationship") ||
       error.message.toLowerCase().includes("could not embed")
@@ -446,6 +462,7 @@ async function fetchTableRows(
     throw new Error(`${table}: ${error.message}`)
   }
 
+  if (lastError && isPermissionOrAccessError(lastError)) return []
   return []
 }
 
