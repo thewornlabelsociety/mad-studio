@@ -32,6 +32,7 @@ import {
   resolveActiveMedia,
   type MediaAsset,
 } from "@/components/marketing/media-tray"
+import { BrainEmblemLink } from "@/components/brand/brain-emblem"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -65,11 +66,16 @@ import {
   AUDIENCE_TONE_META,
   type AudienceTone,
 } from "@/lib/studio/audience-tone"
+import { resolveForecastingTagForPersona } from "@/lib/brain/audience-segment-display"
 import {
   buildStudioHookChips,
   resolveStudioPresets,
   type StudioIntentChip,
 } from "@/lib/studio/entity-presets"
+import {
+  applySparkChannelPreset,
+  detectSparkDispatchFeature,
+} from "@/lib/studio/spark-dispatch-preset"
 import {
   applyFudiTrackToStudioPresets,
   buildFudiRedirectSlugSeed,
@@ -177,6 +183,30 @@ export function StudioWorkspace({
   const selectedPersona =
     personas.find((persona) => persona.id === personaId) ?? personas[0] ?? null
 
+  const activeForecastingTag = useMemo(
+    () =>
+      resolveForecastingTagForPersona(
+        activeEntity.audience_segments,
+        selectedPersona?.name ?? null
+      ),
+    [activeEntity.audience_segments, selectedPersona?.name]
+  )
+
+  const applySparkDispatchChannels = useCallback(
+    (input: { hookId?: string | null; intentChipId?: string | null }) => {
+      const feature = detectSparkDispatchFeature({
+        spark: rawSpark,
+        hookId: input.hookId,
+        intentChipId: input.intentChipId ?? intentChipId,
+      })
+      if (!feature) return
+      setDispatchPlan((prev) =>
+        applySparkChannelPreset(prev ?? hydrateDispatchPlan({}), feature)
+      )
+    },
+    [rawSpark, intentChipId]
+  )
+
   function applyFudiTrack(nextTrack: FudiAudienceTrack) {
     setFudiTrack(nextTrack)
     const trackPresets = resolveFudiTrackPresets(nextTrack)
@@ -204,6 +234,7 @@ export function StudioWorkspace({
   function onIntentChipSelect(chip: StudioIntentChip) {
     setIntentChipId(chip.id)
     setIntent(chip.intent)
+    applySparkDispatchChannels({ intentChipId: chip.id, hookId: chip.id })
   }
 
   const sparkLength = rawSpark.length
@@ -765,6 +796,7 @@ export function StudioWorkspace({
         campaignId,
         intent,
         fudiTrack: isFudi ? fudiTrack : null,
+        forecastingTag: activeForecastingTag,
       })
       if (!result.ok) {
         setSystemError(result.error)
@@ -810,6 +842,7 @@ export function StudioWorkspace({
         campaignId,
         intent,
         fudiTrack: isFudi ? fudiTrack : null,
+        forecastingTag: activeForecastingTag,
       })
       if (!result.ok) {
         setSystemError(result.error)
@@ -850,6 +883,7 @@ export function StudioWorkspace({
         campaignId,
         intent,
         fudiTrack: isFudi ? fudiTrack : null,
+        forecastingTag: activeForecastingTag,
       })
       if (!saved.ok) {
         setArming(false)
@@ -955,6 +989,18 @@ export function StudioWorkspace({
 
   return (
     <div className="flex flex-col gap-5 pb-28">
+      <div className="flex items-start justify-between gap-4 border-b-2 border-mad-black pb-4">
+        <div className="min-w-0">
+          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            Workbench
+          </p>
+          <h1 className="mt-1 font-typewriter text-2xl font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-3xl">
+            Campaign Multiplexer // {activeEntity.name}
+          </h1>
+        </div>
+        <BrainEmblemLink entityId={activeEntity.id} size={96} />
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
         <div className="min-w-0">
           <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
@@ -1172,6 +1218,7 @@ export function StudioWorkspace({
                         onClick={() => {
                           setActiveHookId(hook.id)
                           setRawSpark(hook.hook.slice(0, RAW_SPARK_MAX))
+                          applySparkDispatchChannels({ hookId: hook.id })
                         }}
                         className={cn(
                           "border-2 border-mad-black px-3 py-2.5 text-left transition",

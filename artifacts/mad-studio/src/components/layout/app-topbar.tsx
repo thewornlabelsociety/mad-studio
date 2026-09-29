@@ -132,11 +132,9 @@ export function AppTopbar({
     ? `?eid=${encodeURIComponent(activeEntityId)}`
     : ""
 
-  // Primary ops nav — inventory retired into Studio; media tray lives on Studio step 1.
   const links: NavLink[] = [
     { href: `/today${entityQuery}`, label: "Today", match: "/today" },
     { href: `/studio${entityQuery}`, label: "Studio", match: "/studio" },
-    { href: `/brain${entityQuery}`, label: "Brain", match: "/brain" },
     {
       href: `/campaigns${entityQuery}`,
       label: "Campaigns",
@@ -171,7 +169,7 @@ export function AppTopbar({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <div className="lg:hidden">
+            <div className="md:hidden">
               <MobileNav links={links} isActive={isActive} />
             </div>
             {teamSlot}
@@ -183,13 +181,16 @@ export function AppTopbar({
           </div>
         </div>
 
-        <nav className="hidden items-center gap-1 border-t-2 border-mad-black/10 pt-2 lg:flex">
+        <nav
+          className="hidden flex-wrap items-center gap-1.5 border-t-2 border-mad-black/15 pt-2.5 md:flex"
+          aria-label="Primary"
+        >
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={cn(
-                "border-2 px-2.5 py-1 font-typewriter text-[0.65rem] tracking-typewriter-tight uppercase transition-colors",
+                "border-2 px-3 py-1.5 font-typewriter text-[0.65rem] tracking-typewriter-tight uppercase transition-colors",
                 isActive(link.match)
                   ? "border-mad-black bg-mad-black text-mad-white shadow-keycap-sm"
                   : "border-transparent text-mad-black hover:border-mad-black hover:bg-mad-lime"

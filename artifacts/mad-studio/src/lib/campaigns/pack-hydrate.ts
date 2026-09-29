@@ -6,12 +6,17 @@ import type { MultiplexerIntent } from "@/lib/campaigns/multiplexer"
 import { MULTIPLEXER_INTENTS } from "@/lib/campaigns/multiplexer"
 import type { FudiAudienceTrack } from "@/lib/studio/fudi-tracks"
 
+export type StudioContextMetadata = {
+  forecasting_tag?: string | null
+}
+
 export type StudioContext = {
   event_description: string
   intent: MultiplexerIntent
   objective: string
   persona_name: string | null
   fudi_track: FudiAudienceTrack | null
+  metadata?: StudioContextMetadata
 }
 
 export type ActiveMultiplexerPackBuffer = {
@@ -50,12 +55,26 @@ export function parseStudioContext(value: unknown): StudioContext | null {
   const fudiTrack =
     trackRaw === "diners" || trackRaw === "partners" ? trackRaw : null
 
+  let metadata: StudioContextMetadata | undefined
+  const metaRaw = record.metadata
+  if (metaRaw && typeof metaRaw === "object") {
+    const metaRecord = metaRaw as Record<string, unknown>
+    const forecastingTag =
+      typeof metaRecord.forecasting_tag === "string"
+        ? metaRecord.forecasting_tag
+        : null
+    if (forecastingTag?.trim()) {
+      metadata = { forecasting_tag: forecastingTag.trim() }
+    }
+  }
+
   return {
     event_description: eventDescription,
     intent,
     objective,
     persona_name: personaName,
     fudi_track: fudiTrack,
+    ...(metadata ? { metadata } : {}),
   }
 }
 
@@ -65,14 +84,20 @@ export function buildStudioContext(input: {
   objective: string
   personaName?: string | null
   fudiTrack?: FudiAudienceTrack | null
+  forecastingTag?: string | null
 }): StudioContext {
-  return {
+  const base: StudioContext = {
     event_description: input.eventDescription.slice(0, 500),
     intent: input.intent,
     objective: input.objective,
     persona_name: input.personaName?.trim() || null,
     fudi_track: input.fudiTrack ?? null,
   }
+  const tag = input.forecastingTag?.trim()
+  if (tag) {
+    base.metadata = { forecasting_tag: tag }
+  }
+  return base
 }
 
 /** Rebuild a CampaignPack from campaigns.asset_pack + algorithmic_signals + title. */

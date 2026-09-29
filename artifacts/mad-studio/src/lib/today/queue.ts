@@ -5,6 +5,16 @@ import {
 } from "@/lib/inventory/types"
 import { detectMediaKindFromUrl } from "@/lib/media/kind"
 import {
+  extractWlsSize,
+  formatIntakeDetailLine,
+} from "@/lib/today/agenda"
+import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
+import {
+  fudiChannelRecommendation,
+  inferFudiDropKind,
+  type FudiDropKind,
+} from "@/lib/today/agenda"
+import {
   buildFudiRedirectSlugSeed,
   isFudiStudioEntity,
   type FudiAudienceTrack,
@@ -18,11 +28,19 @@ export type TodayQueueView = {
   isVideo: boolean
   channel: TodayChannel
   channelLabel: string
+  channelRecommendation: string
   specsLine: string
+  detailLine: string
   recommendedHook: string
   fudiTrack: FudiAudienceTrack | null
   fudiTrackLabel: string | null
+  fudiDropKind: FudiDropKind | null
   slugSeed: string | null
+  isFudi: boolean
+  isWls: boolean
+  venueOrBrand: string | null
+  wlsSize: string | null
+  wlsPrice: string
 }
 
 function extractSize(item: MarketingEntity): string | null {
@@ -87,11 +105,25 @@ export function buildTodayQueueView(input: {
     ? detectMediaKindFromUrl(mediaUrl) === "video"
     : false
   const channel: TodayChannel = isVideo ? "tiktok" : "ig_story"
+  const isFudi = isFudiStudioEntity({
+    name: input.brandName,
+    industry: input.industry,
+  })
+  const isWls = resolveIndustryProfile({
+    name: input.brandName,
+    industry: input.industry,
+  }).id === "worn_label"
   const fudiTrack = resolveQueueFudiTrack(
     input.item,
     input.brandName,
     input.industry
   )
+  const fudiDropKind = isFudi ? inferFudiDropKind(input.item) : null
+  const channelRecommendation = fudiDropKind
+    ? fudiChannelRecommendation(fudiDropKind)
+    : channel === "tiktok"
+      ? "TikTok / IG Story"
+      : "IG Story / Feed"
   const hooks = buildContextAwareHooks({
     item: input.item,
     brandName: input.brandName,
@@ -104,13 +136,22 @@ export function buildTodayQueueView(input: {
     input.item.description?.trim() ||
     input.item.title
 
+  const brand = input.item.brand?.trim() || null
+  const title = input.item.title.trim()
+
   return {
     item: input.item,
     mediaUrl,
     isVideo,
     channel,
     channelLabel: channel === "tiktok" ? "TikTok" : "IG Story",
+    channelRecommendation,
     specsLine: formatQueueSpecsLine(
+      input.item,
+      input.brandName,
+      input.industry
+    ),
+    detailLine: formatIntakeDetailLine(
       input.item,
       input.brandName,
       input.industry
@@ -123,8 +164,15 @@ export function buildTodayQueueView(input: {
         : fudiTrack === "diners"
           ? "Track A: Diners"
           : null,
+    fudiDropKind,
     slugSeed: fudiTrack
       ? buildFudiRedirectSlugSeed(fudiTrack, input.item.title)
       : null,
+    isFudi,
+    isWls,
+    venueOrBrand:
+      brand && brand.toLowerCase() !== title.toLowerCase() ? brand : brand,
+    wlsSize: extractWlsSize(input.item),
+    wlsPrice: formatInventoryPrice(input.item.price),
   }
 }

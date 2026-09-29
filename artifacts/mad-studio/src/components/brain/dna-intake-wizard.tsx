@@ -324,54 +324,6 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
                 )}
               </div>
             </article>
-
-            <article className="border-2 border-mad-black bg-mad-white p-5 shadow-keycap lg:col-span-2">
-              <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase">
-                Target audiences · pains & desires
-              </p>
-              <div className="mt-4 space-y-4">
-                {displayDna.audience_segments.map((segment) => (
-                  <div
-                    key={segment.name}
-                    className="border border-mad-black/40 p-3"
-                  >
-                    <p className="font-typewriter text-xs font-bold tracking-wide text-mad-black uppercase">
-                      {segment.name}
-                    </p>
-                    {segment.role ? (
-                      <p className="mt-0.5 text-xs text-neutral-500">
-                        {segment.role}
-                      </p>
-                    ) : null}
-                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                      <p className="text-sm leading-relaxed text-neutral-700">
-                        <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                          Pain we solve
-                        </span>
-                        <br />
-                        {segment.pain || "—"}
-                      </p>
-                      <p className="text-sm leading-relaxed text-neutral-700">
-                        <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                          What they really want
-                        </span>
-                        <br />
-                        {segment.desire || "—"}
-                      </p>
-                    </div>
-                    {segment.winning_rebuttal ? (
-                      <p className="mt-2 text-sm leading-relaxed text-neutral-700">
-                        <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                          Objection / winning rebuttal
-                        </span>
-                        <br />
-                        {segment.winning_rebuttal}
-                      </p>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </article>
           </div>
 
           {step === "proofing" ? (

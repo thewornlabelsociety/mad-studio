@@ -31,6 +31,8 @@ export type SaveCampaignInput = {
   campaignId?: string | null
   intent?: MultiplexerIntent | null
   fudiTrack?: FudiAudienceTrack | null
+  /** Written to studio_context.metadata.forecasting_tag for ledger grouping. */
+  forecastingTag?: string | null
 }
 
 export type SaveCampaignResult =
@@ -256,6 +258,7 @@ export async function saveCampaign(
     objective: input.targetGoal,
     personaName: input.targetSegment,
     fudiTrack: input.fudiTrack ?? null,
+    forecastingTag: input.forecastingTag ?? null,
   })
 
   const contentFields = {

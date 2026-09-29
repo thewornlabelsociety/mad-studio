@@ -1,7 +1,8 @@
 "use client"
 
-import { useMemo, useRef, useState, useTransition } from "react"
-import { ChevronDown, FileUp, Loader2, Plus, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { ChevronDown, FileUp, Loader2, Trash2 } from "lucide-react"
+import { useRouter } from "@/lib/next-compat"
 import { toast } from "sonner"
 
 import {
@@ -17,9 +18,10 @@ import { AudienceSegmentsEditor } from "@/components/brain/audience-segments-edi
 import { ForbiddenWordsEditor } from "@/components/brain/forbidden-words-editor"
 import { BrainSuggestionBar } from "@/components/brain/brain-suggestion-bar"
 import { DnaIntakeWizard } from "@/components/brain/dna-intake-wizard"
-import { customerQuotePlaceholder } from "@/lib/brain/brain-industry-ui"
+import { BrainWorkspaceBack } from "@/components/brain/brain-workspace-back"
+import { StreetEar, type StreetEarSeed } from "@/components/brain/street-ear"
+import { BrainEmblem } from "@/components/brand/brain-emblem"
 import { VisualPresetCard } from "@/components/brain/visual-preset-card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Collapsible,
@@ -28,13 +30,6 @@ import {
 } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -81,6 +76,7 @@ export function BrainLab({
   quotes: initialQuotes,
   takeaways: initialTakeaways,
 }: BrainLabProps) {
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pending, startTransition] = useTransition()
   const [uploading, setUploading] = useState(false)
@@ -90,6 +86,12 @@ export function BrainLab({
   const [quoteText, setQuoteText] = useState("")
   const [quoteSource, setQuoteSource] = useState<QuoteSource>("in_store")
   const [dragActive, setDragActive] = useState(false)
+  const [manualDirective, setManualDirective] = useState("")
+  const [addingDirective, setAddingDirective] = useState(false)
+
+  useEffect(() => {
+    setTakeaways(initialTakeaways)
+  }, [initialTakeaways])
 
   const sourceLabel = useMemo(() => {
     return Object.fromEntries(
@@ -97,10 +99,10 @@ export function BrainLab({
     ) as Record<string, string>
   }, [])
 
-  const quotePlaceholder = useMemo(
-    () => customerQuotePlaceholder(entity.industry, entity.name),
-    [entity.industry, entity.name]
-  )
+  function applyStreetEarSeed(seed: StreetEarSeed) {
+    setQuoteText(seed.text)
+    setQuoteSource(seed.source)
+  }
 
   async function handleFile(file: File) {
     setUploading(true)
@@ -127,6 +129,62 @@ export function BrainLab({
       toast.success("Document uploaded and knowledge extracted.")
     } finally {
       setUploading(false)
+    }
+  }
+
+  async function onAddManualDirective() {
+    const text = manualDirective.trim()
+    if (text.length < 3) {
+      toast.error("Directive must be at least 3 characters.")
+      return
+    }
+    setAddingDirective(true)
+    const optimisticId = `optimistic-${Date.now()}`
+    const now = new Date().toISOString()
+    const optimistic: BrainTakeaway = {
+      id: optimisticId,
+      title: "Manual Directive",
+      outcome_rating: "winner",
+      ai_takeaway: text,
+      updated_at: now,
+    }
+    setTakeaways((prev) => [optimistic, ...prev])
+    setManualDirective("")
+
+    try {
+      const res = await fetch("/api/brain/memory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityId: entity.id,
+          text,
+          title: "Manual Directive",
+        }),
+      })
+      const payload = (await res.json()) as {
+        ok?: boolean
+        id?: string
+        error?: string
+      }
+      if (!res.ok || !payload.ok) {
+        setTakeaways((prev) => prev.filter((row) => row.id !== optimisticId))
+        toast.error(payload.error ?? "Could not save directive.")
+        return
+      }
+      if (payload.id) {
+        setTakeaways((prev) =>
+          prev.map((row) =>
+            row.id === optimisticId ? { ...row, id: payload.id! } : row
+          )
+        )
+      }
+      toast.success("Directive saved to Memory Vault.")
+      router.refresh()
+    } catch {
+      setTakeaways((prev) => prev.filter((row) => row.id !== optimisticId))
+      toast.error("Could not reach Memory Vault.")
+    } finally {
+      setAddingDirective(false)
     }
   }
 
@@ -158,17 +216,22 @@ export function BrainLab({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2 border-b-2 border-mad-black pb-5">
-        <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-          {entity.name} // Brand Intelligence
-        </p>
-        <h1 className="brand-typewriter text-2xl text-mad-black sm:text-3xl">
-          Brand Brain
-        </h1>
-        <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
-          Tune voice, memory, and creative direction — then push seasonal focus
-          straight into the workbench.
-        </p>
+      <BrainWorkspaceBack entityId={entity.id} />
+
+      <div className="flex items-start justify-between gap-4 border-b-2 border-mad-black pb-5">
+        <div className="min-w-0 space-y-2">
+          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            {entity.name} // Brand Intelligence
+          </p>
+          <h1 className="brand-typewriter text-2xl text-mad-black sm:text-3xl">
+            Brand Brain
+          </h1>
+          <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
+            Tune voice, memory, and creative direction — then push seasonal focus
+            straight into the workbench.
+          </p>
+        </div>
+        <BrainEmblem size={104} className="mt-1" />
       </div>
 
       <BrainSuggestionBar entityId={entity.id} />
@@ -339,118 +402,34 @@ export function BrainLab({
           </div>
         </TabsContent>
 
-        <TabsContent value="quotes" className="mt-0 space-y-4">
-          <div>
-            <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              Street Ear
-            </p>
-            <h2 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-              Customer Quotes
-            </h2>
-            <p className="mt-1 text-xs text-neutral-600">
-              Exact words customers actually say
-            </p>
-          </div>
-
-          <div className="grid gap-3 border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-            <FieldLabel
-              plain="Add Customer Quote / DM / Review"
-              marketing="Exact customer language"
-              htmlFor="quote-text"
-            />
-            <Textarea
-              id="quote-text"
-              rows={3}
-              value={quoteText}
-              onChange={(event) => setQuoteText(event.target.value)}
-              placeholder={quotePlaceholder}
-              className="rounded-none border-2 border-mad-black"
-            />
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="grid min-w-[12rem] flex-1 gap-2">
-                <FieldLabel plain="Where did you hear it?" marketing="Source" />
-                <Select
-                  value={quoteSource}
-                  onValueChange={(value) =>
-                    setQuoteSource(value as QuoteSource)
-                  }
-                >
-                  <SelectTrigger className="w-full rounded-none border-2 border-mad-black">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-none border-2 border-mad-black">
-                    {QUOTE_SOURCES.map((source) => (
-                      <SelectItem key={source.value} value={source.value}>
-                        {source.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                type="button"
-                onClick={onAddQuote}
-                disabled={pending || !quoteText.trim()}
-                className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.65rem] uppercase text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
-              >
-                {pending ? (
-                  <Loader2 className="animate-spin" data-icon="inline-start" />
-                ) : (
-                  <Plus data-icon="inline-start" />
-                )}
-                Add quote
-              </Button>
-            </div>
-          </div>
-
-          <div className="columns-1 gap-3 sm:columns-2 lg:columns-3">
-            {quotes.map((quote) => (
-              <article
-                key={quote.id}
-                className="mb-3 break-inside-avoid border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <Badge
-                    variant="outline"
-                    className="rounded-none border-2 border-mad-black font-typewriter text-[0.55rem] uppercase"
-                  >
-                    {sourceLabel[quote.source ?? "in_store"] ?? quote.source}
-                  </Badge>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="rounded-none border-2 border-mad-black hover:bg-mad-vermillion hover:text-mad-white"
-                    onClick={() => {
-                      startTransition(async () => {
-                        const result = await deleteCustomerQuote({
-                          entityId: entity.id,
-                          quoteId: quote.id,
-                        })
-                        if (!result.ok) {
-                          toast.error(result.error)
-                          return
-                        }
-                        setQuotes((prev) =>
-                          prev.filter((item) => item.id !== quote.id)
-                        )
-                      })
-                    }}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-                <p className="mt-3 text-sm leading-relaxed">
-                  “{quote.quote_text}”
-                </p>
-              </article>
-            ))}
-          </div>
-          {quotes.length === 0 ? (
-            <p className="font-typewriter text-xs tracking-wider text-neutral-500 uppercase">
-              No customer quotes yet. Add the first one above.
-            </p>
-          ) : null}
+        <TabsContent value="quotes" className="mt-0">
+          <StreetEar
+            entityId={entity.id}
+            entityName={entity.name}
+            industry={entity.industry}
+            quotes={quotes}
+            quoteText={quoteText}
+            quoteSource={quoteSource}
+            pending={pending}
+            sourceLabel={sourceLabel}
+            onQuoteTextChange={setQuoteText}
+            onQuoteSourceChange={setQuoteSource}
+            onAddQuote={onAddQuote}
+            onApplySeed={applyStreetEarSeed}
+            onDeleteQuote={(quoteId) => {
+              startTransition(async () => {
+                const result = await deleteCustomerQuote({
+                  entityId: entity.id,
+                  quoteId,
+                })
+                if (!result.ok) {
+                  toast.error(result.error)
+                  return
+                }
+                setQuotes((prev) => prev.filter((item) => item.id !== quoteId))
+              })
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="memory" className="mt-0 space-y-4">
@@ -462,14 +441,41 @@ export function BrainLab({
               Winning Rules & Audit Log
             </h2>
             <p className="mt-1 text-xs text-neutral-600">
-              Learned directives from winner and loss campaigns
+              Learned directives from winner and loss campaigns, post-mortems, and
+              manual rules
             </p>
+          </div>
+
+          <div className="flex flex-col gap-2 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm sm:flex-row sm:items-center">
+            <Input
+              value={manualDirective}
+              onChange={(event) => setManualDirective(event.target.value)}
+              placeholder='e.g. "Always lead with sizzling pass audio in first 2s; never start with app features"'
+              className="min-w-0 flex-1 rounded-none border-2 border-mad-black font-mono text-sm"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  void onAddManualDirective()
+                }
+              }}
+            />
+            <Button
+              type="button"
+              disabled={addingDirective || manualDirective.trim().length < 3}
+              onClick={() => void onAddManualDirective()}
+              className="shrink-0 rounded-none border-2 border-mad-black bg-[#CCFF00] font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-black uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white"
+            >
+              {addingDirective ? (
+                <Loader2 className="animate-spin" data-icon="inline-start" />
+              ) : null}
+              [ + Add Directive ]
+            </Button>
           </div>
 
           {takeaways.length === 0 ? (
             <p className="font-typewriter text-xs tracking-wider text-neutral-500 uppercase">
-              No learned rules yet. Complete a campaign post-mortem to train the
-              brain.
+              No learned rules yet. Add a directive above or complete a campaign
+              post-mortem.
             </p>
           ) : (
             <div className="space-y-3">

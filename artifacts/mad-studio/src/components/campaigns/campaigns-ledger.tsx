@@ -7,6 +7,7 @@ import { ChevronDown, Plus } from "lucide-react"
 import { CampaignRoiCard } from "@/components/analytics/campaign-roi-card"
 import { CampaignPostMortem } from "@/components/campaigns/campaign-post-mortem"
 import { CampaignQueuePanel } from "@/components/campaigns/campaign-queue-panel"
+import { BrainEmblemLink } from "@/components/brand/brain-emblem"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -250,17 +251,20 @@ export function CampaignsLedger({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b-2 border-mad-black pb-4">
-        <div className="space-y-2">
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-            Drop Performance
-          </p>
-          <h1 className="brand-typewriter text-xl text-mad-black sm:text-2xl">
-            {entityName}
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
-            Expand a drop for performance overview and playbook notes. Keep the
-            list tight — open only what you need.
-          </p>
+        <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
+          <div className="min-w-0 space-y-2">
+            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+              Drop Performance
+            </p>
+            <h1 className="font-typewriter text-2xl font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-3xl">
+              Campaigns Ledger // {entityName}
+            </h1>
+            <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
+              Expand a drop for performance overview and playbook notes. Keep the
+              list tight — open only what you need.
+            </p>
+          </div>
+          <BrainEmblemLink entityId={entityId} size={96} />
         </div>
         <Button
           asChild
