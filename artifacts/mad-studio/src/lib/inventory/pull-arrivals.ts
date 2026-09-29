@@ -535,6 +535,23 @@ function fudiDemoArrivals(): PulledArrival[] {
   ]
 }
 
+function foodFeedSkipsInstagramFallback(input: {
+  feedOverride?: string | null
+}): boolean {
+  if (
+    process.env.INVENTORY_FOOD_FEED_SKIP_INSTAGRAM === "1" ||
+    process.env.INVENTORY_FOOD_FEED_SKIP_INSTAGRAM === "true"
+  ) {
+    return true
+  }
+  if (input.feedOverride?.trim()) return true
+  return Boolean(
+    process.env.FUDI_FEED_URL?.trim() ||
+      process.env.INVENTORY_FEED_URL_FUDI?.trim() ||
+      process.env.INVENTORY_FOOD_FEED_URL?.trim()
+  )
+}
+
 async function fetchJsonFeed(url: string): Promise<unknown> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20_000)
@@ -698,7 +715,37 @@ export async function pullNewArrivalsForEntity(input: {
   let usedFeed = ""
   const errors: string[] = []
 
-  if (intakeMode === "food_feed") {
+  const candidates = resolveArrivalFeedCandidates({
+    websiteUrl: entity.website_url,
+    feedOverride: input.feedUrl,
+    entityName: entity.name,
+    intakeMode,
+  })
+  usedFeed = candidates[0] ?? usedFeed
+
+  for (const feedUrl of candidates) {
+    try {
+      const json = await fetchJsonFeed(feedUrl)
+      const parsed = parseArrivalPayload(json, intakeMode)
+      if (parsed.length === 0) {
+        errors.push(`${feedUrl}: empty product list`)
+        continue
+      }
+      arrivals = parsed
+      usedFeed = feedUrl
+      break
+    } catch (error) {
+      errors.push(
+        `${feedUrl}: ${error instanceof Error ? error.message : "fetch failed"}`
+      )
+    }
+  }
+
+  if (
+    intakeMode === "food_feed" &&
+    arrivals.length === 0 &&
+    !foodFeedSkipsInstagramFallback({ feedOverride: input.feedUrl })
+  ) {
     try {
       const ig = await pullInstagramFeedArrivals(input.entityId)
       if (ig && ig.arrivals.length > 0) {
@@ -709,34 +756,6 @@ export async function pullNewArrivalsForEntity(input: {
       errors.push(
         `instagram: ${error instanceof Error ? error.message : "fetch failed"}`
       )
-    }
-  }
-
-  if (arrivals.length === 0) {
-    const candidates = resolveArrivalFeedCandidates({
-      websiteUrl: entity.website_url,
-      feedOverride: input.feedUrl,
-      entityName: entity.name,
-      intakeMode,
-    })
-    usedFeed = candidates[0] ?? usedFeed
-
-    for (const feedUrl of candidates) {
-      try {
-        const json = await fetchJsonFeed(feedUrl)
-        const parsed = parseArrivalPayload(json, intakeMode)
-        if (parsed.length === 0) {
-          errors.push(`${feedUrl}: empty product list`)
-          continue
-        }
-        arrivals = parsed
-        usedFeed = feedUrl
-        break
-      } catch (error) {
-        errors.push(
-          `${feedUrl}: ${error instanceof Error ? error.message : "fetch failed"}`
-        )
-      }
     }
   }
 
@@ -759,7 +778,7 @@ export async function pullNewArrivalsForEntity(input: {
       intakeMode === "food_feed"
         ? [
             "Could not load eatery / app feed for this brand.",
-            "Connect an Instagram account in Settings, or set INVENTORY_FEED_URL_FUDI / FUDI_FEED_URL to a JSON feed.",
+            "Set INVENTORY_FEED_URL_FUDI / FUDI_FEED_URL to your app JSON feed, or connect Instagram as a fallback.",
             entity.website_url
               ? `Also tried menu/specials endpoints under ${entity.website_url}.`
               : null,
