@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse } from "@server/http-response"
 
 import { recordOrchestratedCall } from "@/lib/ai/metering"
 import { generateObjectWithFallback } from "@/lib/ai/orchestrator"
@@ -87,13 +87,13 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return HttpResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.json()
     const parsed = generatePackRequestSchema.safeParse(body)
     if (!parsed.success) {
-      return NextResponse.json(
+      return HttpResponse.json(
         {
           error:
             "Intent, objective, persona, and raw spark (8–500 chars) are required.",
@@ -146,11 +146,11 @@ export async function POST(request: Request) {
     )
 
     if (accessError) {
-      return NextResponse.json({ error: accessError.message }, { status: 500 })
+      return HttpResponse.json({ error: accessError.message }, { status: 500 })
     }
 
     if (!canAccess) {
-      return NextResponse.json(
+      return HttpResponse.json(
         {
           error:
             "MULTI-BRAND ISOLATION ACTIVE. Verify Entity Access.",
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
       .single()
 
     if (entityError || !entityRow) {
-      return NextResponse.json(
+      return HttpResponse.json(
         { error: entityError?.message ?? "Entity not found." },
         { status: 404 }
       )
@@ -370,7 +370,7 @@ export async function POST(request: Request) {
 
     const preview = packToStudioPreview(scrubbedPack, campaignId)
 
-    return NextResponse.json({
+    return HttpResponse.json({
       pack: scrubbedPack,
       preview,
       campaignId,
@@ -381,6 +381,6 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     const { message, status } = humanizeRouteError(error)
-    return NextResponse.json({ error: message }, { status })
+    return HttpResponse.json({ error: message }, { status })
   }
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse } from "@server/http-response"
 import { timingSafeEqual } from "crypto"
 
 import {
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
     const parsed = fudiFeedRequestSchema.safeParse(rawBody)
 
     if (!parsed.success) {
-      return NextResponse.json(
+      return HttpResponse.json(
         { error: "Invalid FÜDI feed payload.", details: parsed.error.flatten() },
         { status: 400 }
       )
@@ -132,13 +132,13 @@ export async function POST(request: Request) {
     if (syncMode) {
       const auth = await authorizeFudiSync(request)
       if (!auth.ok) {
-        return NextResponse.json({ error: auth.error }, { status: auth.status })
+        return HttpResponse.json({ error: auth.error }, { status: auth.status })
       }
 
       const admin = createAdminClient()
       const entityId = body.entity_id ?? FUDI_ENTITY_ID
       if (entityId !== FUDI_ENTITY_ID) {
-        return NextResponse.json(
+        return HttpResponse.json(
           { error: "FÜDI Supabase sync is scoped to the FÜDI entity only." },
           { status: 400 }
         )
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
         })
       }
 
-      return NextResponse.json({
+      return HttpResponse.json({
         ok: true,
         mode: "sync",
         entity_id: entityId,
@@ -184,14 +184,14 @@ export async function POST(request: Request) {
 
     const expected = webhookSecretConfigured()
     if (!expected) {
-      return NextResponse.json(
+      return HttpResponse.json(
         { error: "FUDI_FEED_WEBHOOK_SECRET or SYNC_WEBHOOK_SECRET is not configured." },
         { status: 500 }
       )
     }
 
     if (!hasValidWebhookSecret(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return HttpResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const batch = [
@@ -199,7 +199,7 @@ export async function POST(request: Request) {
       ...(body.items ?? []),
     ]
     if (batch.length === 0) {
-      return NextResponse.json(
+      return HttpResponse.json(
         { error: "Provide item or items to ingest, or { sync: true } to pull from FÜDI Supabase." },
         { status: 400 }
       )
@@ -212,7 +212,7 @@ export async function POST(request: Request) {
       body.entity_slug
     )
     if (!entityId) {
-      return NextResponse.json(
+      return HttpResponse.json(
         { error: "FÜDI entity not found for intake." },
         { status: 404 }
       )
@@ -227,7 +227,7 @@ export async function POST(request: Request) {
       synced.push(row.row)
     }
 
-    return NextResponse.json({
+    return HttpResponse.json({
       ok: true,
       mode: "webhook",
       entity_id: entityId,
@@ -239,6 +239,6 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "FÜDI feed intake failed."
     console.error("[intake/fudi-feed]", error)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return HttpResponse.json({ error: message }, { status: 500 })
   }
 }
