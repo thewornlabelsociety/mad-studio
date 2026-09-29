@@ -1,11 +1,11 @@
-import { assertMadStudioSupabaseProject } from "@/lib/supabase/project-guard"
-
+/** Browser-safe Supabase public config (injected at build/dev via vite `define`). */
 export function getSupabaseUrl(): string {
   const value = import.meta.env.VITE_SUPABASE_URL
   if (!value) {
-    throw new Error("Missing environment variable: VITE_SUPABASE_URL. Configure your Supabase public URL.")
+    throw new Error(
+      "Missing environment variable: VITE_SUPABASE_URL (set NEXT_PUBLIC_SUPABASE_URL in Replit Secrets, then restart the MAD Studio web service)."
+    )
   }
-  assertMadStudioSupabaseProject(value, "VITE_SUPABASE_URL")
   return value
 }
 

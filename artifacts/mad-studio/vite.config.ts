@@ -27,13 +27,44 @@ if (!basePath) {
   );
 }
 
+const viteSupabaseUrl =
+  process.env.VITE_SUPABASE_URL?.trim() ??
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ??
+  '';
+const fudiSupabaseUrl = process.env.FUDI_SUPABASE_URL?.trim() ?? '';
+
+function normalizeSupabaseProjectUrl(value: string): string {
+  return value.trim().replace(/\/$/, '').toLowerCase();
+}
+
+if (viteSupabaseUrl && fudiSupabaseUrl) {
+  if (normalizeSupabaseProjectUrl(viteSupabaseUrl) === normalizeSupabaseProjectUrl(fudiSupabaseUrl)) {
+    throw new Error(
+      'NEXT_PUBLIC_SUPABASE_URL must be the MAD Studio project, not FUDI_SUPABASE_URL. Point FÜDI vars at the external read-only project only.',
+    );
+  }
+}
+
 export default defineConfig({
   base: basePath,
   define: {
-    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''),
-    'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ''),
-    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''),
-    'import.meta.env.VITE_SITE_URL': JSON.stringify(process.env.VITE_SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''),
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(viteSupabaseUrl),
+    'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ??
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ??
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ??
+        '',
+    ),
+    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(
+      process.env.VITE_SUPABASE_ANON_KEY?.trim() ??
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ??
+        '',
+    ),
+    'import.meta.env.VITE_SITE_URL': JSON.stringify(
+      process.env.VITE_SITE_URL?.trim() ??
+        process.env.NEXT_PUBLIC_SITE_URL?.trim() ??
+        '',
+    ),
   },
   plugins: [
     react(),
