@@ -1,0 +1,69 @@
+~/workspace$ cd ~/workspace
+
+pnpm --filter @workspace/api-server run build
+
+export PORT=8080
+export NODE_ENV=development
+pnpm --filter @workspace/api-server run start
+
+> @workspace/api-server@0.0.0 build /home/runner/workspace/artifacts/api-server
+> node ./build.mjs
+
+✘ [ERROR] Could not resolve "next/server"
+
+    src/ported/app/api/generate/pack/route.ts:1:29:
+      1 │ import { NextResponse } from "next/server"
+        ╵                              ~~~~~~~~~~~~~
+
+  You can mark the path "next/server" as external to exclude it from the bundle, which will remove
+  this error and leave the unresolved path in the bundle.
+
+✘ [ERROR] Could not resolve "next/server"
+
+    src/ported/app/api/intake/fudi-feed/route.ts:1:29:
+      1 │ import { NextResponse } from "next/server"
+        ╵                              ~~~~~~~~~~~~~
+
+  You can mark the path "next/server" as external to exclude it from the bundle, which will remove
+  this error and leave the unresolved path in the bundle.
+
+2 errors
+Error: Build failed with 2 errors:
+src/ported/app/api/generate/pack/route.ts:1:29: ERROR: Could not resolve "next/server"
+src/ported/app/api/intake/fudi-feed/route.ts:1:29: ERROR: Could not resolve "next/server"
+    at failureErrorWithLog (/home/runner/workspace/node_modules/.pnpm/esbuild@0.28.2/node_modules/esbuild/lib/main.js:1752:15)
+    at /home/runner/workspace/node_modules/.pnpm/esbuild@0.28.2/node_modules/esbuild/lib/main.js:1211:25
+    at /home/runner/workspace/node_modules/.pnpm/esbuild@0.28.2/node_modules/esbuild/lib/main.js:1630:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  errors: [Getter/Setter],
+  warnings: [Getter/Setter]
+}
+/home/runner/workspace/artifacts/api-server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 build: `node ./build.mjs`
+Exit status 1
+
+> @workspace/api-server@0.0.0 start /home/runner/workspace/artifacts/api-server
+> node --enable-source-maps ./dist/index.mjs
+
+node:internal/modules/cjs/loader:1424
+  throw err;
+  ^
+
+Error: Cannot find module '/home/runner/workspace/artifacts/api-server/dist/index.mjs'
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1421:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+    at Module._load (node:internal/modules/cjs/loader:1227:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v24.13.0
+/home/runner/workspace/artifacts/api-server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `node --enable-source-maps ./dist/index.mjs`
+Exit status 1
+~/workspace$ 
