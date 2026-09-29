@@ -57,12 +57,27 @@ export function resolveFudiSupabasePullLimit(): number {
   return DEFAULT_FUDI_PULL_LIMIT
 }
 
+type FudiTableProbeStatus =
+  | "ok"
+  | "empty"
+  | "missing"
+  | "permission_denied"
+  | "query_error"
+
+export type FudiTableProbe = {
+  table: FudiFeedTable
+  status: FudiTableProbeStatus
+  rowCount: number
+  detail?: string
+}
+
 export type FudiSupabaseSyncResult = {
   imported: number
   updated: number
   skipped: number
   scanned: number
   sources: string[]
+  probes: FudiTableProbe[]
   items: Array<{ id: string; website_item_id: string; title: string }>
 }
 
@@ -434,42 +449,165 @@ function isPermissionOrAccessError(message: string): boolean {
   )
 }
 
+function isOrderColumnError(message: string): boolean {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes("created_at") ||
+    lower.includes("does not exist") ||
+    lower.includes("column") ||
+    lower.includes("42703")
+  )
+}
+
+const ORDER_COLUMNS = [
+  "created_at",
+  "updated_at",
+  "published_at",
+  "posted_at",
+] as const
+
+async function runTableSelect(
+  client: SupabaseClient,
+  table: FudiFeedTable,
+  select: string,
+  rowLimit: number,
+  orderColumn: string | null
+) {
+  let query = client.from(table).select(select).limit(rowLimit)
+  if (orderColumn) {
+    query = query.order(orderColumn, { ascending: false })
+  }
+  return query
+}
+
+function classifyProbeFailure(
+  table: FudiFeedTable,
+  message: string
+): FudiTableProbe {
+  if (isMissingTableError(message)) {
+    return { table, status: "missing", rowCount: 0, detail: message }
+  }
+  if (isPermissionOrAccessError(message)) {
+    return { table, status: "permission_denied", rowCount: 0, detail: message }
+  }
+  return { table, status: "query_error", rowCount: 0, detail: message }
+}
+
 async function fetchTableRows(
   client: SupabaseClient,
   table: FudiFeedTable,
   rowLimit: number
-): Promise<Record<string, unknown>[]> {
+): Promise<{ rows: Record<string, unknown>[]; probe: FudiTableProbe }> {
   const selects = TABLE_SELECTS[table]
   let lastError: string | null = null
 
   for (const select of selects) {
-    const { data, error } = await client
-      .from(table)
-      .select(select)
-      .order("created_at", { ascending: false })
-      .limit(rowLimit)
+    const orderAttempts: Array<string | null> = [...ORDER_COLUMNS, null]
+    let joinFailed = false
 
-    if (!error) {
-      return (data ?? []) as unknown as Record<string, unknown>[]
+    for (const orderColumn of orderAttempts) {
+      const { data, error } = await runTableSelect(
+        client,
+        table,
+        select,
+        rowLimit,
+        orderColumn
+      )
+
+      if (!error) {
+        const rows = (data ?? []) as unknown as Record<string, unknown>[]
+        return {
+          rows,
+          probe: {
+            table,
+            status: rows.length > 0 ? "ok" : "empty",
+            rowCount: rows.length,
+          },
+        }
+      }
+
+      lastError = error.message
+      if (isMissingTableError(error.message)) {
+        return { rows: [], probe: classifyProbeFailure(table, error.message) }
+      }
+      if (isPermissionOrAccessError(error.message)) {
+        return { rows: [], probe: classifyProbeFailure(table, error.message) }
+      }
+
+      const joinIssue =
+        error.message.toLowerCase().includes("relationship") ||
+        error.message.toLowerCase().includes("could not embed")
+      if (joinIssue) {
+        joinFailed = true
+        break
+      }
+
+      if (orderColumn && isOrderColumnError(error.message)) {
+        continue
+      }
+
+      if (orderColumn === null) {
+        break
+      }
     }
-    lastError = error.message
-    if (isMissingTableError(error.message)) return []
-    if (isPermissionOrAccessError(error.message)) return []
-    const joinIssue =
-      error.message.toLowerCase().includes("relationship") ||
-      error.message.toLowerCase().includes("could not embed")
-    if (joinIssue) continue
-    throw new Error(`${table}: ${error.message}`)
+
+    if (joinFailed) continue
   }
 
-  if (lastError && isPermissionOrAccessError(lastError)) return []
-  return []
+  if (lastError) {
+    return { rows: [], probe: classifyProbeFailure(table, lastError) }
+  }
+
+  return { rows: [], probe: { table, status: "empty", rowCount: 0 } }
+}
+
+function formatEmptyPullError(probes: FudiTableProbe[]): string {
+  const denied = probes.filter((p) => p.status === "permission_denied")
+  const missing = probes.filter((p) => p.status === "missing")
+  const empty = probes.filter((p) => p.status === "empty")
+  const errors = probes.filter((p) => p.status === "query_error")
+
+  if (denied.length > 0 && denied.length + missing.length === probes.length) {
+    const tables = denied.map((p) => p.table).join(", ")
+    return (
+      `FÜDI intake key cannot SELECT any feed tables (RLS/permissions). Blocked: ${tables}. ` +
+      "On the FÜDI Supabase project, add SELECT policies for the anon role (or set FUDI_SUPABASE_USE_SERVICE_ROLE_FOR_READ=1 with FUDI_SUPABASE_SERVICE_ROLE_KEY — code still read-only)."
+    )
+  }
+
+  if (missing.length === probes.length) {
+    return (
+      "No FÜDI feed tables exist in this Supabase project. Confirm FUDI_SUPABASE_URL points at the FÜDI app project (not MAD Studio)."
+    )
+  }
+
+  const parts: string[] = []
+  if (denied.length) {
+    parts.push(`RLS blocked: ${denied.map((p) => p.table).join(", ")}`)
+  }
+  if (empty.length) {
+    parts.push(`no rows: ${empty.map((p) => p.table).join(", ")}`)
+  }
+  if (missing.length) {
+    parts.push(`missing: ${missing.map((p) => p.table).join(", ")}`)
+  }
+  if (errors.length) {
+    parts.push(
+      `query errors: ${errors.map((p) => `${p.table} (${p.detail ?? "failed"})`).join("; ")}`
+    )
+  }
+
+  return (
+    `No FÜDI feed data could be read. ${parts.join(" · ")}. ` +
+    "Check FUDI_SUPABASE_URL, FUDI_SUPABASE_ANON_KEY, and table RLS on the FÜDI project."
+  )
 }
 
 export async function pullFudiSupabaseFeedRows(): Promise<{
   mapped: MappedFudiSupabaseRow[]
   sources: string[]
   scanned: number
+  probes: FudiTableProbe[]
 }> {
   const client = getFudiSupabaseClient()
   const projectUrl = getFudiSupabaseProjectUrl()
@@ -477,11 +615,13 @@ export async function pullFudiSupabaseFeedRows(): Promise<{
   const perTableFetch = Math.min(100, Math.max(pullLimit, 20))
   const mapped: MappedFudiSupabaseRow[] = []
   const sources: string[] = []
+  const probes: FudiTableProbe[] = []
   let scanned = 0
   const seen = new Set<string>()
 
   for (const table of FUDI_FEED_TABLES) {
-    const rows = await fetchTableRows(client, table, perTableFetch)
+    const { rows, probe } = await fetchTableRows(client, table, perTableFetch)
+    probes.push(probe)
     if (rows.length === 0) continue
     sources.push(table)
     scanned += rows.length
@@ -502,6 +642,7 @@ export async function pullFudiSupabaseFeedRows(): Promise<{
     mapped: mapped.slice(0, pullLimit),
     sources,
     scanned,
+    probes,
   }
 }
 
@@ -514,12 +655,10 @@ export async function syncFudiSupabaseToMarketingEntities(input: {
     throw new Error("FÜDI Supabase sync must target the FÜDI entity only.")
   }
 
-  const { mapped, sources, scanned } = await pullFudiSupabaseFeedRows()
+  const { mapped, sources, scanned, probes } = await pullFudiSupabaseFeedRows()
   if (mapped.length === 0) {
     if (sources.length === 0) {
-      throw new Error(
-        "No FÜDI feed tables returned data. Expected one of: fudi_board_items, eatery_menu_items, eats_community_events, foodie_events, craving_offer_responses — check FUDI_SUPABASE_* credentials and RLS."
-      )
+      throw new Error(formatEmptyPullError(probes))
     }
     throw new Error(
       "FÜDI Supabase tables were found but no active items with titles and images matched the intake mapper."
@@ -555,5 +694,5 @@ export async function syncFudiSupabaseToMarketingEntities(input: {
     }
   }
 
-  return { imported, updated, skipped, scanned, sources, items }
+  return { imported, updated, skipped, scanned, sources, probes, items }
 }

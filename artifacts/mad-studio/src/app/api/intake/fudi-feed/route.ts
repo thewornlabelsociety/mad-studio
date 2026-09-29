@@ -161,6 +161,7 @@ export async function POST(request: Request) {
             skipped: result.skipped,
             scanned: result.scanned,
             sources: result.sources,
+            probes: result.probes,
           },
         })
       }
@@ -174,6 +175,7 @@ export async function POST(request: Request) {
         skipped: result.skipped,
         scanned: result.scanned,
         sources: result.sources,
+        probes: result.probes,
         items: result.items,
         message:
           result.imported === 0
