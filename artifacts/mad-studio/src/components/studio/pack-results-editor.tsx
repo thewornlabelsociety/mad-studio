@@ -10,6 +10,13 @@ import {
   detectMediaKindFromUrl,
   type MediaAsset,
 } from "@/components/marketing/media-tray"
+import { CapCutBridge } from "@/components/studio/capcut-bridge"
+import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
+import {
+  DEFAULT_CANVAS_TEXT_OVERLAY,
+  type CanvasTextOverlayState,
+} from "@/lib/studio/canvas-text-types"
+import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import { AutoTextarea } from "@/components/studio/auto-textarea"
 import { usePackHistory } from "@/components/studio/use-pack-history"
 import type { MultiplexerIntent } from "@/lib/campaigns/multiplexer"
@@ -41,6 +48,8 @@ type PackResultsEditorProps = {
   redirectSlugSeed?: string | null
   onPackChange: (pack: CampaignPack) => void
   onCampaignIdChange: (id: string) => void
+  onMediaAssetsChange?: (assets: MediaAsset[]) => void
+  onActiveMediaIdChange?: (id: string | null) => void
 }
 
 const AUTO_SAVE_MS = 800
@@ -70,9 +79,20 @@ export function PackResultsEditor({
   redirectSlugSeed = null,
   onPackChange,
   onCampaignIdChange,
+  onMediaAssetsChange,
+  onActiveMediaIdChange,
 }: PackResultsEditorProps) {
   const [metaChannel, setMetaChannel] =
     useState<MetaPreviewChannel>("ig_story")
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [textOverlay, setTextOverlay] = useState<CanvasTextOverlayState>(() => ({
+    ...DEFAULT_CANVAS_TEXT_OVERLAY,
+    headline:
+      pack.algorithmic_signals.on_screen_text ||
+      pack.carousel.slides[0]?.headline ||
+      pack.campaign_title,
+    subhead: pack.algorithmic_signals.spoken_hook?.slice(0, 80) ?? "",
+  }))
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const [manualSaving, setManualSaving] = useState(false)
   const [slugCopied, setSlugCopied] = useState(false)
@@ -93,6 +113,40 @@ export function PackResultsEditor({
 
   function commitEdit() {
     history.flushHistory()
+  }
+
+  function mountLibraryCarousel(items: MediaLibraryItem[]) {
+    const assets: MediaAsset[] = items.map((item, index) => ({
+      id: `lib-${item.id}-${index}`,
+      url: item.url,
+      publicUrl: item.url,
+      type: item.kind,
+    }))
+    onMediaAssetsChange?.(assets)
+    onActiveMediaIdChange?.(assets[0]?.id ?? null)
+    setMetaChannel("ig_feed")
+    patchPack((current) => ({
+      ...current,
+      carousel: {
+        ...current.carousel,
+        slides: items.map((item, index) => ({
+          slide_number: index + 1,
+          headline: item.sourceTitle.slice(0, 120),
+          body_text: "",
+        })),
+      },
+    }))
+  }
+
+  function onCapCutVideoReady(publicUrl: string) {
+    const asset: MediaAsset = {
+      id: `capcut-${Date.now()}`,
+      url: publicUrl,
+      publicUrl,
+      type: "video",
+    }
+    onMediaAssetsChange?.([asset])
+    onActiveMediaIdChange?.(asset.id)
   }
 
   async function persistPack(reason: "auto" | "manual") {
@@ -498,10 +552,17 @@ export function PackResultsEditor({
         </div>
 
         <div className="mx-auto w-[360px] shrink-0 xl:sticky xl:top-4 xl:mx-0 xl:self-start">
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase">
               Live preview
             </p>
+            <button
+              type="button"
+              onClick={() => setLibraryOpen(true)}
+              className="border-2 border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.5rem] font-bold uppercase hover:bg-mad-lime"
+            >
+              Media library
+            </button>
             <div className="flex gap-1">
               <button
                 type="button"
@@ -604,10 +665,37 @@ export function PackResultsEditor({
             hidePlatformSwitcher
             lockedViewport
             showCreativeControls
+            showTextStyler
+            textOverlay={textOverlay}
+            onTextOverlayChange={setTextOverlay}
             stacked
+          />
+          <CapCutBridge
+            className="mt-3"
+            entityId={entityId}
+            payload={{
+              hook: pack.algorithmic_signals.spoken_hook,
+              headline:
+                pack.algorithmic_signals.on_screen_text ||
+                pack.carousel.slides[0]?.headline ||
+                pack.campaign_title,
+              caption: pack.seo_caption.caption_body,
+              audioScript:
+                pack.short_video_script.spoken_lines.join(" ") ||
+                pack.algorithmic_signals.spoken_hook,
+              assetUrl: mediaUrl,
+            }}
+            onVideoReady={onCapCutVideoReady}
           />
         </div>
       </div>
+
+      <MediaLibraryDrawer
+        entityId={entityId}
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        onBuildCarousel={mountLibraryCarousel}
+      />
     </section>
   )
 }

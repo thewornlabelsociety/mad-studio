@@ -85,6 +85,9 @@ import {
   type FudiAudienceTrack,
 } from "@/lib/studio/fudi-tracks"
 import { FormulaBankPanel } from "@/components/studio/formula-bank-panel"
+import { CapCutBridge } from "@/components/studio/capcut-bridge"
+import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
+import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import {
   buildCampaignPackFromFormula,
   defaultSlotsFromSpark,
@@ -168,6 +171,7 @@ export function StudioWorkspace({
   const [activeHookId, setActiveHookId] = useState<string | null>(null)
   const [redirectSlugSeed, setRedirectSlugSeed] = useState<string | null>(null)
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
+  const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false)
   const [activeMediaId, setActiveMediaId] = useState<string | null>(null)
   const [attachedImageUrl, setAttachedImageUrl] = useState<string | null>(null)
   const [visualInspection, setVisualInspection] =
@@ -341,6 +345,17 @@ export function StudioWorkspace({
     const settled = asset.publicUrl || asset.url
     setAttachedImageUrl(settled)
     setVisualInspection(asset.visualInspection ?? null)
+  }
+
+  function mountMediaLibraryCarousel(items: MediaLibraryItem[]) {
+    const assets: MediaAsset[] = items.map((item, index) => ({
+      id: `lib-${item.id}-${index}`,
+      url: item.url,
+      publicUrl: item.url,
+      type: item.kind,
+    }))
+    onMediaAssetsChange(assets)
+    setActiveMediaId(assets[0]?.id ?? null)
   }
 
   function onVisualInspect(
@@ -1125,6 +1140,15 @@ export function StudioWorkspace({
               Attach the visual drop first — cutout isolation lands on the phone
               after you generate.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setMediaLibraryOpen(true)}
+                className="border-2 border-mad-black bg-[#CCFF00] px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
+              >
+                Open media library
+              </button>
+            </div>
             <div className="mt-4">
               <MediaTray
                 entityId={activeEntity.id}
@@ -1142,6 +1166,29 @@ export function StudioWorkspace({
                   </span>
                   {visualInspection.visualDescription}
                 </p>
+              ) : null}
+              {activeMedia?.type === "video" ? (
+                <CapCutBridge
+                  className="mt-4 max-w-md"
+                  entityId={activeEntity.id}
+                  payload={{
+                    hook: rawSpark.trim().slice(0, 120),
+                    headline: rawSpark.trim().slice(0, 80) || activeEntity.name,
+                    caption: rawSpark.trim(),
+                    audioScript: rawSpark.trim(),
+                    assetUrl: activeMedia.url,
+                  }}
+                  onVideoReady={(publicUrl) => {
+                    const asset: MediaAsset = {
+                      id: `capcut-${Date.now()}`,
+                      url: publicUrl,
+                      publicUrl,
+                      type: "video",
+                    }
+                    onMediaAssetsChange([asset])
+                    setActiveMediaId(asset.id)
+                  }}
+                />
               ) : null}
             </div>
           </section>
@@ -1430,8 +1477,17 @@ export function StudioWorkspace({
           redirectSlugSeed={liveRedirectSlugSeed}
           onPackChange={onPackChange}
           onCampaignIdChange={onCampaignIdChange}
+          onMediaAssetsChange={onMediaAssetsChange}
+          onActiveMediaIdChange={setActiveMediaId}
         />
       ) : null}
+
+      <MediaLibraryDrawer
+        entityId={activeEntity.id}
+        open={mediaLibraryOpen}
+        onOpenChange={setMediaLibraryOpen}
+        onBuildCarousel={mountMediaLibraryCarousel}
+      />
 
       <StepDock
         step={workbenchStep}

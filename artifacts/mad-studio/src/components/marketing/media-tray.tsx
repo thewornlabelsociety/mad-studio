@@ -81,7 +81,7 @@ function detectKind(file: File): MediaKind | null {
   return null
 }
 
-async function uploadToEntityAssets(
+export async function uploadToEntityAssets(
   entityId: string,
   file: File
 ): Promise<string> {

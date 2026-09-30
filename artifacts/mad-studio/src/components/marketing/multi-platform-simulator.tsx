@@ -53,6 +53,14 @@ import { detectMediaKindFromUrl } from "@/components/marketing/media-tray"
 import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
 import { trackableUrl } from "@/lib/social/types"
 import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
+import {
+  CanvasTextOverlayEditor,
+  CanvasTextOverlayLayer,
+} from "@/components/studio/canvas-text-overlay"
+import {
+  DEFAULT_CANVAS_TEXT_OVERLAY,
+  type CanvasTextOverlayState,
+} from "@/lib/studio/canvas-text-types"
 import { cn } from "@/lib/utils"
 
 export type SimulatorPlatform =
@@ -192,6 +200,9 @@ type Props = {
   /** Controlled carousel slide (sync with Media Tray selection). */
   slideIndex?: number
   onSlideIndexChange?: (index: number) => void
+  textOverlay?: CanvasTextOverlayState | null
+  onTextOverlayChange?: (next: CanvasTextOverlayState) => void
+  showTextStyler?: boolean
   className?: string
 }
 
@@ -245,6 +256,9 @@ export function MultiPlatformSimulator({
   lockedViewport = false,
   slideIndex: controlledSlideIndex,
   onSlideIndexChange,
+  textOverlay: controlledTextOverlay = null,
+  onTextOverlayChange,
+  showTextStyler = false,
   className,
 }: Props) {
   const captureRef = useRef<HTMLDivElement>(null)
@@ -290,6 +304,14 @@ export function MultiPlatformSimulator({
   const [copied, setCopied] = useState(false)
   const [uncontrolledSlideIndex, setUncontrolledSlideIndex] = useState(0)
   const [localSlideTexts, setLocalSlideTexts] = useState<string[]>([])
+  const [localTextOverlay, setLocalTextOverlay] =
+    useState<CanvasTextOverlayState>(DEFAULT_CANVAS_TEXT_OVERLAY)
+  const textOverlay = controlledTextOverlay ?? localTextOverlay
+
+  function setTextOverlay(next: CanvasTextOverlayState) {
+    if (controlledTextOverlay == null) setLocalTextOverlay(next)
+    onTextOverlayChange?.(next)
+  }
 
   const slideIndex = controlledSlideIndex ?? uncontrolledSlideIndex
 
@@ -972,6 +994,10 @@ export function MultiPlatformSimulator({
                   cta={content.stickerLabel || "Shop now"}
                 />
               ) : null}
+              <CanvasTextOverlayLayer
+                overlay={textOverlay}
+                isVideo={isVideo}
+              />
             </div>
           </div>
         </div>
@@ -1042,6 +1068,13 @@ export function MultiPlatformSimulator({
       </p>
 
       <div className="space-y-2">
+        {showTextStyler ? (
+          <CanvasTextOverlayEditor
+            value={textOverlay}
+            onChange={setTextOverlay}
+            isVideo={isVideo}
+          />
+        ) : null}
         <label className="grid gap-1">
           <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
             Story style
@@ -1375,6 +1408,14 @@ export function MultiPlatformSimulator({
           })}
         </div>
         )}
+        {showTextStyler ? (
+          <CanvasTextOverlayEditor
+            value={textOverlay}
+            onChange={setTextOverlay}
+            isVideo={isVideo}
+            className="w-full max-w-[360px]"
+          />
+        ) : null}
         {hidePlatformSwitcher ? null : stylingColumn}
       </div>
     )

@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-09-30h"
+export const MAD_STUDIO_HELP_VERSION = "2026-09-30i"
 
 export type HelpSop = {
   title: string
@@ -248,6 +248,21 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Entity presets",
         description: "FÜDI tracks (diners/partners) vs fashion presets adjust chips and objectives.",
+      },
+      {
+        name: "Media library & carousel",
+        description:
+          "Step 1 / pack preview: Media library drawer lists recent entity images and reels with [ FÜDI App ] vs [ Upload ] badges; multi-select up to 10 → Build carousel mounts slides in the IG Feed simulator.",
+      },
+      {
+        name: "On-canvas text styler",
+        description:
+          "Pack preview styling: headline/subhead overlays on the phone canvas (social fonts, brand swatches, shadow, highlight pill); PNG export via html-to-image includes overlays.",
+      },
+      {
+        name: "CapCut bridge",
+        description:
+          "Step 1 (video) and pack preview: Edit reel in CapCut copies hook/caption/script JSON and opens CapCut Web; drop finished MP4 back to replace the draft reel without losing metadata.",
       },
       {
         name: "Multi-channel scheduler",
