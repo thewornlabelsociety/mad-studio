@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-09-30b"
+export const MAD_STUDIO_HELP_VERSION = "2026-09-30c"
 
 export type HelpSop = {
   title: string
@@ -228,12 +228,17 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
     title: "Campaign Studio (Multiplexer)",
     route: "/studio",
     summary:
-      "Three-step flow: media/spark → AI 5-piece pack → edit, schedule, arm multi-channel.",
+      "Three-step flow: media/spark → formula or AI pack → edit, schedule, arm multi-channel.",
     features: [
       {
-        name: "Scratch pack",
+        name: "Formula bank ($0 render)",
         description:
-          "Describe drop/event; Gemini generates video script, carousel, caption, email, B2B DM with algorithmic triad fields.",
+          "Step 2: pick hook, visual direction, and conversion CTA from entity presets; fill bracket slots (item, location, prices). Step 3: Render formula pack builds the 5-piece pack locally with no Gemini tokens.",
+      },
+      {
+        name: "AI pack (Gemini)",
+        description:
+          "Optional Generate with AI for open-ended copy when formulas are not enough; uses entity DNA and spark text.",
       },
       {
         name: "Entity presets",
@@ -254,10 +259,11 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       audience: "Creator",
       prerequisites: ["Unfeatured item or fresh spark text"],
       steps: [
-        "Open Studio with itemId from intake or enter spark manually.",
+        "Open Studio with itemId from intake or enter a short spark (≤500 chars).",
         "Attach or confirm hero media.",
-        "Generate 5-piece pack; review tabs (video, carousel, caption, etc.).",
-        "Arm channels with schedule times or save as draft.",
+        "On Step 2, choose hook / visual / CTA and fill formula slots (defaults pull from spark).",
+        "On Step 3, click Render formula pack ($0) for instant copy, or Generate with AI when you need a custom draft.",
+        "Review tabs (video, carousel, caption, etc.), arm channels or save as draft.",
         "Confirm armed rows on Today and Campaigns ledger.",
       ],
     },

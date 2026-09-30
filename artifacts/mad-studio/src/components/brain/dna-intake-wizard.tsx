@@ -38,7 +38,9 @@ function toEntityDna(entity: StudioEntityDna): EntityDna {
     brand_identity: entity.brand_identity,
     audience_segments: entity.audience_segments,
     value_propositions: entity.value_propositions,
-    conversion_goals: entity.conversion_goals,
+    conversion_goals: entity.conversion_goals.map(
+      (goal) => goal.action_text || goal.label
+    ),
     content_pillars: [],
     local_context: [],
   }
@@ -304,25 +306,6 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
                   ))}
                 </div>
               ) : null}
-              <p className="mt-4 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                Forbidden words · brand safety
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {displayDna.brand_identity.forbidden_words.length === 0 ? (
-                  <span className="text-sm text-neutral-500">
-                    No brand-safety tags on file — edit below on Core DNA.
-                  </span>
-                ) : (
-                  displayDna.brand_identity.forbidden_words.map((word) => (
-                    <span
-                      key={word}
-                      className="border-2 border-mad-black bg-mad-lime px-2.5 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase"
-                    >
-                      {word.startsWith("#") ? word : `#${word.replace(/^#/, "")}`}
-                    </span>
-                  ))
-                )}
-              </div>
             </article>
           </div>
 

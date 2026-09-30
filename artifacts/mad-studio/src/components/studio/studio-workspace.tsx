@@ -84,6 +84,14 @@ import {
   resolveFudiTrackPresets,
   type FudiAudienceTrack,
 } from "@/lib/studio/fudi-tracks"
+import { FormulaBankPanel } from "@/components/studio/formula-bank-panel"
+import {
+  buildCampaignPackFromFormula,
+  defaultSlotsFromSpark,
+  resolveConversionActions,
+  resolveFormulaBank,
+  type FormulaRenderSlots,
+} from "@/lib/studio/formula-bank"
 import { cn } from "@/lib/utils"
 import type { AccessibleEntity } from "@/lib/types"
 
@@ -151,6 +159,12 @@ export function StudioWorkspace({
   const toneGoalSuffix = AUDIENCE_TONE_META[audienceTone].promptCue
   const [personaId, setPersonaId] = useState(personas[0]?.id ?? "")
   const [rawSpark, setRawSpark] = useState("")
+  const [formulaHookId, setFormulaHookId] = useState<string | null>(null)
+  const [formulaVisualId, setFormulaVisualId] = useState<string | null>(null)
+  const [formulaCtaId, setFormulaCtaId] = useState<string | null>(null)
+  const [formulaSlots, setFormulaSlots] = useState<FormulaRenderSlots>(() =>
+    defaultSlotsFromSpark("")
+  )
   const [activeHookId, setActiveHookId] = useState<string | null>(null)
   const [redirectSlugSeed, setRedirectSlugSeed] = useState<string | null>(null)
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
@@ -690,6 +704,47 @@ export function StudioWorkspace({
     })
   }
 
+  function renderFormulaPack() {
+    setSystemError(null)
+    const spark = rawSpark.trim()
+    if (spark.length < 8) {
+      setSystemError("RAW SPARK TOO SHORT. Add a one-line event for slot fill.")
+      return
+    }
+    const bank = resolveFormulaBank(activeEntity.brand_identity)
+    const ctas = resolveConversionActions(activeEntity.conversion_goals)
+    const hook =
+      bank.hook_styles.find((h) => h.id === formulaHookId) ??
+      bank.hook_styles[0]
+    const visual =
+      bank.visual_directions.find((v) => v.id === formulaVisualId) ??
+      bank.visual_directions[0]
+    const cta = ctas.find((c) => c.id === formulaCtaId) ?? ctas[0]
+    if (!hook || !visual || !cta) {
+      setSystemError("Select hook, visual direction, and CTA from the formula bank.")
+      return
+    }
+
+    const nextPack = buildCampaignPackFromFormula({
+      hook,
+      visual,
+      cta,
+      slots: formulaSlots,
+      spark,
+      campaignTitle: formulaSlots.item.trim() || undefined,
+    })
+
+    setPack(nextPack)
+    setCampaignId(null)
+    setRedirectSlugSeed(
+      isFudi ? buildFudiRedirectSlugSeed(fudiTrack, spark) : null
+    )
+    setEditorSession((value) => value + 1)
+    setRestoredAt(null)
+    setWorkbenchStep(3)
+    toast.success("Formula pack rendered — zero AI tokens.")
+  }
+
   async function activateMultiplexer() {
     setSystemError(null)
     const spark = rawSpark.trim()
@@ -1198,6 +1253,18 @@ export function StudioWorkspace({
                 placeholder={studioPresets.sparkPlaceholder}
                 className="mt-4 min-h-[12rem] w-full resize-none border-0 bg-transparent p-0 text-base leading-relaxed text-mad-black outline-none placeholder:text-neutral-400"
               />
+              <FormulaBankPanel
+                entity={activeEntity}
+                spark={rawSpark}
+                hookId={formulaHookId}
+                visualId={formulaVisualId}
+                ctaId={formulaCtaId}
+                onHookIdChange={setFormulaHookId}
+                onVisualIdChange={setFormulaVisualId}
+                onCtaIdChange={setFormulaCtaId}
+                slots={formulaSlots}
+                onSlotsChange={setFormulaSlots}
+              />
               {visualInspection ? (
                 <p className="mt-2 inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-lime px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm">
                   👁 Visual details extracted from media
@@ -1259,26 +1326,36 @@ export function StudioWorkspace({
                     Generate campaign pack
                   </h2>
                   <p className="mt-3 text-sm leading-relaxed text-neutral-600">
-                    Synthesize brand DNA, intent, persona, and spark into five
-                    ready-to-edit assets — then publish or schedule.
+                    Use formula bank renders for $0 copy, or full AI generate
+                    when you need a custom multiplexer pass.
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={activateMultiplexer}
-                  disabled={multiplexing || pending || rehydrating}
-                  className="mt-6 w-full shrink-0 border-2 border-mad-black bg-mad-black px-6 py-5 font-typewriter text-sm font-bold tracking-widest text-mad-white uppercase shadow-keycap-lg transition-all hover:bg-mad-vermillion disabled:opacity-60 sm:mt-0 sm:w-auto"
-                >
-                  {multiplexing ? (
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <Loader2 className="size-4 animate-spin" />
-                      Generating…
-                    </span>
-                  ) : (
-                    "Generate pack"
-                  )}
-                </button>
+                <div className="mt-6 flex w-full shrink-0 flex-col gap-2 sm:mt-0 sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={renderFormulaPack}
+                    disabled={pending || rehydrating || rawSpark.trim().length < 8}
+                    className="w-full border-2 border-mad-black bg-mad-lime px-6 py-4 font-typewriter text-sm font-bold tracking-widest text-mad-black uppercase shadow-keycap-lg transition-all hover:bg-mad-black hover:text-mad-white disabled:opacity-60"
+                  >
+                    Render formula pack ($0)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={activateMultiplexer}
+                    disabled={multiplexing || pending || rehydrating}
+                    className="w-full border-2 border-mad-black bg-mad-black px-6 py-4 font-typewriter text-sm font-bold tracking-widest text-mad-white uppercase shadow-keycap-lg transition-all hover:bg-mad-vermillion disabled:opacity-60"
+                  >
+                    {multiplexing ? (
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <Loader2 className="size-4 animate-spin" />
+                        Generating…
+                      </span>
+                    ) : (
+                      "Generate with AI"
+                    )}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between">

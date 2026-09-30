@@ -6,8 +6,11 @@ import {
   brandIdentitySchema,
 } from "@/lib/entities/dna-schema"
 import type { Json } from "@/lib/database.types"
+import {
+  resolveConversionActions,
+  type FormulaConversionAction,
+} from "@/lib/studio/formula-bank"
 
-const conversionGoalsSchema = z.array(z.string())
 const valuePropsSchema = z.record(z.string(), z.string())
 
 export type StudioEntityDna = {
@@ -19,7 +22,7 @@ export type StudioEntityDna = {
   brand_identity: z.infer<typeof brandIdentitySchema>
   audience_segments: z.infer<typeof audienceSegmentSchema>[]
   value_propositions: Record<string, string>
-  conversion_goals: string[]
+  conversion_goals: FormulaConversionAction[]
   content_pillars: string[]
   local_context: string[]
 }
@@ -67,6 +70,7 @@ export function parseStudioEntity(row: {
         ? identityRaw.tagline
         : legacyTagline,
     visual_presets: identityRaw.visual_presets,
+    formula_bank: identityRaw.formula_bank,
   })
 
   const segmentsRaw = Array.isArray(row.audience_segments)
@@ -77,8 +81,8 @@ export function parseStudioEntity(row: {
     .filter((result) => result.success)
     .map((result) => result.data)
 
-  const goalsParsed = conversionGoalsSchema.safeParse(row.conversion_goals)
   const propsParsed = valuePropsSchema.safeParse(row.value_propositions)
+  const conversionGoals = resolveConversionActions(row.conversion_goals)
 
   const baseIdentity = identityParsed.success
     ? identityParsed.data
@@ -111,7 +115,7 @@ export function parseStudioEntity(row: {
     brand_identity: synced.brand_identity,
     audience_segments: segments,
     value_propositions: synced.value_propositions,
-    conversion_goals: goalsParsed.success ? goalsParsed.data : [],
+    conversion_goals: conversionGoals,
     content_pillars: synced.content_pillars,
     local_context: synced.local_context,
   }

@@ -61,6 +61,25 @@ export const brandIdentitySchema = z.object({
     .describe(
       "Scraped brand colors + font tokens for Story/Carousel rendering"
     ),
+  formula_bank: z
+    .object({
+      hook_styles: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          template: z.string(),
+        })
+      ),
+      visual_directions: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          cue: z.string(),
+        })
+      ),
+    })
+    .optional()
+    .describe("Pre-seeded hook/visual formulas for zero-token Studio renders"),
 })
 
 export const entityDnaSchema = z.object({

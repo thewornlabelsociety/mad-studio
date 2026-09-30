@@ -1,5 +1,6 @@
 import { visualPresetsFromTheme } from "@/lib/brands/visual-presets"
 import type { BrandIdentity, EntityDna } from "@/lib/entities/dna-schema"
+import { DEFAULT_FORMULA_BANK } from "@/lib/studio/formula-bank"
 
 export type IndustryTemplateId = "worn_label" | "fudi" | "generic"
 
@@ -313,6 +314,7 @@ export function mergeIndustryDnaDefaults(
       tagline: identity.tagline?.trim() || profile.tagline,
       visual_presets:
         identity.visual_presets ?? visualPresetsFromTheme(profile.theme),
+      formula_bank: identity.formula_bank ?? DEFAULT_FORMULA_BANK,
     },
     value_propositions:
       dna.value_propositions && Object.keys(dna.value_propositions).length > 0
