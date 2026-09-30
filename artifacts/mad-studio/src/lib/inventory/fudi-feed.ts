@@ -107,3 +107,11 @@ export function fudiFeedPrice(item: FudiFeedItem): number | null {
   if (item.price == null) return null
   return parsePrice(item.price)
 }
+
+/** Deep link from FÜDI Supabase intake (`copy_draft.metadata.target_url`). */
+export function fudiIntakeTargetUrl(
+  copyDraft: { metadata?: { target_url?: string | null } | null } | null | undefined
+): string | null {
+  const url = copyDraft?.metadata?.target_url
+  return typeof url === "string" && url.trim() ? url.trim() : null
+}

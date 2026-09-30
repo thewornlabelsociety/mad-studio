@@ -42,8 +42,8 @@ export function IntakeActionCard({
   }
 
   return (
-    <article className="grid gap-4 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm lg:grid-cols-[6.5rem_minmax(0,1fr)_auto] lg:items-center lg:gap-5 lg:p-4">
-      <div className="relative mx-auto aspect-square w-24 overflow-hidden border-2 border-mad-black bg-neutral-100 lg:mx-0 lg:w-full">
+    <article className="grid grid-cols-[4.75rem_minmax(0,1fr)_9.25rem] items-center gap-3 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm sm:grid-cols-[6.5rem_minmax(0,1fr)_11.5rem] sm:gap-4 sm:p-4">
+      <div className="relative aspect-square w-full shrink-0 overflow-hidden border-2 border-mad-black bg-neutral-100">
         {view.mediaUrl ? (
           view.isVideo ? (
             <video
@@ -58,26 +58,26 @@ export function IntakeActionCard({
             <img src={view.mediaUrl} alt="" className="size-full object-cover" />
           )
         ) : (
-          <div className="flex size-full items-center justify-center font-typewriter text-[0.5rem] font-bold text-neutral-400 uppercase">
+          <div className="flex size-full items-center justify-center font-typewriter text-[0.45rem] font-bold text-neutral-400 uppercase sm:text-[0.5rem]">
             No media
           </div>
         )}
       </div>
 
-      <div className="min-w-0 space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="min-w-0 space-y-1.5 sm:space-y-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {view.isFudi && view.fudiDropKind ? (
-            <span className="border-2 border-mad-black bg-[#CCFF00] px-2 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
+            <span className="border-2 border-mad-black bg-[#CCFF00] px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase sm:text-[0.55rem]">
               {FUDI_DROP_BADGES[view.fudiDropKind].emoji}{" "}
               {FUDI_DROP_BADGES[view.fudiDropKind].label}
             </span>
           ) : null}
           {view.isWls ? (
-            <span className="border-2 border-mad-black bg-mad-lime px-2 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase">
+            <span className="border-2 border-mad-black bg-mad-lime px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase sm:text-[0.55rem]">
               👗 NEW CONSIGNMENT
             </span>
           ) : null}
-          <span className="border border-mad-black/60 px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase">
+          <span className="border border-mad-black/60 px-1.5 py-0.5 font-typewriter text-[0.45rem] font-bold tracking-wider uppercase sm:text-[0.5rem]">
             [ {view.channelRecommendation} ]
           </span>
         </div>
@@ -85,68 +85,72 @@ export function IntakeActionCard({
         {view.isFudi ? (
           <>
             {view.venueOrBrand ? (
-              <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-neutral-500 uppercase">
+              <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase sm:text-[0.6rem]">
                 {view.venueOrBrand}
               </p>
             ) : null}
-            <h2 className="font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-              {view.item.title}
+            <h2 className="line-clamp-2 font-typewriter text-xs font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-sm">
+              {view.displayTitle}
             </h2>
-            <p className="text-sm text-neutral-700">{view.detailLine}</p>
+            {view.detailLine ? (
+              <p className="text-xs text-neutral-600 sm:text-sm">
+                {view.detailLine}
+              </p>
+            ) : null}
           </>
         ) : (
           <>
-            <h2 className="font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-              {view.item.brand?.trim() || view.item.title}
+            <h2 className="line-clamp-2 font-typewriter text-xs font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-sm">
+              {view.item.brand?.trim() || view.displayTitle}
             </h2>
-            <p className="text-sm text-neutral-700">
-              {view.item.title}
+            <p className="line-clamp-2 text-xs text-neutral-700 sm:text-sm">
+              {view.displayTitle}
               {view.wlsSize ? ` · Size ${view.wlsSize}` : ""} · {view.wlsPrice}
             </p>
             {view.item.vibe ? (
-              <span className="inline-block border border-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase">
+              <span className="inline-block border border-mad-black px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase sm:text-[0.55rem]">
                 Shop-by-Vibe · {view.item.vibe}
               </span>
             ) : null}
           </>
         )}
 
-        <p className="text-sm leading-snug text-neutral-800">
-          <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="line-clamp-2 text-xs leading-snug text-neutral-800 sm:text-sm">
+          <span className="font-typewriter text-[0.5rem] font-bold tracking-widest text-mad-vermillion uppercase sm:text-[0.55rem]">
             Hook ·{" "}
           </span>
           {view.recommendedHook}
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 lg:w-56">
+      <div className="flex flex-col gap-1.5 self-center sm:gap-2">
         <Link
           href={studioHref}
-          className="inline-flex h-10 items-center justify-center gap-1.5 border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion"
+          className="inline-flex h-9 items-center justify-center gap-1 border-2 border-mad-black bg-mad-black px-2 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion sm:h-10 sm:px-3 sm:text-[0.6rem]"
         >
-          <Zap className="size-3.5" />
-          [ ⚡ Craft in Studio → ]
+          <Zap className="size-3 shrink-0 sm:size-3.5" />
+          <span className="truncate">Craft in Studio</span>
         </Link>
         <button
           type="button"
           onClick={() => onPreview(view)}
-          className="inline-flex h-10 items-center justify-center gap-1.5 border-2 border-mad-black bg-mad-white px-3 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
+          className="inline-flex h-9 items-center justify-center gap-1 border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime sm:h-10 sm:px-3 sm:text-[0.6rem]"
         >
-          <Eye className="size-3.5" />
-          [ 👁️ Quick Preview ]
+          <Eye className="size-3 shrink-0 sm:size-3.5" />
+          <span className="truncate">Quick Preview</span>
         </button>
         <button
           type="button"
           disabled={pending}
           onClick={onArchive}
           className={cn(
-            "inline-flex h-10 items-center justify-center border-2 border-mad-black bg-mad-white px-3 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase hover:bg-neutral-200 disabled:opacity-50"
+            "inline-flex h-9 items-center justify-center border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase hover:bg-neutral-200 disabled:opacity-50 sm:h-10 sm:px-3 sm:text-[0.6rem]"
           )}
         >
           {pending ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
-            "[ Skip / Archive ]"
+            "Skip"
           )}
         </button>
       </div>

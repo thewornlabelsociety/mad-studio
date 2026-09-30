@@ -8,12 +8,14 @@ import {
   extractWlsSize,
   formatIntakeDetailLine,
 } from "@/lib/today/agenda"
+import { conciseProductLabel } from "@/lib/marketing/story-presets"
+import { sanitizeFudiDisplayTitle } from "@/lib/today/preview-copy"
 import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 import {
-  fudiChannelRecommendation,
-  inferFudiDropKind,
-  type FudiDropKind,
-} from "@/lib/today/agenda"
+  resolveFudiChannelHint,
+  resolveFudiDropKind,
+} from "@/lib/inventory/post-intent"
+import { type FudiDropKind } from "@/lib/today/agenda"
 import {
   buildFudiRedirectSlugSeed,
   isFudiStudioEntity,
@@ -24,6 +26,8 @@ export type TodayChannel = "ig_story" | "tiktok"
 
 export type TodayQueueView = {
   item: MarketingEntity
+  /** Card headline — short label for FÜDI (not full caption). */
+  displayTitle: string
   mediaUrl: string | null
   isVideo: boolean
   channel: TodayChannel
@@ -64,7 +68,8 @@ export function formatQueueSpecsLine(
 
   if (isFudi) {
     const venue = brand && brand.toLowerCase() !== title.toLowerCase() ? brand : null
-    return [title, venue].filter(Boolean).join(" • ")
+    const shortTitle = conciseProductLabel(title, brand)
+    return [shortTitle, venue].filter(Boolean).join(" • ")
   }
 
   const parts = [
@@ -118,9 +123,9 @@ export function buildTodayQueueView(input: {
     input.brandName,
     input.industry
   )
-  const fudiDropKind = isFudi ? inferFudiDropKind(input.item) : null
+  const fudiDropKind = isFudi ? resolveFudiDropKind(input.item) : null
   const channelRecommendation = fudiDropKind
-    ? fudiChannelRecommendation(fudiDropKind)
+    ? resolveFudiChannelHint(input.item, fudiDropKind)
     : channel === "tiktok"
       ? "TikTok / IG Story"
       : "IG Story / Feed"
@@ -130,17 +135,30 @@ export function buildTodayQueueView(input: {
     industry: input.industry,
     vibeCategory: input.item.vibe,
   })
-  const recommendedHook =
-    input.item.copy_draft?.caption?.trim() ||
-    hooks[0]?.hook ||
-    input.item.description?.trim() ||
-    input.item.title
-
   const brand = input.item.brand?.trim() || null
   const title = input.item.title.trim()
+  const hookFromDescription = input.item.description?.trim()
+  const recommendedHook = isFudi
+    ? sanitizeFudiDisplayTitle(
+        conciseProductLabel(
+          input.item.copy_draft?.caption?.trim() ||
+            hookFromDescription?.split(/\n+/)[0] ||
+            input.item.title,
+          brand
+        )
+      )
+    : input.item.copy_draft?.caption?.trim() ||
+      hooks[0]?.hook ||
+      hookFromDescription ||
+      input.item.title
+
+  const displayTitle = isFudi
+    ? sanitizeFudiDisplayTitle(conciseProductLabel(title, brand))
+    : title
 
   return {
     item: input.item,
+    displayTitle,
     mediaUrl,
     isVideo,
     channel,

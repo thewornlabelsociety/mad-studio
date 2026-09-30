@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-09-30c"
+export const MAD_STUDIO_HELP_VERSION = "2026-09-30h"
 
 export type HelpSop = {
   title: string
@@ -122,12 +122,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Refresh / Pull feed",
         description:
-          "FÜDI: POST /api/intake/fudi-feed (sync from FÜDI Supabase, latest 20 active items). Other brands: POST /api/sync/pull-new-arrivals (website / JSON / optional IG fallback).",
+          "FÜDI: POST /api/intake/fudi-feed (read FÜDI Supabase tables fudi_deals, fudi_events, fudi_posts, marketplace_items, trails → MAD marketing_entities, latest 20 with image + title). Other brands: POST /api/sync/pull-new-arrivals.",
       },
       {
         name: "Intake cards",
         description:
-          "Queue preview with channel hints; open item in Studio or preview dialog.",
+          "Queue preview with drop badges (foodie, eatery, deal, event, marketplace, FÜDI promo). Quick Preview = scrollable live simulator (hook + caption as posted, no intake IDs) + Quick publish. FÜDI: Build feed carousel merges 2–10 intake stills into a platform promo draft (IG Carousel / Facebook).",
       },
       {
         name: "Armed today",
@@ -144,7 +144,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         "Remove unwanted rows from /inventory if needed (unfeatured only).",
       ],
       tips: [
-        "Pull reads FÜDI Supabase tables (board items, menu items, events, craving offers) via FUDI_SUPABASE_* on the API server; writes go to MAD marketing_entities only. Tables without SELECT for the intake key are skipped (no hard fail).",
+        "Pull reads FÜDI Supabase tables (fudi_deals, fudi_events, fudi_posts, marketplace_items, trails) via FUDI_SUPABASE_* on the API server; writes go to MAD marketing_entities only.",
       ],
     },
   },
@@ -167,6 +167,11 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Open in Studio",
         description: "Link uses /studio?eid=&itemId= for drop-scoped pack generation.",
+      },
+      {
+        name: "Drop workbench (Media step)",
+        description:
+          "Open a row → Step 1 Media: platform preview, Post intent chips (drop type, channel hint, listing vibe — same as Today; auto-saves to copy_draft.metadata), hook/caption fields, context hook cards, Rotate, AI enhance (POST /api/inventory/enhance-caption).",
       },
     ],
     sop: {
@@ -357,7 +362,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "FÜDI feed pull",
         description:
-          "POST /api/intake/fudi-feed { sync: true } — read FÜDI Supabase, write marketing_entities on MAD.",
+          "POST /api/intake/fudi-feed { sync: true } — SELECT from fudi_deals, fudi_events, fudi_posts, marketplace_items, trails on FÜDI; upsert marketing_entities on MAD.",
       },
       {
         name: "FÜDI webhook push",
@@ -380,7 +385,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "FÜDI read-only env",
         description:
-          "FUDI_SUPABASE_URL, FUDI_SUPABASE_ANON_KEY; optional FUDI_SUPABASE_PULL_LIMIT (default 20). On the FÜDI project, grant SELECT (RLS) to the anon role for each table you want in the pull, or intake skips that table.",
+          "FUDI_SUPABASE_URL, FUDI_SUPABASE_ANON_KEY; optional FUDI_SUPABASE_PULL_LIMIT (default 20) and FUDI_SUPABASE_USE_SERVICE_ROLE_FOR_READ=1 (API only). Grant SELECT on fudi_deals, fudi_events, fudi_posts, marketplace_items, trails on the FÜDI project.",
       },
     ],
     sop: {

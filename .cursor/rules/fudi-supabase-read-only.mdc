@@ -21,7 +21,7 @@ The **FÜDI app** lives on a **separate Supabase project**. **MAD Studio** uses 
 | Data | Supabase project | Operations |
 |------|------------------|------------|
 | `marketing_entities`, Brain memory, campaigns, auth, orgs | **MAD** | read + write |
-| FÜDI board items, menus, events, craving offers (source feed) | **FÜDI** | **select only** → map → upsert on **MAD** |
+| FÜDI deals, events, posts, marketplace listings, trails (source feed) | **FÜDI** | **select only** → map → upsert on **MAD** |
 
 Entity isolation for FÜDI intake: `entity_id` **`ac5ec175-12c6-416e-9cce-fbcafee32b77`** on MAD only.
 

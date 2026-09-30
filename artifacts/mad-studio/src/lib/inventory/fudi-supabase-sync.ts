@@ -15,33 +15,22 @@ import type { createAdminClient } from "@/lib/supabase/admin"
 
 /** Real FÜDI Supabase tables, queried in priority order. */
 const FUDI_FEED_TABLES = [
-  "fudi_board_items",
-  "eatery_menu_items",
-  "eats_community_events",
-  "foodie_events",
-  "craving_offer_responses",
+  "fudi_deals",
+  "fudi_events",
+  "fudi_posts",
+  "marketplace_items",
+  "trails",
 ] as const
 
 type FudiFeedTable = (typeof FUDI_FEED_TABLES)[number]
 
+/** Plain selects only — embeds fail on many FÜDI schemas and must not abort the probe. */
 const TABLE_SELECTS: Record<FudiFeedTable, string[]> = {
-  fudi_board_items: [
-    "*, fudi_boards(name, title, display_name)",
-    "*, board:fudi_boards(name, title, display_name)",
-    "*",
-  ],
-  eatery_menu_items: [
-    "*, eatery_menus(name), eatery_menu_images(image_url, url, path, storage_path)",
-    "*, eatery_menu_images(image_url, url, path, storage_path)",
-    "*",
-  ],
-  eats_community_events: ["*"],
-  foodie_events: ["*"],
-  craving_offer_responses: [
-    "*, eateries(name, display_name, venue_name)",
-    "*, eatery:eateries(name, display_name)",
-    "*",
-  ],
+  fudi_deals: ["*"],
+  fudi_events: ["*"],
+  fudi_posts: ["*"],
+  marketplace_items: ["*"],
+  trails: ["*"],
 }
 
 const DEFAULT_FUDI_PULL_LIMIT = 20
@@ -160,6 +149,8 @@ function collectMedia(record: Record<string, unknown>, projectUrl: string): stri
     "photoUrl",
     "image_url",
     "imageUrl",
+    "video_url",
+    "videoUrl",
     "cover_url",
     "coverUrl",
     "cover_image_url",
@@ -169,11 +160,23 @@ function collectMedia(record: Record<string, unknown>, projectUrl: string): stri
     "thumbnailUrl",
     "poster_url",
     "poster",
+    "featured_image_url",
+    "hero_image_url",
+    "cover_image",
+    "image_path",
+    "media_path",
   ]) {
     pushMediaUrl(urls, record[key], projectUrl)
   }
 
-  for (const key of ["images", "photos", "media", "gallery", "eatery_menu_images"]) {
+  for (const key of [
+    "images",
+    "image_urls",
+    "photos",
+    "media",
+    "gallery",
+    "eatery_menu_images",
+  ]) {
     const value = record[key]
     if (!Array.isArray(value)) continue
     for (const entry of value) {
@@ -264,35 +267,53 @@ function baseMappedRow(input: {
   }
 }
 
-function mapFudiBoardItem(
+function firstLine(value: string | null, maxLen = 100): string | null {
+  if (!value?.trim()) return null
+  const line = value.trim().split(/\n+/)[0]?.trim() ?? ""
+  if (!line) return null
+  return line.length > maxLen ? `${line.slice(0, maxLen - 1)}…` : line
+}
+
+function mapFudiPost(
   table: FudiFeedTable,
   row: Record<string, unknown>,
   projectUrl: string
 ): MappedFudiSupabaseRow | null {
-  const originalId = stringField(row, "id", "uuid") ?? null
+  const originalId = stringField(row, "id", "uuid", "post_id") ?? null
   if (!originalId) return null
 
-  const caption = stringField(row, "caption", "body", "text")
+  const caption = stringField(row, "caption", "body", "text", "content")
+  const locationName = stringField(
+    row,
+    "location_name",
+    "fudi_tag",
+    "eatery_address"
+  )
   const title =
-    stringField(row, "title", "caption", "headline") ??
-    (caption ? caption.split("\n")[0]?.slice(0, 120) ?? null : null)
+    stringField(row, "title", "headline") ??
+    (locationName ? `${locationName} · FÜDI post` : null) ??
+    firstLine(caption, 100)
   if (!title) return null
 
   const brand =
-    nestedName(row, ["fudi_boards", "board", "eatery", "author", "profile"]) ??
-    stringField(row, "author_name", "eatery_name", "venue_name") ??
+    stringField(
+      row,
+      "location_name",
+      "username",
+      "fudi_tag",
+      "eatery_address"
+    ) ??
+    nestedName(row, ["profiles", "author", "profile", "eatery", "eateries"]) ??
     "FÜDI Community"
 
-  const description =
-    stringField(row, "content", "body", "description", "caption") ??
-    caption
+  const description = caption ?? stringField(row, "content", "body", "description")
 
   return baseMappedRow({
     table,
     row,
     projectUrl,
     itemType: "drop",
-    metadataItemType: "drop",
+    metadataItemType: "post",
     originalId,
     title,
     brand,
@@ -301,37 +322,109 @@ function mapFudiBoardItem(
   })
 }
 
-function mapEateryMenuItem(
+function mapMarketplaceItem(
   table: FudiFeedTable,
   row: Record<string, unknown>,
   projectUrl: string
 ): MappedFudiSupabaseRow | null {
-  const originalId = stringField(row, "id", "uuid", "menu_item_id") ?? null
+  const originalId = stringField(row, "id", "uuid", "listing_id") ?? null
   if (!originalId) return null
 
-  const title = stringField(row, "name", "title") ?? null
+  const title = stringField(row, "name", "title", "listing_title") ?? null
   if (!title) return null
 
   const brand =
-    nestedName(row, ["eatery_menus", "menu", "eatery", "eateries"]) ??
-    stringField(row, "eatery_name", "venue_name") ??
-    "FÜDI Partner Eatery"
+    stringField(row, "seller_name", "supplier_name", "location") ??
+    nestedName(row, ["eateries", "eatery", "seller", "profiles", "venue"]) ??
+    stringField(row, "eatery_name", "venue_name", "brand") ??
+    "FÜDI Marketplace"
 
   const description =
-    stringField(row, "description", "tasting_notes", "dietary_summary") ??
-    null
+    stringField(row, "description", "summary", "condition_notes") ?? null
 
   return baseMappedRow({
     table,
     row,
     projectUrl,
     itemType: "marketplace",
-    metadataItemType: "dish",
+    metadataItemType: "listing",
     originalId,
     title,
     brand,
-    price: parseMappedRowPrice(row.price ?? row.base_price),
+    price: parseMappedRowPrice(
+      row.price ?? row.list_price ?? row.base_price ?? row.amount
+    ),
     description: description?.slice(0, 8000) ?? null,
+  })
+}
+
+function mapFudiDeal(
+  table: FudiFeedTable,
+  row: Record<string, unknown>,
+  projectUrl: string
+): MappedFudiSupabaseRow | null {
+  const originalId = stringField(row, "id", "uuid", "deal_id") ?? null
+  if (!originalId) return null
+
+  const title =
+    stringField(row, "title", "deal_title", "headline", "name") ?? null
+  if (!title) return null
+
+  const brand =
+    nestedName(row, ["eateries", "eatery", "venue", "profiles"]) ??
+    stringField(row, "venue_name", "eatery_name", "brand") ??
+    "FÜDI Partner"
+
+  return baseMappedRow({
+    table,
+    row,
+    projectUrl,
+    itemType: "deal",
+    metadataItemType: "deal",
+    originalId,
+    title,
+    brand,
+    price: parseMappedRowPrice(
+      row.price ?? row.offer_price ?? row.deal_price ?? row.amount
+    ),
+    description:
+      stringField(row, "description", "details", "offer_details", "terms")?.slice(
+        0,
+        8000
+      ) ?? null,
+  })
+}
+
+function mapTrail(
+  table: FudiFeedTable,
+  row: Record<string, unknown>,
+  projectUrl: string
+): MappedFudiSupabaseRow | null {
+  const originalId = stringField(row, "id", "uuid", "trail_id") ?? null
+  if (!originalId) return null
+
+  const title =
+    stringField(row, "name", "title", "trail_name", "headline") ?? null
+  if (!title) return null
+
+  const brand =
+    nestedName(row, ["profiles", "author", "creator"]) ??
+    stringField(row, "author_name", "creator_name") ??
+    "FÜDI Trail"
+
+  return baseMappedRow({
+    table,
+    row,
+    projectUrl,
+    itemType: "drop",
+    metadataItemType: "trail",
+    originalId,
+    title,
+    brand,
+    price: parseMappedRowPrice(row.price),
+    description:
+      stringField(row, "description", "summary", "blurb")?.slice(0, 8000) ??
+      null,
   })
 }
 
@@ -348,11 +441,18 @@ function mapFoodEvent(
   if (!title) return null
 
   const brand =
-    stringField(row, "organizer_name", "venue_name", "host_name") ??
+    stringField(row, "eatery_name", "host_name", "organizer_name", "venue_name") ??
     nestedName(row, ["venue", "eatery", "organizer"]) ??
     "Local Food Event"
 
-  const eventDate = stringField(row, "start_time", "date", "starts_at", "event_date")
+  const eventDate = stringField(
+    row,
+    "start_date",
+    "date",
+    "start_time",
+    "starts_at",
+    "event_date"
+  )
 
   return baseMappedRow({
     table,
@@ -372,67 +472,43 @@ function mapFoodEvent(
   })
 }
 
-function mapCravingOffer(
-  table: FudiFeedTable,
-  row: Record<string, unknown>,
-  projectUrl: string
-): MappedFudiSupabaseRow | null {
-  const originalId = stringField(row, "id", "uuid", "offer_id") ?? null
-  if (!originalId) return null
-
-  const title =
-    stringField(row, "title", "offer_title", "headline", "name") ?? null
-  if (!title) return null
-
-  const brand =
-    nestedName(row, ["eateries", "eatery", "venue"]) ??
-    stringField(row, "venue_name", "eatery_name", "brand") ??
-    "FÜDI Partner Eatery"
-
-  return baseMappedRow({
-    table,
-    row,
-    projectUrl,
-    itemType: "deal",
-    metadataItemType: "deal",
-    originalId,
-    title,
-    brand,
-    price: parseMappedRowPrice(row.price ?? row.offer_price ?? row.amount),
-    description:
-      stringField(row, "description", "details", "offer_details")?.slice(
-        0,
-        8000
-      ) ?? null,
-  })
-}
-
 function mapRowToIntake(
   table: FudiFeedTable,
   row: Record<string, unknown>,
   projectUrl: string
 ): MappedFudiSupabaseRow | null {
   switch (table) {
-    case "fudi_board_items":
-      return mapFudiBoardItem(table, row, projectUrl)
-    case "eatery_menu_items":
-      return mapEateryMenuItem(table, row, projectUrl)
-    case "eats_community_events":
-    case "foodie_events":
+    case "fudi_deals":
+      return mapFudiDeal(table, row, projectUrl)
+    case "fudi_events":
       return mapFoodEvent(table, row, projectUrl)
-    case "craving_offer_responses":
-      return mapCravingOffer(table, row, projectUrl)
+    case "fudi_posts":
+      return mapFudiPost(table, row, projectUrl)
+    case "marketplace_items":
+      return mapMarketplaceItem(table, row, projectUrl)
+    case "trails":
+      return mapTrail(table, row, projectUrl)
     default:
       return null
   }
 }
 
-function isMissingTableError(message: string): boolean {
+function isRelationshipEmbedError(message: string): boolean {
   const lower = message.toLowerCase()
   return (
-    lower.includes("does not exist") ||
+    lower.includes("could not find a relationship") ||
+    lower.includes("could not embed") ||
+    (lower.includes("relationship") && lower.includes("schema cache"))
+  )
+}
+
+function isMissingTableError(message: string): boolean {
+  if (isRelationshipEmbedError(message)) return false
+  const lower = message.toLowerCase()
+  return (
     lower.includes("could not find the table") ||
-    lower.includes("schema cache")
+    (lower.includes("relation") && lower.includes("does not exist")) ||
+    /pgrst205/i.test(message)
   )
 }
 
@@ -452,10 +528,8 @@ function isPermissionOrAccessError(message: string): boolean {
 function isOrderColumnError(message: string): boolean {
   const lower = message.toLowerCase()
   return (
-    lower.includes("created_at") ||
-    lower.includes("does not exist") ||
-    lower.includes("column") ||
-    lower.includes("42703")
+    lower.includes("42703") ||
+    (lower.includes("column") && lower.includes("does not exist"))
   )
 }
 
@@ -527,21 +601,19 @@ async function fetchTableRows(
       }
 
       lastError = error.message
-      if (isMissingTableError(error.message)) {
-        return { rows: [], probe: classifyProbeFailure(table, error.message) }
-      }
       if (isPermissionOrAccessError(error.message)) {
         return { rows: [], probe: classifyProbeFailure(table, error.message) }
       }
 
-      const joinIssue =
-        error.message.toLowerCase().includes("relationship") ||
-        error.message.toLowerCase().includes("could not embed")
+      const joinIssue = isRelationshipEmbedError(error.message)
       if (joinIssue) {
         joinFailed = true
         break
       }
 
+      if (isMissingTableError(error.message)) {
+        return { rows: [], probe: classifyProbeFailure(table, error.message) }
+      }
       if (orderColumn && isOrderColumnError(error.message)) {
         continue
       }
@@ -576,8 +648,27 @@ function formatEmptyPullError(probes: FudiTableProbe[]): string {
   }
 
   if (missing.length === probes.length) {
+    const projectHint = (() => {
+      try {
+        const host = new URL(getFudiSupabaseProjectUrl()).hostname
+        const mad =
+          process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ??
+          process.env.VITE_SUPABASE_URL?.trim()
+        const madHost = mad ? new URL(mad).hostname : null
+        const sameAsMad =
+          madHost && madHost.toLowerCase() === host.toLowerCase()
+            ? " (this matches MAD Studio — use the FÜDI app project URL instead)."
+            : ""
+        return `Connected project: ${host}${sameAsMad} `
+      } catch {
+        return ""
+      }
+    })()
     return (
-      "No FÜDI feed tables exist in this Supabase project. Confirm FUDI_SUPABASE_URL points at the FÜDI app project (not MAD Studio)."
+      "No FÜDI feed tables exist in this Supabase project. " +
+      projectHint +
+      "Expected tables: fudi_deals, fudi_events, fudi_posts, marketplace_items, trails. " +
+      "Set FUDI_SUPABASE_URL and FUDI_SUPABASE_ANON_KEY from the FÜDI app Supabase dashboard (API settings), not MAD Studio."
     )
   }
 
@@ -597,9 +688,20 @@ function formatEmptyPullError(probes: FudiTableProbe[]): string {
     )
   }
 
+  const projectHint = (() => {
+    try {
+      const host = new URL(getFudiSupabaseProjectUrl()).hostname
+      return `Connected project: ${host}. `
+    } catch {
+      return ""
+    }
+  })()
+
   return (
     `No FÜDI feed data could be read. ${parts.join(" · ")}. ` +
-    "Check FUDI_SUPABASE_URL, FUDI_SUPABASE_ANON_KEY, and table RLS on the FÜDI project."
+    projectHint +
+    "Confirm FUDI_SUPABASE_URL and FUDI_SUPABASE_ANON_KEY are from the same FÜDI app project (not MAD Studio). " +
+    "For RLS-blocked tables, add anon SELECT policies on the FÜDI project or set FUDI_SUPABASE_USE_SERVICE_ROLE_FOR_READ=1 on the API server only."
   )
 }
 

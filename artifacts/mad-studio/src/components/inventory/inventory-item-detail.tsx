@@ -1,16 +1,28 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react"
 import { Link } from "wouter"
 import { useRouter } from "@/lib/next-compat"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Loader2, RotateCcw, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 
 import {
   approveMarketingEntity,
   armMultiChannelDispatch,
+  patchDropWorkbenchDraft,
   saveDropDraft,
 } from "@/lib/actions"
+import {
+  PostIntentEditor,
+  initialPostIntentState,
+} from "@/components/inventory/post-intent-editor"
 import { MultiChannelScheduler } from "@/components/marketing/multi-channel-scheduler"
 import {
   MediaTray,
@@ -46,6 +58,7 @@ import {
   scrubAgencyLeak,
   type ContextHookId,
 } from "@/lib/inventory/context-hooks"
+import { buildWorkbenchCaptionVariants } from "@/lib/inventory/caption-variants"
 import {
   buildFudiRedirectSlugSeed,
   isFudiStudioEntity,
@@ -56,12 +69,21 @@ import {
   hydrateDispatchPlan,
   type ChannelSlot,
 } from "@/lib/scheduling/brain-timing"
+import { buildPostIntentMetadata } from "@/lib/inventory/post-intent"
 import {
   buildDefaultDraft,
+  reconcileFudiWorkbenchHeadline,
+  repairFudiCaptionDoubling,
+  workbenchHeadlineFromTitle,
   evaluateSopChecklist,
   isSopValid,
   type SopDraft,
 } from "@/lib/inventory/sop"
+import {
+  FUDI_DROP_BADGES,
+  fudiChannelRecommendation,
+  inferFudiDropKind,
+} from "@/lib/today/agenda"
 import {
   buildOptimizationTags,
   formatTagsForCaption,
@@ -147,8 +169,14 @@ export function InventoryItemDetail({
     () => resolveIndustryProfile({ name: brandName, industry }),
     [brandName, industry]
   )
+  const storyStickerLabel =
+    profile.id === "fudi"
+      ? profile.shopLinkLabel || "View on FÜDI"
+      : "SHOP HERE"
 
-  const listingVibe = useMemo(() => {
+  const isFudi = isFudiStudioEntity({ name: brandName, industry })
+
+  const defaultListingVibe = useMemo(() => {
     if (item.vibe?.trim()) return item.vibe.trim()
     return (
       pickDefaultVibeTag(
@@ -157,6 +185,67 @@ export function InventoryItemDetail({
       ) || null
     )
   }, [item.vibe, item.title, item.description, item.brand, profile])
+
+  const inferredDropKind = useMemo(
+    () => (isFudi ? inferFudiDropKind(item) : null),
+    [isFudi, item]
+  )
+
+  const defaultChannelHint = useMemo(
+    () =>
+      isFudi && inferredDropKind
+        ? fudiChannelRecommendation(inferredDropKind)
+        : "",
+    [isFudi, inferredDropKind]
+  )
+
+  const [postIntent, setPostIntent] = useState(() =>
+    initialPostIntentState({
+      isFudi,
+      item,
+      defaultListingVibe,
+      defaultDropKind: inferredDropKind,
+      defaultChannelHint,
+    })
+  )
+
+  const effectiveListingVibe =
+    postIntent.listingVibe.trim() || defaultListingVibe
+
+  const postIntentMetadata = useMemo(
+    () => buildPostIntentMetadata(postIntent, { isFudi }),
+    [postIntent, isFudi]
+  )
+
+  const postIntentPersistReady = useRef(false)
+
+  useEffect(() => {
+    if (!postIntentPersistReady.current) {
+      postIntentPersistReady.current = true
+      return
+    }
+    const handle = window.setTimeout(() => {
+      void patchDropWorkbenchDraft({
+        entityId,
+        itemId: item.id,
+        copyDraft: { metadata: postIntentMetadata },
+      }).then((result) => {
+        if (result.ok) return
+        toast.error(result.error)
+      }).catch((error: unknown) => {
+        const message =
+          error instanceof Error ? error.message : "Could not save post intent."
+        if (/unknown action/i.test(message)) {
+          toast.message(
+            "Post intent saved locally — restart the API server (port 8080) to persist chips."
+          )
+          return
+        }
+        toast.error(message)
+      })
+    }, 700)
+    return () => window.clearTimeout(handle)
+  }, [postIntentMetadata, entityId, item.id])
 
   const [step, setStep] = useState<WorkbenchStepId>(1)
   const [simPlatform, setSimPlatform] = useState<SimulatorPlatform>("ig_story")
@@ -173,6 +262,8 @@ export function InventoryItemDetail({
     useState<MediaVisualInspection | null>(null)
   const [status, setStatus] = useState(item.status)
   const [activeHookId, setActiveHookId] = useState<ContextHookId | null>(null)
+  const [captionVariantIndex, setCaptionVariantIndex] = useState(0)
+  const [enhancingCaption, setEnhancingCaption] = useState(false)
   const [draft, setDraft] = useState<SopDraft>(() => {
     const defaults = buildDefaultDraft(item, { brandName, industry })
     const savedTags = cleanHashtags(item.copy_draft.tags ?? [], {
@@ -192,11 +283,22 @@ export function InventoryItemDetail({
     const headlineIsFragment =
       savedHeadline.length > 0 &&
       (item.copy_draft.caption ?? "").trim().startsWith(savedHeadline)
+    const isFudi = isFudiStudioEntity({ name: brandName, industry })
+    let headline = scrubCliches(
+      savedHeadline && !headlineIsFragment ? savedHeadline : defaults.headline
+    )
+    if (isFudi && savedHeadline && !headlineIsFragment) {
+      headline = scrubCliches(reconcileFudiWorkbenchHeadline(savedHeadline, item))
+    }
+    let caption = scrubCliches(item.copy_draft.caption || defaults.caption)
+    if (isFudi) {
+      caption = scrubCliches(
+        repairFudiCaptionDoubling(headline, caption, item.description)
+      )
+    }
     return {
-      headline: scrubCliches(
-        savedHeadline && !headlineIsFragment ? savedHeadline : defaults.headline
-      ),
-      caption: scrubCliches(item.copy_draft.caption || defaults.caption),
+      headline,
+      caption,
       tags: seededTags,
     }
   })
@@ -243,6 +345,17 @@ export function InventoryItemDetail({
     [item, images, status]
   )
 
+  const itemDestinationUrl = useMemo(
+    () =>
+      resolveItemDestinationUrl({
+        entityId,
+        websiteUrl,
+        websiteItemId: item.website_item_id,
+        copyDraft: item.copy_draft,
+      }),
+    [entityId, websiteUrl, item.website_item_id, item.copy_draft]
+  )
+
   const slugSeed = isFudiStudioEntity({ name: brandName, industry })
     ? buildFudiRedirectSlugSeed(
         item.website_item_id?.startsWith("partner-") ||
@@ -259,9 +372,9 @@ export function InventoryItemDetail({
         item: workingItem,
         brandName,
         industry,
-        listingVibe,
+        listingVibe: effectiveListingVibe,
       }),
-    [workingItem, brandName, industry, listingVibe]
+    [workingItem, brandName, industry, effectiveListingVibe]
   )
 
   const contextHooks = useMemo(
@@ -270,13 +383,30 @@ export function InventoryItemDetail({
         item: workingItem,
         brandName,
         industry,
-        vibeCategory: listingVibe,
+        vibeCategory: effectiveListingVibe,
         visualDescription: visualInspection?.visualDescription,
         concreteFeatures: visualInspection?.concreteFeatures,
         aestheticTags: visualInspection?.aestheticTags,
       }),
-    [workingItem, brandName, industry, listingVibe, visualInspection]
+    [workingItem, brandName, industry, effectiveListingVibe, visualInspection]
   )
+
+  const captionVariants = useMemo(
+    () =>
+      buildWorkbenchCaptionVariants({
+        item: workingItem,
+        brandName,
+        industry,
+        hooks: contextHooks,
+      }),
+    [workingItem, brandName, industry, contextHooks]
+  )
+
+  useEffect(() => {
+    setCaptionVariantIndex((index) =>
+      Math.min(index, Math.max(captionVariants.length - 1, 0))
+    )
+  }, [captionVariants.length])
 
   const onValidityChange = useCallback((valid: boolean) => {
     setSopValid(valid)
@@ -318,15 +448,90 @@ export function InventoryItemDetail({
     setVisualInspection(still)
   }
 
+  function applyCaptionVariant(variantIndex: number) {
+    const variant = captionVariants[variantIndex]
+    if (!variant) return
+    setCaptionVariantIndex(variantIndex)
+    setActiveHookId(
+      variant.id === "intake" ? null : (variant.id as ContextHookId)
+    )
+    setDraft((current) => ({
+      ...current,
+      headline: scrubCliches(scrubAgencyLeak(variant.headline)),
+      caption: scrubCliches(scrubAgencyLeak(variant.caption)),
+    }))
+  }
+
   function applyHook(hookId: ContextHookId) {
+    const index = captionVariants.findIndex((row) => row.id === hookId)
+    if (index >= 0) {
+      applyCaptionVariant(index)
+      return
+    }
     const row = contextHooks.find((hook) => hook.id === hookId)
     if (!row) return
     setActiveHookId(hookId)
     setDraft((current) => ({
       ...current,
-      headline: sanitizeItemTitle(item.title, { brand: item.brand }).slice(0, 72),
+      headline: workbenchHeadlineFromTitle(item.title, {
+        brand: item.brand,
+        profileId: profile.id,
+      }),
       caption: scrubCliches(row.hook),
     }))
+  }
+
+  function rotateCaptionVariant() {
+    if (captionVariants.length <= 1) {
+      toast.message("Add media inspection or pull intake for more hook angles.")
+      return
+    }
+    const next = (captionVariantIndex + 1) % captionVariants.length
+    applyCaptionVariant(next)
+    toast.message(
+      `Caption · ${captionVariants[next]?.label ?? "Variant"} (${next + 1}/${captionVariants.length})`
+    )
+  }
+
+  async function enhanceCaptionWithAi() {
+    setEnhancingCaption(true)
+    try {
+      const response = await fetch("/api/inventory/enhance-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityId,
+          marketingEntityId: item.id,
+          headline: draft.headline,
+          caption: draft.caption,
+          visualDescription: visualInspection?.visualDescription ?? null,
+        }),
+      })
+      const payload = (await response.json()) as {
+        error?: string
+        headline?: string
+        caption?: string
+      }
+      if (!response.ok) {
+        throw new Error(payload.error || "Enhance failed.")
+      }
+      if (!payload.headline?.trim() || !payload.caption?.trim()) {
+        throw new Error("Model returned empty copy.")
+      }
+      setActiveHookId(null)
+      setDraft((current) => ({
+        ...current,
+        headline: scrubCliches(scrubAgencyLeak(payload.headline!.trim())),
+        caption: scrubCliches(scrubAgencyLeak(payload.caption!.trim())),
+      }))
+      toast.success("Caption enhanced with AI.")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Caption enhance failed."
+      )
+    } finally {
+      setEnhancingCaption(false)
+    }
   }
 
   function toggleTag(tag: string) {
@@ -400,6 +605,7 @@ export function InventoryItemDetail({
               : simPlatform === "ig_story"
                 ? "story"
                 : "feed",
+          metadata: postIntentMetadata,
         },
       })
       setSavingDraft(false)
@@ -453,6 +659,7 @@ export function InventoryItemDetail({
               : placement === "story"
                 ? "story"
                 : "feed",
+          metadata: postIntentMetadata,
         },
       })
       setArming(false)
@@ -621,12 +828,12 @@ export function InventoryItemDetail({
                 content={{
                   brandName,
                   headline: draft.headline,
-                  caption: draft.caption,
+                  caption: mergeCaptionWithTags(draft.caption, draft.tags),
                   imageUrl:
                     activeMedia?.type === "image"
                       ? activeMedia.url
                       : selectedImageUrl,
-                  stickerLabel: "SHOP HERE",
+                  stickerLabel: storyStickerLabel,
                 }}
                 activeMedia={activeMedia}
                 carouselMedia={mediaAssets}
@@ -645,10 +852,7 @@ export function InventoryItemDetail({
                   websiteItemId: item.website_item_id,
                   websiteUrl,
                   trackableSlug: item.trackable_slug,
-                  destinationUrl: resolveItemDestinationUrl({
-                    websiteUrl,
-                    websiteItemId: item.website_item_id,
-                  }),
+                  destinationUrl: itemDestinationUrl,
                   slugSeed: isFudiStudioEntity({ name: brandName, industry })
                     ? buildFudiRedirectSlugSeed(
                         item.website_item_id?.startsWith("partner-") ||
@@ -669,12 +873,12 @@ export function InventoryItemDetail({
             content={{
               brandName,
               headline: draft.headline,
-              caption: draft.caption,
+              caption: mergeCaptionWithTags(draft.caption, draft.tags),
               imageUrl:
                 activeMedia?.type === "image"
                   ? activeMedia.url
                   : selectedImageUrl,
-              stickerLabel: "SHOP HERE",
+              stickerLabel: storyStickerLabel,
             }}
             activeMedia={activeMedia}
             carouselMedia={mediaAssets}
@@ -714,10 +918,7 @@ export function InventoryItemDetail({
               websiteItemId: item.website_item_id,
               websiteUrl,
               trackableSlug: item.trackable_slug,
-              destinationUrl: resolveItemDestinationUrl({
-                websiteUrl,
-                websiteItemId: item.website_item_id,
-              }),
+              destinationUrl: itemDestinationUrl,
               slugSeed: isFudiStudioEntity({ name: brandName, industry })
                 ? buildFudiRedirectSlugSeed(
                     item.website_item_id?.startsWith("partner-") ||
@@ -730,16 +931,49 @@ export function InventoryItemDetail({
             }}
           />
 
+          <PostIntentEditor
+            isFudi={isFudi}
+            vibeOptions={profile.vibeTags}
+            value={postIntent}
+            onChange={setPostIntent}
+          />
+
           <section className="space-y-2 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
             <div className="flex flex-wrap items-end justify-between gap-2">
-              <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                Captions
-              </p>
-              {listingVibe ? (
-                <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
-                  Listing vibe · {listingVibe}
+              <div className="space-y-1">
+                <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+                  Captions
                 </p>
-              ) : null}
+                {captionVariants.length > 0 ? (
+                  <p className="font-typewriter text-[0.5rem] tracking-wider text-neutral-500 uppercase">
+                    {captionVariants[captionVariantIndex]?.label ?? "Variant"}{" "}
+                    · {captionVariantIndex + 1}/{captionVariants.length}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={rotateCaptionVariant}
+                  className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
+                >
+                  <RotateCcw className="size-3" />
+                  Rotate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void enhanceCaptionWithAi()}
+                  disabled={enhancingCaption}
+                  className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-60"
+                >
+                  {enhancingCaption ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-3" />
+                  )}
+                  AI enhance
+                </button>
+              </div>
             </div>
 
             <div className="grid max-h-[11rem] gap-1 overflow-y-auto sm:grid-cols-3">
@@ -782,7 +1016,13 @@ export function InventoryItemDetail({
                 onValueChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    headline: scrubAgencyLeak(value),
+                    headline: scrubAgencyLeak(value, { trim: false }),
+                  }))
+                }
+                onCommit={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    headline: scrubAgencyLeak(current.headline),
                   }))
                 }
                 rows={1}
@@ -799,7 +1039,13 @@ export function InventoryItemDetail({
                 onValueChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    caption: scrubAgencyLeak(value),
+                    caption: scrubAgencyLeak(value, { trim: false }),
+                  }))
+                }
+                onCommit={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    caption: scrubAgencyLeak(current.caption),
                   }))
                 }
                 rows={3}
@@ -850,9 +1096,18 @@ export function InventoryItemDetail({
             <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
               Review
             </p>
-            {listingVibe ? (
-              <p className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase">
-                Listing vibe · {listingVibe}
+            {isFudi && postIntent.dropKind ? (
+              <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
+                {FUDI_DROP_BADGES[postIntent.dropKind].emoji}{" "}
+                {FUDI_DROP_BADGES[postIntent.dropKind].label}
+                {postIntent.channelHint.trim()
+                  ? ` · ${postIntent.channelHint.trim()}`
+                  : ""}
+              </p>
+            ) : null}
+            {effectiveListingVibe ? (
+              <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-600 uppercase">
+                Listing vibe · {effectiveListingVibe}
               </p>
             ) : null}
             <div className="space-y-1">
@@ -885,12 +1140,12 @@ export function InventoryItemDetail({
             content={{
               brandName,
               headline: draft.headline,
-              caption: draft.caption,
+              caption: mergeCaptionWithTags(draft.caption, draft.tags),
               imageUrl:
                 activeMedia?.type === "image"
                   ? activeMedia.url
                   : selectedImageUrl,
-              stickerLabel: "SHOP HERE",
+              stickerLabel: storyStickerLabel,
             }}
             activeMedia={activeMedia}
             carouselMedia={mediaAssets}
@@ -909,10 +1164,7 @@ export function InventoryItemDetail({
               websiteItemId: item.website_item_id,
               websiteUrl,
               trackableSlug: item.trackable_slug,
-              destinationUrl: resolveItemDestinationUrl({
-                websiteUrl,
-                websiteItemId: item.website_item_id,
-              }),
+              destinationUrl: itemDestinationUrl,
               slugSeed: isFudiStudioEntity({ name: brandName, industry })
                 ? buildFudiRedirectSlugSeed(
                     item.website_item_id?.startsWith("partner-") ||

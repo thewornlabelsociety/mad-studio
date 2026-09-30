@@ -6,7 +6,9 @@ import { Link } from "wouter"
 import { PullNewArrivalsButton } from "@/components/inventory/pull-new-arrivals-button"
 import { BrainEmblemLink } from "@/components/brand/brain-emblem"
 import { IntakeActionCard } from "@/components/today/intake-action-card"
+import { FudiFeedCarouselDialog } from "@/components/today/fudi-feed-carousel-dialog"
 import { IntakePreviewDialog } from "@/components/today/intake-preview-dialog"
+import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
 import type { TodayQueueView } from "@/lib/today/queue"
 import {
   formatAgendaLiveDate,
@@ -28,6 +30,7 @@ type Props = {
   entityId: string
   entityName: string
   industry: string
+  websiteUrl?: string | null
   liveDateLabel: string
   brainDirective: string
   unfeaturedCount: number
@@ -48,6 +51,7 @@ export function TodayCommandDashboard({
   entityId,
   entityName,
   industry,
+  websiteUrl = null,
   liveDateLabel,
   brainDirective,
   unfeaturedCount,
@@ -57,6 +61,11 @@ export function TodayCommandDashboard({
 }: Props) {
   const [queue, setQueue] = useState(initialQueue)
   const [preview, setPreview] = useState<TodayQueueView | null>(null)
+  const [carouselOpen, setCarouselOpen] = useState(false)
+  const isFudi = useMemo(
+    () => isFudiStudioEntity({ name: entityName, industry }),
+    [entityName, industry]
+  )
   const intakeMode = useMemo(
     () => resolveInventoryIntakeMode({ name: entityName, industry }),
     [entityName, industry]
@@ -123,13 +132,24 @@ export function TodayCommandDashboard({
       </header>
 
       <section className="space-y-4">
-        <div>
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-            Priority action slate
-          </p>
-          <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
-            Incoming intake queue
-          </h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+              Priority action slate
+            </p>
+            <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
+              Incoming intake queue
+            </h2>
+          </div>
+          {isFudi && queue.length >= 2 ? (
+            <button
+              type="button"
+              onClick={() => setCarouselOpen(true)}
+              className="border-2 border-mad-black bg-[#CCFF00] px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
+            >
+              Build feed carousel
+            </button>
+          ) : null}
         </div>
 
         {queue.length === 0 ? (
@@ -219,7 +239,23 @@ export function TodayCommandDashboard({
         onOpenChange={(open) => {
           if (!open) setPreview(null)
         }}
+        entityId={entityId}
+        entityName={entityName}
+        industry={industry}
+        websiteUrl={websiteUrl}
+        onPublished={(itemId) =>
+          setQueue((prev) => prev.filter((row) => row.item.id !== itemId))
+        }
       />
+
+      {isFudi ? (
+        <FudiFeedCarouselDialog
+          open={carouselOpen}
+          onOpenChange={setCarouselOpen}
+          entityId={entityId}
+          queue={queue}
+        />
+      ) : null}
     </div>
   )
 }

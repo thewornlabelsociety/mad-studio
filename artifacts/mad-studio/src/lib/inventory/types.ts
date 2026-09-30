@@ -41,6 +41,20 @@ export type MarketingCopyDraft = {
   placement?: "feed" | "story"
   /** Saved per-channel slots (see lib/scheduling/brain-timing ChannelSlot). */
   dispatch_plan?: unknown[]
+  /** FÜDI Supabase intake metadata (target URL, source table, etc.). */
+  metadata?: {
+    target_url?: string | null
+    source_table?: string | null
+    original_id?: string | null
+    item_type?: string | null
+    location?: string | null
+    /** Operator override for Today / workbench drop badge (FÜDI). */
+    drop_kind?: string | null
+    /** Operator override for channel hint chip, e.g. TikTok / IG Story. */
+    channel_hint?: string | null
+    /** Operator override for listing vibe (hooks + tags). */
+    listing_vibe?: string | null
+  }
 }
 
 export type PublishedMediaIds = {
@@ -156,6 +170,48 @@ export function parseCopyDraft(value: unknown): MarketingCopyDraft {
     dispatch_plan: Array.isArray(record.dispatch_plan)
       ? record.dispatch_plan
       : undefined,
+    metadata: parseCopyDraftMetadata(record.metadata),
+  }
+}
+
+function parseCopyDraftMetadata(
+  value: unknown
+): MarketingCopyDraft["metadata"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined
+  }
+  const record = value as Record<string, unknown>
+  const str = (key: string) =>
+    typeof record[key] === "string" ? record[key] : undefined
+  const target_url = str("target_url")
+  const source_table = str("source_table")
+  const original_id = str("original_id")
+  const item_type = str("item_type")
+  const location = str("location")
+  const drop_kind = str("drop_kind")
+  const channel_hint = str("channel_hint")
+  const listing_vibe = str("listing_vibe")
+  if (
+    !target_url &&
+    !source_table &&
+    !original_id &&
+    !item_type &&
+    !location &&
+    !drop_kind &&
+    !channel_hint &&
+    !listing_vibe
+  ) {
+    return undefined
+  }
+  return {
+    target_url: target_url ?? null,
+    source_table: source_table ?? null,
+    original_id: original_id ?? null,
+    item_type: item_type ?? null,
+    location: location ?? null,
+    drop_kind: drop_kind ?? null,
+    channel_hint: channel_hint ?? null,
+    listing_vibe: listing_vibe ?? null,
   }
 }
 

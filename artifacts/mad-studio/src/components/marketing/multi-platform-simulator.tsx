@@ -43,13 +43,16 @@ import {
   buildStoryCanvasModel,
   CANVAS_BG_PRESETS,
   conciseProductLabel,
+  storyLinkHostLabel,
   type StoryStylePreset,
 } from "@/lib/marketing/story-presets"
+import { FUDI_PUBLIC_ORIGIN } from "@/lib/studio/fudi-platform"
 import type { MarketingEntity } from "@/lib/inventory/types"
 import type { ActiveMedia } from "@/components/marketing/media-tray"
 import { detectMediaKindFromUrl } from "@/components/marketing/media-tray"
 import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
 import { trackableUrl } from "@/lib/social/types"
+import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
 import { cn } from "@/lib/utils"
 
 export type SimulatorPlatform =
@@ -61,6 +64,7 @@ export type SimulatorPlatform =
 
 export type SimulatorContent = {
   brandName: string
+  /** When set, feed/story handle row uses this instead of slugified brand. */
   handle?: string
   headline: string
   caption: string
@@ -167,6 +171,8 @@ type Props = {
   showActionDock?: boolean
   /** When false, hide the primary Dispatch CTA (schedule UI owns it). */
   showPublishCta?: boolean
+  publishCtaLabel?: string
+  onDispatchSuccess?: () => void
   /** Smaller phone chrome for side-by-side SOP layouts (laptop Step 3). */
   compact?: boolean
   /** Phone on top with controls below, for narrow (~380px) side columns. */
@@ -226,6 +232,8 @@ export function MultiPlatformSimulator({
   showCreativeControls = false,
   showActionDock = false,
   showPublishCta = true,
+  publishCtaLabel = "Dispatch",
+  onDispatchSuccess,
   compact = false,
   stacked = false,
   mediaSlot = null,
@@ -764,6 +772,7 @@ export function MultiPlatformSimulator({
             ? `Dispatched. Add link sticker: ${payload.linkSticker}`
             : "Approved & dispatched.")
       )
+      onDispatchSuccess?.()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Publish failed.")
     } finally {
@@ -802,15 +811,36 @@ export function MultiPlatformSimulator({
   const cutoutActive = cutoutMode !== "original"
   const mediaUrl = resolvedMedia?.url ?? null
   const workbench = !compact
+  const isFudiEntity = isFudiStudioEntity({
+    name: content.brandName,
+    industry,
+  })
+  /** FÜDI intake = full-bleed dish/reel stories, not consignment cutout cards. */
+  const useStoryCanvasForIg =
+    !isFudiEntity && (cutoutMode !== "original" || Boolean(item))
+
+  const storyLinkUrl =
+    actionContext?.destinationUrl ??
+    (isFudiEntity ? FUDI_PUBLIC_ORIGIN : null)
+  const storyLinkHost = storyLinkHostLabel(storyLinkUrl)
+
+  const isFeedPreview =
+    platform === "ig_feed" || platform === "facebook"
 
   const stageAspectClass =
-    platform === "ig_feed" || platform === "facebook"
-      ? "aspect-[4/5]"
+    isFeedPreview
+      ? ""
       : platform === "ig_story" || platform === "tiktok"
         ? "aspect-[9/16]"
         : platform === "email"
           ? "aspect-[9/16]"
           : "aspect-[9/16]"
+
+  const feedPreviewCaption =
+    content.caption.trim() ||
+    activeSlideText ||
+    content.headline.trim() ||
+    ""
 
   const phoneShell = (
     <div
@@ -830,18 +860,28 @@ export function MultiPlatformSimulator({
 
           <div
             className={cn(
-              "relative flex overflow-hidden bg-black",
+              "relative flex bg-black",
+              isFeedPreview
+                ? "min-h-0 w-full overflow-y-auto overflow-x-hidden"
+                : "overflow-hidden",
               lockedViewport
-                ? "h-[622px] w-full items-center justify-center"
+                ? isFeedPreview
+                  ? "h-[622px] w-full items-stretch justify-start"
+                  : "h-[622px] w-full items-center justify-center"
                 : "min-h-[280px] w-full items-center justify-center"
             )}
             style={{ borderRadius: 35 }}
           >
             <div
               className={cn(
-                "relative max-h-full max-w-full overflow-hidden",
-                stageAspectClass,
-                lockedViewport ? "h-full w-auto" : "w-full"
+                "relative max-w-full",
+                isFeedPreview
+                  ? "w-full shrink-0"
+                  : cn(
+                      "max-h-full overflow-hidden",
+                      stageAspectClass,
+                      lockedViewport ? "h-full w-auto" : "w-full"
+                    )
               )}
             >
               {platform === "ig_story" ? (
@@ -849,14 +889,22 @@ export function MultiPlatformSimulator({
                   handle={handle}
                   slideCount={slides.length}
                   activeSlideIndex={safeSlideIndex}
-                  linkLabel={content.stickerLabel ?? "TAP TO VIEW"}
+                  linkLabel={
+                    content.stickerLabel ??
+                    (isFudiEntity ? "View on FÜDI" : "TAP TO VIEW")
+                  }
+                  linkHost={storyLinkHost}
                 >
                   {isVideo && mediaUrl ? (
-                    <VideoFill src={mediaUrl} fit="contain" />
+                    <VideoFill
+                      src={mediaUrl}
+                      fit={isFudiEntity ? "cover" : "contain"}
+                    />
                   ) : imageForCanvas ? (
                     <StoryMediaStage
                       imageUrl={imageForCanvas}
                       canvasColor={canvasColor}
+                      mediaFit={isFudiEntity ? "cover" : "contain"}
                       storyCanvas={
                         <StoryCanvas
                           model={storyModel}
@@ -868,7 +916,7 @@ export function MultiPlatformSimulator({
                           className="!aspect-auto h-full w-full max-w-none"
                         />
                       }
-                      useStoryCanvas={cutoutMode !== "original" || Boolean(item)}
+                      useStoryCanvas={useStoryCanvasForIg}
                     />
                   ) : (
                     <div className="flex size-full items-center justify-center bg-neutral-950 text-xs text-neutral-500">
@@ -878,11 +926,13 @@ export function MultiPlatformSimulator({
                 </IgStoryChrome>
               ) : null}
 
-              {platform === "ig_feed" || platform === "facebook" ? (
+              {isFeedPreview ? (
                 <FeedChrome
                   brandName={content.brandName}
                   handle={handle}
                   network={platform === "facebook" ? "facebook" : "instagram"}
+                  hookLine={activeSlideText || content.headline}
+                  caption={feedPreviewCaption}
                 >
                   <FeedMediaStage
                     slides={slides}
@@ -891,8 +941,6 @@ export function MultiPlatformSimulator({
                     onPrev={() => goSlide(-1)}
                     onNext={() => goSlide(1)}
                     showCarousel={feedCarousel}
-                    headline={activeSlideText || content.headline}
-                    caption={content.caption}
                   />
                 </FeedChrome>
               ) : null}
@@ -1159,7 +1207,7 @@ export function MultiPlatformSimulator({
                   ) : (
                     <Rocket className="size-3.5" />
                   )}
-                  Dispatch
+                  {publishCtaLabel}
                 </button>
               ) : null}
               <div className="grid grid-cols-2 gap-1.5">
@@ -1392,12 +1440,15 @@ function IgStoryChrome({
   slideCount = 1,
   activeSlideIndex = 0,
   linkLabel,
+  linkHost,
 }: {
   handle: string
   children: ReactNode
   slideCount?: number
   activeSlideIndex?: number
   linkLabel?: string
+  /** Resolved destination host shown under the sticker (e.g. fudi.nz). */
+  linkHost?: string | null
 }) {
   const segments = Math.max(slideCount, 1)
   return (
@@ -1427,10 +1478,15 @@ function IgStoryChrome({
 
       <div className="relative z-0 min-h-0 flex-1">{children}</div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-[58%] z-20 flex justify-center px-4">
+      <div className="pointer-events-none absolute inset-x-0 top-[58%] z-20 flex flex-col items-center gap-1 px-4">
         <span className="rounded-full border border-white/50 bg-black/45 px-3 py-1.5 text-[0.65rem] font-semibold tracking-wide text-white shadow-lg backdrop-blur-sm">
           🔗 {linkLabel ?? "TAP TO VIEW"}
         </span>
+        {linkHost ? (
+          <span className="rounded-md bg-black/50 px-2 py-0.5 text-[0.55rem] font-medium tracking-wide text-white/90">
+            {linkHost}
+          </span>
+        ) : null}
       </div>
 
       <div className="relative z-10 flex h-[15%] min-h-[64px] shrink-0 items-center gap-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pt-4 pb-3">
@@ -1449,15 +1505,30 @@ function StoryMediaStage({
   canvasColor,
   storyCanvas,
   useStoryCanvas,
+  mediaFit = "contain",
 }: {
   imageUrl: string
   canvasColor: string
   storyCanvas: ReactNode
   useStoryCanvas: boolean
+  mediaFit?: "cover" | "contain"
 }) {
   if (useStoryCanvas) {
     return (
       <div className="relative size-full overflow-hidden">{storyCanvas}</div>
+    )
+  }
+
+  if (mediaFit === "cover") {
+    return (
+      <div className="relative size-full overflow-hidden bg-black">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt=""
+          className="absolute inset-0 size-full object-cover"
+        />
+      </div>
     )
   }
 
@@ -1489,15 +1560,23 @@ function FeedChrome({
   brandName,
   handle,
   network,
+  hookLine,
+  caption,
   children,
 }: {
   brandName: string
   handle: string
   network: "instagram" | "facebook"
+  hookLine?: string
+  caption?: string
   children: ReactNode
 }) {
+  const hook = hookLine?.trim() ?? ""
+  const body = caption?.trim() ?? ""
+  const showHookLine = Boolean(hook && hook !== body)
+
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-white">
+    <div className="flex w-full flex-col bg-white">
       <div className="flex shrink-0 items-center gap-2.5 border-b border-neutral-100 px-3 py-2">
         <span className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-[0.65rem] font-bold text-white">
           {brandName.slice(0, 1).toUpperCase()}
@@ -1512,7 +1591,7 @@ function FeedChrome({
         </div>
         <MoreHorizontal className="size-4 text-neutral-500" />
       </div>
-      <div className="min-h-0 shrink-0">{children}</div>
+      <div className="shrink-0">{children}</div>
       <div className="flex shrink-0 items-center justify-between px-3 py-2">
         <div className="flex items-center gap-3.5">
           <Heart className="size-5 text-neutral-900" />
@@ -1520,6 +1599,25 @@ function FeedChrome({
           <Share2 className="size-5 text-neutral-900" />
         </div>
         <Bookmark className="size-5 text-neutral-900" />
+      </div>
+      <div className="shrink-0 space-y-0.5 px-3 pb-3">
+        {showHookLine ? (
+          <p className="line-clamp-2 text-[0.7rem] font-semibold leading-snug text-neutral-900">
+            {hook}
+          </p>
+        ) : null}
+        <p className="whitespace-pre-wrap text-[0.65rem] leading-relaxed text-neutral-800">
+          <span className="font-semibold text-neutral-900">
+            {network === "facebook" ? brandName : handle}{" "}
+          </span>
+          {body ? (
+            body
+          ) : (
+            <span className="text-neutral-400">
+              Hook and caption preview here…
+            </span>
+          )}
+        </p>
       </div>
     </div>
   )
@@ -1565,8 +1663,6 @@ function FeedMediaStage({
   onPrev,
   onNext,
   showCarousel,
-  headline,
-  caption,
 }: {
   slides: SimulatorCarouselItem[]
   slideIndex: number
@@ -1574,8 +1670,6 @@ function FeedMediaStage({
   onPrev: () => void
   onNext: () => void
   showCarousel: boolean
-  headline: string
-  caption: string
 }) {
   const active = slides[slideIndex] ?? slides[0] ?? null
   const mediaUrl = active?.url ?? null
@@ -1660,14 +1754,6 @@ function FeedMediaStage({
             </div>
           </>
         ) : null}
-      </div>
-      <div className="shrink-0 space-y-0.5 px-3 py-1.5">
-        <p className="line-clamp-1 text-[0.7rem] font-semibold text-neutral-900">
-          {headline}
-        </p>
-        <p className="line-clamp-2 text-[0.65rem] leading-relaxed text-neutral-600">
-          {caption}
-        </p>
       </div>
     </div>
   )

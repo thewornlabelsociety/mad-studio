@@ -53,8 +53,10 @@ export function StoryStudioPanel({
         websiteUrl,
         trackableSlug: item.trackable_slug,
         destinationUrl: resolveItemDestinationUrl({
+          entityId,
           websiteUrl,
           websiteItemId: item.website_item_id,
+          copyDraft: item.copy_draft,
         }),
       }}
     />

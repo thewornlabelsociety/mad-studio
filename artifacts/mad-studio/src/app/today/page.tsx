@@ -224,6 +224,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           entityId={activeEntityId}
           entityName={activeEntity.name}
           industry={activeEntity.industry}
+          websiteUrl={entityRow?.website_url ?? null}
           liveDateLabel={formatAgendaLiveDate()}
           brainDirective={brainDirective}
           unfeaturedCount={unfeaturedCount}

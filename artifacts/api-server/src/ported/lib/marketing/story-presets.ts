@@ -1,8 +1,27 @@
 import { pickDefaultVibeTag, resolveIndustryProfile } from "@/lib/brands/industry-templates"
+import { fudiIntakeTargetUrl } from "@/lib/inventory/fudi-feed"
 import {
   formatInventoryPrice,
+  type MarketingCopyDraft,
   type MarketingEntity,
 } from "@/lib/inventory/types"
+import {
+  FUDI_ENTITY_ID,
+  FUDI_PUBLIC_ORIGIN,
+} from "@/lib/studio/fudi-platform"
+
+function normalizePublicUrl(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  try {
+    const url = new URL(
+      /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+    )
+    return url.href
+  } catch {
+    return null
+  }
+}
 
 export const STORY_STYLE_PRESETS = [
   "moody_noir",
@@ -179,14 +198,29 @@ export function buildStoryCanvasModel(input: {
 export function resolveItemDestinationUrl(input: {
   websiteUrl?: string | null
   websiteItemId?: string | null
+  entityId?: string | null
+  copyDraft?: MarketingCopyDraft | null
+  intakeTargetUrl?: string | null
 }): string | null {
-  if (!input.websiteUrl?.trim()) return null
+  const intake =
+    normalizePublicUrl(input.intakeTargetUrl ?? "") ??
+    normalizePublicUrl(fudiIntakeTargetUrl(input.copyDraft) ?? "")
+
+  if (input.entityId === FUDI_ENTITY_ID) {
+    return intake ?? FUDI_PUBLIC_ORIGIN
+  }
+
+  if (!input.websiteUrl?.trim()) return intake
+
   try {
     const base = new URL(
       /^https?:\/\//i.test(input.websiteUrl)
         ? input.websiteUrl
         : `https://${input.websiteUrl}`
     )
+    if (/fudi\.nz$/i.test(base.hostname.replace(/^www\./i, ""))) {
+      return intake ?? `${base.origin}/`
+    }
     if (base.hostname === "wornlabelsociety.co.nz") {
       base.hostname = "www.wornlabelsociety.co.nz"
     }
@@ -196,7 +230,21 @@ export function resolveItemDestinationUrl(input: {
     }
     return `${base.origin}/`
   } catch {
-    return null
+    return intake
+  }
+}
+
+/** Host label for story link sticker preview (e.g. fudi.nz). */
+export function storyLinkHostLabel(url: string | null | undefined): string | null {
+  if (!url?.trim()) return null
+  try {
+    const hostname = new URL(
+      /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`
+    ).hostname
+    return hostname.replace(/^www\./i, "")
+  } catch {
+    const stripped = url.replace(/^https?:\/\//i, "").split("/")[0]?.trim()
+    return stripped || null
   }
 }
 

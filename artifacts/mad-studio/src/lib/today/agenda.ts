@@ -3,16 +3,26 @@ import type { MarketingEntity } from "@/lib/inventory/types"
 import { formatInventoryPrice } from "@/lib/inventory/types"
 import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
 
-export type FudiDropKind = "dish_drop" | "live_deal" | "event" | "pantry"
+export type FudiDropKind =
+  | "foodie_post"
+  | "eatery_spotlight"
+  | "platform_promo"
+  | "dish_drop"
+  | "live_deal"
+  | "event"
+  | "pantry"
 
 export const FUDI_DROP_BADGES: Record<
   FudiDropKind,
   { label: string; emoji: string }
 > = {
+  foodie_post: { emoji: "🍜", label: "FOODIE POST" },
+  eatery_spotlight: { emoji: "🏪", label: "EATERY SPOTLIGHT" },
+  platform_promo: { emoji: "📱", label: "FÜDI PROMO" },
   dish_drop: { emoji: "🍕", label: "DISH DROP" },
   live_deal: { emoji: "🏷️", label: "LIVE DEAL" },
   event: { emoji: "🎟️", label: "EVENT" },
-  pantry: { emoji: "🍯", label: "PANTRY" },
+  pantry: { emoji: "🍯", label: "MARKETPLACE" },
 }
 
 export function formatAgendaLiveDate(date: Date = new Date()): string {
@@ -38,20 +48,73 @@ export function getLocalDayBounds(date: Date = new Date()): {
   return { start, end }
 }
 
+function metadataRecord(
+  item: MarketingEntity
+): Record<string, unknown> | null {
+  const draft = item.copy_draft as Record<string, unknown> | null | undefined
+  const raw = draft?.metadata
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null
+  return raw as Record<string, unknown>
+}
+
+function isFudiEateryIntake(item: MarketingEntity): boolean {
+  const blob = `${item.title} ${item.description ?? ""} ${item.website_item_id} ${item.brand ?? ""}`
+  return (
+    item.website_item_id?.startsWith("partner-") ||
+    /partner|eatery|onboard|venue|restaurant|cafe|commission|table talker/i.test(
+      blob
+    )
+  )
+}
+
 export function inferFudiDropKind(item: MarketingEntity): FudiDropKind {
+  const meta = metadataRecord(item)
+  const override = meta?.drop_kind
+  if (typeof override === "string" && override in FUDI_DROP_BADGES) {
+    return override as FudiDropKind
+  }
+
+  if (
+    item.website_item_id?.startsWith("promo-carousel-") ||
+    meta?.source_table === "mad_carousel"
+  ) {
+    return "platform_promo"
+  }
+
+  const sourceTable =
+    typeof meta?.source_table === "string" ? meta.source_table : ""
+  switch (sourceTable) {
+    case "fudi_events":
+      return "event"
+    case "fudi_deals":
+      return "live_deal"
+    case "marketplace_items":
+      return "pantry"
+    case "trails":
+      return "event"
+    case "fudi_posts":
+      return isFudiEateryIntake(item) ? "eatery_spotlight" : "foodie_post"
+    default:
+      break
+  }
+
   const blob = `${item.title} ${item.description ?? ""} ${item.website_item_id}`.toLowerCase()
-  if (/event|tour|ticket|weekend|rsvp|lineup/.test(blob)) return "event"
-  if (/pantry|maker|marketplace|local hands|honey|jam/.test(blob)) return "pantry"
+  if (/event|tour|ticket|weekend|rsvp|lineup|trail/.test(blob)) return "event"
+  if (/pantry|maker|marketplace|local hands|honey|jam|marketplace_items/.test(blob))
+    return "pantry"
   if (/deal|special|% off|mid-?week|perk|\$\d/.test(blob)) return "live_deal"
   return "dish_drop"
 }
 
 export function fudiChannelRecommendation(kind: FudiDropKind): string {
   switch (kind) {
+    case "platform_promo":
     case "event":
+    case "eatery_spotlight":
       return "IG Carousel / Facebook"
     case "pantry":
       return "TikTok / IG Feed"
+    case "foodie_post":
     case "live_deal":
     case "dish_drop":
     default:
@@ -96,10 +159,8 @@ export function formatIntakeDetailLine(
   const isFudi = isFudiStudioEntity({ name: brandName, industry })
   const price = formatInventoryPrice(item.price)
   if (isFudi) {
-    const parts = [price !== "—" ? price : null, item.description?.trim()]
-      .filter(Boolean)
-      .slice(0, 1)
-    return parts.join(" · ") || "Limited drop — confirm portions on site."
+    if (price !== "—") return price
+    return "Limited drop — confirm portions on site."
   }
   const size = extractWlsSize(item)
   return [size ? `Size ${size}` : null, price !== "—" ? price : null]

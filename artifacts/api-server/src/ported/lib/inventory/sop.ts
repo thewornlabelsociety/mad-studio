@@ -51,6 +51,129 @@ const SIZE_SPEC_PATTERN =
 const CTA_PATTERN =
   /\b(dm to hold|shop link in bio|link in bio|in[- ]store now|shop now|tap to shop|enquire today|book a fitting|available in store|reserve now|shop here|view menu|fudi tap|book a table)\b/i
 
+const FUDI_CAPTION_CTA = "Neighborhood special — tap FÜDI / View Menu."
+
+function appendFudiDefaultCta(body: string): string {
+  const trimmed = body.trim()
+  if (!trimmed) return FUDI_CAPTION_CTA
+  if (/neighborhood special/i.test(trimmed)) return trimmed
+  return `${trimmed} ${FUDI_CAPTION_CTA}`
+}
+
+function captionWordKey(text: string, count = 4): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, count)
+    .join(" ")
+}
+
+/** Legacy drafts: hook sentence + same post text repeated (not hook === first line of body). */
+function isDoubledFudiCaption(headline: string, caption: string): boolean {
+  const h = headline.trim().replace(/\.$/, "")
+  const c = caption.trim()
+  if (!h || c.length <= h.length + 16) return false
+
+  const leadPattern = new RegExp(
+    `^${h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.\\s+`,
+    "i"
+  )
+  if (!leadPattern.test(c)) return false
+
+  const after = c.replace(leadPattern, "").trim()
+  const hookKey = captionWordKey(h)
+  const afterKey = captionWordKey(after)
+  return hookKey.length > 0 && hookKey === afterKey
+}
+
+function peelDoubledFudiLeadIn(headline: string, caption: string): string {
+  const h = headline.trim().replace(/\.$/, "")
+  const c = caption.trim()
+  const leadPattern = new RegExp(
+    `^${h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.\\s+`,
+    "i"
+  )
+  const peeled = c.replace(leadPattern, "").trim()
+  return peeled || c
+}
+
+function looksLikePeelMangledCaption(caption: string): boolean {
+  const t = caption.trim()
+  if (t.length < 8) return false
+  return /^[a-z]\s/.test(t) || /^[a-z]{1,2}\sfor\s/i.test(t)
+}
+
+/** Avoid mid-word chops in workbench hook fields (legacy `.slice(0, 80)`). */
+export function truncateAtWordBoundary(text: string, maxLen: number): string {
+  const trimmed = text.trim()
+  if (trimmed.length <= maxLen) return trimmed
+  const window = trimmed.slice(0, maxLen)
+  const lastSpace = window.lastIndexOf(" ")
+  if (lastSpace >= Math.floor(maxLen * 0.45)) {
+    return window.slice(0, lastSpace).trim()
+  }
+  return window.trim()
+}
+
+function firstSentence(text: string): string {
+  const trimmed = text.trim()
+  if (!trimmed) return ""
+  const match = trimmed.match(/^[^.!?]+[.!?]?/)
+  return match?.[0]?.trim() ?? trimmed
+}
+
+export function workbenchHeadlineFromTitle(
+  title: string,
+  options: { brand?: string | null; profileId?: string } = {}
+): string {
+  const sanitized = sanitizeItemTitle(title, { brand: options.brand }).trim()
+  if (!sanitized) return ""
+  if (options.profileId === "fudi") {
+    const hook = firstSentence(sanitized)
+    return truncateAtWordBoundary(hook, 160)
+  }
+  return truncateAtWordBoundary(sanitized, 100)
+}
+
+/** Expand hooks saved with an old 80-char mid-word truncate when title has more text. */
+export function reconcileFudiWorkbenchHeadline(
+  savedHeadline: string,
+  item: MarketingEntity
+): string {
+  const saved = savedHeadline.trim()
+  const fresh = workbenchHeadlineFromTitle(item.title, {
+    brand: item.brand,
+    profileId: "fudi",
+  })
+  if (!saved || !fresh) return fresh || saved
+  const title = sanitizeItemTitle(item.title, { brand: item.brand }).trim()
+  if (
+    title.length > saved.length &&
+    title.toLowerCase().startsWith(saved.toLowerCase().replace(/…$/, ""))
+  ) {
+    return fresh
+  }
+  return saved
+}
+
+/** Fix legacy doubled captions; recover from a bad peel using catalog description. */
+export function repairFudiCaptionDoubling(
+  headline: string,
+  caption: string,
+  fallbackDescription?: string | null
+): string {
+  if (isDoubledFudiCaption(headline, caption)) {
+    return peelDoubledFudiLeadIn(headline, caption)
+  }
+  const fallback = fallbackDescription?.trim()
+  if (fallback && looksLikePeelMangledCaption(caption)) {
+    return appendFudiDefaultCta(scrubCopyMarkers(fallback))
+  }
+  return caption
+}
+
 export function buildDefaultDraft(
   item: MarketingEntity,
   brandContext?: { brandName?: string; industry?: string | null }
@@ -58,21 +181,20 @@ export function buildDefaultDraft(
   const priceLabel = formatInventoryPrice(item.price)
   const brand =
     (item.brand?.trim() && sanitizeBrandName(item.brand)) || "New arrival"
-  const headline = sanitizeItemTitle(item.title, { brand: item.brand }).slice(0, 80)
-  const baseDescription = scrubCopyMarkers(item.description?.trim() || "")
   const profile = resolveIndustryProfile({
     name: brandContext?.brandName ?? brand,
     industry: brandContext?.industry,
   })
+  const headline = workbenchHeadlineFromTitle(item.title, {
+    brand: item.brand,
+    profileId: profile.id,
+  })
+  const baseDescription = scrubCopyMarkers(item.description?.trim() || "")
 
   if (profile.id === "fudi") {
-    const caption = [
-      `${headline}.`,
-      baseDescription ? baseDescription.slice(0, 140) : null,
-      "Neighborhood special — tap FÜDI / View Menu.",
-    ]
-      .filter(Boolean)
-      .join(" ")
+    const caption = appendFudiDefaultCta(
+      baseDescription || `${headline}.`
+    )
     return { headline, caption, tags: [] }
   }
 
@@ -99,7 +221,11 @@ export function buildDefaultDraft(
     ]
       .filter(Boolean)
       .join(" ")
-    return { headline: titleClean.slice(0, 80), caption, tags: [] }
+    return {
+      headline: truncateAtWordBoundary(titleClean, 100),
+      caption,
+      tags: [],
+    }
   }
 
   const caption = [

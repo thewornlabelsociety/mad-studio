@@ -5,6 +5,13 @@ import { revalidatePath } from "next/cache"
 import type { Json } from "@/lib/database.types"
 import { upsertDropCampaign } from "@/lib/campaigns/upsert-drop-campaign"
 import { mergeCaptionWithTags } from "@/lib/inventory/optimization-tags"
+import { mergeCopyDraftMetadata } from "@/lib/inventory/post-intent"
+import type { MarketingCopyDraft } from "@/lib/inventory/types"
+import { FUDI_ENTITY_ID } from "@/lib/studio/fudi-platform"
+import {
+  fudiCarouselTemplate,
+  type FudiCarouselTemplateId,
+} from "@/lib/today/fudi-carousel-templates"
 import { resolveItemDestinationUrl } from "@/lib/marketing/story-presets"
 import {
   dispatchImmediateRows,
@@ -460,17 +467,119 @@ export async function scheduleMarketingEntity(input: {
   }
 }
 
+type WorkbenchCopyDraftInput = {
+  headline?: string
+  caption?: string
+  tags?: string[]
+  platform?: "feed" | "story" | "email"
+  media_url?: string
+  placement?: "feed" | "story"
+  metadata?: MarketingCopyDraft["metadata"]
+}
+
+function applyWorkbenchCopyDraft(
+  existingDraft: Record<string, unknown>,
+  input: WorkbenchCopyDraftInput,
+  mediaFromImages: string | null | undefined
+): Json {
+  let next = {
+    ...existingDraft,
+    headline:
+      input.headline ??
+      (typeof existingDraft.headline === "string"
+        ? existingDraft.headline
+        : null),
+    caption:
+      input.caption ??
+      (typeof existingDraft.caption === "string" ? existingDraft.caption : null),
+    tags:
+      input.tags ??
+      (Array.isArray(existingDraft.tags) ? existingDraft.tags : null),
+    platform:
+      input.platform ??
+      (typeof existingDraft.platform === "string"
+        ? existingDraft.platform
+        : null),
+    placement:
+      input.placement ??
+      (typeof existingDraft.placement === "string"
+        ? existingDraft.placement
+        : null),
+    media_url:
+      input.media_url ||
+      (typeof existingDraft.media_url === "string"
+        ? existingDraft.media_url
+        : null) ||
+      (typeof mediaFromImages === "string" ? mediaFromImages : null) ||
+      null,
+  }
+  if (input.metadata) {
+    next = mergeCopyDraftMetadata(next, input.metadata)
+  }
+  return next as Json
+}
+
+export async function patchDropWorkbenchDraft(input: {
+  entityId: string
+  itemId: string
+  copyDraft: WorkbenchCopyDraftInput
+}): Promise<InventoryActionResult<{ status: string }>> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error || !auth.user) {
+    return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+
+  const { data: row, error: fetchError } = await auth.supabase
+    .from("marketing_entities")
+    .select("id, status, images, copy_draft")
+    .eq("id", input.itemId)
+    .eq("entity_id", input.entityId)
+    .maybeSingle()
+
+  if (fetchError || !row) {
+    return { ok: false, error: fetchError?.message ?? "Inventory item not found." }
+  }
+
+  const existingDraft =
+    row.copy_draft &&
+    typeof row.copy_draft === "object" &&
+    !Array.isArray(row.copy_draft)
+      ? (row.copy_draft as Record<string, unknown>)
+      : {}
+
+  const mediaFromImages = Array.isArray(row.images)
+    ? row.images.find(
+        (url) => typeof url === "string" && /^https?:\/\//i.test(url)
+      )
+    : null
+
+  const { error } = await auth.supabase
+    .from("marketing_entities")
+    .update({
+      copy_draft: applyWorkbenchCopyDraft(
+        existingDraft,
+        input.copyDraft,
+        mediaFromImages
+      ),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.itemId)
+    .eq("entity_id", input.entityId)
+
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+
+  revalidatePath(`/inventory/${input.itemId}`)
+  revalidatePath("/today")
+  revalidatePath("/studio")
+  return { ok: true, data: { status: row.status } }
+}
+
 export async function saveDropDraft(input: {
   entityId: string
   itemId: string
-  copyDraft: {
-    headline?: string
-    caption?: string
-    tags?: string[]
-    platform?: "feed" | "story" | "email"
-    media_url?: string
-    placement?: "feed" | "story"
-  }
+  copyDraft: WorkbenchCopyDraftInput
   /** Channel timings kept on the draft so Step 3 restores them; nothing is queued. */
   dispatchPlan?: ChannelSlot[]
 }): Promise<
@@ -510,40 +619,12 @@ export async function saveDropDraft(input: {
     : null
 
   const nextDraft = {
-    ...existingDraft,
+    ...applyWorkbenchCopyDraft(existingDraft, input.copyDraft, mediaFromImages),
     dispatch_queue: null,
     dispatch_plan: (input.dispatchPlan ??
       (Array.isArray(existingDraft.dispatch_plan)
         ? existingDraft.dispatch_plan
         : null)) as Json,
-    headline:
-      input.copyDraft.headline ??
-      (typeof existingDraft.headline === "string"
-        ? existingDraft.headline
-        : null),
-    caption:
-      input.copyDraft.caption ??
-      (typeof existingDraft.caption === "string" ? existingDraft.caption : null),
-    tags:
-      input.copyDraft.tags ??
-      (Array.isArray(existingDraft.tags) ? existingDraft.tags : null),
-    platform:
-      input.copyDraft.platform ??
-      (typeof existingDraft.platform === "string"
-        ? existingDraft.platform
-        : null),
-    placement:
-      input.copyDraft.placement ??
-      (typeof existingDraft.placement === "string"
-        ? existingDraft.placement
-        : null),
-    media_url:
-      input.copyDraft.media_url ||
-      (typeof existingDraft.media_url === "string"
-        ? existingDraft.media_url
-        : null) ||
-      (typeof mediaFromImages === "string" ? mediaFromImages : null) ||
-      null,
   } as Json
 
   const { data: updated, error } = await auth.supabase
@@ -618,14 +699,7 @@ export async function armMultiChannelDispatch(input: {
   itemId: string
   slots: ChannelSlot[]
   slugSeed?: string | null
-  copyDraft: {
-    headline?: string
-    caption?: string
-    tags?: string[]
-    media_url?: string
-    placement?: "feed" | "story"
-    platform?: "feed" | "story" | "email"
-  }
+  copyDraft: WorkbenchCopyDraftInput
 }): Promise<InventoryActionResult<ArmDispatchResult>> {
   const auth = await assertCanEdit(input.entityId)
   if (auth.error || !auth.user) {
@@ -706,8 +780,10 @@ export async function armMultiChannelDispatch(input: {
     caption,
     media_url: mediaUrl,
     destination_url: resolveItemDestinationUrl({
+      entityId: input.entityId,
       websiteUrl: entity?.website_url ?? null,
       websiteItemId: row.website_item_id,
+      copyDraft: row.copy_draft,
     }),
     slug_seed: input.slugSeed?.trim() || row.title,
   }
@@ -759,13 +835,19 @@ export async function armMultiChannelDispatch(input: {
     new Set(slots.map((slot) => CHANNEL_META[slot.channel].dispatchChannel))
   )
   const nextDraft = {
-    ...existingDraft,
-    headline,
-    caption: captionBody,
-    tags,
-    media_url: mediaUrl,
-    placement: input.copyDraft.placement ?? existingDraft.placement ?? null,
-    platform: input.copyDraft.platform ?? existingDraft.platform ?? null,
+    ...applyWorkbenchCopyDraft(
+      existingDraft,
+      {
+        headline,
+        caption: captionBody,
+        tags,
+        media_url: mediaUrl,
+        placement: input.copyDraft.placement,
+        platform: input.copyDraft.platform,
+        metadata: input.copyDraft.metadata,
+      },
+      mediaUrl
+    ),
     dispatch_queue: "scheduled_posts",
     dispatch_plan: slots,
     _dispatch_claim_at: null,
@@ -902,4 +984,107 @@ export async function repurposeMarketingEntity(input: {
   revalidatePath(`/inventory/${targetId}`)
   revalidatePath("/inventory")
   return { ok: true, data: { targetId } }
+}
+
+export async function createFudiFeedCarousel(input: {
+  entityId: string
+  sourceItemIds: string[]
+  templateId: FudiCarouselTemplateId
+}): Promise<InventoryActionResult<{ itemId: string }>> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error || !auth.user) {
+    return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+
+  if (input.entityId !== FUDI_ENTITY_ID) {
+    return { ok: false, error: "Feed carousels are scoped to the FÜDI entity." }
+  }
+
+  const uniqueIds = Array.from(new Set(input.sourceItemIds))
+  if (uniqueIds.length < 2 || uniqueIds.length > 10) {
+    return { ok: false, error: "Pick between 2 and 10 intake slides." }
+  }
+
+  const { data: sources, error: fetchError } = await auth.supabase
+    .from("marketing_entities")
+    .select("id, images")
+    .eq("entity_id", input.entityId)
+    .in("id", uniqueIds)
+
+  if (fetchError || !sources?.length) {
+    return {
+      ok: false,
+      error: fetchError?.message ?? "Could not load selected intake rows.",
+    }
+  }
+
+  const byId = new Map(sources.map((row) => [row.id, row]))
+  const images: string[] = []
+  for (const id of uniqueIds) {
+    const row = byId.get(id)
+    if (!row || !Array.isArray(row.images)) continue
+    const url = row.images.find(
+      (value): value is string =>
+        typeof value === "string" && /^https?:\/\//i.test(value)
+    )
+    if (url) images.push(url)
+  }
+
+  if (images.length < 2) {
+    return {
+      ok: false,
+      error: "Selected rows need at least two public https images.",
+    }
+  }
+
+  const template = fudiCarouselTemplate(input.templateId)
+  const now = new Date().toISOString()
+  const websiteItemId = `promo-carousel-${Date.now()}`
+
+  const copy_draft = {
+    headline: template.headline,
+    caption: template.caption,
+    placement: "feed" as const,
+    platform: "feed" as const,
+    media_url: images[0],
+    metadata: {
+      drop_kind: "platform_promo",
+      channel_hint: "IG Carousel / Facebook",
+      source_table: "mad_carousel",
+      item_type: "platform_promo",
+    },
+  }
+
+  const { data: inserted, error: insertError } = await auth.supabase
+    .from("marketing_entities")
+    .insert({
+      entity_id: input.entityId,
+      website_item_id: websiteItemId,
+      title: template.headline.slice(0, 500),
+      brand: "FÜDI",
+      price: null,
+      description: template.caption.slice(0, 8000),
+      images,
+      status: "draft",
+      metrics: { views: 0, clicks: 0, sales: 0 } as Json,
+      channels: [],
+      copy_draft: copy_draft as Json,
+      updated_at: now,
+      created_at: now,
+    })
+    .select("id")
+    .single()
+
+  if (insertError || !inserted) {
+    return {
+      ok: false,
+      error: insertError?.message ?? "Failed to create carousel draft.",
+    }
+  }
+
+  revalidatePath("/today")
+  revalidatePath("/studio")
+  revalidatePath("/inventory")
+
+  return { ok: true, data: { itemId: inserted.id } }
 }

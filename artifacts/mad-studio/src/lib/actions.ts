@@ -56,6 +56,10 @@ export const removeInventoryItem = (...args: any[]) => action("removeInventoryIt
 export const approveMarketingEntity = (...args: any[]) => action("approveMarketingEntity", ...args)
 export const scheduleMarketingEntity = (...args: any[]) => action("scheduleMarketingEntity", ...args)
 export const saveDropDraft = (...args: any[]) => action("saveDropDraft", ...args)
+export const patchDropWorkbenchDraft = (...args: any[]) =>
+  action("patchDropWorkbenchDraft", ...args)
+export const createFudiFeedCarousel = (...args: any[]) =>
+  action("createFudiFeedCarousel", ...args)
 export const armMultiChannelDispatch = (...args: any[]) => action("armMultiChannelDispatch", ...args)
 export const repurposeMarketingEntity = (...args: any[]) => action("repurposeMarketingEntity", ...args)
 export const armCampaignMultiChannelDispatch = (...args: any[]) => action("armCampaignMultiChannelDispatch", ...args)

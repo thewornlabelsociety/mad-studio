@@ -27,6 +27,7 @@ import * as verifySocial from "../ported/app/api/social/verify/route";
 import * as pullArrivals from "../ported/app/api/sync/pull-new-arrivals/route";
 import * as syncWebsite from "../ported/app/api/sync/website/route";
 import * as fudiFeed from "../ported/app/api/intake/fudi-feed/route";
+import * as enhanceCaption from "../ported/app/api/inventory/enhance-caption/route";
 import * as authCallback from "../ported/app/auth/callback/route";
 import * as authConfirm from "../ported/app/auth/confirm/route";
 import * as shortLink from "../ported/app/r/[slug]/route";
@@ -139,6 +140,7 @@ router.get("/api/social/verify", webHandler(method(verifySocial, "GET"), false))
 router.post("/api/sync/pull-new-arrivals", webHandler(method(pullArrivals, "POST")));
 router.post("/api/sync/website", webHandler(method(syncWebsite, "POST")));
 router.post("/api/intake/fudi-feed", webHandler(method(fudiFeed, "POST")));
+router.post("/api/inventory/enhance-caption", webHandler(method(enhanceCaption, "POST")));
 router.get("/auth/callback", webHandler(method(authCallback, "GET"), false));
 router.get("/auth/confirm", webHandler(method(authConfirm, "GET"), false));
 router.get("/r/:slug", webHandler(method(shortLink, "GET"), false));

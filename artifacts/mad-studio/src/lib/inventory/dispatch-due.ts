@@ -268,8 +268,10 @@ export async function dispatchDueScheduledDrops(input?: {
       )
 
     const destinationUrl = resolveItemDestinationUrl({
+      entityId: item.entity_id,
       websiteUrl: websiteByEntity.get(item.entity_id) ?? null,
       websiteItemId: item.website_item_id,
+      copyDraft: item.copy_draft,
     })
 
     let anyOk = false

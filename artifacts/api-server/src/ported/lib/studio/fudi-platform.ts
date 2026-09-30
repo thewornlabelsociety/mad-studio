@@ -3,6 +3,9 @@ import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 /** Canonical FÜDI brand entity in production Supabase. */
 export const FUDI_ENTITY_ID = "ac5ec175-12c6-416e-9cce-fbcafee32b77"
 
+/** Public site for IG Story link stickers and trackable redirects (not Supabase). */
+export const FUDI_PUBLIC_ORIGIN = "https://fudi.nz"
+
 export const FUDI_BRAND_COLORS = {
   canvas: "#0A0A0A",
   accent: "#CCFF00",

@@ -497,12 +497,22 @@ const AGENCY_LEAK =
 const META_VISION_LEAK =
   /\b(camera sees|visual details|inspected|concrete (camera )?features|in the frame)\s*:?\s*/gi
 
-export function scrubAgencyLeak(text: string): string {
-  return text
+export type ScrubAgencyLeakOptions = {
+  /** When false, keep leading/trailing spaces (use while typing in controlled fields). Default true. */
+  trim?: boolean
+}
+
+export function scrubAgencyLeak(
+  text: string,
+  options: ScrubAgencyLeakOptions = {}
+): string {
+  const trim = options.trim !== false
+  let out = text
     .replace(AGENCY_LEAK, "")
     .replace(META_VISION_LEAK, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([,.])/g, "$1")
     .replace(/\s*[—–]\s*[—–]\s*/g, " — ")
-    .trim()
+  if (trim) out = out.trim()
+  return out
 }

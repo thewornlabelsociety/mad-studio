@@ -419,8 +419,10 @@ export async function ensureInventoryTrackableLink(input: {
     )
     destination =
       resolveItemDestinationUrl({
+        entityId: input.entityId,
         websiteUrl: entity?.website_url,
         websiteItemId: item.website_item_id,
+        copyDraft: item.copy_draft,
       }) || ""
   }
 
