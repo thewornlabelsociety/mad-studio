@@ -7,6 +7,10 @@ import { parseStudioEntity } from "@/lib/campaigns/entity-dna"
 import { scrubAgencyLeak } from "@/lib/inventory/context-hooks"
 import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 import {
+  repairFudiCaptionDoubling,
+  stripDuplicateHookFromCaption,
+} from "@/lib/inventory/sop"
+import {
   fudiPlatformDefinitionBlock,
   isFudiHospitalityEntity,
 } from "@/lib/studio/fudi-platform"
@@ -24,7 +28,7 @@ const bodySchema = z.object({
 })
 
 const enhanceResultSchema = z.object({
-  headline: z.string().min(1).max(200),
+  headline: z.string().min(1).max(500),
   caption: z.string().min(1).max(2200),
 })
 
@@ -111,9 +115,9 @@ export async function POST(request: Request) {
         isFudi ? fudiPlatformDefinitionBlock() : "",
         `Rules:`,
         `- Keep factual details from the listing (dish, venue, price, event) — do not invent SKUs or discounts.`,
-        `- headline = short on-screen hook (≤ 120 chars). caption = feed/story body (≤ 400 words).`,
+        `- headline = short on-screen hook (≤ 160 chars). caption = feed/story body only — NEVER repeat the hook sentence at the start of caption.`,
         `- No agency jargon (synergy, funnel, ROAS, MAD Studio). No "link in bio" unless brand is fashion retail.`,
-        `- Preserve optimization tags if present at end of caption; do not add raw URLs.`,
+        `- Preserve optimization hashtags if present at end of caption; do not add raw URLs.`,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -136,21 +140,40 @@ export async function POST(request: Request) {
         .join("\n"),
     })
 
-    await recordOrchestratedCall({
-      entityId,
-      agentType: "website_intake",
-      agentLabel: "Inventory caption enhance",
-      model,
-      usage,
-      durationMs: Date.now() - started,
-      summary: `Enhanced caption for ${itemRow.title.slice(0, 48)}`,
-      metadata: { marketingEntityId },
-    })
+    try {
+      await recordOrchestratedCall({
+        entityId,
+        agentType: "website_intake",
+        agentLabel: "Inventory caption enhance",
+        model,
+        usage,
+        durationMs: Date.now() - started,
+        summary: `Enhanced caption for ${itemRow.title.slice(0, 48)}`,
+        metadata: { marketingEntityId },
+      })
+    } catch (meterError) {
+      console.warn("[inventory/enhance-caption] metering skipped", meterError)
+    }
 
-    return NextResponse.json({
-      headline: scrubAgencyLeak(object.headline),
-      caption: scrubAgencyLeak(object.caption),
-    })
+    const nextHeadline = scrubAgencyLeak(object.headline)
+    let nextCaption = scrubAgencyLeak(object.caption)
+    nextCaption = stripDuplicateHookFromCaption(nextHeadline, nextCaption)
+    if (isFudi) {
+      nextCaption = repairFudiCaptionDoubling(
+        nextHeadline,
+        nextCaption,
+        itemRow.description
+      )
+    }
+
+    if (!nextHeadline.trim() || !nextCaption.trim()) {
+      return NextResponse.json(
+        { error: "Model returned empty copy after cleanup." },
+        { status: 422 }
+      )
+    }
+
+    return NextResponse.json({ headline: nextHeadline, caption: nextCaption })
   } catch (error) {
     console.error("[inventory/enhance-caption]", error)
     const message =

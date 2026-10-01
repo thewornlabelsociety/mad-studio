@@ -160,7 +160,7 @@ export function formatIntakeDetailLine(
   const price = formatInventoryPrice(item.price)
   if (isFudi) {
     if (price !== "—") return price
-    return "Limited drop — confirm portions on site."
+    return "Open on FÜDI"
   }
   const size = extractWlsSize(item)
   return [size ? `Size ${size}` : null, price !== "—" ? price : null]

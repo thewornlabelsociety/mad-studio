@@ -45,6 +45,15 @@ export type AnalyticsSnapshot = {
   reporting_date: string
 }
 
+/** Rows created by POST /api/brain/memory (and memory_rule suggest) — not marketing drops. */
+export const BRAIN_MEMORY_VAULT_GOAL = "memory_vault"
+
+export function isBrainMemoryVaultCampaign(campaign: {
+  target_goal: string | null
+}): boolean {
+  return campaign.target_goal === BRAIN_MEMORY_VAULT_GOAL
+}
+
 export type CampaignLedgerItem = {
   id: string
   title: string
@@ -73,6 +82,75 @@ export function formatMoney(value: number | null | undefined): string {
 export function formatMultiplier(value: number | null | undefined): string {
   const amount = Number(value ?? 0)
   return `${amount.toFixed(2)}x`
+}
+
+export type FinancialSummary = {
+  moneySpent: number
+  salesMade: number
+  netProfit: number
+  returnMultiplier: number | null
+}
+
+export function aggregateFinancialSummary(
+  campaigns: CampaignLedgerItem[]
+): FinancialSummary {
+  let moneySpent = 0
+  let salesMade = 0
+  for (const campaign of campaigns) {
+    moneySpent += Number(campaign.analytics?.spend ?? 0)
+    salesMade += Number(campaign.analytics?.revenue ?? 0)
+  }
+  const netProfit = salesMade - moneySpent
+  const returnMultiplier =
+    moneySpent > 0 ? salesMade / moneySpent : salesMade > 0 ? null : 0
+  return { moneySpent, salesMade, netProfit, returnMultiplier }
+}
+
+export type PublishedDropRow = {
+  id: string
+  title: string
+  thumbnailUrl: string | null
+  targetAudience: string | null
+  ctrPercent: number | null
+  directConversions: number
+  costPerClick: number | null
+  publishedAt: string | null
+}
+
+export function ctrFromMetrics(metrics: {
+  views?: number
+  clicks?: number
+  impressions?: number
+}): number | null {
+  const impressions = Number(metrics.impressions ?? metrics.views ?? 0)
+  const clicks = Number(metrics.clicks ?? 0)
+  if (impressions <= 0) return null
+  return (clicks / impressions) * 100
+}
+
+export const markWinnerSchema = z.object({
+  campaignId: z.string().uuid(),
+  entityId: z.string().uuid(),
+  userTakeaway: z.string().min(8).max(500),
+})
+
+export type MarkWinnerInput = z.infer<typeof markWinnerSchema>
+
+export function extractHookBlueprintFromPack(assetPack: unknown): string | null {
+  if (!assetPack || typeof assetPack !== "object") return null
+  const pack = assetPack as Record<string, unknown>
+  const hooks = pack.creative_hooks
+  if (hooks && typeof hooks === "object") {
+    const row = hooks as Record<string, string>
+    const first = row.vibe_styling || row.investment_condition || row.local_instore
+    if (first?.trim()) return first.trim()
+  }
+  const signals = pack.algorithmic_signals
+  if (signals && typeof signals === "object") {
+    const spoken = (signals as Record<string, string>).spoken_hook
+    if (spoken?.trim()) return spoken.trim()
+  }
+  return null
 }
 
 export function channelLabelFromAssetPack(assetPack: unknown): string {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Check } from "lucide-react"
 
 import {
@@ -36,6 +36,10 @@ type Props = {
   locked?: boolean
   /** When true, primary Save / Arm actions live in the workspace dock only. */
   hideFooterActions?: boolean
+  /** Studio wizard: 2-col slot rows + shorter helper copy. */
+  wizardLayout?: boolean
+  /** Pack title / generate actions — rendered inside the same card. */
+  topBanner?: ReactNode
   className?: string
 }
 
@@ -49,6 +53,8 @@ export function MultiChannelScheduler({
   arming = false,
   locked = false,
   hideFooterActions = false,
+  wizardLayout = false,
+  topBanner = null,
   className,
 }: Props) {
   // Re-render periodically so "time has passed" warnings stay current.
@@ -145,18 +151,28 @@ export function MultiChannelScheduler({
   return (
     <section
       className={cn(
-        "space-y-3 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm",
+        "border-2 border-mad-black bg-mad-white shadow-keycap-sm",
+        wizardLayout ? "space-y-2 p-2" : "space-y-3 p-3",
         className
       )}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-          Dispatch & Schedule
-        </p>
-        <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-600 uppercase">
+      {topBanner ? (
+        <div className={wizardLayout ? "pb-1" : "pb-2"}>{topBanner}</div>
+      ) : null}
+      {wizardLayout && topBanner ? (
+        <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-600 uppercase">
           {summary}
-        </span>
-      </div>
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            Dispatch & Schedule
+          </p>
+          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-600 uppercase">
+            {summary}
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-1">
         <button
@@ -201,7 +217,12 @@ export function MultiChannelScheduler({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border border-dashed border-mad-black/40 bg-mad-lime/10 px-2 py-1.5">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-2 border border-dashed border-mad-black/40 bg-mad-lime/10 px-2",
+          wizardLayout ? "py-1" : "py-1.5"
+        )}
+      >
         <button
           type="button"
           onClick={() => onPlanChange(applyBrainTiming(plan))}
@@ -210,11 +231,17 @@ export function MultiChannelScheduler({
         >
           ⚡ Apply Optimal Brain Timing
         </button>
-        <p className="min-w-0 flex-1 font-typewriter text-[0.5rem] leading-relaxed text-neutral-600 normal-case">
-          Staggers each channel to its audience window — IG Story lunch /
-          commute, IG Feed midday / evening, TikTok night, Facebook morning,
-          VIP email Tue / Thu 10am.
-        </p>
+        {wizardLayout ? (
+          <p className="min-w-0 flex-1 font-typewriter text-[0.5rem] text-neutral-600 normal-case">
+            Staggers channels to Brain audience windows.
+          </p>
+        ) : (
+          <p className="min-w-0 flex-1 font-typewriter text-[0.5rem] leading-relaxed text-neutral-600 normal-case">
+            Staggers each channel to its audience window — IG Story lunch /
+            commute, IG Feed midday / evening, TikTok night, Facebook morning,
+            VIP email Tue / Thu 10am.
+          </p>
+        )}
       </div>
 
       {enabled.length === 0 ? (
@@ -222,14 +249,26 @@ export function MultiChannelScheduler({
           Tick a channel to add its slot
         </p>
       ) : (
-        <ul className="divide-y divide-mad-black/15 border border-mad-black/25">
+        <ul
+          className={cn(
+            "border border-mad-black/25",
+            wizardLayout
+              ? "grid grid-cols-1 gap-px bg-mad-black/15 xl:grid-cols-2 2xl:grid-cols-3"
+              : "divide-y divide-mad-black/15"
+          )}
+        >
           {enabled.map((slot) => {
             const clash = clashFor(slot)
             const past = slot.mode === "scheduled" && isPast(slot.scheduledAt)
             return (
               <li
                 key={slot.channel}
-                className="grid gap-2 px-2 py-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+                className={cn(
+                  "grid bg-mad-white px-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center",
+                  wizardLayout
+                    ? "gap-1.5 border border-mad-black/10 py-1.5"
+                    : "gap-2 py-2"
+                )}
               >
                 <div className="min-w-0">
                   <p className="font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-black uppercase">

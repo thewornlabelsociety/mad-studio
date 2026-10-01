@@ -186,6 +186,7 @@ export function IntakePreviewDialog({
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3">
               <MultiPlatformSimulator
                 stacked
+                previewMinimal
                 content={previewContent}
                 activeMedia={activeMedia}
                 carouselMedia={carouselMedia}
@@ -197,6 +198,7 @@ export function IntakePreviewDialog({
                 industry={industry}
                 visualPresets={visualPresets}
                 showCreativeControls={false}
+                showTextStyler={false}
                 showActionDock
                 showPublishCta
                 publishCtaLabel="Quick publish"
@@ -207,26 +209,9 @@ export function IntakePreviewDialog({
                 }}
               />
 
-              <section className="mt-4 border-2 border-mad-black bg-white p-3 shadow-keycap-sm">
-                <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase">
-                  {liveCopy.byline ?? entityName}
-                </p>
-                {liveCopy.headline &&
-                liveCopy.captionBody &&
-                liveCopy.headline.toLowerCase() !==
-                  liveCopy.captionBody.toLowerCase() ? (
-                  <p className="mt-1 text-sm font-semibold leading-snug text-mad-black">
-                    {liveCopy.headline}
-                  </p>
-                ) : null}
-                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-neutral-800">
-                  {liveCopy.captionBody || liveCopy.headline}
-                </p>
-              </section>
-
               <div className="mt-4 pb-1">
                 <Link
-                  href={studioHref}
+                  href={`${studioHref}${studioHref.includes("?") ? "&" : "?"}step=2`}
                   className="inline-flex w-full items-center justify-center border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
                   onClick={() => onOpenChange(false)}
                 >

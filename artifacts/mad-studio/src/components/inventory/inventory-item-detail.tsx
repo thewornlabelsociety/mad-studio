@@ -10,7 +10,7 @@ import {
 } from "react"
 import { Link } from "wouter"
 import { useRouter } from "@/lib/next-compat"
-import { ChevronDown, Loader2, RotateCcw, Sparkles } from "lucide-react"
+import { ChevronDown, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -19,10 +19,7 @@ import {
   patchDropWorkbenchDraft,
   saveDropDraft,
 } from "@/lib/actions"
-import {
-  PostIntentEditor,
-  initialPostIntentState,
-} from "@/components/inventory/post-intent-editor"
+import { initialPostIntentState } from "@/components/inventory/post-intent-editor"
 import { MultiChannelScheduler } from "@/components/marketing/multi-channel-scheduler"
 import {
   MediaTray,
@@ -37,12 +34,38 @@ import {
   type SimulatorPlatform,
   type StoryPreviewState,
 } from "@/components/marketing/multi-platform-simulator"
-import { AutoTextarea } from "@/components/studio/auto-textarea"
+import { CompactChannelRail } from "@/components/studio/compact-channel-rail"
+import { StepDock, type WorkbenchStepId } from "@/components/studio/step-stepper"
+import { StudioInnerStepper } from "@/components/studio/studio-inner-stepper"
+import { StudioSplitShell } from "@/components/studio/studio-split-shell"
+import { StudioStepSummary } from "@/components/studio/studio-step-summary"
 import {
-  StepDock,
-  StepStepper,
-  type WorkbenchStepId,
-} from "@/components/studio/step-stepper"
+  StepCustomize,
+  type CustomizeWizardPhase,
+} from "@/components/studio/steps/step-customize"
+import { StepMedia } from "@/components/studio/steps/step-media"
+import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
+import type { MediaKind } from "@/lib/media/kind"
+import {
+  bakeCanvasTextOnImage,
+  canvasOverlayNeedsBake,
+} from "@/lib/media/bake-canvas-text"
+import {
+  DEFAULT_CANVAS_TEXT_OVERLAY,
+  normalizeCanvasTextOverlay,
+  type CanvasTextOverlayState,
+} from "@/lib/studio/canvas-text-types"
+import {
+  WORKBENCH_STEP_CANVAS,
+  WORKBENCH_STEP_CHANNELS,
+  WORKBENCH_STEP_COPY,
+  WORKBENCH_STEP_INTENT,
+  WORKBENCH_STEP_MEDIA,
+  nextWorkbenchStep,
+  parseWorkbenchStepParam,
+  prevWorkbenchStep,
+} from "@/lib/studio/workbench-steps"
+import type { StudioEntityDna } from "@/lib/campaigns/entity-dna"
 import {
   Collapsible,
   CollapsibleContent,
@@ -74,6 +97,8 @@ import {
   buildDefaultDraft,
   reconcileFudiWorkbenchHeadline,
   repairFudiCaptionDoubling,
+  resolveWorkbenchCaptionBody,
+  stripDuplicateHookFromCaption,
   workbenchHeadlineFromTitle,
   evaluateSopChecklist,
   isSopValid,
@@ -84,11 +109,11 @@ import {
   fudiChannelRecommendation,
   inferFudiDropKind,
 } from "@/lib/today/agenda"
+import { OptimizationTagsEditor } from "@/components/inventory/optimization-tags-editor"
+import { requestEnhanceCaption } from "@/lib/inventory/enhance-caption-client"
 import {
   buildOptimizationTags,
-  formatTagsForCaption,
   mergeCaptionWithTags,
-  normalizeOptTag,
 } from "@/lib/inventory/optimization-tags"
 import type {
   MarketingEntity,
@@ -97,6 +122,7 @@ import type {
 } from "@/lib/inventory/types"
 import { formatInventoryPrice } from "@/lib/inventory/types"
 import { resolveItemDestinationUrl } from "@/lib/marketing/story-presets"
+import { trackableUrl } from "@/lib/social/types"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -107,6 +133,24 @@ type Props = {
   websiteUrl?: string | null
   visualPresets?: import("@/lib/entities/dna-schema").VisualPresets | null
   occupiedSlots: ScheduledSlotOccupancy[]
+  entity?: StudioEntityDna | null
+  initialStep?: string | null
+}
+
+function isMadCarouselDraft(item: MarketingEntity): boolean {
+  return (
+    item.copy_draft.metadata?.source_table === "mad_carousel" &&
+    item.images.length >= 2
+  )
+}
+
+function carouselSlideSubheads(item: MarketingEntity): string[] | null {
+  const raw = item.copy_draft as {
+    metadata?: { carousel_slide_subheads?: unknown }
+  }
+  const list = raw.metadata?.carousel_slide_subheads
+  if (!Array.isArray(list)) return null
+  return list.map((row) => String(row ?? "").trim())
 }
 
 function scrubCliches(caption: string): string {
@@ -163,6 +207,8 @@ export function InventoryItemDetail({
   websiteUrl = null,
   visualPresets = null,
   occupiedSlots,
+  entity = null,
+  initialStep = null,
 }: Props) {
   const router = useRouter()
   const profile = useMemo(
@@ -247,8 +293,15 @@ export function InventoryItemDetail({
     return () => window.clearTimeout(handle)
   }, [postIntentMetadata, entityId, item.id])
 
-  const [step, setStep] = useState<WorkbenchStepId>(1)
-  const [simPlatform, setSimPlatform] = useState<SimulatorPlatform>("ig_story")
+  const [step, setStep] = useState<WorkbenchStepId>(() =>
+    parseWorkbenchStepParam(initialStep)
+  )
+  const [simPlatform, setSimPlatform] = useState<SimulatorPlatform>(() =>
+    isMadCarouselDraft(item) ? "ig_feed" : "ig_story"
+  )
+  const [carouselSlideTexts, setCarouselSlideTexts] = useState<string[] | null>(
+    () => carouselSlideSubheads(item)
+  )
   const [storyPreview, setStoryPreview] =
     useState<StoryPreviewState>(DEFAULT_STORY_PREVIEW)
   const [images, setImages] = useState(item.images)
@@ -264,6 +317,54 @@ export function InventoryItemDetail({
   const [activeHookId, setActiveHookId] = useState<ContextHookId | null>(null)
   const [captionVariantIndex, setCaptionVariantIndex] = useState(0)
   const [enhancingCaption, setEnhancingCaption] = useState(false)
+  const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false)
+  const [cutoutRequestId, setCutoutRequestId] = useState(0)
+  const [contentPillar, setContentPillar] = useState("")
+  const [hookBlueprintId, setHookBlueprintId] = useState<string | null>(null)
+  const [ctaBlueprintId, setCtaBlueprintId] = useState<string | null>(null)
+  const [workbenchPersonaId, setWorkbenchPersonaId] = useState("")
+  const [textOverlay, setTextOverlay] = useState<CanvasTextOverlayState>(() => {
+    const raw = item.copy_draft as {
+      metadata?: { canvas_text_overlay?: unknown }
+    }
+    if (raw.metadata?.canvas_text_overlay) {
+      return normalizeCanvasTextOverlay(raw.metadata.canvas_text_overlay)
+    }
+    const base = normalizeCanvasTextOverlay(null)
+    if (isFudi) {
+      return {
+        ...base,
+        storyStickerMode: "link_badge" as const,
+        linkBadgeLabel: "EXPLORE DROP ↗",
+        storyStickerTheme: "noir" as const,
+        stickerY: 52,
+      }
+    }
+    return base
+  })
+  const textOverlayPersistReady = useRef(false)
+
+  useEffect(() => {
+    if (!textOverlayPersistReady.current) {
+      textOverlayPersistReady.current = true
+      return
+    }
+    const handle = window.setTimeout(() => {
+      void patchDropWorkbenchDraft({
+        entityId,
+        itemId: item.id,
+        copyDraft: {
+          metadata: {
+            canvas_text_overlay: textOverlay,
+          },
+        },
+      }).then((result) => {
+        if (!result.ok) toast.error(result.error)
+      })
+    }, 500)
+    return () => window.clearTimeout(handle)
+  }, [textOverlay, entityId, item.id])
+
   const [draft, setDraft] = useState<SopDraft>(() => {
     const defaults = buildDefaultDraft(item, { brandName, industry })
     const savedTags = cleanHashtags(item.copy_draft.tags ?? [], {
@@ -310,7 +411,7 @@ export function InventoryItemDetail({
   const [savingDraft, setSavingDraft] = useState(false)
 
   function goToStep(next: WorkbenchStepId) {
-    if (next === 3 && !dispatchPlan) {
+    if (next === WORKBENCH_STEP_CHANNELS && !dispatchPlan) {
       setDispatchPlan(
         hydrateDispatchPlan({
           saved: item.copy_draft.dispatch_plan,
@@ -354,6 +455,14 @@ export function InventoryItemDetail({
         copyDraft: item.copy_draft,
       }),
     [entityId, websiteUrl, item.website_item_id, item.copy_draft]
+  )
+
+  const trackablePreviewUrl = useMemo(
+    () =>
+      item.trackable_slug?.trim()
+        ? trackableUrl(item.trackable_slug.trim())
+        : itemDestinationUrl,
+    [item.trackable_slug, itemDestinationUrl]
   )
 
   const slugSeed = isFudiStudioEntity({ name: brandName, industry })
@@ -433,6 +542,13 @@ export function InventoryItemDetail({
     setVisualInspection(asset.visualInspection ?? null)
   }
 
+  function onSimulatorSlideIndexChange(index: number) {
+    const asset = mediaAssets[index]
+    if (asset && asset.id !== activeMediaId) {
+      onSelectMedia(asset)
+    }
+  }
+
   function onVisualInspect(
     assetId: string,
     inspection: MediaVisualInspection | null
@@ -471,13 +587,18 @@ export function InventoryItemDetail({
     const row = contextHooks.find((hook) => hook.id === hookId)
     if (!row) return
     setActiveHookId(hookId)
+    const hookLine = scrubCliches(row.hook)
     setDraft((current) => ({
       ...current,
-      headline: workbenchHeadlineFromTitle(item.title, {
-        brand: item.brand,
-        profileId: profile.id,
-      }),
-      caption: scrubCliches(row.hook),
+      headline: hookLine,
+      caption: scrubCliches(
+        resolveWorkbenchCaptionBody({
+          headline: hookLine,
+          item,
+          fallbackCaption: current.caption,
+          isFudi,
+        })
+      ),
     }))
   }
 
@@ -494,58 +615,58 @@ export function InventoryItemDetail({
   }
 
   async function enhanceCaptionWithAi() {
+    if (enhancingCaption) return
+    const toastId = toast.loading("Enhancing hook and caption…")
     setEnhancingCaption(true)
     try {
-      const response = await fetch("/api/inventory/enhance-caption", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityId,
-          marketingEntityId: item.id,
-          headline: draft.headline,
-          caption: draft.caption,
-          visualDescription: visualInspection?.visualDescription ?? null,
-        }),
+      const beforeHook = draft.headline.trim()
+      const beforeCaption = draft.caption.trim()
+      const payload = await requestEnhanceCaption({
+        entityId,
+        marketingEntityId: item.id,
+        headline: draft.headline,
+        caption: draft.caption,
+        visualDescription: visualInspection?.visualDescription ?? null,
       })
-      const payload = (await response.json()) as {
-        error?: string
-        headline?: string
-        caption?: string
-      }
-      if (!response.ok) {
-        throw new Error(payload.error || "Enhance failed.")
-      }
-      if (!payload.headline?.trim() || !payload.caption?.trim()) {
-        throw new Error("Model returned empty copy.")
+      const nextHeadline = scrubCliches(scrubAgencyLeak(payload.headline))
+      let nextCaption = scrubCliches(scrubAgencyLeak(payload.caption))
+      nextCaption = scrubCliches(
+        stripDuplicateHookFromCaption(nextHeadline, nextCaption)
+      )
+      if (isFudi) {
+        nextCaption = scrubCliches(
+          repairFudiCaptionDoubling(
+            nextHeadline,
+            nextCaption,
+            item.description
+          )
+        )
       }
       setActiveHookId(null)
       setDraft((current) => ({
         ...current,
-        headline: scrubCliches(scrubAgencyLeak(payload.headline!.trim())),
-        caption: scrubCliches(scrubAgencyLeak(payload.caption!.trim())),
+        headline: nextHeadline,
+        caption: nextCaption,
       }))
-      toast.success("Caption enhanced with AI.")
+      const unchanged =
+        nextHeadline.trim() === beforeHook &&
+        nextCaption.trim() === beforeCaption
+      toast.dismiss(toastId)
+      if (unchanged) {
+        toast.message(
+          "AI finished but copy is very similar — try Rotate or edit the hook first."
+        )
+      } else {
+        toast.success("Hook and caption updated.")
+      }
     } catch (error) {
+      toast.dismiss(toastId)
       toast.error(
         error instanceof Error ? error.message : "Caption enhance failed."
       )
     } finally {
       setEnhancingCaption(false)
     }
-  }
-
-  function toggleTag(tag: string) {
-    const normalized = normalizeOptTag(tag)
-    if (!normalized) return
-    setDraft((current) => {
-      const exists = current.tags.includes(normalized)
-      return {
-        ...current,
-        tags: exists
-          ? current.tags.filter((row) => row !== normalized)
-          : [...current.tags, normalized].slice(0, 20),
-      }
-    })
   }
 
   function onApprove() {
@@ -581,11 +702,44 @@ export function InventoryItemDetail({
     return media && /^https?:\/\//i.test(media) ? media : null
   }
 
-  function onSaveDraft() {
-    const media = resolvePublicMedia()
+  async function resolvePublishMediaUrl(): Promise<string | null> {
+    const base = resolvePublicMedia()
+    if (!base) return null
+    if (activeMedia?.type === "video") return base
+    if (!canvasOverlayNeedsBake(textOverlay)) return base
+    const toastId = toast.loading("Baking on-image text into your publish file…")
+    try {
+      const baked = await bakeCanvasTextOnImage({
+        entityId,
+        marketingEntityId: item.id,
+        sourceUrl: base,
+        overlay: textOverlay,
+      })
+      toast.dismiss(toastId)
+      toast.success("On-image text baked — social channels will receive this PNG.")
+      return baked
+    } catch (error) {
+      toast.dismiss(toastId)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not bake on-image text — fix overlay or retry."
+      )
+      return null
+    }
+  }
 
+  function onSaveDraft() {
     setSavingDraft(true)
     startTransition(async () => {
+      const media = await resolvePublishMediaUrl()
+      if (!media) {
+        setSavingDraft(false)
+        if (!resolvePublicMedia()) {
+          toast.error("Add a public https image before saving.")
+        }
+        return
+      }
       const result = await saveDropDraft({
         entityId,
         itemId: item.id,
@@ -605,7 +759,10 @@ export function InventoryItemDetail({
               : simPlatform === "ig_story"
                 ? "story"
                 : "feed",
-          metadata: postIntentMetadata,
+          metadata: {
+            ...postIntentMetadata,
+            canvas_text_overlay: textOverlay,
+          },
         },
       })
       setSavingDraft(false)
@@ -627,14 +784,6 @@ export function InventoryItemDetail({
       return
     }
 
-    const media = resolvePublicMedia()
-    if (!media) {
-      toast.error(
-        "Arming needs a public https media URL — wait for upload to finish."
-      )
-      return
-    }
-
     const placement: "feed" | "story" =
       simPlatform === "ig_story" || activeMedia?.type === "video"
         ? "story"
@@ -642,6 +791,17 @@ export function InventoryItemDetail({
 
     setArming(true)
     startTransition(async () => {
+      const media = await resolvePublishMediaUrl()
+      if (!media) {
+        setArming(false)
+        if (!resolvePublicMedia()) {
+          toast.error(
+            "Arming needs a public https media URL — wait for upload to finish."
+          )
+        }
+        return
+      }
+
       const result = await armMultiChannelDispatch({
         entityId,
         itemId: item.id,
@@ -659,7 +819,10 @@ export function InventoryItemDetail({
               : placement === "story"
                 ? "story"
                 : "feed",
-          metadata: postIntentMetadata,
+          metadata: {
+            ...postIntentMetadata,
+            canvas_text_overlay: textOverlay,
+          },
         },
       })
       setArming(false)
@@ -700,27 +863,56 @@ export function InventoryItemDetail({
   }
 
   function onBack() {
-    setStep((current) => (current > 1 ? ((current - 1) as WorkbenchStepId) : current))
+    setStep((current) => prevWorkbenchStep(current))
+  }
+
+  function onCutoutToggle() {
+    if (storyPreview.cutoutMode === "transparent") {
+      setStoryPreview((current) => ({
+        ...current,
+        cutoutMode: "original",
+        cutoutImageUrl: null,
+      }))
+      return
+    }
+    setCutoutRequestId((value) => value + 1)
+  }
+
+  function onFinishedRender(publicUrl: string, kind: MediaKind) {
+    const asset: MediaAsset = {
+      id: `render-${Date.now()}`,
+      url: publicUrl,
+      publicUrl,
+      type: kind,
+    }
+    if (kind === "video") {
+      onMediaAssetsChange([asset])
+    } else {
+      onMediaAssetsChange([...mediaAssets, asset])
+    }
+    setActiveMediaId(asset.id)
   }
 
   function onNext() {
-    if (step === 1) {
+    if (step === WORKBENCH_STEP_MEDIA) {
       if (mediaAssets.length === 0) {
         toast.message("Add a photo or reel before continuing.")
         return
       }
+    }
+    if (step === WORKBENCH_STEP_COPY) {
       if (!draft.caption.trim()) {
         toast.message("Pick a hook or write a caption before continuing.")
         return
       }
-      setStep(2)
+      goToStep(WORKBENCH_STEP_CHANNELS)
       return
     }
-    if (step === 2) {
-      goToStep(3)
+    if (step === WORKBENCH_STEP_CHANNELS) {
+      onArm()
       return
     }
-    onArm()
+    setStep((current) => nextWorkbenchStep(current))
   }
 
   const alreadyApproved =
@@ -728,8 +920,128 @@ export function InventoryItemDetail({
   const scheduleLocked = status === "published"
   const priceLabel = formatInventoryPrice(item.price)
 
+  const intentStepSummary =
+    contentPillar.trim() || workbenchPersonaId
+      ? `${contentPillar.trim() || "Pillar"} · persona set`
+      : "Intent & DNA"
+  const canvasStepSummary = (() => {
+    const parts: string[] = []
+    if (textOverlay.enabled && textOverlay.headline.trim()) {
+      parts.push(textOverlay.headline.trim().slice(0, 32))
+    }
+    if (textOverlay.storyStickerMode !== "none") {
+      parts.push(
+        textOverlay.storyStickerMode === "link_badge"
+          ? "Link badge"
+          : textOverlay.storyStickerMode === "editorial_poll"
+            ? "Poll"
+            : "Countdown"
+      )
+    } else if (textOverlay.stickerEnabled) parts.push("Sticker")
+    if (textOverlay.animation !== "none") parts.push("Motion")
+    return parts.length > 0 ? parts.join(" · ") : "No on-canvas decor"
+  })()
+  function renderDropCustomize(phase: CustomizeWizardPhase) {
+    if (!entity) return null
+    return (
+      <StepCustomize
+        phase={phase}
+        entity={entity}
+        entityId={entityId}
+        marketingEntityId={item.id}
+        isFudi={isFudi}
+        vibeOptions={profile.vibeTags}
+        postIntent={postIntent}
+        onPostIntentChange={setPostIntent}
+        headline={draft.headline}
+        caption={draft.caption}
+        onHeadlineChange={(value) =>
+          setDraft((current) => ({
+            ...current,
+            headline: scrubAgencyLeak(value),
+            caption: scrubAgencyLeak(
+              stripDuplicateHookFromCaption(value, current.caption),
+              { trim: false }
+            ),
+          }))
+        }
+        onCaptionChange={(value) =>
+          setDraft((current) => ({
+            ...current,
+            caption: scrubAgencyLeak(value, { trim: false }),
+          }))
+        }
+        hookChips={contextHooks}
+        activeHookId={activeHookId}
+        onHookSelect={applyHook}
+        contentPillar={contentPillar}
+        onContentPillarChange={setContentPillar}
+        personaId={workbenchPersonaId}
+        onPersonaIdChange={setWorkbenchPersonaId}
+        hookBlueprintId={hookBlueprintId}
+        onHookBlueprintIdChange={setHookBlueprintId}
+        ctaId={ctaBlueprintId}
+        onCtaIdChange={setCtaBlueprintId}
+        visualDescription={visualInspection?.visualDescription ?? null}
+        isVideoPreview={activeMedia?.type === "video"}
+        captionVariantLabel={
+          captionVariants.length > 0
+            ? `${captionVariants[captionVariantIndex]?.label ?? "Variant"} · ${captionVariantIndex + 1}/${captionVariants.length}`
+            : null
+        }
+        onRotateCaption={rotateCaptionVariant}
+        onEnhanceCaption={() => void enhanceCaptionWithAi()}
+        enhancingCaption={enhancingCaption}
+        textOverlay={textOverlay}
+        onTextOverlayChange={setTextOverlay}
+        destinationUrl={itemDestinationUrl}
+        trackablePreview={trackablePreviewUrl}
+        tagsSlot={
+          phase === "copy" ? (
+            <OptimizationTagsEditor
+              entityId={entityId}
+              marketingEntityId={item.id}
+              tags={draft.tags}
+              suggestedTags={suggestedTags}
+              headline={draft.headline}
+              caption={draft.caption}
+              listingVibe={effectiveListingVibe}
+              visualDescription={visualInspection?.visualDescription ?? null}
+              bannedTagSeeds={[item.website_item_id ?? ""]}
+              onTagsChange={(tags) =>
+                setDraft((current) => ({ ...current, tags }))
+              }
+            />
+          ) : null
+        }
+      />
+    )
+  }
+
+  const wizardSteps = [
+    WORKBENCH_STEP_MEDIA,
+    WORKBENCH_STEP_INTENT,
+    WORKBENCH_STEP_CANVAS,
+    WORKBENCH_STEP_COPY,
+  ] as const
+  const onWizardStep = step !== WORKBENCH_STEP_CHANNELS
+  const priorSummaryStep =
+    step === WORKBENCH_STEP_INTENT
+      ? WORKBENCH_STEP_MEDIA
+      : step === WORKBENCH_STEP_CANVAS
+        ? WORKBENCH_STEP_INTENT
+        : step === WORKBENCH_STEP_COPY
+          ? WORKBENCH_STEP_CANVAS
+          : null
+
   return (
-    <div className="space-y-3 pb-24">
+    <div
+      className={
+        onWizardStep
+          ? "flex h-[calc(100vh-64px)] flex-col overflow-hidden"
+          : "space-y-3 pb-24"
+      }
+    >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-mad-black/10 pb-2">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Link
@@ -776,9 +1088,9 @@ export function InventoryItemDetail({
         )}
       </div>
 
-      <StepStepper step={step} onStepChange={goToStep} />
+      <StudioInnerStepper step={step} onStepChange={goToStep} />
 
-      {step === 3 ? (
+      {step === WORKBENCH_STEP_CHANNELS ? (
         <div className="flex w-full flex-col gap-3 pb-2">
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
             <div className="order-2 min-w-0 space-y-3 md:order-1">
@@ -789,7 +1101,7 @@ export function InventoryItemDetail({
                   </p>
                   <button
                     type="button"
-                    onClick={() => setStep(1)}
+                    onClick={() => setStep(WORKBENCH_STEP_COPY)}
                     className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase underline-offset-2 hover:text-mad-black hover:underline"
                   >
                     Edit captions
@@ -813,6 +1125,7 @@ export function InventoryItemDetail({
                   saving={savingDraft}
                   arming={arming}
                   locked={scheduleLocked}
+                  wizardLayout
                 />
               ) : (
                 <p className="border-2 border-mad-black px-3 py-6 text-center font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
@@ -837,6 +1150,9 @@ export function InventoryItemDetail({
                 }}
                 activeMedia={activeMedia}
                 carouselMedia={mediaAssets}
+                slideTexts={carouselSlideTexts}
+                onSlideTextsChange={setCarouselSlideTexts}
+                onSlideIndexChange={onSimulatorSlideIndexChange}
                 platform={simPlatform}
                 onPlatformChange={setSimPlatform}
                 storyPreview={storyPreview}
@@ -867,317 +1183,166 @@ export function InventoryItemDetail({
             </div>
           </div>
         </div>
-      ) : step === 1 ? (
-        <div className="space-y-3">
-          <MultiPlatformSimulator
-            content={{
-              brandName,
-              headline: draft.headline,
-              caption: mergeCaptionWithTags(draft.caption, draft.tags),
-              imageUrl:
-                activeMedia?.type === "image"
-                  ? activeMedia.url
-                  : selectedImageUrl,
-              stickerLabel: storyStickerLabel,
-            }}
-            activeMedia={activeMedia}
-            carouselMedia={mediaAssets}
-            platform={simPlatform}
-            onPlatformChange={setSimPlatform}
-            storyPreview={storyPreview}
-            onStoryPreviewChange={setStoryPreview}
-            item={workingItem}
-            industry={industry}
-            visualPresets={visualPresets}
-            showCreativeControls
-            showActionDock={false}
-            mediaSlot={
+      ) : wizardSteps.includes(step as (typeof wizardSteps)[number]) ? (
+        <>
+          <StudioSplitShell
+            className="min-h-0 flex-1"
+            channelRail={
+              <CompactChannelRail
+                platform={simPlatform}
+                onPlatformChange={setSimPlatform}
+              />
+            }
+            navigationDock={
+              <StepDock
+                step={step}
+                onBack={onBack}
+                onNext={onNext}
+                nextLabel={
+                  step === WORKBENCH_STEP_MEDIA
+                    ? "Continue to Intent ──▶"
+                    : step === WORKBENCH_STEP_INTENT
+                      ? "Continue to Canvas ──▶"
+                      : step === WORKBENCH_STEP_CANVAS
+                        ? "Continue to Copy ──▶"
+                        : step === WORKBENCH_STEP_COPY
+                          ? "Continue to Schedule ──▶"
+                          : undefined
+                }
+                nextBusy={arming || savingDraft}
+                nextDisabled={
+                  (step === WORKBENCH_STEP_MEDIA &&
+                    mediaAssets.length === 0) ||
+                  (step === WORKBENCH_STEP_COPY && !draft.caption.trim())
+                }
+              />
+            }
+            preview={
+              <MultiPlatformSimulator
+                lockedViewport
+                compact
+                content={{
+                  brandName,
+                  headline: draft.headline,
+                  caption: mergeCaptionWithTags(draft.caption, draft.tags),
+                  imageUrl:
+                    activeMedia?.type === "image"
+                      ? activeMedia.url
+                      : selectedImageUrl,
+                  stickerLabel: storyStickerLabel,
+                }}
+                activeMedia={activeMedia}
+                carouselMedia={mediaAssets}
+                slideTexts={carouselSlideTexts}
+                onSlideTextsChange={setCarouselSlideTexts}
+                onSlideIndexChange={onSimulatorSlideIndexChange}
+                platform={simPlatform}
+                onPlatformChange={setSimPlatform}
+                storyPreview={storyPreview}
+                onStoryPreviewChange={setStoryPreview}
+                hideStylingDock
+                externalCutoutRequestId={cutoutRequestId}
+                textOverlay={textOverlay}
+                onTextOverlayChange={setTextOverlay}
+                textOverlayInteractive={step === WORKBENCH_STEP_CANVAS}
+                item={workingItem}
+                industry={industry}
+                visualPresets={visualPresets}
+                showCreativeControls={false}
+                showTextStyler={false}
+                showActionDock={false}
+                hidePlatformSwitcher
+                actionContext={{
+                  entityId,
+                  marketingEntityId: item.id,
+                  websiteItemId: item.website_item_id,
+                  websiteUrl,
+                  trackableSlug: item.trackable_slug,
+                  destinationUrl: itemDestinationUrl,
+                  slugSeed,
+                }}
+              />
+            }
+            controls={
               <div className="space-y-2">
-                <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-                  Media
-                </p>
-                <MediaTray
-                  entityId={entityId}
-                  inventoryItemId={item.id}
-                  assets={mediaAssets}
-                  activeId={activeMediaId}
-                  onAssetsChange={onMediaAssetsChange}
-                  onSelectMedia={onSelectMedia}
-                  onVisualInspect={onVisualInspect}
-                />
-                {visualInspection?.visualDescription ? (
-                  <p className="line-clamp-3 font-typewriter text-[0.55rem] leading-relaxed text-neutral-600 normal-case">
-                    {visualInspection.visualDescription}
-                  </p>
+                {priorSummaryStep === WORKBENCH_STEP_MEDIA ? (
+                  <StudioStepSummary
+                    title="Media attached"
+                    summary={`${mediaAssets.length} asset${mediaAssets.length === 1 ? "" : "s"}`}
+                    previewUrl={selectedImageUrl}
+                    editLabel="✏ Change media"
+                    onEdit={() => setStep(WORKBENCH_STEP_MEDIA)}
+                  />
                 ) : null}
+                {priorSummaryStep === WORKBENCH_STEP_INTENT ? (
+                  <StudioStepSummary
+                    title="Intent"
+                    summary={intentStepSummary}
+                    onEdit={() => setStep(WORKBENCH_STEP_INTENT)}
+                  />
+                ) : null}
+                {priorSummaryStep === WORKBENCH_STEP_CANVAS ? (
+                  <StudioStepSummary
+                    title="Canvas"
+                    summary={canvasStepSummary}
+                    onEdit={() => setStep(WORKBENCH_STEP_CANVAS)}
+                  />
+                ) : null}
+                {step === WORKBENCH_STEP_MEDIA ? (
+                  <StepMedia
+                    entityId={entityId}
+                    marketingEntityId={item.id}
+                    assets={mediaAssets}
+                    activeId={activeMediaId}
+                    onAssetsChange={onMediaAssetsChange}
+                    onSelectMedia={onSelectMedia}
+                    onVisualInspect={onVisualInspect}
+                    bridgePayload={{
+                      spokenHook: draft.headline,
+                      onScreenHeadline: draft.headline,
+                      caption: draft.caption,
+                      destinationUrl: itemDestinationUrl,
+                    }}
+                    onFinishedRender={onFinishedRender}
+                    onOpenMediaLibrary={() => setMediaLibraryOpen(true)}
+                    visualDescription={
+                      visualInspection?.visualDescription ?? null
+                    }
+                    cutoutActive={storyPreview.cutoutMode === "transparent"}
+                    onCutoutToggle={onCutoutToggle}
+                    cutoutDisabled={simPlatform !== "ig_story"}
+                  />
+                ) : null}
+                {step === WORKBENCH_STEP_INTENT
+                  ? renderDropCustomize("intent")
+                  : null}
+                {step === WORKBENCH_STEP_CANVAS
+                  ? renderDropCustomize("canvas")
+                  : null}
+                {step === WORKBENCH_STEP_COPY
+                  ? renderDropCustomize("copy")
+                  : null}
               </div>
             }
-            actionContext={{
-              entityId,
-              marketingEntityId: item.id,
-              websiteItemId: item.website_item_id,
-              websiteUrl,
-              trackableSlug: item.trackable_slug,
-              destinationUrl: itemDestinationUrl,
-              slugSeed: isFudiStudioEntity({ name: brandName, industry })
-                ? buildFudiRedirectSlugSeed(
-                    item.website_item_id?.startsWith("partner-") ||
-                      /partner|eatery|onboard/i.test(item.title)
-                      ? "partners"
-                      : "diners",
-                    item.title
-                  )
-                : null,
+          />
+          <MediaLibraryDrawer
+            entityId={entityId}
+            open={mediaLibraryOpen}
+            onOpenChange={setMediaLibraryOpen}
+            mode="attach"
+            onAttachToTray={(picked) => {
+              const next = picked.map((row, index) => ({
+                id: `lib-${row.id}-${index}`,
+                url: row.url,
+                publicUrl: row.url,
+                type: row.kind,
+              }))
+              onMediaAssetsChange(next)
+              setActiveMediaId(next[0]?.id ?? null)
             }}
           />
-
-          <PostIntentEditor
-            isFudi={isFudi}
-            vibeOptions={profile.vibeTags}
-            value={postIntent}
-            onChange={setPostIntent}
-          />
-
-          <section className="space-y-2 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div className="space-y-1">
-                <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                  Captions
-                </p>
-                {captionVariants.length > 0 ? (
-                  <p className="font-typewriter text-[0.5rem] tracking-wider text-neutral-500 uppercase">
-                    {captionVariants[captionVariantIndex]?.label ?? "Variant"}{" "}
-                    · {captionVariantIndex + 1}/{captionVariants.length}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={rotateCaptionVariant}
-                  className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
-                >
-                  <RotateCcw className="size-3" />
-                  Rotate
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void enhanceCaptionWithAi()}
-                  disabled={enhancingCaption}
-                  className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-60"
-                >
-                  {enhancingCaption ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-3" />
-                  )}
-                  AI enhance
-                </button>
-              </div>
-            </div>
-
-            <div className="grid max-h-[11rem] gap-1 overflow-y-auto sm:grid-cols-3">
-              {contextHooks.map((hook) => {
-                const active = activeHookId === hook.id
-                return (
-                  <button
-                    key={hook.id}
-                    type="button"
-                    onClick={() => applyHook(hook.id)}
-                    className={cn(
-                      "border-2 border-mad-black px-2 py-1.5 text-left transition",
-                      active
-                        ? "bg-mad-black text-mad-white"
-                        : "bg-mad-white hover:bg-mad-lime"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "block font-typewriter text-[0.5rem] font-bold tracking-wider uppercase",
-                        active ? "text-mad-lime" : "text-mad-vermillion"
-                      )}
-                    >
-                      {hook.label}
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-snug">
-                      {hook.hook}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-
-            <label className="block space-y-1">
-              <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-                Hook
-              </span>
-              <AutoTextarea
-                value={draft.headline}
-                onValueChange={(value) =>
-                  setDraft((current) => ({
-                    ...current,
-                    headline: scrubAgencyLeak(value, { trim: false }),
-                  }))
-                }
-                onCommit={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    headline: scrubAgencyLeak(current.headline),
-                  }))
-                }
-                rows={1}
-                placeholder="Editorial hook"
-                className="rounded-none border-2 border-mad-black bg-mad-white px-2 py-1.5 text-sm font-medium focus:bg-mad-lime/20"
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-                Caption
-              </span>
-              <AutoTextarea
-                value={draft.caption}
-                onValueChange={(value) =>
-                  setDraft((current) => ({
-                    ...current,
-                    caption: scrubAgencyLeak(value, { trim: false }),
-                  }))
-                }
-                onCommit={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    caption: scrubAgencyLeak(current.caption),
-                  }))
-                }
-                rows={3}
-                placeholder="Caption for feed / story"
-                className="rounded-none border-2 border-mad-black bg-mad-white px-2 py-1.5 text-sm focus:bg-mad-lime/20"
-              />
-            </label>
-
-            <div className="space-y-1.5">
-              <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-                Optimisation tags
-              </span>
-              <div className="flex flex-wrap gap-1">
-                {suggestedTags.map((tag) => {
-                  const active = draft.tags.includes(tag)
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      className={cn(
-                        "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider lowercase",
-                        active
-                          ? "bg-mad-black text-mad-white"
-                          : "bg-mad-white text-mad-black hover:bg-mad-lime"
-                      )}
-                    >
-                      #{tag}
-                    </button>
-                  )
-                })}
-              </div>
-              {draft.tags.length > 0 ? (
-                <p className="font-typewriter text-[0.55rem] leading-relaxed text-neutral-600 normal-case">
-                  Live footer · {formatTagsForCaption(draft.tags)}
-                </p>
-              ) : (
-                <p className="font-typewriter text-[0.55rem] text-neutral-500 uppercase">
-                  Tap tags to append search-ready hashtags on publish
-                </p>
-              )}
-            </div>
-          </section>
-        </div>
-      ) : (
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-          <section className="min-w-0 space-y-2 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
-            <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              Review
-            </p>
-            {isFudi && postIntent.dropKind ? (
-              <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
-                {FUDI_DROP_BADGES[postIntent.dropKind].emoji}{" "}
-                {FUDI_DROP_BADGES[postIntent.dropKind].label}
-                {postIntent.channelHint.trim()
-                  ? ` · ${postIntent.channelHint.trim()}`
-                  : ""}
-              </p>
-            ) : null}
-            {effectiveListingVibe ? (
-              <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-600 uppercase">
-                Listing vibe · {effectiveListingVibe}
-              </p>
-            ) : null}
-            <div className="space-y-1">
-              <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-                Hook
-              </p>
-              <p className="text-sm font-medium text-mad-black">
-                {draft.headline || "—"}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-                Caption
-              </p>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-mad-black">
-                {mergeCaptionWithTags(draft.caption, draft.tags) || "—"}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="border-2 border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
-            >
-              Edit captions
-            </button>
-          </section>
-
-          <MultiPlatformSimulator
-            className="lg:justify-self-end"
-            content={{
-              brandName,
-              headline: draft.headline,
-              caption: mergeCaptionWithTags(draft.caption, draft.tags),
-              imageUrl:
-                activeMedia?.type === "image"
-                  ? activeMedia.url
-                  : selectedImageUrl,
-              stickerLabel: storyStickerLabel,
-            }}
-            activeMedia={activeMedia}
-            carouselMedia={mediaAssets}
-            platform={simPlatform}
-            onPlatformChange={setSimPlatform}
-            storyPreview={storyPreview}
-            onStoryPreviewChange={setStoryPreview}
-            item={workingItem}
-            industry={industry}
-            visualPresets={visualPresets}
-            showCreativeControls={false}
-            showActionDock={false}
-            actionContext={{
-              entityId,
-              marketingEntityId: item.id,
-              websiteItemId: item.website_item_id,
-              websiteUrl,
-              trackableSlug: item.trackable_slug,
-              destinationUrl: itemDestinationUrl,
-              slugSeed: isFudiStudioEntity({ name: brandName, industry })
-                ? buildFudiRedirectSlugSeed(
-                    item.website_item_id?.startsWith("partner-") ||
-                      /partner|eatery|onboard/i.test(item.title)
-                      ? "partners"
-                      : "diners",
-                    item.title
-                  )
-                : null,
-            }}
-          />
-        </div>
-      )}
+        </>
+      ) : null}
 
       <Collapsible>
         <CollapsibleTrigger className="group flex w-full items-center gap-2 py-1 text-left font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-400 uppercase hover:text-neutral-600">
@@ -1220,21 +1385,28 @@ export function InventoryItemDetail({
         </CollapsibleContent>
       </Collapsible>
 
-      <StepDock
-        step={step}
-        onBack={onBack}
-        onNext={onNext}
-        nextLabel={step === 3 ? "Confirm & Arm" : undefined}
-        nextBusy={arming || savingDraft}
-        nextDisabled={
-          (step === 1 &&
-            (mediaAssets.length === 0 || !draft.caption.trim())) ||
-          (step === 3 &&
-            (scheduleLocked ||
-              !dispatchPlan?.some((slot) => slot.enabled)))
-        }
-        className="fixed inset-x-0 bottom-0 z-40"
-      />
+      {step === WORKBENCH_STEP_CHANNELS ? (
+        <StepDock
+          step={step}
+          onBack={onBack}
+          onNext={onNext}
+          nextLabel="Confirm & Arm"
+          nextBusy={arming || savingDraft}
+          showScheduleActions
+          onSaveDraft={onSaveDraft}
+          saveDraftBusy={savingDraft}
+          onConfirmArm={onArm}
+          confirmArmBusy={arming}
+          confirmArmDisabled={
+            scheduleLocked || !dispatchPlan?.some((slot) => slot.enabled)
+          }
+          nextDisabled={
+            scheduleLocked ||
+            !dispatchPlan?.some((slot) => slot.enabled)
+          }
+          className="fixed inset-x-0 bottom-0 z-40"
+        />
+      ) : null}
     </div>
   )
 }

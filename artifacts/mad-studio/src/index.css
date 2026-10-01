@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&family=Syne:wght@700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=Bebas+Neue&family=Oswald:wght@500;600;700&family=Anton&family=Montserrat:wght@600;700;800&family=Libre+Baskerville:wght@400;700&family=Permanent+Marker&family=Archivo+Black&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -169,4 +169,79 @@
   border: 2px solid #000000;
   background: #ffffff;
   box-shadow: 2px 2px 0px 0px #000000;
+}
+
+@keyframes mad-canvas-fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes mad-canvas-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes mad-canvas-slide-up {
+  from {
+    transform: translateY(12%);
+    opacity: 0.2;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes mad-canvas-wiggle {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes mad-canvas-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(204, 255, 0, 0.85));
+  }
+}
+
+.mad-canvas-anim-fade {
+  animation: mad-canvas-fade 2.4s ease-in-out infinite;
+}
+
+.mad-canvas-anim-pop {
+  animation: mad-canvas-pop 1.6s ease-in-out infinite;
+}
+
+.mad-canvas-anim-slide-up {
+  animation: mad-canvas-slide-up 0.7s ease-out both;
+}
+
+.mad-canvas-anim-wiggle {
+  animation: mad-canvas-wiggle 1.2s ease-in-out infinite;
+}
+
+.mad-canvas-anim-glow {
+  animation: mad-canvas-glow 2s ease-in-out infinite;
+}
+
+.mad-canvas-anim-typewriter {
+  animation: mad-canvas-fade 3s ease-in-out infinite;
 }

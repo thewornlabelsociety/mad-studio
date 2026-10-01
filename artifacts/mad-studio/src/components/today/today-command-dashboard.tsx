@@ -141,6 +141,13 @@ export function TodayCommandDashboard({
               Incoming intake queue
             </h2>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/studio?eid=${encodeURIComponent(entityId)}&step=2&fresh=1`}
+              className="inline-flex h-10 items-center justify-center gap-1 border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
+            >
+              Create custom content
+            </Link>
           {isFudi && queue.length >= 2 ? (
             <button
               type="button"
@@ -150,6 +157,7 @@ export function TodayCommandDashboard({
               Build feed carousel
             </button>
           ) : null}
+          </div>
         </div>
 
         {queue.length === 0 ? (

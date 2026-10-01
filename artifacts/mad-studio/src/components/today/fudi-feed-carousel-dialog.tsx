@@ -1,11 +1,10 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
-import { useRouter } from "@/lib/next-compat"
-import { Images, Loader2 } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Images } from "lucide-react"
 import { toast } from "sonner"
 
-import { createFudiFeedCarousel } from "@/lib/actions"
+import { CarouselStrategyModal } from "@/components/today/carousel-strategy-modal"
 import {
   Dialog,
   DialogContent,
@@ -34,16 +33,35 @@ export function FudiFeedCarouselDialog({
   queue,
   onCreated,
 }: Props) {
-  const router = useRouter()
   const [templateId, setTemplateId] =
     useState<FudiCarouselTemplateId>("feed_today")
   const [selected, setSelected] = useState<string[]>([])
-  const [pending, startTransition] = useTransition()
+  const [strategyOpen, setStrategyOpen] = useState(false)
 
   const selectable = useMemo(
     () => queue.filter((row) => row.mediaUrl && !row.isVideo),
     [queue]
   )
+
+  useEffect(() => {
+    if (!open) return
+    void fetch("/api/healthz", { credentials: "include" })
+      .then((response) => response.json())
+      .then((payload: { hasCreateFudiFeedCarousel?: boolean }) => {
+        if (payload.hasCreateFudiFeedCarousel === false) {
+          toast.message(
+            "API on port 8080 is stale — stop it and run: pnpm --filter @workspace/api-server run start",
+            { duration: 8000 }
+          )
+        }
+      })
+      .catch(() => {
+        toast.message(
+          "API server not reachable on port 8080 — start it before building carousels.",
+          { duration: 6000 }
+        )
+      })
+  }, [open])
 
   function toggle(id: string) {
     setSelected((current) => {
@@ -63,26 +81,11 @@ export function FudiFeedCarouselDialog({
       toast.message("Pick at least two feed images for a carousel.")
       return
     }
-    startTransition(async () => {
-      const result = await createFudiFeedCarousel({
-        entityId,
-        sourceItemIds: selected,
-        templateId,
-      })
-      if (!result.ok) {
-        toast.error(result.error)
-        return
-      }
-      toast.success("Feed carousel draft ready in Studio.")
-      onCreated?.(result.data.itemId)
-      onOpenChange(false)
-      router.push(
-        `/studio?eid=${encodeURIComponent(entityId)}&itemId=${encodeURIComponent(result.data.itemId)}`
-      )
-    })
+    setStrategyOpen(true)
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] max-w-lg flex-col overflow-hidden rounded-none border-2 border-mad-black p-0 shadow-keycap-lg">
         <DialogHeader className="shrink-0 border-b-2 border-mad-black px-4 py-3">
@@ -168,19 +171,29 @@ export function FudiFeedCarouselDialog({
         <div className="shrink-0 border-t-2 border-mad-black px-4 py-3">
           <button
             type="button"
-            disabled={pending || selected.length < 2}
+            disabled={selected.length < 2}
             onClick={onBuild}
             className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-50"
           >
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Images className="size-4" />
-            )}
-            Create carousel draft
+            <Images className="size-4" />
+            Build feed carousel
           </button>
         </div>
       </DialogContent>
     </Dialog>
+
+    <CarouselStrategyModal
+      open={strategyOpen}
+      onOpenChange={setStrategyOpen}
+      entityId={entityId}
+      templateId={templateId}
+      selectedIds={selected}
+      queue={queue}
+      onCreated={(itemId) => {
+        onCreated?.(itemId)
+        onOpenChange(false)
+      }}
+    />
+    </>
   )
 }

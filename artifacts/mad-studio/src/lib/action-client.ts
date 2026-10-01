@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client"
+import { readJsonBody } from "@/lib/http/safe-json"
 
 async function encodeArg(value: any): Promise<any> {
   if (!(value instanceof FormData)) return value
@@ -27,8 +28,16 @@ export async function action<T = any>(name: string, ...args: any[]): Promise<T> 
     credentials: "include",
     body: JSON.stringify({ args: await Promise.all(args.map(encodeArg)) }),
   })
-  const payload = await response.json().catch(() => null)
-  if (!response.ok) throw new Error(payload?.error ?? `Action ${name} failed (${response.status}).`)
+  const parsed = await readJsonBody<{
+    error?: string
+    redirect?: string
+    result?: unknown
+  }>(response)
+  if (!parsed.ok) throw new Error(parsed.error)
+  const payload = parsed.data
+  if (!response.ok) {
+    throw new Error(payload.error ?? `Action ${name} failed (${response.status}).`)
+  }
   if (typeof payload?.redirect === "string") {
     if (!payload.redirect.startsWith("/") || payload.redirect.startsWith("//")) {
       throw new Error("Action returned an unsafe redirect.")

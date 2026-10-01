@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { Link } from "wouter"
 import { useRouter, useSearchParams } from "@/lib/next-compat"
-import { Loader2 } from "lucide-react"
+import { ChevronDown, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -21,18 +21,40 @@ import {
 import { MultiChannelScheduler } from "@/components/marketing/multi-channel-scheduler"
 import { IntentMatrix } from "@/components/studio/intent-matrix"
 import { PackResultsEditor } from "@/components/studio/pack-results-editor"
+import { CompactChannelRail } from "@/components/studio/compact-channel-rail"
+import { StepDock, type WorkbenchStepId } from "@/components/studio/step-stepper"
+import { StudioInnerStepper } from "@/components/studio/studio-inner-stepper"
+import { StudioSplitShell } from "@/components/studio/studio-split-shell"
+import { StudioStepSummary } from "@/components/studio/studio-step-summary"
 import {
-  StepDock,
-  StepStepper,
-  type WorkbenchStepId,
-} from "@/components/studio/step-stepper"
+  WORKBENCH_STEP_CANVAS,
+  WORKBENCH_STEP_CHANNELS,
+  WORKBENCH_STEP_COPY,
+  WORKBENCH_STEP_INTENT,
+  WORKBENCH_STEP_MEDIA,
+  nextWorkbenchStep,
+  parseWorkbenchStepParam,
+  prevWorkbenchStep,
+} from "@/lib/studio/workbench-steps"
+import type { CustomizeWizardPhase } from "@/components/studio/steps/step-customize"
 import {
-  MediaTray,
+  DEFAULT_STORY_PREVIEW,
+  MultiPlatformSimulator,
+} from "@/components/marketing/multi-platform-simulator"
+import {
+  DEFAULT_CANVAS_TEXT_OVERLAY,
+  type CanvasTextOverlayState,
+} from "@/lib/studio/canvas-text-types"
+import {
   mediaAssetsFromImageUrls,
   resolveActiveMedia,
   type MediaAsset,
 } from "@/components/marketing/media-tray"
-import { BrainEmblemLink } from "@/components/brand/brain-emblem"
+import { StepCustomize } from "@/components/studio/steps/step-customize"
+import { StepMedia } from "@/components/studio/steps/step-media"
+import type { PostIntentState } from "@/lib/inventory/post-intent"
+import { stripDuplicateHookFromCaption } from "@/lib/inventory/sop"
+import type { MediaKind } from "@/lib/media/kind"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -85,7 +107,7 @@ import {
   type FudiAudienceTrack,
 } from "@/lib/studio/fudi-tracks"
 import { FormulaBankPanel } from "@/components/studio/formula-bank-panel"
-import { CapCutBridge } from "@/components/studio/capcut-bridge"
+import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
 import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import {
@@ -95,6 +117,7 @@ import {
   resolveFormulaBank,
   type FormulaRenderSlots,
 } from "@/lib/studio/formula-bank"
+import { useStudioChromeOptional } from "@/components/studio/studio-chrome-context"
 import { cn } from "@/lib/utils"
 import type { AccessibleEntity } from "@/lib/types"
 
@@ -103,11 +126,15 @@ const RAW_SPARK_MAX = 500
 type StudioWorkspaceProps = {
   entities: AccessibleEntity[]
   activeEntity: StudioEntityDna
+  initialStep?: string | null
+  startFresh?: boolean
 }
 
 export function StudioWorkspace({
   entities,
   activeEntity,
+  initialStep = null,
+  startFresh = false,
 }: StudioWorkspaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -172,6 +199,7 @@ export function StudioWorkspace({
   const [redirectSlugSeed, setRedirectSlugSeed] = useState<string | null>(null)
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false)
+  const [packEditorOpen, setPackEditorOpen] = useState(false)
   const [activeMediaId, setActiveMediaId] = useState<string | null>(null)
   const [attachedImageUrl, setAttachedImageUrl] = useState<string | null>(null)
   const [visualInspection, setVisualInspection] =
@@ -184,7 +212,24 @@ export function StudioWorkspace({
   const [restoredAt, setRestoredAt] = useState<string | null>(null)
   const [systemError, setSystemError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
-  const [workbenchStep, setWorkbenchStep] = useState<WorkbenchStepId>(1)
+  const [workbenchStep, setWorkbenchStep] = useState<WorkbenchStepId>(() =>
+    parseWorkbenchStepParam(initialStep)
+  )
+  const [textOverlay, setTextOverlay] = useState<CanvasTextOverlayState>(
+    DEFAULT_CANVAS_TEXT_OVERLAY
+  )
+  const [simPlatform, setSimPlatform] = useState<
+    import("@/components/marketing/multi-platform-simulator").SimulatorPlatform
+  >("ig_story")
+  const [storyPreview, setStoryPreview] = useState(DEFAULT_STORY_PREVIEW)
+  const [cutoutRequestId, setCutoutRequestId] = useState(0)
+  const [workbenchHeadline, setWorkbenchHeadline] = useState("")
+  const [contentPillar, setContentPillar] = useState("")
+  const [postIntent, setPostIntent] = useState<PostIntentState>({
+    dropKind: null,
+    channelHint: "",
+    listingVibe: "",
+  })
   // Client-only so Brain slots use the viewer's timezone (packs hydrate after mount).
   const [dispatchPlan, setDispatchPlan] = useState<ChannelSlot[] | null>(() =>
     typeof window === "undefined" ? null : hydrateDispatchPlan({})
@@ -297,7 +342,9 @@ export function StudioWorkspace({
   const [packVisible, setPackVisible] = useState(showStudio)
   if (showStudio !== packVisible) {
     setPackVisible(showStudio)
-    if (showStudio && workbenchStep < 3) setWorkbenchStep(3)
+    if (showStudio && workbenchStep < WORKBENCH_STEP_CHANNELS) {
+      setWorkbenchStep(WORKBENCH_STEP_CHANNELS)
+    }
   }
   const apiImageUrl =
     activeMedia &&
@@ -347,6 +394,39 @@ export function StudioWorkspace({
     setVisualInspection(asset.visualInspection ?? null)
   }
 
+  useEffect(() => {
+    if (isFudi && postIntent.dropKind == null) {
+      setPostIntent((current) => ({ ...current, dropKind: "dish_drop" }))
+    }
+  }, [isFudi, postIntent.dropKind])
+
+  function onStudioFinishedRender(publicUrl: string, kind: MediaKind) {
+    const asset: MediaAsset = {
+      id: `render-${Date.now()}`,
+      url: publicUrl,
+      publicUrl,
+      type: kind,
+    }
+    if (kind === "video") {
+      onMediaAssetsChange([asset])
+    } else {
+      onMediaAssetsChange([...mediaAssets, asset])
+    }
+    setActiveMediaId(asset.id)
+  }
+
+  function onCutoutToggle() {
+    if (storyPreview.cutoutMode === "transparent") {
+      setStoryPreview((current) => ({
+        ...current,
+        cutoutMode: "original",
+        cutoutImageUrl: null,
+      }))
+      return
+    }
+    setCutoutRequestId((value) => value + 1)
+  }
+
   function mountMediaLibraryCarousel(items: MediaLibraryItem[]) {
     const assets: MediaAsset[] = items.map((item, index) => ({
       id: `lib-${item.id}-${index}`,
@@ -356,6 +436,9 @@ export function StudioWorkspace({
     }))
     onMediaAssetsChange(assets)
     setActiveMediaId(assets[0]?.id ?? null)
+    if (assets.length >= 2) {
+      setSimPlatform("ig_feed")
+    }
   }
 
   function onVisualInspect(
@@ -1021,30 +1104,26 @@ export function StudioWorkspace({
       setPersonaId(personas[0]?.id ?? "")
     }
     setActiveHookId(null)
-    setWorkbenchStep(1)
+    setWorkbenchStep(WORKBENCH_STEP_MEDIA)
     syncPackUrl(null)
   }
 
   function onStudioBack() {
-    setWorkbenchStep((current) =>
-      current > 1 ? ((current - 1) as WorkbenchStepId) : current
-    )
+    setWorkbenchStep((current) => prevWorkbenchStep(current))
   }
 
   function onStudioNext() {
-    if (workbenchStep === 1) {
-      setWorkbenchStep(2)
-      return
-    }
-    if (workbenchStep === 2) {
+    if (workbenchStep === WORKBENCH_STEP_COPY) {
       if (rawSpark.trim().length < 8) {
-        toast.message("Add a short spark (at least 8 characters) before dispatch.")
+        toast.message("Add a short spark (at least 8 characters) before schedule.")
         return
       }
-      setWorkbenchStep(3)
+    }
+    if (workbenchStep === WORKBENCH_STEP_CHANNELS) {
+      void activateMultiplexer()
       return
     }
-    void activateMultiplexer()
+    setWorkbenchStep((current) => nextWorkbenchStep(current))
   }
 
   function onPackChange(next: CampaignPack) {
@@ -1057,452 +1136,521 @@ export function StudioWorkspace({
     syncPackUrl(nextId)
   }
 
-  return (
-    <div className="flex flex-col gap-5 pb-28">
-      <div className="flex items-start justify-between gap-4 border-b-2 border-mad-black pb-4">
-        <div className="min-w-0">
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-            Workbench
-          </p>
-          <h1 className="mt-1 font-typewriter text-2xl font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-3xl">
-            Campaign Multiplexer // {activeEntity.name}
-          </h1>
-        </div>
-        <BrainEmblemLink entityId={activeEntity.id} size={96} />
-      </div>
+  useEffect(() => {
+    if (startFresh) startNewPack()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fresh=1 is a one-shot URL flag
+  }, [startFresh])
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
-        <div className="min-w-0">
-          <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
-            Active brand
-          </p>
-          <p className="brand-typewriter truncate text-[0.75rem] text-mad-black">
-            {activeEntity.name}
-          </p>
-        </div>
-        <Select value={activeEntity.id} onValueChange={onBrandChange}>
-          <SelectTrigger className="w-[14rem] rounded-none border-2 border-mad-black font-typewriter text-xs uppercase shadow-keycap-sm">
-            <SelectValue placeholder="Switch brand" />
-          </SelectTrigger>
-          <SelectContent className="rounded-none border-2 border-mad-black">
-            {entities.map((entity) => (
-              <SelectItem key={entity.id} value={entity.id}>
-                {entity.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+  useEffect(() => {
+    if (workbenchStep !== WORKBENCH_STEP_CHANNELS) setPackEditorOpen(false)
+  }, [workbenchStep])
 
-      <StepStepper step={workbenchStep} onStepChange={setWorkbenchStep} />
+  const studioChrome = useStudioChromeOptional()
+  const startNewPackRef = useRef(startNewPack)
+  startNewPackRef.current = startNewPack
 
-      {restoredAt && pack ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-2 border-mad-black bg-mad-lime/50 px-4 py-2.5 shadow-keycap-sm">
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase">
-            Draft restored from {formatDraftRestoredAt(restoredAt)}
-          </p>
-          <button
-            type="button"
-            onClick={startNewPack}
-            className="border-2 border-mad-black bg-mad-white px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white"
-          >
-            Start New Pack
-          </button>
-        </div>
-      ) : null}
+  useEffect(() => {
+    if (!studioChrome) return
+    studioChrome.setChrome({
+      draftActive: Boolean(restoredAt && pack),
+      rehydrating,
+      onStartFresh: () => startNewPackRef.current(),
+    })
+  }, [studioChrome, restoredAt, pack, rehydrating])
 
-      {rehydrating ? (
-        <div className="inline-flex items-center gap-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-neutral-500 uppercase">
-          <Loader2 className="size-3.5 animate-spin" />
-          Restoring draft…
-        </div>
-      ) : null}
+  useEffect(() => {
+    if (!studioChrome) return
+    return () => studioChrome.clearChrome()
+  }, [studioChrome])
 
+  const simulatorContent = useMemo(() => {
+    if (pack && showStudio) {
+      return {
+        brandName: activeEntity.name,
+        headline:
+          pack.algorithmic_signals.on_screen_text ||
+          pack.carousel.slides[0]?.headline ||
+          pack.campaign_title,
+        caption:
+          simPlatform === "ig_story"
+            ? pack.algorithmic_signals.spoken_hook
+            : pack.seo_caption.caption_body,
+        imageUrl:
+          studioMediaUrl && /^https?:\/\//i.test(studioMediaUrl)
+            ? studioMediaUrl
+            : null,
+        emailSubject: pack.email_drop.subject_line,
+        emailPreview: pack.email_drop.preview_text,
+      }
+    }
+    return {
+      brandName: activeEntity.name,
+      headline:
+        workbenchHeadline.trim().slice(0, 120) ||
+        rawSpark.trim().slice(0, 120) ||
+        activeEntity.name,
+      caption: rawSpark.trim() || "",
+      imageUrl:
+        studioMediaUrl && /^https?:\/\//i.test(studioMediaUrl)
+          ? studioMediaUrl
+          : null,
+    }
+  }, [
+    activeEntity.name,
+    pack,
+    rawSpark,
+    workbenchHeadline,
+    showStudio,
+    simPlatform,
+    studioMediaUrl,
+  ])
+
+  const mediaPreviewUrl =
+    mediaAssets.find((row) => row.id === activeMediaId)?.publicUrl ||
+    mediaAssets.find((row) => row.type === "image")?.url ||
+    null
+  const mediaStepSummary =
+    mediaAssets.length > 0
+      ? `Media attached · ${mediaAssets.length} asset${mediaAssets.length === 1 ? "" : "s"}`
+      : "No media yet"
+  const intentStepSummary =
+    contentPillar.trim() || personaId
+      ? `${contentPillar.trim() || "Pillar"} · ${selectedPersona?.name ?? "Persona"}`
+      : "Intent & DNA"
+  const canvasStepSummary = (() => {
+    const parts: string[] = []
+    if (textOverlay.enabled && textOverlay.headline.trim()) {
+      parts.push(textOverlay.headline.trim().slice(0, 32))
+    }
+    if (textOverlay.stickerEnabled) {
+      parts.push(
+        textOverlay.stickerId === "link_pill"
+          ? `Sticker · ${textOverlay.stickerLabel.trim() || "Link"}`
+          : "Sticker"
+      )
+    }
+    if (textOverlay.animation !== "none") parts.push("Motion")
+    return parts.length > 0 ? parts.join(" · ") : "No on-canvas decor"
+  })()
+  const copyStepSummary =
+    workbenchHeadline.trim() || rawSpark.trim()
+      ? `${workbenchHeadline.trim() || "Hook"} · ${rawSpark.trim().slice(0, 48)}${rawSpark.length > 48 ? "…" : ""}`
+      : "Add hook & caption"
+
+  function renderCustomizePhase(phase: CustomizeWizardPhase) {
+    return (
+      <StepCustomize
+        phase={phase}
+        entity={activeEntity}
+        entityId={activeEntity.id}
+        isFudi={isFudi}
+        vibeOptions={
+          resolveIndustryProfile({
+            name: activeEntity.name,
+            industry: activeEntity.industry,
+          }).vibeTags
+        }
+        postIntent={postIntent}
+        onPostIntentChange={setPostIntent}
+        headline={workbenchHeadline}
+        caption={rawSpark}
+        onHeadlineChange={setWorkbenchHeadline}
+        onCaptionChange={setRawSpark}
+        hookChips={hookChips}
+        activeHookId={activeHookId}
+        onHookSelect={(hookId) => {
+          const hook = hookChips.find((row) => row.id === hookId)
+          if (!hook) return
+          setActiveHookId(hookId)
+          setWorkbenchHeadline(hook.hook.slice(0, 200))
+          setRawSpark((current) =>
+            stripDuplicateHookFromCaption(
+              hook.hook,
+              current || hook.hook
+            ).slice(0, RAW_SPARK_MAX)
+          )
+          applySparkDispatchChannels({ hookId })
+        }}
+        contentPillar={contentPillar}
+        onContentPillarChange={setContentPillar}
+        personaId={personaId}
+        onPersonaIdChange={setPersonaId}
+        hookBlueprintId={formulaHookId}
+        onHookBlueprintIdChange={setFormulaHookId}
+        ctaId={formulaCtaId}
+        onCtaIdChange={setFormulaCtaId}
+        textOverlay={textOverlay}
+        onTextOverlayChange={setTextOverlay}
+        isVideoPreview={activeMedia?.type === "video"}
+        visualDescription={visualInspection?.visualDescription ?? null}
+        topSlot={
+          !isFudi ? (
+            <div className="space-y-3">
+              <IntentMatrix
+                audienceTone={audienceTone}
+                onAudienceToneChange={setAudienceTone}
+                intentChips={consumerIntentChips}
+                intentChipId={intentChipId}
+                onIntentChipSelect={onIntentChipSelect}
+                outputFormats={fudiTrackPresets?.outputFormats ?? []}
+              />
+              <label className="grid gap-1.5">
+                <span className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+                  Objective
+                </span>
+                <Select value={objective} onValueChange={setObjective}>
+                  <SelectTrigger className="w-full rounded-none border-2 border-mad-black text-sm shadow-keycap-sm">
+                    <SelectValue placeholder="Select objective" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-none border-2 border-mad-black">
+                    {objectives.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+          ) : null
+        }
+        footerSlot={
+          phase === "copy" ? (
+            <FormulaBankPanel
+              entity={activeEntity}
+              spark={rawSpark}
+              hookId={formulaHookId}
+              visualId={formulaVisualId}
+              ctaId={formulaCtaId}
+              onHookIdChange={setFormulaHookId}
+              onVisualIdChange={setFormulaVisualId}
+              onCtaIdChange={setFormulaCtaId}
+              slots={formulaSlots}
+              onSlotsChange={setFormulaSlots}
+            />
+          ) : null
+        }
+      />
+    )
+  }
+
+  const studioHeader = (
+    <>
+      <StudioInnerStepper step={workbenchStep} onStepChange={setWorkbenchStep} />
       {systemError ? (
         <div
-          className="border-2 border-mad-black bg-mad-vermillion px-4 py-3 text-sm font-bold text-mad-white shadow-keycap"
+          className="mt-2 border-2 border-mad-black bg-mad-vermillion px-3 py-2 text-sm font-bold text-mad-white shadow-keycap"
           role="alert"
         >
           {systemError}
         </div>
       ) : null}
+    </>
+  )
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {workbenchStep === 1 ? (
-          <section className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap lg:col-span-3">
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              Step 1 · Media & Cutout
-            </p>
-            <h2 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-              Photos, Reels & cutout
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-              Attach the visual drop first — cutout isolation lands on the phone
-              after you generate.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setMediaLibraryOpen(true)}
-                className="border-2 border-mad-black bg-[#CCFF00] px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
-              >
-                Open media library
-              </button>
-            </div>
-            <div className="mt-4">
-              <MediaTray
-                entityId={activeEntity.id}
-                assets={mediaAssets}
-                activeId={activeMediaId}
-                onAssetsChange={onMediaAssetsChange}
-                onSelectMedia={onSelectStudioMedia}
-                onVisualInspect={onVisualInspect}
-                disabled={multiplexing || pending || rehydrating}
-              />
-              {visualInspection?.visualDescription ? (
-                <p className="mt-3 border-2 border-mad-black bg-mad-lime/40 px-3 py-2 text-xs leading-relaxed text-mad-black">
-                  <span className="font-typewriter text-[0.55rem] font-bold tracking-widest uppercase">
-                    Vision ·{" "}
-                  </span>
-                  {visualInspection.visualDescription}
-                </p>
-              ) : null}
-              {activeMedia?.type === "video" ? (
-                <CapCutBridge
-                  className="mt-4 max-w-md"
-                  entityId={activeEntity.id}
-                  payload={{
-                    hook: rawSpark.trim().slice(0, 120),
-                    headline: rawSpark.trim().slice(0, 80) || activeEntity.name,
-                    caption: rawSpark.trim(),
-                    audioScript: rawSpark.trim(),
-                    assetUrl: activeMedia.url,
-                  }}
-                  onVideoReady={(publicUrl) => {
-                    const asset: MediaAsset = {
-                      id: `capcut-${Date.now()}`,
-                      url: publicUrl,
-                      publicUrl,
-                      type: "video",
-                    }
-                    onMediaAssetsChange([asset])
-                    setActiveMediaId(asset.id)
-                  }}
-                />
-              ) : null}
-            </div>
-          </section>
+  const priorSummaryStep =
+    workbenchStep === WORKBENCH_STEP_INTENT
+      ? WORKBENCH_STEP_MEDIA
+      : workbenchStep === WORKBENCH_STEP_CANVAS
+        ? WORKBENCH_STEP_INTENT
+        : workbenchStep === WORKBENCH_STEP_COPY
+          ? WORKBENCH_STEP_CANVAS
+          : null
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <StudioSplitShell
+        className="min-h-0 flex-1"
+        lockControlsScroll={
+          workbenchStep === WORKBENCH_STEP_CHANNELS &&
+          showStudio &&
+          !packEditorOpen
+        }
+        header={studioHeader}
+        channelRail={
+          <CompactChannelRail
+            platform={simPlatform}
+            onPlatformChange={setSimPlatform}
+          />
+        }
+        navigationDock={
+          <StepDock
+            step={workbenchStep}
+            onBack={onStudioBack}
+            onNext={onStudioNext}
+            nextBusy={multiplexing || (pending && !arming)}
+            nextLabel={
+              workbenchStep === WORKBENCH_STEP_MEDIA
+                ? "Continue to Intent ──▶"
+                : workbenchStep === WORKBENCH_STEP_INTENT
+                  ? "Continue to Canvas ──▶"
+                  : workbenchStep === WORKBENCH_STEP_CANVAS
+                    ? "Continue to Copy ──▶"
+                    : workbenchStep === WORKBENCH_STEP_COPY
+                      ? "Continue to Schedule ──▶"
+                      : workbenchStep === WORKBENCH_STEP_CHANNELS && !showStudio
+                        ? "Generate pack"
+                        : undefined
+            }
+            nextDisabled={
+              (workbenchStep === WORKBENCH_STEP_MEDIA &&
+                mediaAssets.length === 0) ||
+              (workbenchStep === WORKBENCH_STEP_COPY &&
+                rawSpark.trim().length < 8)
+            }
+            showScheduleActions={
+              workbenchStep === WORKBENCH_STEP_CHANNELS && showStudio
+            }
+            onSaveDraft={() => runSave("draft")}
+            saveDraftBusy={pending && !arming}
+            onConfirmArm={onArmPack}
+            confirmArmBusy={arming}
+            confirmArmDisabled={pending && !arming}
+          />
+        }
+        preview={
+          <MultiPlatformSimulator
+            lockedViewport
+            compact
+            content={simulatorContent}
+            activeMedia={activeMedia}
+            carouselMedia={mediaAssets}
+            onSlideIndexChange={(index) => {
+              const asset = mediaAssets[index]
+              if (asset) onSelectStudioMedia(asset)
+            }}
+            platform={simPlatform}
+            onPlatformChange={setSimPlatform}
+            industry={activeEntity.industry}
+            visualPresets={activeEntity.brand_identity.visual_presets ?? null}
+            textOverlay={textOverlay}
+            onTextOverlayChange={setTextOverlay}
+            textOverlayInteractive={workbenchStep === WORKBENCH_STEP_CANVAS}
+            storyPreview={storyPreview}
+            onStoryPreviewChange={setStoryPreview}
+            hideStylingDock={workbenchStep === WORKBENCH_STEP_MEDIA}
+            externalCutoutRequestId={cutoutRequestId}
+            showTextStyler={false}
+            showCreativeControls={false}
+            showActionDock={false}
+            hidePlatformSwitcher
+            actionContext={{
+              entityId: activeEntity.id,
+              marketingEntityId: null,
+            }}
+          />
+        }
+        controls={
+          <div className="space-y-2">
+        {priorSummaryStep === WORKBENCH_STEP_MEDIA ? (
+          <StudioStepSummary
+            title="Media attached"
+            summary={mediaStepSummary}
+            previewUrl={mediaPreviewUrl}
+            editLabel="✏ Change media"
+            onEdit={() => setWorkbenchStep(WORKBENCH_STEP_MEDIA)}
+          />
+        ) : null}
+        {priorSummaryStep === WORKBENCH_STEP_INTENT ? (
+          <StudioStepSummary
+            title="Intent"
+            summary={intentStepSummary}
+            onEdit={() => setWorkbenchStep(WORKBENCH_STEP_INTENT)}
+          />
+        ) : null}
+        {priorSummaryStep === WORKBENCH_STEP_CANVAS ? (
+          <StudioStepSummary
+            title="Canvas"
+            summary={canvasStepSummary}
+            onEdit={() => setWorkbenchStep(WORKBENCH_STEP_CANVAS)}
+          />
+        ) : null}
+        {workbenchStep === WORKBENCH_STEP_MEDIA ? (
+          <StepMedia
+            entityId={activeEntity.id}
+            assets={mediaAssets}
+            activeId={activeMediaId}
+            onAssetsChange={onMediaAssetsChange}
+            onSelectMedia={onSelectStudioMedia}
+            onVisualInspect={onVisualInspect}
+            bridgePayload={{
+              spokenHook: workbenchHeadline.trim() || rawSpark.trim().slice(0, 120),
+              onScreenHeadline:
+                workbenchHeadline.trim().slice(0, 80) || activeEntity.name,
+              caption: rawSpark.trim(),
+              destinationUrl: null,
+            }}
+            onFinishedRender={onStudioFinishedRender}
+            onOpenMediaLibrary={() => setMediaLibraryOpen(true)}
+            disabled={multiplexing || pending || rehydrating}
+            visualDescription={visualInspection?.visualDescription ?? null}
+            cutoutActive={storyPreview.cutoutMode === "transparent"}
+            cutoutBusy={false}
+            onCutoutToggle={onCutoutToggle}
+            cutoutDisabled={simPlatform !== "ig_story"}
+          />
         ) : null}
 
-        {workbenchStep === 2 ? (
-          <>
-            <section className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap">
-              <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                Step 2 · Intent
-              </p>
-              <h2 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-                Brand category & goal
-              </h2>
+        {workbenchStep === WORKBENCH_STEP_INTENT
+          ? renderCustomizePhase("intent")
+          : null}
+        {workbenchStep === WORKBENCH_STEP_CANVAS
+          ? renderCustomizePhase("canvas")
+          : null}
+        {workbenchStep === WORKBENCH_STEP_COPY
+          ? renderCustomizePhase("copy")
+          : null}
 
-              <div className="mt-4">
-                <IntentMatrix
-                  audienceTone={audienceTone}
-                  onAudienceToneChange={setAudienceTone}
-                  intentChips={consumerIntentChips}
-                  intentChipId={intentChipId}
-                  onIntentChipSelect={onIntentChipSelect}
-                  outputFormats={fudiTrackPresets?.outputFormats ?? []}
-                />
-              </div>
-
-              <div className="mt-4 grid gap-3">
-                <div className="grid gap-1.5">
-                  <label className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
-                    Objective
-                  </label>
-                  <Select value={objective} onValueChange={setObjective}>
-                    <SelectTrigger className="w-full rounded-none border-2 border-mad-black text-sm shadow-keycap-sm">
-                      <SelectValue placeholder="Select objective" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-none border-2 border-mad-black">
-                      {objectives.map((item) => (
-                        <SelectItem key={item} value={item}>
-                          {item}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-1.5">
-                  <label className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
-                    Audience Persona
-                  </label>
-                  <Select
-                    value={personaId || "__none__"}
-                    onValueChange={(value) =>
-                      setPersonaId(value === "__none__" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger className="w-full rounded-none border-2 border-mad-black text-sm shadow-keycap-sm">
-                      <SelectValue placeholder="Select persona" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-none border-2 border-mad-black">
-                      {personas.length === 0 ? (
-                        <SelectItem value="__none__" disabled>
-                          No personas in Brain DNA
-                        </SelectItem>
-                      ) : (
-                        personas.map((persona) => (
-                          <SelectItem key={persona.id} value={persona.id}>
-                            {persona.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {selectedPersona ? (
-                    <p className="text-xs leading-relaxed text-neutral-600">
-                      {selectedPersona.desires}
+        {workbenchStep === WORKBENCH_STEP_CHANNELS ? (
+          <div className="min-w-0 space-y-2">
+            {!showStudio ? (
+              <section className="border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                  <div>
+                    <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+                      Schedule · Generate pack
                     </p>
-                  ) : null}
+                    <p className="mt-1 text-sm leading-relaxed text-neutral-600">
+                      Formula render ($0) or full AI when you need a custom pass.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                    <button
+                      type="button"
+                      onClick={renderFormulaPack}
+                      disabled={
+                        pending || rehydrating || rawSpark.trim().length < 8
+                      }
+                      className="border-2 border-mad-black bg-mad-lime px-4 py-3 font-typewriter text-sm font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm transition-all hover:bg-mad-black hover:text-mad-white disabled:opacity-60"
+                    >
+                      Render formula pack ($0)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={activateMultiplexer}
+                      disabled={multiplexing || pending || rehydrating}
+                      className="border-2 border-mad-black bg-mad-black px-4 py-3 font-typewriter text-sm font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm transition-all hover:bg-mad-vermillion disabled:opacity-60"
+                    >
+                      {multiplexing ? (
+                        <span className="inline-flex items-center justify-center gap-2">
+                          <Loader2 className="size-4 animate-spin" />
+                          Generating…
+                        </span>
+                      ) : (
+                        "Generate with AI"
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            ) : null}
 
-            <section className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap lg:col-span-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                    Step 2 · Vibe & Copy
-                  </p>
-                  <h2 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-                    Trigger spark
-                  </h2>
-                </div>
-                <span
-                  className={cn(
-                    "font-typewriter text-[0.6rem] font-bold tracking-wider",
-                    sparkLength > RAW_SPARK_MAX
-                      ? "text-mad-vermillion"
-                      : "text-neutral-500"
-                  )}
-                >
-                  {sparkLength}/{RAW_SPARK_MAX}
-                </span>
-              </div>
-
-              <textarea
-                value={rawSpark}
-                maxLength={RAW_SPARK_MAX}
-                onChange={(event) => setRawSpark(event.target.value)}
-                rows={10}
-                placeholder={studioPresets.sparkPlaceholder}
-                className="mt-4 min-h-[12rem] w-full resize-none border-0 bg-transparent p-0 text-base leading-relaxed text-mad-black outline-none placeholder:text-neutral-400"
-              />
-              <FormulaBankPanel
-                entity={activeEntity}
-                spark={rawSpark}
-                hookId={formulaHookId}
-                visualId={formulaVisualId}
-                ctaId={formulaCtaId}
-                onHookIdChange={setFormulaHookId}
-                onVisualIdChange={setFormulaVisualId}
-                onCtaIdChange={setFormulaCtaId}
-                slots={formulaSlots}
-                onSlotsChange={setFormulaSlots}
-              />
-              {visualInspection ? (
-                <p className="mt-2 inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-lime px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm">
-                  👁 Visual details extracted from media
-                </p>
-              ) : null}
-
-              <div className="mt-4 space-y-2 border-t-2 border-mad-black pt-4">
-                <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
-                  Context-aware hooks
-                </p>
-                <div className="grid gap-2">
-                  {hookChips.map((hook) => {
-                    const active = activeHookId === hook.id
-                    return (
+            {showStudio && pack && dispatchPlan ? (
+              <MultiChannelScheduler
+                plan={dispatchPlan}
+                onPlanChange={setDispatchPlan}
+                onSaveDraft={() => runSave("draft")}
+                onArm={onArmPack}
+                saving={pending && !arming}
+                arming={arming}
+                hideFooterActions
+                wizardLayout
+                topBanner={
+                  <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-b border-mad-black/15 pb-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+                        Pack ready
+                        {campaignId ? (
+                          <span className="ml-2 font-mono font-normal text-neutral-500">
+                            · {campaignId.slice(0, 8)}
+                          </span>
+                        ) : null}
+                      </p>
+                      <h2 className="line-clamp-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
+                        {pack.campaign_title}
+                      </h2>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
-                        key={hook.id}
                         type="button"
-                        onClick={() => {
-                          setActiveHookId(hook.id)
-                          setRawSpark(hook.hook.slice(0, RAW_SPARK_MAX))
-                          applySparkDispatchChannels({ hookId: hook.id })
-                        }}
+                        onClick={() => setPackEditorOpen((open) => !open)}
                         className={cn(
-                          "border-2 border-mad-black px-3 py-2.5 text-left transition",
-                          active
-                            ? "bg-mad-black text-mad-white shadow-keycap-sm"
-                            : "bg-mad-white hover:bg-mad-lime"
+                          "inline-flex items-center gap-1 border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-widest uppercase",
+                          packEditorOpen
+                            ? "bg-mad-lime text-mad-black"
+                            : "bg-mad-white text-mad-black hover:bg-mad-lime/50"
                         )}
                       >
-                        <span
+                        Fine-tune
+                        <ChevronDown
                           className={cn(
-                            "block font-typewriter text-[0.55rem] font-bold tracking-widest uppercase",
-                            active ? "text-mad-vermillion" : "text-mad-vermillion"
+                            "size-3.5 transition-transform",
+                            packEditorOpen && "rotate-180"
                           )}
-                        >
-                          {hook.label}
-                        </span>
-                        <span className="mt-0.5 block text-sm leading-snug">
-                          {hook.hook}
-                        </span>
+                        />
                       </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </section>
-          </>
+                      <button
+                        type="button"
+                        onClick={startNewPack}
+                        className="border-2 border-mad-black bg-mad-white px-2 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime"
+                      >
+                        Start New Pack
+                      </button>
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto rounded-none px-1 py-1.5 font-typewriter text-[0.65rem] uppercase"
+                      >
+                        <Link
+                          href={`/campaigns?eid=${encodeURIComponent(activeEntity.id)}`}
+                        >
+                          Ledger →
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                }
+              />
+            ) : null}
+
+            {showStudio && pack && packEditorOpen ? (
+              <PackResultsEditor
+                key={editorSession}
+                hidePreview
+                pack={pack}
+                campaignId={campaignId}
+                brandName={activeEntity.name}
+                entityId={activeEntity.id}
+                eventDescription={rawSpark.trim()}
+                targetGoal={objective}
+                targetSegment={selectedPersona?.name ?? null}
+                mediaUrl={studioMediaUrl}
+                mediaAssets={mediaAssets}
+                activeMedia={activeMedia}
+                intent={intent}
+                industry={activeEntity.industry}
+                visualPresets={
+                  activeEntity.brand_identity.visual_presets ?? null
+                }
+                redirectSlugSeed={liveRedirectSlugSeed}
+                onPackChange={onPackChange}
+                onCampaignIdChange={onCampaignIdChange}
+                onMediaAssetsChange={onMediaAssetsChange}
+                onActiveMediaIdChange={setActiveMediaId}
+              />
+            ) : null}
+          </div>
         ) : null}
-
-        {workbenchStep === 3 ? (
-          <section className="border-2 border-mad-black bg-mad-white shadow-keycap lg:col-span-3">
-            {!showStudio ? (
-              <div className="flex min-h-[16rem] flex-col justify-between p-5 sm:flex-row sm:items-end sm:gap-8">
-                <div className="max-w-xl">
-                  <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                    Step 3 · Dispatch
-                  </p>
-                  <h2 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-base">
-                    Generate campaign pack
-                  </h2>
-                  <p className="mt-3 text-sm leading-relaxed text-neutral-600">
-                    Use formula bank renders for $0 copy, or full AI generate
-                    when you need a custom multiplexer pass.
-                  </p>
-                </div>
-
-                <div className="mt-6 flex w-full shrink-0 flex-col gap-2 sm:mt-0 sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={renderFormulaPack}
-                    disabled={pending || rehydrating || rawSpark.trim().length < 8}
-                    className="w-full border-2 border-mad-black bg-mad-lime px-6 py-4 font-typewriter text-sm font-bold tracking-widest text-mad-black uppercase shadow-keycap-lg transition-all hover:bg-mad-black hover:text-mad-white disabled:opacity-60"
-                  >
-                    Render formula pack ($0)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={activateMultiplexer}
-                    disabled={multiplexing || pending || rehydrating}
-                    className="w-full border-2 border-mad-black bg-mad-black px-6 py-4 font-typewriter text-sm font-bold tracking-widest text-mad-white uppercase shadow-keycap-lg transition-all hover:bg-mad-vermillion disabled:opacity-60"
-                  >
-                    {multiplexing ? (
-                      <span className="inline-flex items-center justify-center gap-2">
-                        <Loader2 className="size-4 animate-spin" />
-                        Generating…
-                      </span>
-                    ) : (
-                      "Generate with AI"
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                    Pack ready
-                  </p>
-                  <h2 className="mt-1 line-clamp-2 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-                    {pack?.campaign_title}
-                  </h2>
-                  {campaignId ? (
-                    <p className="mt-1 font-mono text-[0.65rem] text-neutral-500">
-                      ID {campaignId.slice(0, 8)}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={startNewPack}
-                    className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm hover:bg-mad-lime"
-                  >
-                    Start New Pack
-                  </button>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-none font-typewriter text-[0.65rem] uppercase"
-                  >
-                    <Link
-                      href={`/campaigns?eid=${encodeURIComponent(activeEntity.id)}`}
-                    >
-                      Ledger →
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            )}
-          </section>
-        ) : null}
-      </div>
-
-      {showStudio && pack && workbenchStep === 3 && dispatchPlan ? (
-        <MultiChannelScheduler
-          plan={dispatchPlan}
-          onPlanChange={setDispatchPlan}
-          onSaveDraft={() => runSave("draft")}
-          onArm={onArmPack}
-          saving={pending && !arming}
-          arming={arming}
-          hideFooterActions
-        />
-      ) : null}
-
-      {showStudio && pack && workbenchStep === 3 ? (
-        <PackResultsEditor
-          key={editorSession}
-          pack={pack}
-          campaignId={campaignId}
-          brandName={activeEntity.name}
-          entityId={activeEntity.id}
-          eventDescription={rawSpark.trim()}
-          targetGoal={objective}
-          targetSegment={selectedPersona?.name ?? null}
-          mediaUrl={studioMediaUrl}
-          mediaAssets={mediaAssets}
-          activeMedia={activeMedia}
-          intent={intent}
-          industry={activeEntity.industry}
-          visualPresets={activeEntity.brand_identity.visual_presets ?? null}
-          redirectSlugSeed={liveRedirectSlugSeed}
-          onPackChange={onPackChange}
-          onCampaignIdChange={onCampaignIdChange}
-          onMediaAssetsChange={onMediaAssetsChange}
-          onActiveMediaIdChange={setActiveMediaId}
-        />
-      ) : null}
+          </div>
+        }
+      />
 
       <MediaLibraryDrawer
         entityId={activeEntity.id}
         open={mediaLibraryOpen}
         onOpenChange={setMediaLibraryOpen}
         onBuildCarousel={mountMediaLibraryCarousel}
-      />
-
-      <StepDock
-        step={workbenchStep}
-        onBack={onStudioBack}
-        onNext={onStudioNext}
-        nextBusy={multiplexing || (pending && !arming)}
-        nextLabel={workbenchStep === 3 && !showStudio ? "Generate pack" : undefined}
-        nextDisabled={workbenchStep === 2 && rawSpark.trim().length < 8}
-        showScheduleActions={workbenchStep === 3 && showStudio}
-        onSaveDraft={() => runSave("draft")}
-        saveDraftBusy={pending && !arming}
-        onConfirmArm={onArmPack}
-        confirmArmBusy={arming}
-        confirmArmDisabled={pending && !arming}
-        className="fixed inset-x-0 bottom-0 z-40"
       />
     </div>
   )

@@ -114,6 +114,18 @@ export default defineConfig({
       '/api': {
         target: process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8080',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            const contentType = proxyRes.headers['content-type'] ?? '';
+            if (
+              contentType.includes('text/event-stream') ||
+              proxyRes.headers['x-vercel-ai-ui-message-stream']
+            ) {
+              proxyRes.headers['cache-control'] = 'no-cache';
+              proxyRes.headers['x-accel-buffering'] = 'no';
+            }
+          });
+        },
       },
       '/r': {
         target: process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8080',

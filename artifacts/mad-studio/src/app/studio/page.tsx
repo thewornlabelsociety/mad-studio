@@ -8,7 +8,10 @@ import {
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
 import { InventoryItemDetail } from "@/components/inventory/inventory-item-detail"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import {
+  StudioChromeProvider,
+  StudioChromeTopbar,
+} from "@/components/studio/studio-chrome-context"
 import { StudioWorkspace } from "@/components/studio/studio-workspace"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import { Button } from "@/components/ui/button"
@@ -27,6 +30,8 @@ type StudioPageProps = {
     pack_id?: string
     itemId?: string
     prompt?: string
+    step?: string
+    fresh?: string
     error?: string
   }>
 }
@@ -56,6 +61,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
     qs.set("eid", activeSummary.id)
     if (params.pack_id) qs.set("pack_id", params.pack_id)
     if (params.itemId) qs.set("itemId", params.itemId)
+    if (params.step) qs.set("step", params.step)
+    if (params.fresh) qs.set("fresh", params.fresh)
     redirect(`/studio?${qs.toString()}`)
   }
 
@@ -147,59 +154,33 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   }
 
   return (
-    <div className="flex min-h-svh flex-col bg-mad-white">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeSummary?.id ?? null}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-        teamSlot={
-          isOrgAdmin && organizationId ? (
-            <TeamInviteModal
-              organizationId={organizationId}
-              entities={entities}
-            />
-          ) : null
-        }
-      />
+    <StudioChromeProvider>
+      <div className="flex min-h-svh flex-col bg-mad-white">
+        <StudioChromeTopbar
+          entities={entities}
+          activeEntityId={activeSummary?.id ?? null}
+          userEmail={user.email ?? null}
+          isOrgAdmin={isOrgAdmin}
+          organizationId={organizationId}
+          teamSlot={
+            isOrgAdmin && organizationId ? (
+              <TeamInviteModal
+                organizationId={organizationId}
+                entities={entities}
+              />
+            ) : null
+          }
+        />
 
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-4">
-        {dropItem && activeSummary ? null : (
-          <section className="flex flex-wrap items-end justify-between gap-3 border-b border-mad-black/20 pb-3">
-            <div className="space-y-1">
-              <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                Campaign Multiplexer
-              </p>
-              <h1 className="brand-typewriter text-lg text-mad-black sm:text-xl">
-                {activeEntity?.name ?? "No brand selected"}
-              </h1>
-              <p className="max-w-xl text-sm text-neutral-600">
-                {activeEntity
-                  ? "Scratch pack: media → spark → five assets."
-                  : "Accept an invitation or claim org admin to unlock the studio."}
-              </p>
-              {params.error ? (
-                <p
-                  className="border-2 border-mad-black bg-mad-vermillion px-3 py-2 text-sm font-bold text-mad-white"
-                  role="alert"
-                >
-                  {params.error}
-                </p>
-              ) : null}
-            </div>
-            <form action={async () => { await createClient().auth.signOut(); window.location.assign("/login") }}>
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                className="rounded-none border border-mad-black/40 font-typewriter text-[0.6rem] uppercase"
-              >
-                Sign out
-              </Button>
-            </form>
-          </section>
-        )}
+        <main className="flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden">
+        {params.error && !dropItem ? (
+          <p
+            className="border-2 border-mad-black bg-mad-vermillion px-3 py-2 text-sm font-bold text-mad-white"
+            role="alert"
+          >
+            {params.error}
+          </p>
+        ) : null}
 
         {params.error && dropItem ? (
           <p
@@ -229,15 +210,17 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
               </Button>
             </form>
           </section>
-        ) : dropItem && activeSummary ? (
+        ) : dropItem && activeSummary && activeEntity ? (
           <InventoryItemDetail
             item={dropItem}
             brandName={activeSummary.name}
             industry={activeSummary.industry}
             entityId={activeSummary.id}
+            entity={activeEntity}
             websiteUrl={websiteUrl}
             visualPresets={visualPresets}
             occupiedSlots={occupiedSlots}
+            initialStep={params.step}
           />
         ) : activeEntity ? (
           <Suspense
@@ -248,9 +231,11 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
             }
           >
             <StudioWorkspace
-              key={activeEntity.id}
+              key={`${activeEntity.id}-${params.fresh ?? ""}`}
               entities={entities}
               activeEntity={activeEntity}
+              initialStep={params.step}
+              startFresh={params.fresh === "1"}
             />
           </Suspense>
         ) : (
@@ -258,7 +243,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
             MULTI-BRAND ISOLATION ACTIVE. Could not load brand DNA.
           </p>
         )}
-      </main>
-    </div>
+        </main>
+      </div>
+    </StudioChromeProvider>
   )
 }

@@ -27,6 +27,13 @@ function messagePlainText(message: UIMessage): string {
     .trim()
 }
 
+function humanizeChatError(message: string): string {
+  if (message === "An error occurred.") {
+    return "The Brand Director could not complete this reply. Confirm the API server is running, AI_PRIMARY_MODEL and provider API keys are set, then retry."
+  }
+  return message
+}
+
 async function parseChatErrorResponse(response: Response): Promise<string> {
   const contentType = response.headers.get("content-type") ?? ""
   if (contentType.includes("application/json")) {
@@ -91,7 +98,9 @@ export function BrainChat({
     },
   })
 
-  const displayError = transportError ?? error?.message ?? null
+  const displayError = humanizeChatError(
+    transportError ?? error?.message ?? ""
+  ) || null
   const isBusy = status === "submitted" || status === "streaming"
 
   async function handleSend(text: string) {

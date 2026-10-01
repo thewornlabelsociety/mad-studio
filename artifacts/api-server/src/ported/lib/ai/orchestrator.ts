@@ -176,6 +176,54 @@ export function resolvePrimaryLanguageModel(): {
   return { model: resolveLanguageModel(preferred), ref: preferred }
 }
 
+/**
+ * Pick the first env-configured model that accepts a generateContent call.
+ * Matches Teach Brain / suggest fallback order (AI_PRIMARY_MODEL → fallbacks).
+ */
+export async function resolveLanguageModelWithFallback(): Promise<{
+  model: LanguageModel
+  ref: AiModelRef
+}> {
+  const candidates = getAiCandidateModels()
+  let lastError: unknown = null
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    const ref = candidates[index]
+    try {
+      const model = resolveLanguageModel(ref)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await generateText({
+        model,
+        prompt: "OK",
+        maxOutputTokens: 1,
+        temperature: 0,
+      } as any)
+      return { model, ref }
+    } catch (error) {
+      lastError = error
+      const capacity = isAiCapacityError(error)
+      const missing = isAiModelNotFoundError(error)
+      console.warn(
+        `[ai] ${ref.provider}:${ref.modelId} unavailable for chat (${error instanceof Error ? error.message : String(error)}). Trying fallback…`
+      )
+      if (index < candidates.length - 1) {
+        await sleep(capacity ? 600 * (index + 1) : missing ? 50 : 200)
+      }
+    }
+  }
+
+  if (isAiModelNotFoundError(lastError)) {
+    throw new Error(
+      "Configured AI models are unavailable for generateContent. Update AI_PRIMARY_MODEL / AI_FALLBACK_MODELS to current Gemini IDs (e.g. gemini-2.5-flash) and restart the API server."
+    )
+  }
+
+  throw (
+    lastError ??
+    new Error("All model endpoints unavailable. Please try again.")
+  )
+}
+
 export function isAiCapacityError(error: unknown): boolean {
   const message =
     error instanceof Error

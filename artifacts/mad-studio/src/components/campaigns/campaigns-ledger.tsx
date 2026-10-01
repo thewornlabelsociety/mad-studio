@@ -7,6 +7,8 @@ import { ChevronDown, Plus } from "lucide-react"
 import { CampaignRoiCard } from "@/components/analytics/campaign-roi-card"
 import { CampaignPostMortem } from "@/components/campaigns/campaign-post-mortem"
 import { CampaignQueuePanel } from "@/components/campaigns/campaign-queue-panel"
+import { CampaignsConversionTable } from "@/components/campaigns/campaigns-conversion-table"
+import { CampaignsFinancialSummary } from "@/components/campaigns/campaigns-financial-summary"
 import { BrainEmblemLink } from "@/components/brand/brain-emblem"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,6 +25,7 @@ import {
   type CampaignLedgerItem,
   type CampaignQueuePost,
   type OutcomeRating,
+  type PublishedDropRow,
 } from "@/lib/campaigns/ledger"
 import { cn } from "@/lib/utils"
 
@@ -30,6 +33,7 @@ type CampaignsLedgerProps = {
   entityId: string
   entityName: string
   campaigns: CampaignLedgerItem[]
+  publishedDrops: PublishedDropRow[]
 }
 
 function StatusChip({
@@ -204,6 +208,8 @@ function CampaignAccordionRow({
               <CampaignPostMortem
                 campaignId={campaign.id}
                 entityId={entityId}
+                assetPack={campaign.asset_pack}
+                targetSegment={campaign.target_segment}
                 initialOutcome={
                   (campaign.outcome_rating as OutcomeRating | null) ?? null
                 }
@@ -223,6 +229,7 @@ export function CampaignsLedger({
   entityId,
   entityName,
   campaigns,
+  publishedDrops,
 }: CampaignsLedgerProps) {
   const [statusFilter, setStatusFilter] = useState("all")
   const [outcomeFilter, setOutcomeFilter] = useState("all")
@@ -260,8 +267,8 @@ export function CampaignsLedger({
               Campaigns Ledger // {entityName}
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
-              Expand a drop for performance overview and playbook notes. Keep the
-              list tight — open only what you need.
+              Executive financial view — spend, sales, profit, and ROAS — plus
+              published drop conversion metrics and post-mortem winners for Brain.
             </p>
           </div>
           <BrainEmblemLink entityId={entityId} size={96} />
@@ -276,6 +283,15 @@ export function CampaignsLedger({
             Back to Studio
           </Link>
         </Button>
+      </div>
+
+      <CampaignsFinancialSummary campaigns={campaigns} />
+
+      <div className="space-y-2">
+        <h2 className="font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
+          Published drops · conversion table
+        </h2>
+        <CampaignsConversionTable rows={publishedDrops} />
       </div>
 
       <div className="flex flex-wrap gap-3">

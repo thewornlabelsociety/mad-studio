@@ -21,6 +21,10 @@ import {
   isFudiStudioEntity,
   type FudiAudienceTrack,
 } from "@/lib/studio/fudi-tracks"
+import {
+  resolveTodayIntakeBadge,
+  type TodayIntakeBadge,
+} from "@/lib/today/intake-badges"
 
 export type TodayChannel = "ig_story" | "tiktok"
 
@@ -45,6 +49,7 @@ export type TodayQueueView = {
   venueOrBrand: string | null
   wlsSize: string | null
   wlsPrice: string
+  intakeBadge: TodayIntakeBadge | null
 }
 
 function extractSize(item: MarketingEntity): string | null {
@@ -192,5 +197,6 @@ export function buildTodayQueueView(input: {
       brand && brand.toLowerCase() !== title.toLowerCase() ? brand : brand,
     wlsSize: extractWlsSize(input.item),
     wlsPrice: formatInventoryPrice(input.item.price),
+    intakeBadge: resolveTodayIntakeBadge(input.item),
   }
 }

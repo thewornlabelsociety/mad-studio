@@ -13,7 +13,9 @@ import * as brainChat from "../ported/app/api/brain/chat/route";
 import * as brainMemory from "../ported/app/api/brain/memory/route";
 import * as brainSuggest from "../ported/app/api/brain/suggest/route";
 import * as postMortem from "../ported/app/api/campaigns/post-mortem/route";
+import * as markWinner from "../ported/app/api/campaigns/mark-winner/route";
 import * as dispatch from "../ported/app/api/cron/dispatch/route";
+import * as cronTriggers from "../ported/app/api/cron/triggers/route";
 import * as dispatchScheduled from "../ported/app/api/cron/dispatch-scheduled/route";
 import * as syncMetrics from "../ported/app/api/cron/sync-metrics/route";
 import * as scrape from "../ported/app/api/entities/scrape/route";
@@ -27,7 +29,10 @@ import * as verifySocial from "../ported/app/api/social/verify/route";
 import * as pullArrivals from "../ported/app/api/sync/pull-new-arrivals/route";
 import * as syncWebsite from "../ported/app/api/sync/website/route";
 import * as fudiFeed from "../ported/app/api/intake/fudi-feed/route";
+import * as mobileDrop from "../ported/app/api/intake/mobile-drop/route";
 import * as enhanceCaption from "../ported/app/api/inventory/enhance-caption/route";
+import * as fieldAssist from "../ported/app/api/ai/field-assist/route";
+import * as carouselSuggest from "../ported/app/api/ai/carousel-suggest/route";
 import * as authCallback from "../ported/app/auth/callback/route";
 import * as authConfirm from "../ported/app/auth/confirm/route";
 import * as shortLink from "../ported/app/r/[slug]/route";
@@ -44,7 +49,11 @@ function webHandler(handler: WebHandler, bodyExpected = true) {
       }
       let body: RequestInit["body"];
       if (bodyExpected && !["GET", "HEAD"].includes(req.method)) {
-        if (req.body !== undefined && Object.keys(req.body ?? {}).length > 0) {
+        if (
+          req.body !== undefined &&
+          req.body !== null &&
+          !(typeof req.body === "object" && Object.keys(req.body).length === 0)
+        ) {
           body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
           if (!headers.has("content-type")) headers.set("content-type", "application/json");
         } else if (headers.get("content-type")?.includes("multipart/form-data")) {
@@ -95,7 +104,13 @@ function webHandler(handler: WebHandler, bodyExpected = true) {
           return;
         }
         const contentType = response.headers.get("content-type") ?? "";
-        if (contentType.includes("text/event-stream")) {
+        const isStreaming =
+          contentType.includes("text/event-stream") ||
+          response.headers.has("x-vercel-ai-ui-message-stream");
+        if (isStreaming) {
+          for (const hopByHop of ["content-length", "transfer-encoding"]) {
+            res.removeHeader(hopByHop);
+          }
           Readable.fromWeb(response.body as import("node:stream/web").ReadableStream).pipe(res);
           return;
         }
@@ -123,12 +138,15 @@ router.post("/api/brain/chat", webHandler(method(brainChat, "POST")));
 router.post("/api/brain/memory", webHandler(method(brainMemory, "POST")));
 router.post("/api/brain/suggest", webHandler(method(brainSuggest, "POST")));
 router.post("/api/campaigns/post-mortem", webHandler(method(postMortem, "POST")));
+router.post("/api/campaigns/mark-winner", webHandler(method(markWinner, "POST")));
 router.get("/api/cron/dispatch", webHandler(method(dispatch, "GET"), false));
 router.post("/api/cron/dispatch", webHandler(method(dispatch, "POST")));
 router.get("/api/cron/dispatch-scheduled", webHandler(method(dispatchScheduled, "GET"), false));
 router.post("/api/cron/dispatch-scheduled", webHandler(method(dispatchScheduled, "POST")));
 router.get("/api/cron/sync-metrics", webHandler(method(syncMetrics, "GET"), false));
 router.post("/api/cron/sync-metrics", webHandler(method(syncMetrics, "POST")));
+router.get("/api/cron/triggers", webHandler(method(cronTriggers, "GET"), false));
+router.post("/api/cron/triggers", webHandler(method(cronTriggers, "POST")));
 router.post("/api/entities/scrape", webHandler(method(scrape, "POST")));
 router.post("/api/generate/pack", webHandler(method(generatePack, "POST")));
 router.get("/api/media/image-proxy", webHandler(method(imageProxy, "GET"), false));
@@ -140,7 +158,10 @@ router.get("/api/social/verify", webHandler(method(verifySocial, "GET"), false))
 router.post("/api/sync/pull-new-arrivals", webHandler(method(pullArrivals, "POST")));
 router.post("/api/sync/website", webHandler(method(syncWebsite, "POST")));
 router.post("/api/intake/fudi-feed", webHandler(method(fudiFeed, "POST")));
+router.post("/api/intake/mobile-drop", webHandler(method(mobileDrop, "POST")));
 router.post("/api/inventory/enhance-caption", webHandler(method(enhanceCaption, "POST")));
+router.post("/api/ai/field-assist", webHandler(method(fieldAssist, "POST")));
+router.post("/api/ai/carousel-suggest", webHandler(method(carouselSuggest, "POST")));
 router.get("/auth/callback", webHandler(method(authCallback, "GET"), false));
 router.get("/auth/confirm", webHandler(method(authConfirm, "GET"), false));
 router.get("/r/:slug", webHandler(method(shortLink, "GET"), false));

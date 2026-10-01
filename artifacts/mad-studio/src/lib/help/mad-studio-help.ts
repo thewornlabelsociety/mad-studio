@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-09-30i"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-02c"
 
 export type HelpSop = {
   title: string
@@ -59,7 +59,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Navigation",
         description:
-          "Today (radar), Studio (pack builder), Campaigns (ledger), Meter (analytics), Socials (connections). Brain and Inventory are reached from Studio/Today flows and direct URLs.",
+          "Top header: logo, brand switcher, Today · Studio · Campaigns, Help, Account. Meter and Socials live under Account. Brain and Inventory open from Studio/Today or direct URLs.",
       },
     ],
     sop: {
@@ -127,7 +127,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Intake cards",
         description:
-          "Queue preview with drop badges (foodie, eatery, deal, event, marketplace, FÜDI promo). Quick Preview = scrollable live simulator (hook + caption as posted, no intake IDs) + Quick publish. FÜDI: Build feed carousel merges 2–10 intake stills into a platform promo draft (IG Carousel / Facebook).",
+          "Queue preview with drop badges (foodie, eatery, deal, event, marketplace, FÜDI promo). **[ 📱 Mobile Drop ]** rows come from POST /api/intake/mobile-drop (WhatsApp/SMS via Twilio/Make); **[ 🤖 Auto-Triggered ]** rows from GET/POST /api/cron/triggers (NZ-time lunch/knock-off/weekend templates). **Craft in Studio** opens Step 2 (Media). Quick Preview = scrollable live simulator + Quick publish. FÜDI: Build feed carousel picks 2–10 stills, then AI suggests three promo angles via POST /api/ai/carousel-suggest.",
       },
       {
         name: "Armed today",
@@ -141,6 +141,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         "Confirm brand switcher shows FÜDI.",
         "Click [ ⟳ Pull Eatery / App Feed ] on Today.",
         "Review new cards; open one in Studio when ready to produce.",
+        "For a multi-slide IG feed promo: select ≥2 still-image cards → Build feed carousel → pick an AI angle or Skip AI / manual order.",
         "Remove unwanted rows from /inventory if needed (unfeatured only).",
       ],
       tips: [
@@ -171,7 +172,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Drop workbench (Media step)",
         description:
-          "Open a row → Step 1 Media: platform preview, Post intent chips (drop type, channel hint, listing vibe — same as Today; auto-saves to copy_draft.metadata), hook/caption fields, context hook cards, Rotate, AI enhance (POST /api/inventory/enhance-caption).",
+          "Drop workbench: Step 2 on-canvas text renders on the photo (lime drag bar + corner handles on the preview text box). Hook/Caption is the IG caption under the post — keep them separate. Save draft or Confirm & Arm bakes on-image text into the PNG (media_url) for immediate and scheduled Meta dispatch.",
       },
     ],
     sop: {
@@ -233,12 +234,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
     title: "Campaign Studio (Multiplexer)",
     route: "/studio",
     summary:
-      "Three-step flow: media/spark → formula or AI pack → edit, schedule, arm multi-channel.",
+      "Five-step widescreen wizard: Media → Intent → Canvas → Copy → Schedule (formula or AI pack, then arm multi-channel).",
     features: [
       {
         name: "Formula bank ($0 render)",
         description:
-          "Step 2: pick hook, visual direction, and conversion CTA from entity presets; fill bracket slots (item, location, prices). Step 3: Render formula pack builds the 5-piece pack locally with no Gemini tokens.",
+          "Copy step: pick hook, visual direction, and conversion CTA from entity presets; fill bracket slots (item, location, prices). Schedule step: Render formula pack builds the 5-piece pack locally with no Gemini tokens.",
       },
       {
         name: "AI pack (Gemini)",
@@ -252,12 +253,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Media library & carousel",
         description:
-          "Step 1 / pack preview: Media library drawer lists recent entity images and reels with [ FÜDI App ] vs [ Upload ] badges; multi-select up to 10 → Build carousel mounts slides in the IG Feed simulator.",
+          "Media tray **Add** opens the entity media library (intake + uploads with [ FÜDI App ] / [ Upload ] badges). Select one or more → **Add to tray**, or **Upload new file** in the drawer. With multiple tray items, **IG Story** preview supports tap left/right on the phone, ‹ › arrows, progress-bar segments, and keyboard ← →; selection stays in sync with the tray. IG Feed uses carousel arrows when 2+ slides.",
       },
       {
         name: "On-canvas text styler",
         description:
-          "Pack preview styling: headline/subhead overlays on the phone canvas (social fonts, brand swatches, shadow, highlight pill); PNG export via html-to-image includes overlays.",
+          "Canvas step: draggable headline/subhead plus editorial story stickers on IG Story — None, Link badge (VIEW PIECE ↗ / RESERVE TABLE ↗ / EXPLORE DROP ↗ / ORDER NOW ↗), Editorial poll, or Countdown timer. Noir or linen theme; drag link/poll/timer anywhere on the media frame (full height, not locked to a narrow band). Link badges use the trackable URL when armed. Legacy emoji/NEW/SALE decor when story sticker is None. Motion presets animate in preview; Save/Arm bakes decor into the PNG for dispatch.",
       },
       {
         name: "CapCut bridge",
@@ -280,10 +281,10 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       prerequisites: ["Unfeatured item or fresh spark text"],
       steps: [
         "Open Studio with itemId from intake or enter a short spark (≤500 chars).",
-        "Attach or confirm hero media.",
-        "On Step 2, choose hook / visual / CTA and fill formula slots (defaults pull from spark).",
-        "On Step 3, click Render formula pack ($0) for instant copy, or Generate with AI when you need a custom draft.",
-        "Review tabs (video, carousel, caption, etc.), arm channels or save as draft.",
+        "Attach or confirm hero media (Media step).",
+        "Set DNA intent, pillar, and persona (Intent); optional on-image text (Canvas).",
+        "Write hook and caption; use formula bank on Copy.",
+        "On Schedule, click Render formula pack ($0) or Generate with AI; review pack tabs, arm channels or save draft.",
         "Confirm armed rows on Today and Campaigns ledger.",
       ],
     },
@@ -292,16 +293,32 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
     id: "campaigns",
     title: "Campaigns — Drop Performance Ledger",
     route: "/campaigns",
-    summary: "ROI logging, post-mortem training, scheduled queue visibility.",
+    summary:
+      "Executive financial view: Money Spent, Sales Made, Net Profit, Return Multiplier (ROAS), published-drop conversion table, and post-mortem winners.",
     features: [
       {
-        name: "Log spend / sales",
-        description: "Bilingual ROI cards; writes ad_analytics for the entity.",
+        name: "Financial summary",
+        description:
+          "Top row aggregates ad_analytics across campaigns — plain-English Money Spent, Sales Made, Net Profit, and ROAS multiplier (not token telemetry).",
       },
       {
-        name: "Post-mortem",
+        name: "Conversion table",
         description:
-          "Outcome rating + notes → AI takeaway saved to campaign; feeds Brain Memory.",
+          "Published marketing_entities with thumbnail, audience, CTR, direct conversions, and cost-per-click.",
+      },
+      {
+        name: "Log spend / sales",
+        description: "Per-drop ROI cards; writes ad_analytics for the entity.",
+      },
+      {
+        name: "Post-mortem & Mark as Winner",
+        description:
+          "5-piece pack review, **Mark as Winner** (hook + audience + your one-line takeaway → campaigns.ai_takeaway for Brain), or full playbook notes.",
+      },
+      {
+        name: "Brain Memory vault (excluded here)",
+        description:
+          "Save to Memory Vault / Teach Brain writes target_goal memory_vault on MAD campaigns — shown on Brain → Memory, not in this drop ledger.",
       },
       {
         name: "Open Ledger from Studio",

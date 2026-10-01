@@ -24,7 +24,7 @@ export function IntakeActionCard({
   onPreview,
 }: Props) {
   const [pending, startTransition] = useTransition()
-  const studioHref = `/studio?eid=${encodeURIComponent(entityId)}&itemId=${encodeURIComponent(view.item.id)}`
+  const studioHref = `/studio?eid=${encodeURIComponent(entityId)}&itemId=${encodeURIComponent(view.item.id)}&step=2`
 
   function onArchive() {
     startTransition(async () => {
@@ -66,6 +66,11 @@ export function IntakeActionCard({
 
       <div className="min-w-0 space-y-1.5 sm:space-y-2">
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {view.intakeBadge ? (
+            <span className="border-2 border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase sm:text-[0.55rem]">
+              [ {view.intakeBadge.emoji} {view.intakeBadge.label} ]
+            </span>
+          ) : null}
           {view.isFudi && view.fudiDropKind ? (
             <span className="border-2 border-mad-black bg-[#CCFF00] px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase sm:text-[0.55rem]">
               {FUDI_DROP_BADGES[view.fudiDropKind].emoji}{" "}

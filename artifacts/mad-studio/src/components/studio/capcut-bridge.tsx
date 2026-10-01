@@ -14,6 +14,10 @@ export type CapCutBridgePayload = {
   caption: string
   audioScript: string
   assetUrl: string | null
+  /** Clipboard bundle fields for CapCut handoff. */
+  spokenHook?: string
+  onScreenHeadline?: string
+  destinationUrl?: string | null
 }
 
 type Props = {
@@ -58,7 +62,17 @@ export function CapCutBridge({
   async function copyCapCutBundle() {
     setBusy("copy")
     try {
-      const bundle = JSON.stringify(payload, null, 2)
+      const bundle = JSON.stringify(
+        {
+          spokenHook: payload.spokenHook ?? payload.hook,
+          onScreenHeadline: payload.onScreenHeadline ?? payload.headline,
+          caption: payload.caption,
+          destinationUrl: payload.destinationUrl ?? null,
+          assetUrl: payload.assetUrl,
+        },
+        null,
+        2
+      )
       await navigator.clipboard.writeText(bundle)
       toast.success("CapCut bundle copied — opening editor…")
       window.open("https://www.capcut.com/editor", "_blank", "noopener,noreferrer")

@@ -20,6 +20,11 @@ import {
   type BrandColorTheme,
 } from "@/lib/brands/industry-templates"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
+import { CanvasTextOverlayLayer } from "@/components/studio/canvas-text-overlay"
+import {
+  DEFAULT_CANVAS_TEXT_OVERLAY,
+  type CanvasTextOverlayState,
+} from "@/lib/studio/canvas-text-types"
 import { cn } from "@/lib/utils"
 
 export type SimulatorMode = "reel" | "carousel" | "caption" | "email" | "dm"
@@ -33,6 +38,8 @@ type MobileDeviceSimulatorProps = {
   onModeChange?: (mode: SimulatorMode) => void
   visualPresets?: VisualPresets | null
   industry?: string | null
+  /** Optional IG-style editorial story sticker on 9:16 reel preview. */
+  textOverlay?: CanvasTextOverlayState | null
 }
 
 const MODES: Array<{ id: SimulatorMode; label: string }> = [
@@ -52,7 +59,9 @@ export function MobileDeviceSimulator({
   onModeChange,
   visualPresets = null,
   industry = null,
+  textOverlay = null,
 }: MobileDeviceSimulatorProps) {
+  const overlay = textOverlay ?? DEFAULT_CANVAS_TEXT_OVERLAY
   const [uncontrolledMode, setUncontrolledMode] =
     useState<SimulatorMode>("reel")
   const [slideIndex, setSlideIndex] = useState(0)
@@ -151,6 +160,7 @@ export function MobileDeviceSimulator({
               shopLabel={profile.shopLinkLabel}
               accent={profile.theme.accent}
               footer={profile.locationFooter}
+              storyOverlay={overlay}
             />
           ) : null}
 
@@ -239,6 +249,7 @@ function ReelScreen({
   shopLabel,
   accent,
   footer,
+  storyOverlay,
 }: {
   pack: CampaignPack
   imageUrl?: string | null
@@ -246,11 +257,17 @@ function ReelScreen({
   shopLabel: string
   accent: string
   footer: string | null
+  storyOverlay: CanvasTextOverlayState
 }) {
   return (
     <div className="relative aspect-[9/16] w-full overflow-hidden bg-mad-black">
       <VisualBackdrop imageUrl={imageUrl} />
       <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/75" />
+      <CanvasTextOverlayLayer
+        overlay={storyOverlay}
+        storyEditorialStickers
+        className="z-20"
+      />
 
       <div className="absolute top-4 right-14 left-4 z-10">
         <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-white uppercase drop-shadow">

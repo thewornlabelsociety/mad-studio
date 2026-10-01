@@ -50,6 +50,8 @@ type PackResultsEditorProps = {
   onCampaignIdChange: (id: string) => void
   onMediaAssetsChange?: (assets: MediaAsset[]) => void
   onActiveMediaIdChange?: (id: string | null) => void
+  /** When true, omit embedded phone — parent owns the single studio preview. */
+  hidePreview?: boolean
 }
 
 const AUTO_SAVE_MS = 800
@@ -81,6 +83,7 @@ export function PackResultsEditor({
   onCampaignIdChange,
   onMediaAssetsChange,
   onActiveMediaIdChange,
+  hidePreview = false,
 }: PackResultsEditorProps) {
   const [metaChannel, setMetaChannel] =
     useState<MetaPreviewChannel>("ig_story")
@@ -395,7 +398,12 @@ export function PackResultsEditor({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div
+        className={cn(
+          "grid grid-cols-1 items-start gap-6",
+          !hidePreview && "xl:grid-cols-[minmax(0,1fr)_380px]"
+        )}
+      >
         <div className="min-w-0 space-y-3">
           <article className="border-2 border-mad-black bg-mad-white shadow-keycap-sm">
             <header className="flex items-start justify-between gap-2 border-b-2 border-mad-black bg-neutral-50 px-3 py-2">
@@ -407,7 +415,9 @@ export function PackResultsEditor({
                   <SaveStatusPill status={saveStatus} compact />
                 </div>
                 <p className="text-[0.65rem] text-neutral-500">
-                  Edits sync to the phone preview instantly
+                  {hidePreview
+                    ? "Edits sync to the studio preview on the right"
+                    : "Edits sync to the phone preview instantly"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -551,6 +561,7 @@ export function PackResultsEditor({
           </article>
         </div>
 
+        {hidePreview ? null : (
         <div className="mx-auto w-[360px] shrink-0 xl:sticky xl:top-4 xl:mx-0 xl:self-start">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase">
@@ -688,6 +699,7 @@ export function PackResultsEditor({
             onVideoReady={onCapCutVideoReady}
           />
         </div>
+        )}
       </div>
 
       <MediaLibraryDrawer

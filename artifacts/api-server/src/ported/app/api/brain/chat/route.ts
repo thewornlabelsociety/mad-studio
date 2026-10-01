@@ -5,7 +5,11 @@ import {
 } from "ai"
 import { z } from "zod"
 
-import { resolvePrimaryLanguageModel } from "@/lib/ai/orchestrator"
+import {
+  isAiCapacityError,
+  isAiModelNotFoundError,
+  resolveLanguageModelWithFallback,
+} from "@/lib/ai/orchestrator"
 import { assertBrainEntityAccess } from "@/lib/brain/entity-access"
 import { parseStudioEntity } from "@/lib/campaigns/entity-dna"
 import { createClient } from "@/lib/supabase/server"
@@ -194,7 +198,7 @@ export async function POST(request: Request) {
 
     let model
     try {
-      const resolved = resolvePrimaryLanguageModel()
+      const resolved = await resolveLanguageModelWithFallback()
       model = resolved.model
     } catch (modelError) {
       const message =
@@ -224,7 +228,29 @@ export async function POST(request: Request) {
       abortSignal: request.signal,
     })
 
-    return result.toUIMessageStreamResponse()
+    return result.toUIMessageStreamResponse({
+      originalMessages: messages,
+      onError: (error) => {
+        console.error("[brain/chat] stream", error)
+        const message =
+          error instanceof Error ? error.message : String(error ?? "")
+        if (process.env.NODE_ENV !== "production") {
+          return message.slice(0, 500)
+        }
+        if (
+          /api key|401|403|permission|not configured|invalid/i.test(message)
+        ) {
+          return "AI credentials are missing or invalid on the API server (GOOGLE_GENERATIVE_AI_API_KEY / AI_PRIMARY_MODEL)."
+        }
+        if (isAiModelNotFoundError(error) || /not found|404/i.test(message)) {
+          return "The configured AI model was not found. Update AI_PRIMARY_MODEL / AI_FALLBACK_MODELS."
+        }
+        if (isAiCapacityError(error)) {
+          return "The AI provider is busy. Wait a moment and try again."
+        }
+        return "The Brand Director could not finish this reply. Try again."
+      },
+    })
   } catch (error) {
     console.error("[brain/chat]", error)
     const message =

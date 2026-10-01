@@ -3,9 +3,9 @@
 import { Link } from "wouter"
 import { usePathname, useRouter } from "@/lib/next-compat"
 import { useTransition } from "react"
-import { Check, ChevronsUpDown, CircleHelp, Menu, Plus } from "lucide-react"
+import { Check, ChevronsUpDown, CircleHelp, Menu, Plus, User } from "lucide-react"
 
-import { setActiveEntity } from "@/lib/actions"
+import { setActiveEntity, signOut } from "@/lib/actions"
 import { MadStudioLogo } from "@/components/brand/mad-logo"
 import { Button } from "@/components/ui/button"
 import {
@@ -56,9 +56,7 @@ export function BrandSwitcher({
           )}
           disabled={pending}
         >
-          <span className="truncate">
-            {active?.name ?? "Select a brand"}
-          </span>
+          <span className="truncate">{active?.name ?? "Select a brand"}</span>
           <ChevronsUpDown className="size-3.5 shrink-0 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
@@ -112,43 +110,42 @@ type NavLink = {
   match: string
 }
 
-type TopbarProps = {
+export type TopbarProps = {
   entities: AccessibleEntity[]
   activeEntityId: string | null
   userEmail: string | null
   isOrgAdmin: boolean
   organizationId: string | null
   teamSlot?: React.ReactNode
+  /** Studio draft pill, restoring indicator, etc. */
+  centerSlot?: React.ReactNode
 }
 
 export function AppTopbar({
   entities,
   activeEntityId,
   userEmail,
+  isOrgAdmin,
+  organizationId,
   teamSlot,
+  centerSlot = null,
 }: TopbarProps) {
   const pathname = usePathname()
   const entityQuery = activeEntityId
     ? `?eid=${encodeURIComponent(activeEntityId)}`
     : ""
 
-  const links: NavLink[] = [
+  const studioHref = entityQuery
+    ? `/studio${entityQuery}&step=2`
+    : "/studio?step=2"
+
+  const primaryLinks: NavLink[] = [
     { href: `/today${entityQuery}`, label: "Today", match: "/today" },
-    { href: `/studio${entityQuery}`, label: "Studio", match: "/studio" },
+    { href: studioHref, label: "Studio", match: "/studio" },
     {
       href: `/campaigns${entityQuery}`,
       label: "Campaigns",
       match: "/campaigns",
-    },
-    {
-      href: `/analytics${entityQuery}`,
-      label: "Meter",
-      match: "/analytics",
-    },
-    {
-      href: `/settings/social${entityQuery}`,
-      label: "Socials",
-      match: "/settings/social",
     },
   ]
 
@@ -158,74 +155,176 @@ export function AppTopbar({
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-mad-black bg-mad-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <MadStudioLogo size="sm" href={`/today${entityQuery}`} />
-            <BrandSwitcher
-              entities={entities}
-              activeEntityId={activeEntityId}
-            />
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <Link
-              href={`/help${entityQuery}`}
-              className={cn(
-                "inline-flex items-center gap-1.5 border-2 px-2.5 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase transition-colors",
-                isActive("/help")
-                  ? "border-mad-black bg-mad-black text-mad-white"
-                  : "border-mad-black bg-mad-white text-mad-black hover:bg-mad-lime"
-              )}
-              title="Features, SOPs & workflows"
-            >
-              <CircleHelp className="size-3.5" aria-hidden />
-              <span className="hidden sm:inline">Help</span>
-            </Link>
-            <div className="md:hidden">
-              <MobileNav links={links} isActive={isActive} entityQuery={entityQuery} />
-            </div>
-            {teamSlot}
-            {userEmail ? (
-              <span className="hidden max-w-[10rem] truncate font-typewriter text-[0.55rem] tracking-typewriter-tight text-neutral-600 uppercase xl:inline">
-                {userEmail}
-              </span>
-            ) : null}
-          </div>
+      <div className="flex w-full items-center justify-between gap-2 py-2 pl-2 pr-3 sm:pl-3 sm:pr-4 lg:pr-5">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+          <MadStudioLogo size="sm" href={`/today${entityQuery}`} />
+          <BrandSwitcher
+            entities={entities}
+            activeEntityId={activeEntityId}
+          />
+          <nav
+            className="hidden min-w-0 items-center gap-1 md:flex"
+            aria-label="Primary"
+          >
+            {primaryLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "shrink-0 border-2 px-2.5 py-1.5 font-typewriter text-[0.65rem] tracking-typewriter-tight uppercase transition-colors sm:px-3",
+                  isActive(link.match)
+                    ? "border-mad-black bg-mad-black text-mad-white shadow-keycap-sm"
+                    : "border-transparent text-mad-black hover:border-mad-black hover:bg-mad-lime"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          {centerSlot ? (
+            <div className="hidden min-w-0 shrink sm:block">{centerSlot}</div>
+          ) : null}
         </div>
 
-        <nav
-          className="hidden flex-wrap items-center gap-1.5 border-t-2 border-mad-black/15 pt-2.5 md:flex"
-          aria-label="Primary"
-        >
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "border-2 px-3 py-1.5 font-typewriter text-[0.65rem] tracking-typewriter-tight uppercase transition-colors",
-                isActive(link.match)
-                  ? "border-mad-black bg-mad-black text-mad-white shadow-keycap-sm"
-                  : "border-transparent text-mad-black hover:border-mad-black hover:bg-mad-lime"
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="flex shrink-0 items-center gap-2">
+          {centerSlot ? (
+            <div className="min-w-0 shrink sm:hidden">{centerSlot}</div>
+          ) : null}
+          <Link
+            href={`/help${entityQuery}`}
+            className={cn(
+              "hidden items-center gap-1.5 border-2 px-2.5 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase transition-colors sm:inline-flex",
+              isActive("/help")
+                ? "border-mad-black bg-mad-black text-mad-white"
+                : "border-mad-black bg-mad-white text-mad-black hover:bg-mad-lime"
+            )}
+            title="Features, SOPs & workflows"
+          >
+            <CircleHelp className="size-3.5" aria-hidden />
+            Help
+          </Link>
+          <div className="md:hidden">
+            <MobileNav
+              primaryLinks={primaryLinks}
+              entityQuery={entityQuery}
+              isActive={isActive}
+              userEmail={userEmail}
+              isOrgAdmin={isOrgAdmin}
+              organizationId={organizationId}
+              teamSlot={teamSlot}
+            />
+          </div>
+          <AccountMenu
+            entityQuery={entityQuery}
+            userEmail={userEmail}
+            isOrgAdmin={isOrgAdmin}
+            organizationId={organizationId}
+            teamSlot={teamSlot}
+            isActive={isActive}
+            className="hidden md:flex"
+          />
+        </div>
       </div>
     </header>
   )
 }
 
-function MobileNav({
-  links,
-  isActive,
+function AccountMenu({
   entityQuery,
+  userEmail,
+  isOrgAdmin,
+  organizationId,
+  teamSlot,
+  isActive,
+  className,
 }: {
-  links: NavLink[]
-  isActive: (match: string) => boolean
   entityQuery: string
+  userEmail: string | null
+  isOrgAdmin: boolean
+  organizationId: string | null
+  teamSlot?: React.ReactNode
+  isActive: (match: string) => boolean
+  className?: string
+}) {
+  const [pending, startTransition] = useTransition()
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            "gap-1.5 rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] uppercase shadow-keycap-sm",
+            className
+          )}
+        >
+          <User className="size-3.5" />
+          Account
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[12rem] rounded-none border-2 border-mad-black shadow-keycap"
+      >
+        {userEmail ? (
+          <>
+            <DropdownMenuLabel className="max-w-[14rem] truncate font-typewriter text-[0.55rem] normal-case">
+              {userEmail}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-mad-black" />
+          </>
+        ) : null}
+        <DropdownMenuItem asChild className="rounded-none">
+          <Link href={`/analytics${entityQuery}`}>Meter</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="rounded-none">
+          <Link href={`/settings/social${entityQuery}`}>Socials</Link>
+        </DropdownMenuItem>
+        {isOrgAdmin && organizationId && teamSlot ? (
+          <DropdownMenuItem asChild className="rounded-none p-0">
+            <div className="w-full px-2 py-1.5">{teamSlot}</div>
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem asChild className="rounded-none">
+          <Link href={`/help${entityQuery}`} className={isActive("/help") ? "font-bold" : ""}>
+            Help &amp; SOPs
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-mad-black" />
+        <DropdownMenuItem
+          disabled={pending}
+          onSelect={() => {
+            startTransition(async () => {
+              await signOut()
+              window.location.assign("/login")
+            })
+          }}
+          className="rounded-none font-bold"
+        >
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function MobileNav({
+  primaryLinks,
+  entityQuery,
+  isActive,
+  userEmail,
+  isOrgAdmin,
+  organizationId,
+  teamSlot,
+}: {
+  primaryLinks: NavLink[]
+  entityQuery: string
+  isActive: (match: string) => boolean
+  userEmail: string | null
+  isOrgAdmin: boolean
+  organizationId: string | null
+  teamSlot?: React.ReactNode
 }) {
   return (
     <DropdownMenu>
@@ -244,7 +343,7 @@ function MobileNav({
         align="end"
         className="min-w-[12rem] rounded-none border-2 border-mad-black shadow-keycap"
       >
-        {links.map((link) => (
+        {primaryLinks.map((link) => (
           <DropdownMenuItem key={link.href} asChild className="rounded-none">
             <Link
               href={link.href}
@@ -256,9 +355,23 @@ function MobileNav({
         ))}
         <DropdownMenuSeparator className="bg-mad-black" />
         <DropdownMenuItem asChild className="rounded-none">
-          <Link href={`/help${entityQuery}`} className="gap-2">
-            Help &amp; SOPs
-          </Link>
+          <Link href={`/analytics${entityQuery}`}>Meter</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="rounded-none">
+          <Link href={`/settings/social${entityQuery}`}>Socials</Link>
+        </DropdownMenuItem>
+        {userEmail ? (
+          <DropdownMenuLabel className="truncate font-typewriter text-[0.55rem] normal-case">
+            {userEmail}
+          </DropdownMenuLabel>
+        ) : null}
+        {isOrgAdmin && organizationId && teamSlot ? (
+          <DropdownMenuItem asChild className="rounded-none p-0">
+            <div className="w-full px-2 py-1.5">{teamSlot}</div>
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem asChild className="rounded-none">
+          <Link href={`/help${entityQuery}`}>Help &amp; SOPs</Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

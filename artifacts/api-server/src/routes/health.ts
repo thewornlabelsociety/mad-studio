@@ -1,11 +1,17 @@
 import { Router, type IRouter } from "express";
-import { HealthCheckResponse } from "@workspace/api-zod";
+
+import { getRegisteredServerActionNames } from "./actions";
 
 const router: IRouter = Router();
 
 router.get("/healthz", (_req, res) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
-  res.json(data);
+  const serverActions = getRegisteredServerActionNames();
+  res.json({
+    status: "ok",
+    serverActionCount: serverActions.length,
+    hasCreateFudiFeedCarousel: serverActions.includes("createFudiFeedCarousel"),
+    hasPatchDropWorkbenchDraft: serverActions.includes("patchDropWorkbenchDraft"),
+  });
 });
 
 export default router;

@@ -43,7 +43,6 @@ import {
   buildStoryCanvasModel,
   CANVAS_BG_PRESETS,
   conciseProductLabel,
-  storyLinkHostLabel,
   type StoryStylePreset,
 } from "@/lib/marketing/story-presets"
 import { FUDI_PUBLIC_ORIGIN } from "@/lib/studio/fudi-platform"
@@ -128,7 +127,7 @@ const PLATFORM_OPTIONS: Array<{
 
 type ActionContext = {
   entityId: string
-  marketingEntityId: string
+  marketingEntityId?: string | null
   websiteItemId?: string | null
   websiteUrl?: string | null
   trackableSlug?: string | null
@@ -203,6 +202,14 @@ type Props = {
   textOverlay?: CanvasTextOverlayState | null
   onTextOverlayChange?: (next: CanvasTextOverlayState) => void
   showTextStyler?: boolean
+  /** Hide Story Style / canvas styling row (cutout lives in Step Media controls). */
+  hideStylingDock?: boolean
+  /** Increment to trigger subject isolation from outside the simulator. */
+  externalCutoutRequestId?: number
+  /** Drag on-canvas text inside the media frame (Customize step). */
+  textOverlayInteractive?: boolean
+  /** Today quick preview — phone, platform pills, and action dock only. */
+  previewMinimal?: boolean
   className?: string
 }
 
@@ -213,6 +220,18 @@ function slugifyHandle(name: string): string {
       .replace(/[^a-z0-9]+/g, "")
       .slice(0, 24) || "brand"
   )
+}
+
+function carouselItemUrl(row: SimulatorCarouselItem): string {
+  return (row.publicUrl || row.url || "").trim()
+}
+
+function mediaUrlsMatch(a: string, b: string): boolean {
+  const left = a.trim()
+  const right = b.trim()
+  if (!left || !right) return false
+  if (left === right) return true
+  return left.replace(/\/$/, "") === right.replace(/\/$/, "")
 }
 
 function errorText(error: unknown): string {
@@ -259,6 +278,10 @@ export function MultiPlatformSimulator({
   textOverlay: controlledTextOverlay = null,
   onTextOverlayChange,
   showTextStyler = false,
+  hideStylingDock = false,
+  externalCutoutRequestId = 0,
+  textOverlayInteractive = false,
+  previewMinimal = false,
   className,
 }: Props) {
   const captureRef = useRef<HTMLDivElement>(null)
@@ -315,9 +338,11 @@ export function MultiPlatformSimulator({
 
   const slideIndex = controlledSlideIndex ?? uncontrolledSlideIndex
 
-  function setSlideIndex(next: number) {
+  function setSlideIndex(next: number | ((current: number) => number)) {
+    const base = controlledSlideIndex ?? uncontrolledSlideIndex
+    const resolved = typeof next === "function" ? next(base) : next
     const clamped = Math.min(
-      Math.max(next, 0),
+      Math.max(resolved, 0),
       Math.max(slides.length - 1, 0)
     )
     if (controlledSlideIndex == null) {
@@ -370,6 +395,7 @@ export function MultiPlatformSimulator({
   const isCarousel = slides.length > 1
   const feedCarousel =
     isCarousel && (platform === "ig_feed" || platform === "facebook")
+  const storyCarousel = isCarousel && platform === "ig_story"
   const safeSlideIndex = Math.min(
     Math.max(slideIndex, 0),
     Math.max(slides.length - 1, 0)
@@ -379,20 +405,24 @@ export function MultiPlatformSimulator({
   const slidesFingerprint = slides.map((row) => row.id ?? row.url).join("|")
 
   useEffect(() => {
-    setSlideIndex(0)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when slide set changes
+    setSlideIndex((current) =>
+      Math.min(Math.max(current, 0), Math.max(slides.length - 1, 0))
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clamp when slide set changes
   }, [slidesFingerprint])
 
   useEffect(() => {
     if (slides.length === 0 || !activeMedia?.url) return
     const needle = activeMedia.url.trim()
-    const idx = slides.findIndex(
-      (row) =>
-        row.url === needle ||
-        (row.publicUrl && row.publicUrl === needle) ||
-        row.url === activeMedia.url
-    )
-    if (idx >= 0 && idx !== safeSlideIndex) {
+    const idx = slides.findIndex((row) => {
+      const slideUrl = carouselItemUrl(row)
+      return (
+        mediaUrlsMatch(slideUrl, needle) ||
+        mediaUrlsMatch(row.url, needle) ||
+        (row.publicUrl != null && mediaUrlsMatch(row.publicUrl, needle))
+      )
+    })
+    if (idx >= 0) {
       setSlideIndex(idx)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync tray → slide
@@ -568,7 +598,9 @@ export function MultiPlatformSimulator({
     platformOptions.find((row) => row.id === platform) ?? platformOptions[0]
   // Compact shells sit in shrink-to-fit columns, so they need a fixed width.
   const shellMax = lockedViewport
-    ? "h-[700px] w-[360px] shrink-0"
+    ? compact
+      ? "h-[532px] w-[272px] shrink-0"
+      : "h-[700px] w-[360px] shrink-0"
     : compact
     ? pillMeta.aspect === "email"
       ? "w-[280px] max-w-full"
@@ -693,6 +725,19 @@ export function MultiPlatformSimulator({
       setBusy(null)
     }
   }
+
+  const lastExternalCutoutRequest = useRef(0)
+  useEffect(() => {
+    if (
+      externalCutoutRequestId <= 0 ||
+      externalCutoutRequestId === lastExternalCutoutRequest.current
+    ) {
+      return
+    }
+    lastExternalCutoutRequest.current = externalCutoutRequestId
+    void onIsolate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- explicit external trigger
+  }, [externalCutoutRequestId])
 
   async function ensureLink() {
     if (!actionContext) throw new Error("Missing action context.")
@@ -842,9 +887,17 @@ export function MultiPlatformSimulator({
     !isFudiEntity && (cutoutMode !== "original" || Boolean(item))
 
   const storyLinkUrl =
-    actionContext?.destinationUrl ??
-    (isFudiEntity ? FUDI_PUBLIC_ORIGIN : null)
-  const storyLinkHost = storyLinkHostLabel(storyLinkUrl)
+    trackableSlug != null
+      ? trackableUrl(trackableSlug)
+      : actionContext?.destinationUrl ??
+        (isFudiEntity ? FUDI_PUBLIC_ORIGIN : null)
+
+  const canvasLinkPillOn =
+    textOverlay.storyStickerMode === "link_badge" ||
+    (textOverlay.storyStickerMode === "none" &&
+      textOverlay.stickerEnabled &&
+      textOverlay.stickerId === "link_pill")
+  const storyEditorialStickers = platform === "ig_story"
 
   const isFeedPreview =
     platform === "ig_feed" || platform === "facebook"
@@ -858,11 +911,29 @@ export function MultiPlatformSimulator({
           ? "aspect-[9/16]"
           : "aspect-[9/16]"
 
-  const feedPreviewCaption =
-    content.caption.trim() ||
-    activeSlideText ||
-    content.headline.trim() ||
-    ""
+  const canvasHeadlineLive =
+    textOverlay.enabled && textOverlay.headline.trim()
+      ? textOverlay.headline.trim()
+      : ""
+  const feedPreviewCaption = (() => {
+    const captionBody = content.caption.trim()
+    if (captionBody) return captionBody
+    if (canvasHeadlineLive) {
+      return activeSlideText?.trim() || ""
+    }
+    return activeSlideText || content.headline.trim() || ""
+  })()
+
+  const canvasOverlayOnMedia = (
+    <CanvasTextOverlayLayer
+      overlay={textOverlay}
+      isVideo={isVideo}
+      interactive={textOverlayInteractive && Boolean(onTextOverlayChange)}
+      onOverlayChange={onTextOverlayChange ?? setTextOverlay}
+      linkHref={storyLinkUrl}
+      storyEditorialStickers={storyEditorialStickers}
+    />
+  )
 
   const phoneShell = (
     <div
@@ -888,8 +959,14 @@ export function MultiPlatformSimulator({
                 : "overflow-hidden",
               lockedViewport
                 ? isFeedPreview
-                  ? "h-[622px] w-full items-stretch justify-start"
-                  : "h-[622px] w-full items-center justify-center"
+                  ? cn(
+                      "w-full items-stretch justify-start",
+                      compact ? "h-[472px]" : "h-[622px]"
+                    )
+                  : cn(
+                      "w-full items-center justify-center",
+                      compact ? "h-[472px]" : "h-[622px]"
+                    )
                 : "min-h-[280px] w-full items-center justify-center"
             )}
             style={{ borderRadius: 35 }}
@@ -911,40 +988,58 @@ export function MultiPlatformSimulator({
                   handle={handle}
                   slideCount={slides.length}
                   activeSlideIndex={safeSlideIndex}
-                  linkLabel={
-                    content.stickerLabel ??
-                    (isFudiEntity ? "View on FÜDI" : "TAP TO VIEW")
+                  onSegmentSelect={
+                    storyCarousel
+                      ? (index) => setSlideIndex(index)
+                      : undefined
                   }
-                  linkHost={storyLinkHost}
+                  linkLabel={
+                    canvasLinkPillOn
+                      ? undefined
+                      : (content.stickerLabel ??
+                        (isFudiEntity ? "View on FÜDI" : "TAP TO VIEW"))
+                  }
+                  linkHref={
+                    canvasLinkPillOn ? undefined : storyLinkUrl ?? undefined
+                  }
                 >
-                  {isVideo && mediaUrl ? (
-                    <VideoFill
-                      src={mediaUrl}
-                      fit={isFudiEntity ? "cover" : "contain"}
-                    />
-                  ) : imageForCanvas ? (
-                    <StoryMediaStage
-                      imageUrl={imageForCanvas}
-                      canvasColor={canvasColor}
-                      mediaFit={isFudiEntity ? "cover" : "contain"}
-                      storyCanvas={
-                        <StoryCanvas
-                          model={storyModel}
-                          stylePreset={stylePreset}
-                          format="story_9_16"
-                          canvasColor={canvasColor}
-                          cutoutMode={cutoutMode}
-                          visualPresets={resolvedPresets}
-                          className="!aspect-auto h-full w-full max-w-none"
-                        />
-                      }
-                      useStoryCanvas={useStoryCanvasForIg}
-                    />
-                  ) : (
-                    <div className="flex size-full items-center justify-center bg-neutral-950 text-xs text-neutral-500">
-                      Add media
-                    </div>
-                  )}
+                  <StorySlideNav
+                    enabled={storyCarousel}
+                    slideIndex={safeSlideIndex}
+                    slideCount={slides.length}
+                    onPrev={() => goSlide(-1)}
+                    onNext={() => goSlide(1)}
+                  >
+                    {isVideo && mediaUrl ? (
+                      <VideoFill
+                        src={mediaUrl}
+                        fit={isFudiEntity ? "cover" : "contain"}
+                      />
+                    ) : imageForCanvas ? (
+                      <StoryMediaStage
+                        imageUrl={imageForCanvas}
+                        canvasColor={canvasColor}
+                        mediaFit={isFudiEntity ? "cover" : "contain"}
+                        storyCanvas={
+                          <StoryCanvas
+                            model={storyModel}
+                            stylePreset={stylePreset}
+                            format="story_9_16"
+                            canvasColor={canvasColor}
+                            cutoutMode={cutoutMode}
+                            visualPresets={resolvedPresets}
+                            className="!aspect-auto h-full w-full max-w-none"
+                          />
+                        }
+                        useStoryCanvas={useStoryCanvasForIg}
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center bg-neutral-950 text-xs text-neutral-500">
+                        Add media
+                      </div>
+                    )}
+                    {canvasOverlayOnMedia}
+                  </StorySlideNav>
                 </IgStoryChrome>
               ) : null}
 
@@ -953,7 +1048,11 @@ export function MultiPlatformSimulator({
                   brandName={content.brandName}
                   handle={handle}
                   network={platform === "facebook" ? "facebook" : "instagram"}
-                  hookLine={activeSlideText || content.headline}
+                  hookLine={
+                    textOverlay.enabled && textOverlay.headline.trim()
+                      ? activeSlideText || ""
+                      : activeSlideText || content.headline
+                  }
                   caption={feedPreviewCaption}
                 >
                   <FeedMediaStage
@@ -963,6 +1062,7 @@ export function MultiPlatformSimulator({
                     onPrev={() => goSlide(-1)}
                     onNext={() => goSlide(1)}
                     showCarousel={feedCarousel}
+                    canvasOverlay={canvasOverlayOnMedia}
                   />
                 </FeedChrome>
               ) : null}
@@ -994,16 +1094,12 @@ export function MultiPlatformSimulator({
                   cta={content.stickerLabel || "Shop now"}
                 />
               ) : null}
-              <CanvasTextOverlayLayer
-                overlay={textOverlay}
-                isVideo={isVideo}
-              />
             </div>
           </div>
         </div>
       </div>
 
-      {feedCarousel ? (
+      {feedCarousel && !(textOverlay.enabled && textOverlay.headline.trim()) ? (
         <div className="mt-2 space-y-1 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
           <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
             Slide caption · {safeSlideIndex + 1}/{slides.length}
@@ -1073,6 +1169,7 @@ export function MultiPlatformSimulator({
             value={textOverlay}
             onChange={setTextOverlay}
             isVideo={isVideo}
+            linkHref={storyLinkUrl}
           />
         ) : null}
         <label className="grid gap-1">
@@ -1277,7 +1374,9 @@ export function MultiPlatformSimulator({
           ) : null
 
   const stylingDock =
-    showCreativeControls || platform === "ig_story" ? (
+    previewMinimal || hideStylingDock
+      ? null
+      : showCreativeControls || platform === "ig_story" ? (
       <div className="flex w-full max-w-[360px] flex-wrap items-center gap-1.5 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
         <Select
           value={bgPresetId}
@@ -1408,15 +1507,16 @@ export function MultiPlatformSimulator({
           })}
         </div>
         )}
-        {showTextStyler ? (
+        {showTextStyler && !previewMinimal ? (
           <CanvasTextOverlayEditor
             value={textOverlay}
             onChange={setTextOverlay}
             isVideo={isVideo}
+            linkHref={storyLinkUrl}
             className="w-full max-w-[360px]"
           />
         ) : null}
-        {hidePlatformSwitcher ? null : stylingColumn}
+        {hidePlatformSwitcher || previewMinimal ? null : stylingColumn}
       </div>
     )
   }
@@ -1475,21 +1575,79 @@ export function MultiPlatformSimulator({
   )
 }
 
+function StorySlideNav({
+  enabled,
+  slideIndex,
+  slideCount,
+  onPrev,
+  onNext,
+  children,
+}: {
+  enabled: boolean
+  slideIndex: number
+  slideCount: number
+  onPrev: () => void
+  onNext: () => void
+  children: ReactNode
+}) {
+  if (!enabled) {
+    return <div className="relative size-full">{children}</div>
+  }
+
+  return (
+    <div className="relative size-full">
+      {children}
+      <button
+        type="button"
+        aria-label="Previous story slide"
+        onClick={onPrev}
+        className="absolute inset-y-0 left-0 z-40 w-[30%] cursor-w-resize bg-transparent"
+      />
+      <button
+        type="button"
+        aria-label="Next story slide"
+        onClick={onNext}
+        className="absolute inset-y-0 right-0 z-40 w-[30%] cursor-e-resize bg-transparent"
+      />
+      <button
+        type="button"
+        aria-label="Previous slide"
+        onClick={onPrev}
+        className="absolute top-1/2 left-1.5 z-50 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white/95 font-typewriter text-sm font-bold text-mad-black shadow-keycap-sm transition hover:bg-mad-lime"
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        aria-label="Next slide"
+        onClick={onNext}
+        className="absolute top-1/2 right-1.5 z-50 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white/95 font-typewriter text-sm font-bold text-mad-black shadow-keycap-sm transition hover:bg-mad-lime"
+      >
+        ›
+      </button>
+      <span className="absolute bottom-3 left-1/2 z-50 -translate-x-1/2 border border-mad-black bg-mad-black/80 px-2 py-0.5 font-typewriter text-[0.5rem] font-bold text-mad-white">
+        {slideIndex + 1}/{slideCount}
+      </span>
+    </div>
+  )
+}
+
 function IgStoryChrome({
   handle,
   children,
   slideCount = 1,
   activeSlideIndex = 0,
+  onSegmentSelect,
   linkLabel,
-  linkHost,
+  linkHref,
 }: {
   handle: string
   children: ReactNode
   slideCount?: number
   activeSlideIndex?: number
+  onSegmentSelect?: (index: number) => void
   linkLabel?: string
-  /** Resolved destination host shown under the sticker (e.g. fudi.nz). */
-  linkHost?: string | null
+  linkHref?: string | null
 }) {
   const segments = Math.max(slideCount, 1)
   return (
@@ -1497,11 +1655,16 @@ function IgStoryChrome({
       <div className="relative z-10 flex h-[15%] min-h-[72px] shrink-0 flex-col justify-end gap-2 px-3 pb-2">
         <div className="flex gap-1">
           {Array.from({ length: segments }).map((_, index) => (
-            <span
+            <button
               key={`seg-${index}`}
+              type="button"
+              aria-label={`Story slide ${index + 1}`}
+              disabled={!onSegmentSelect}
+              onClick={() => onSegmentSelect?.(index)}
               className={cn(
-                "h-[2px] flex-1 rounded-full",
-                index === activeSlideIndex ? "bg-white" : "bg-white/35"
+                "h-[2px] flex-1 rounded-full transition",
+                index === activeSlideIndex ? "bg-white" : "bg-white/35",
+                onSegmentSelect && "hover:bg-white/70"
               )}
             />
           ))}
@@ -1519,16 +1682,24 @@ function IgStoryChrome({
 
       <div className="relative z-0 min-h-0 flex-1">{children}</div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-[58%] z-20 flex flex-col items-center gap-1 px-4">
-        <span className="rounded-full border border-white/50 bg-black/45 px-3 py-1.5 text-[0.65rem] font-semibold tracking-wide text-white shadow-lg backdrop-blur-sm">
-          🔗 {linkLabel ?? "TAP TO VIEW"}
-        </span>
-        {linkHost ? (
-          <span className="rounded-md bg-black/50 px-2 py-0.5 text-[0.55rem] font-medium tracking-wide text-white/90">
-            {linkHost}
-          </span>
-        ) : null}
-      </div>
+      {linkLabel ? (
+        <div className="pointer-events-none absolute inset-x-0 top-[58%] z-20 flex justify-center px-4">
+          {linkHref?.trim() ? (
+            <a
+              href={linkHref.trim()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pointer-events-auto rounded-full border border-white/50 bg-black/45 px-3 py-1.5 text-[0.65rem] font-semibold tracking-wide text-white shadow-lg backdrop-blur-sm hover:bg-black/60"
+            >
+              🔗 {linkLabel}
+            </a>
+          ) : (
+            <span className="rounded-full border border-white/50 bg-black/45 px-3 py-1.5 text-[0.65rem] font-semibold tracking-wide text-white shadow-lg backdrop-blur-sm">
+              🔗 {linkLabel}
+            </span>
+          )}
+        </div>
+      ) : null}
 
       <div className="relative z-10 flex h-[15%] min-h-[64px] shrink-0 items-center gap-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pt-4 pb-3">
         <div className="flex-1 rounded-full border border-white/40 px-3 py-2 text-[0.7rem] text-white/80">
@@ -1704,6 +1875,7 @@ function FeedMediaStage({
   onPrev,
   onNext,
   showCarousel,
+  canvasOverlay = null,
 }: {
   slides: SimulatorCarouselItem[]
   slideIndex: number
@@ -1711,6 +1883,7 @@ function FeedMediaStage({
   onPrev: () => void
   onNext: () => void
   showCarousel: boolean
+  canvasOverlay?: ReactNode
 }) {
   const active = slides[slideIndex] ?? slides[0] ?? null
   const mediaUrl = active?.url ?? null
@@ -1755,6 +1928,8 @@ function FeedMediaStage({
             Add media
           </div>
         ) : null}
+
+        {canvasOverlay}
 
         {showCarousel ? (
           <>

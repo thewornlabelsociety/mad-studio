@@ -6,7 +6,9 @@ import {
 import type { MarketingEntity } from "@/lib/inventory/types"
 import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
 
-const MAX_TAGS = 8
+export const OPTIMIZATION_TAG_MAX = 8
+
+const MAX_TAGS = OPTIMIZATION_TAG_MAX
 
 /** Normalize to Instagram/TikTok-friendly tag tokens (no #). */
 export function normalizeOptTag(raw: string): string | null {

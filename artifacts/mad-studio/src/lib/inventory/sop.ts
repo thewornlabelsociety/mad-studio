@@ -70,6 +70,94 @@ function captionWordKey(text: string, count = 4): string {
     .join(" ")
 }
 
+function normalizeHookLead(text: string): string {
+  return text
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[.!?]+$/, "")
+    .toLowerCase()
+}
+
+function peelCaseInsensitiveLead(lead: string, caption: string): string {
+  const leadTrim = lead.trim()
+  const cap = caption.trim()
+  if (!leadTrim || !cap) return cap
+
+  const escaped = leadTrim.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const prefixPattern = new RegExp(`^${escaped}\\s*[.!?,:;\\-–—]*\\s*`, "i")
+  if (prefixPattern.test(cap)) {
+    return cap.replace(prefixPattern, "").trim()
+  }
+
+  const firstMatch = cap.match(/^[^.!?]+[.!?]?/)
+  const firstSentence = firstMatch?.[0]?.trim() ?? ""
+  if (
+    firstSentence &&
+    normalizeHookLead(firstSentence) === normalizeHookLead(leadTrim)
+  ) {
+    return cap.slice(firstSentence.length).replace(/^[\s.!?]+/, "").trim()
+  }
+
+  return cap
+}
+
+/** Remove a leading hook sentence from caption when it duplicates the Hook field. */
+export function stripDuplicateHookFromCaption(
+  headline: string,
+  caption: string
+): string {
+  const h = headline.trim()
+  let c = caption.trim()
+  if (!h || !c) return c
+
+  const leads = [h]
+  const afterLabel = h.match(/^[^:]{1,48}:\s*(.+)$/s)?.[1]?.trim()
+  if (afterLabel) leads.push(afterLabel)
+
+  for (const lead of leads) {
+    const peeled = peelCaseInsensitiveLead(lead, c)
+    if (peeled !== c && peeled.length >= 8) return peeled
+    if (peeled !== c && peeled.length > 0 && c.length > lead.length + 12) {
+      return peeled
+    }
+  }
+
+  if (isDoubledFudiCaption(h, c)) {
+    return peelDoubledFudiLeadIn(h, c)
+  }
+
+  return c
+}
+
+export function resolveWorkbenchCaptionBody(input: {
+  headline: string
+  item: MarketingEntity
+  fallbackCaption: string
+  isFudi: boolean
+}): string {
+  const headline = input.headline.trim()
+  const description = scrubCopyMarkers(input.item.description?.trim() || "")
+  const sources = [description, input.fallbackCaption.trim()].filter(Boolean)
+
+  for (const source of sources) {
+    let body = stripDuplicateHookFromCaption(headline, source)
+    if (input.isFudi) {
+      body = appendFudiDefaultCta(body)
+    }
+    const bodyLead = normalizeHookLead(body)
+    const hookLead = normalizeHookLead(headline)
+    if (body && bodyLead !== hookLead && body.length >= 8) {
+      return body
+    }
+  }
+
+  const stripped = stripDuplicateHookFromCaption(
+    headline,
+    input.fallbackCaption.trim()
+  )
+  return input.isFudi ? appendFudiDefaultCta(stripped) : stripped
+}
+
 /** Legacy drafts: hook sentence + same post text repeated (not hook === first line of body). */
 function isDoubledFudiCaption(headline: string, caption: string): boolean {
   const h = headline.trim().replace(/\.$/, "")
@@ -164,14 +252,20 @@ export function repairFudiCaptionDoubling(
   caption: string,
   fallbackDescription?: string | null
 ): string {
-  if (isDoubledFudiCaption(headline, caption)) {
-    return peelDoubledFudiLeadIn(headline, caption)
+  let next = stripDuplicateHookFromCaption(headline, caption)
+  if (isDoubledFudiCaption(headline, next)) {
+    next = peelDoubledFudiLeadIn(headline, next)
   }
   const fallback = fallbackDescription?.trim()
-  if (fallback && looksLikePeelMangledCaption(caption)) {
-    return appendFudiDefaultCta(scrubCopyMarkers(fallback))
+  if (fallback && looksLikePeelMangledCaption(next)) {
+    return appendFudiDefaultCta(
+      stripDuplicateHookFromCaption(
+        headline,
+        scrubCopyMarkers(fallback)
+      )
+    )
   }
-  return caption
+  return next
 }
 
 export function buildDefaultDraft(
@@ -193,7 +287,10 @@ export function buildDefaultDraft(
 
   if (profile.id === "fudi") {
     const caption = appendFudiDefaultCta(
-      baseDescription || `${headline}.`
+      stripDuplicateHookFromCaption(
+        headline,
+        baseDescription || `${headline}.`
+      )
     )
     return { headline, caption, tags: [] }
   }

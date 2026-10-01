@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { Images, Loader2, X } from "lucide-react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
+import { Images, Loader2, Plus, Upload, X } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -16,19 +16,39 @@ import {
 } from "@/lib/studio/media-library"
 import { cn } from "@/lib/utils"
 
-type Props = {
+type BaseProps = {
   entityId: string
   open: boolean
   onOpenChange: (open: boolean) => void
-  onBuildCarousel: (items: MediaLibraryItem[]) => void
+  /** After local upload from this drawer, refresh the grid. */
+  onUploadFiles?: (files: FileList) => void | Promise<void>
 }
 
-export function MediaLibraryDrawer({
-  entityId,
-  open,
-  onOpenChange,
-  onBuildCarousel,
-}: Props) {
+type CarouselModeProps = BaseProps & {
+  mode?: "carousel"
+  onBuildCarousel: (items: MediaLibraryItem[]) => void
+  onAttachToTray?: never
+}
+
+type AttachModeProps = BaseProps & {
+  mode: "attach"
+  onAttachToTray: (items: MediaLibraryItem[]) => void
+  onBuildCarousel?: never
+}
+
+type Props = CarouselModeProps | AttachModeProps
+
+export function MediaLibraryDrawer(props: Props) {
+  const {
+    entityId,
+    open,
+    onOpenChange,
+    onUploadFiles,
+    mode = "carousel",
+  } = props
+
+  const uploadInputId = useId()
+  const uploadRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<MediaLibraryItem[]>([])
   const [selected, setSelected] = useState<string[]>([])
@@ -53,30 +73,66 @@ export function MediaLibraryDrawer({
     void load()
   }, [open, load])
 
+  const maxSelect = mode === "attach" ? 20 : 10
+
   function toggle(id: string) {
     setSelected((current) => {
       if (current.includes(id)) {
         return current.filter((row) => row !== id)
       }
-      if (current.length >= 10) {
-        toast.message("Carousel supports up to 10 items.")
+      if (current.length >= maxSelect) {
+        toast.message(
+          mode === "attach"
+            ? `Select up to ${maxSelect} items.`
+            : "Carousel supports up to 10 items."
+        )
         return current
       }
       return [...current, id]
     })
   }
 
-  function onBuild() {
+  function onPrimaryAction() {
     const picked = selected
       .map((id) => items.find((row) => row.id === id))
       .filter((row): row is MediaLibraryItem => Boolean(row))
+
+    if (mode === "attach") {
+      if (picked.length < 1) {
+        toast.message("Select at least one item to add to the tray.")
+        return
+      }
+      if (props.mode === "attach") {
+        props.onAttachToTray(picked)
+      }
+      onOpenChange(false)
+      toast.success(
+        picked.length === 1
+          ? "Added to media tray."
+          : `Added ${picked.length} items to media tray.`
+      )
+      return
+    }
+
     if (picked.length < 2) {
       toast.message("Select at least two items for a feed carousel.")
       return
     }
-    onBuildCarousel(picked)
+    if (props.mode !== "attach") {
+      props.onBuildCarousel(picked)
+    }
     onOpenChange(false)
     toast.success(`Carousel mounted with ${picked.length} slides.`)
+  }
+
+  async function onUploadChange(files: FileList | null) {
+    if (!files?.length || !onUploadFiles) return
+    try {
+      await onUploadFiles(files)
+      await load()
+    } finally {
+      if (uploadRef.current) uploadRef.current.value = ""
+    }
   }
 
   return (
@@ -90,9 +146,19 @@ export function MediaLibraryDrawer({
             Media library
           </SheetTitle>
           <p className="font-typewriter text-[0.5rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
-            Recent entity media — multi-select up to 10 stills or clips, then
-            build a feed carousel in the simulator.
+            {mode === "attach"
+              ? "Pick intake or uploaded entity media, or upload a new file — then add to your tray."
+              : "Recent entity media — multi-select up to 10 stills or clips, then build a feed carousel in the simulator."}
           </p>
+          {onUploadFiles ? (
+            <label
+              htmlFor={uploadInputId}
+              className="mt-2 inline-flex cursor-pointer items-center gap-1.5 border-2 border-mad-black bg-mad-lime px-2.5 py-1.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white"
+            >
+              <Upload className="size-3.5" />
+              Upload new file
+            </label>
+          ) : null}
         </SheetHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -102,7 +168,7 @@ export function MediaLibraryDrawer({
             </div>
           ) : items.length === 0 ? (
             <p className="py-8 text-center text-sm text-neutral-600">
-              No media yet — sync intake or upload in the media tray.
+              No media yet — sync intake or upload a new file above.
             </p>
           ) : (
             <ul className="grid grid-cols-3 gap-2">
@@ -146,6 +212,9 @@ export function MediaLibraryDrawer({
                         </span>
                       ) : null}
                     </button>
+                    <p className="mt-0.5 line-clamp-2 font-typewriter text-[0.45rem] leading-tight text-neutral-600 normal-case">
+                      {item.sourceTitle}
+                    </p>
                   </li>
                 )
               })}
@@ -156,12 +225,23 @@ export function MediaLibraryDrawer({
         <div className="shrink-0 border-t-2 border-mad-black p-3">
           <button
             type="button"
-            disabled={selected.length < 2}
-            onClick={onBuild}
+            disabled={
+              mode === "attach" ? selected.length < 1 : selected.length < 2
+            }
+            onClick={onPrimaryAction}
             className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase disabled:opacity-50"
           >
-            <Images className="size-4" />
-            Build carousel ({selected.length}/10)
+            {mode === "attach" ? (
+              <>
+                <Plus className="size-4" />
+                Add to tray ({selected.length})
+              </>
+            ) : (
+              <>
+                <Images className="size-4" />
+                Build carousel ({selected.length}/10)
+              </>
+            )}
           </button>
           <button
             type="button"
@@ -172,6 +252,18 @@ export function MediaLibraryDrawer({
             Close
           </button>
         </div>
+
+        {onUploadFiles ? (
+          <input
+            ref={uploadRef}
+            id={uploadInputId}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime"
+            multiple
+            className="sr-only"
+            onChange={(event) => void onUploadChange(event.target.files)}
+          />
+        ) : null}
       </SheetContent>
     </Sheet>
   )

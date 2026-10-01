@@ -989,7 +989,12 @@ export async function repurposeMarketingEntity(input: {
 export async function createFudiFeedCarousel(input: {
   entityId: string
   sourceItemIds: string[]
-  templateId: FudiCarouselTemplateId
+  templateId?: FudiCarouselTemplateId
+  headline?: string
+  caption?: string
+  tags?: string[]
+  slideSubheads?: string[]
+  promoAngle?: { id: string; title: string; reasoning?: string }
 }): Promise<InventoryActionResult<{ itemId: string }>> {
   const auth = await assertCanEdit(input.entityId)
   if (auth.error || !auth.user) {
@@ -1000,7 +1005,9 @@ export async function createFudiFeedCarousel(input: {
     return { ok: false, error: "Feed carousels are scoped to the FÜDI entity." }
   }
 
-  const uniqueIds = Array.from(new Set(input.sourceItemIds))
+  const uniqueIds = Array.from(
+    new Set(input.sourceItemIds.filter((id) => id.trim()))
+  )
   if (uniqueIds.length < 2 || uniqueIds.length > 10) {
     return { ok: false, error: "Pick between 2 and 10 intake slides." }
   }
@@ -1037,13 +1044,25 @@ export async function createFudiFeedCarousel(input: {
     }
   }
 
-  const template = fudiCarouselTemplate(input.templateId)
+  const template = fudiCarouselTemplate(
+    input.templateId ?? "feed_today"
+  )
+  const headline = input.headline?.trim() || template.headline
+  const caption = input.caption?.trim() || template.caption
+  const tags = Array.isArray(input.tags)
+    ? input.tags.filter((row) => typeof row === "string" && row.trim())
+    : []
+  const slideSubheads = Array.isArray(input.slideSubheads)
+    ? input.slideSubheads.map((row) => String(row).trim()).slice(0, images.length)
+    : []
+
   const now = new Date().toISOString()
   const websiteItemId = `promo-carousel-${Date.now()}`
 
   const copy_draft = {
-    headline: template.headline,
-    caption: template.caption,
+    headline,
+    caption,
+    tags,
     placement: "feed" as const,
     platform: "feed" as const,
     media_url: images[0],
@@ -1052,6 +1071,16 @@ export async function createFudiFeedCarousel(input: {
       channel_hint: "IG Carousel / Facebook",
       source_table: "mad_carousel",
       item_type: "platform_promo",
+      carousel_slide_subheads: slideSubheads,
+      ...(input.promoAngle
+        ? {
+            carousel_promo_angle: {
+              id: input.promoAngle.id,
+              title: input.promoAngle.title,
+              reasoning: input.promoAngle.reasoning ?? null,
+            },
+          }
+        : {}),
     },
   }
 
@@ -1060,10 +1089,10 @@ export async function createFudiFeedCarousel(input: {
     .insert({
       entity_id: input.entityId,
       website_item_id: websiteItemId,
-      title: template.headline.slice(0, 500),
+      title: headline.slice(0, 500),
       brand: "FÜDI",
       price: null,
-      description: template.caption.slice(0, 8000),
+      description: caption.slice(0, 8000),
       images,
       status: "draft",
       metrics: { views: 0, clicks: 0, sales: 0 } as Json,

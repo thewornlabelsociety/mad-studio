@@ -14,7 +14,7 @@ type Props = {
 }
 
 export function QueueCard({ view, entityId, brandName }: Props) {
-  const studioHref = `/studio?eid=${encodeURIComponent(entityId)}&itemId=${encodeURIComponent(view.item.id)}`
+  const studioHref = `/studio?eid=${encodeURIComponent(entityId)}&itemId=${encodeURIComponent(view.item.id)}&step=2`
 
   return (
     <article className="grid gap-4 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:items-center sm:gap-5 sm:p-4">
@@ -63,6 +63,11 @@ export function QueueCard({ view, entityId, brandName }: Props) {
           >
             {view.channel === "tiktok" ? "🎵 TikTok" : "📸 IG Story"}
           </span>
+          {view.intakeBadge ? (
+            <span className="border border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
+              [ {view.intakeBadge.emoji} {view.intakeBadge.label} ]
+            </span>
+          ) : null}
           {view.fudiTrackLabel ? (
             <span className="border border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
               {view.fudiTrackLabel}
@@ -87,7 +92,7 @@ export function QueueCard({ view, entityId, brandName }: Props) {
           className="inline-flex h-11 items-center justify-center gap-1.5 border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion"
         >
           <Zap className="size-3.5" />
-          Add to Studio →
+          Craft in Studio →
         </Link>
       </div>
     </article>

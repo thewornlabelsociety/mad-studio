@@ -1,6 +1,15 @@
 "use client"
 
 import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type Dispatch,
+  type SetStateAction,
+} from "react"
+
+import {
   CHANNEL_HINT_PRESETS,
   FUDI_DROP_KIND_OPTIONS,
   type PostIntentState,
@@ -8,11 +17,85 @@ import {
 import type { FudiDropKind } from "@/lib/today/agenda"
 import { cn } from "@/lib/utils"
 
+/** Controlled text field — avoids typewriter letter-spacing caret bugs in Chrome. */
+function PostIntentTextField({
+  value,
+  onValueChange,
+  placeholder,
+  className,
+}: {
+  value: string
+  onValueChange: (next: string) => void
+  placeholder?: string
+  className?: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const focusedRef = useRef(false)
+  const lastEmittedRef = useRef(value)
+  const [draft, setDraft] = useState(value)
+
+  useEffect(() => {
+    if (!focusedRef.current) {
+      setDraft(value)
+      lastEmittedRef.current = value
+      return
+    }
+    if (value !== lastEmittedRef.current) {
+      setDraft(value)
+      lastEmittedRef.current = value
+    }
+  }, [value])
+
+  function commit(next: string, event: ChangeEvent<HTMLInputElement>) {
+    const el = event.target
+    const selStart = el.selectionStart
+    const selEnd = el.selectionEnd
+    setDraft(next)
+    lastEmittedRef.current = next
+    onValueChange(next)
+    requestAnimationFrame(() => {
+      const input = inputRef.current
+      if (!input || document.activeElement !== input) return
+      if (selStart == null || selEnd == null) return
+      try {
+        input.setSelectionRange(selStart, selEnd)
+      } catch {
+        input.setSelectionRange(next.length, next.length)
+      }
+    })
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      dir="ltr"
+      autoComplete="off"
+      spellCheck={false}
+      placeholder={placeholder}
+      value={draft}
+      onFocus={() => {
+        focusedRef.current = true
+      }}
+      onBlur={() => {
+        focusedRef.current = false
+        lastEmittedRef.current = draft
+        onValueChange(draft)
+      }}
+      onChange={(event) => commit(event.target.value, event)}
+      className={cn(
+        "w-full border-2 border-mad-black bg-mad-white px-2 py-1 font-sans text-sm normal-case tracking-normal outline-none focus:bg-mad-lime/20",
+        className
+      )}
+    />
+  )
+}
+
 type Props = {
   isFudi: boolean
   vibeOptions: string[]
   value: PostIntentState
-  onChange: (next: PostIntentState) => void
+  onChange: Dispatch<SetStateAction<PostIntentState>>
   className?: string
 }
 
@@ -52,7 +135,7 @@ export function PostIntentEditor({
                     key={option.id}
                     type="button"
                     onClick={() =>
-                      onChange({ ...value, dropKind: option.id })
+                      onChange((prev) => ({ ...prev, dropKind: option.id }))
                     }
                     className={cn(
                       "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase transition",
@@ -80,7 +163,7 @@ export function PostIntentEditor({
                     key={preset}
                     type="button"
                     onClick={() =>
-                      onChange({ ...value, channelHint: preset })
+                      onChange((prev) => ({ ...prev, channelHint: preset }))
                     }
                     className={cn(
                       "border border-mad-black/60 px-1.5 py-0.5 font-typewriter text-[0.45rem] font-bold tracking-wider uppercase transition",
@@ -94,14 +177,12 @@ export function PostIntentEditor({
                 )
               })}
             </div>
-            <input
-              type="text"
+            <PostIntentTextField
               value={value.channelHint}
-              onChange={(event) =>
-                onChange({ ...value, channelHint: event.target.value })
+              onValueChange={(channelHint) =>
+                onChange((prev) => ({ ...prev, channelHint }))
               }
               placeholder="Custom channel hint…"
-              className="w-full border-2 border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.55rem] uppercase outline-none focus:bg-mad-lime/20"
             />
           </div>
         </>
@@ -119,7 +200,9 @@ export function PostIntentEditor({
               <button
                 key={vibe}
                 type="button"
-                onClick={() => onChange({ ...value, listingVibe: vibe })}
+                onClick={() =>
+                  onChange((prev) => ({ ...prev, listingVibe: vibe }))
+                }
                 className={cn(
                   "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase transition",
                   active
@@ -132,14 +215,12 @@ export function PostIntentEditor({
             )
           })}
         </div>
-        <input
-          type="text"
+        <PostIntentTextField
           value={value.listingVibe}
-          onChange={(event) =>
-            onChange({ ...value, listingVibe: event.target.value })
+          onValueChange={(listingVibe) =>
+            onChange((prev) => ({ ...prev, listingVibe }))
           }
           placeholder="Custom vibe label…"
-          className="w-full border-2 border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.55rem] outline-none focus:bg-mad-lime/20"
         />
       </div>
     </section>

@@ -10,11 +10,15 @@ import { CampaignsLedger } from "@/components/campaigns/campaigns-ledger"
 import { CampaignsToast } from "@/components/campaigns/campaigns-toast"
 import { AppTopbar } from "@/components/layout/app-topbar"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
-import type {
-  AnalyticsSnapshot,
-  CampaignLedgerItem,
-  CampaignQueuePost,
+import {
+  ctrFromMetrics,
+  isBrainMemoryVaultCampaign,
+  type AnalyticsSnapshot,
+  type CampaignLedgerItem,
+  type CampaignQueuePost,
+  type PublishedDropRow,
 } from "@/lib/campaigns/ledger"
+import { mapMarketingEntityRow } from "@/lib/inventory/types"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
 
@@ -70,7 +74,11 @@ export default async function CampaignsPage({
     .eq("entity_id", activeEntity.id)
     .order("created_at", { ascending: false })
 
-  const campaignIds = (campaignRows ?? []).map((campaign) => campaign.id)
+  const dropCampaignRows = (campaignRows ?? []).filter(
+    (campaign) => !isBrainMemoryVaultCampaign(campaign)
+  )
+
+  const campaignIds = dropCampaignRows.map((campaign) => campaign.id)
   const analyticsByCampaign = new Map<string, AnalyticsSnapshot>()
 
   if (campaignIds.length > 0) {
@@ -109,12 +117,61 @@ export default async function CampaignsPage({
     }
   }
 
-  const campaigns: CampaignLedgerItem[] = (campaignRows ?? []).map(
-    (campaign) => ({
-      ...campaign,
-      analytics: analyticsByCampaign.get(campaign.id) ?? null,
-      queue: queueByCampaign.get(campaign.id) ?? [],
-    })
+  const campaigns: CampaignLedgerItem[] = dropCampaignRows.map((campaign) => ({
+    ...campaign,
+    analytics: analyticsByCampaign.get(campaign.id) ?? null,
+    queue: queueByCampaign.get(campaign.id) ?? [],
+  }))
+
+  const { data: publishedEntityRows } = await supabase
+    .from("marketing_entities")
+    .select(
+      "id, entity_id, website_item_id, title, brand, price, description, images, status, metrics, scheduled_at, channels, copy_draft, published_media_ids, trackable_slug, published_at, created_at, updated_at"
+    )
+    .eq("entity_id", activeEntity.id)
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
+
+  const { data: entityCampaignLinks } = await supabase
+    .from("scheduled_posts")
+    .select("marketing_entity_id, campaign_id")
+    .eq("entity_id", activeEntity.id)
+    .not("marketing_entity_id", "is", null)
+
+  const marketingEntityToCampaign = new Map<string, string>()
+  for (const link of entityCampaignLinks ?? []) {
+    if (link.marketing_entity_id && link.campaign_id) {
+      marketingEntityToCampaign.set(link.marketing_entity_id, link.campaign_id)
+    }
+  }
+
+  const publishedDrops: PublishedDropRow[] = (publishedEntityRows ?? []).map(
+    (row) => {
+      const item = mapMarketingEntityRow(row)
+      const campaignId = marketingEntityToCampaign.get(item.id)
+      const analytics = campaignId
+        ? analyticsByCampaign.get(campaignId)
+        : null
+      const clicks = Number(analytics?.clicks ?? item.metrics.clicks ?? 0)
+      const spend = Number(analytics?.spend ?? 0)
+      const cpcFromAnalytics =
+        analytics?.cpc != null ? Number(analytics.cpc) : null
+      return {
+        id: item.id,
+        title: item.title,
+        thumbnailUrl: item.images[0]?.trim() || null,
+        targetAudience:
+          item.copy_draft?.metadata?.listing_vibe?.trim() ||
+          item.vibe?.trim() ||
+          null,
+        ctrPercent: ctrFromMetrics(item.metrics),
+        directConversions: Number(item.metrics.sales ?? 0),
+        costPerClick:
+          cpcFromAnalytics ??
+          (clicks > 0 && spend > 0 ? spend / clicks : null),
+        publishedAt: item.published_at,
+      }
+    }
   )
 
   return (
@@ -142,6 +199,7 @@ export default async function CampaignsPage({
           entityId={activeEntity.id}
           entityName={activeEntity.name}
           campaigns={campaigns}
+          publishedDrops={publishedDrops}
         />
       </main>
     </div>

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client"
-import { detectMediaKindFromUrl } from "@/components/marketing/media-tray"
+import { detectMediaKindFromUrl } from "@/lib/media/kind"
 
 export type MediaLibraryOrigin = "fudi_intake" | "upload"
 

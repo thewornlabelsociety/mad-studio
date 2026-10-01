@@ -61,6 +61,11 @@ const actions: Record<string, (...args: any[]) => Promise<unknown>> = {
   ensureInventoryTrackableLink: socialConnections.ensureInventoryTrackableLink,
 };
 
+/** Introspection for health checks and ops (dist must be rebuilt after adding actions). */
+export function getRegisteredServerActionNames(): string[] {
+  return Object.keys(actions).sort();
+}
+
 const formDataActions = new Set([
   "signInWithPassword",
   "signUpWithPassword",

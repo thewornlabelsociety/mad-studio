@@ -1,8 +1,7 @@
-import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 import type { ContextHook } from "@/lib/inventory/context-hooks"
 import {
   buildDefaultDraft,
-  workbenchHeadlineFromTitle,
+  stripDuplicateHookFromCaption,
 } from "@/lib/inventory/sop"
 import type { MarketingEntity } from "@/lib/inventory/types"
 
@@ -20,17 +19,9 @@ export function buildWorkbenchCaptionVariants(input: {
   industry?: string | null
   hooks: ContextHook[]
 }): WorkbenchCaptionVariant[] {
-  const profile = resolveIndustryProfile({
-    name: input.brandName,
-    industry: input.industry,
-  })
   const baseline = buildDefaultDraft(input.item, {
     brandName: input.brandName,
     industry: input.industry,
-  })
-  const headline = workbenchHeadlineFromTitle(input.item.title, {
-    brand: input.item.brand,
-    profileId: profile.id,
   })
 
   return [
@@ -38,13 +29,16 @@ export function buildWorkbenchCaptionVariants(input: {
       id: "intake",
       label: "From intake",
       headline: baseline.headline,
-      caption: baseline.caption,
+      caption: stripDuplicateHookFromCaption(
+        baseline.headline,
+        baseline.caption
+      ),
     },
     ...input.hooks.map((hook) => ({
       id: hook.id,
       label: hook.label,
-      headline,
-      caption: hook.hook,
+      headline: hook.hook,
+      caption: stripDuplicateHookFromCaption(hook.hook, baseline.caption),
     })),
   ]
 }

@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Flame, Loader2, ThumbsDown, ThumbsUp } from "lucide-react"
+import { Flame, Loader2, ThumbsDown, ThumbsUp, Trophy } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "@/lib/next-compat"
 
+import { CampaignAssetPackPreview } from "@/components/campaigns/campaign-asset-pack-preview"
 import { Label } from "@/components/ui/label"
 import type { OutcomeRating } from "@/lib/campaigns/ledger"
 import { cn } from "@/lib/utils"
@@ -12,6 +13,8 @@ import { cn } from "@/lib/utils"
 type CampaignPostMortemProps = {
   campaignId: string
   entityId: string
+  assetPack?: unknown
+  targetSegment?: string | null
   initialOutcome?: OutcomeRating | null
   initialWhatWorked?: string | null
   initialWhatDidntWork?: string | null
@@ -47,6 +50,8 @@ const OUTCOMES: Array<{
 export function CampaignPostMortem({
   campaignId,
   entityId,
+  assetPack = null,
+  targetSegment = null,
   initialOutcome = null,
   initialWhatWorked = "",
   initialWhatDidntWork = "",
@@ -59,7 +64,9 @@ export function CampaignPostMortem({
     initialWhatDidntWork ?? ""
   )
   const [takeaway, setTakeaway] = useState(initialTakeaway)
+  const [winnerTakeaway, setWinnerTakeaway] = useState("")
   const [saving, setSaving] = useState(false)
+  const [markingWinner, setMarkingWinner] = useState(false)
 
   async function onSave() {
     if (!outcome) {
@@ -103,8 +110,87 @@ export function CampaignPostMortem({
     }
   }
 
+  async function onMarkWinner() {
+    const sentence = winnerTakeaway.trim()
+    if (sentence.length < 8) {
+      toast.error("Add a one-sentence takeaway (at least 8 characters).")
+      return
+    }
+    setMarkingWinner(true)
+    try {
+      const response = await fetch("/api/campaigns/mark-winner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaignId,
+          entityId,
+          userTakeaway: sentence,
+        }),
+      })
+      const payload = (await response.json()) as {
+        campaign?: {
+          ai_takeaway: string | null
+          outcome_rating: OutcomeRating
+          what_worked: string | null
+        }
+        error?: string
+      }
+      if (!response.ok || !payload.campaign) {
+        throw new Error(payload.error ?? "Could not mark winner.")
+      }
+      setOutcome("winner")
+      setWhatWorked(payload.campaign.what_worked ?? "")
+      setTakeaway(payload.campaign.ai_takeaway)
+      toast.success("Winner saved to Brain Memory Vault.")
+      router.refresh()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Mark winner failed."
+      )
+    } finally {
+      setMarkingWinner(false)
+    }
+  }
+
   return (
     <section className="space-y-4">
+      <CampaignAssetPackPreview assetPack={assetPack} />
+      {targetSegment ? (
+        <p className="font-typewriter text-[0.6rem] tracking-wider text-neutral-600 uppercase">
+          Target audience · {targetSegment}
+        </p>
+      ) : null}
+
+      <div className="space-y-2 border-2 border-mad-black bg-mad-lime/15 p-3 shadow-keycap-sm">
+        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+          🏆 Mark as Winner
+        </p>
+        <p className="text-xs text-neutral-700">
+          Captures the hook blueprint and audience segment, then stores your
+          one-line lesson for future Studio generations.
+        </p>
+        <input
+          type="text"
+          value={winnerTakeaway}
+          onChange={(event) => setWinnerTakeaway(event.target.value)}
+          placeholder='e.g. "High-contrast kitchen sizzle outperforms static plating"'
+          className="w-full border-2 border-mad-black px-2 py-2 text-sm outline-none focus:bg-mad-white"
+        />
+        <button
+          type="button"
+          onClick={onMarkWinner}
+          disabled={markingWinner}
+          className="inline-flex items-center gap-2 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-60"
+        >
+          {markingWinner ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Trophy className="size-4" />
+          )}
+          Mark as Winner
+        </button>
+      </div>
+
       <div>
         <h3 className="font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
           Playbook Notes

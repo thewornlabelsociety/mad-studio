@@ -54,6 +54,12 @@ export type MarketingCopyDraft = {
     channel_hint?: string | null
     /** Operator override for listing vibe (hooks + tags). */
     listing_vibe?: string | null
+    /** On-image text styling (position, font, colors) for publish preview. */
+    canvas_text_overlay?: unknown
+    /** Intake channel for Today badges (mobile_drop, auto_trigger, …). */
+    origin?: string | null
+    sender?: string | null
+    auto_template?: string | null
   }
 }
 

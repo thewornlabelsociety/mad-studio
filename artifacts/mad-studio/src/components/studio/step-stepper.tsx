@@ -1,44 +1,77 @@
 "use client"
 
+import { Link } from "wouter"
 import { Check } from "lucide-react"
 
+import {
+  WORKBENCH_STEP_CANVAS,
+  WORKBENCH_STEP_CHANNELS,
+  WORKBENCH_STEP_COPY,
+  WORKBENCH_STEP_INTENT,
+  WORKBENCH_STEP_MEDIA,
+  WORKBENCH_STEP_TODAY,
+  type WorkbenchFlowStep,
+} from "@/lib/studio/workbench-steps"
 import { cn } from "@/lib/utils"
 
 export const WORKBENCH_STEPS = [
   {
-    id: 1,
+    id: WORKBENCH_STEP_TODAY,
+    key: "today",
+    label: "Today",
+    short: "Today",
+    cue: "Intake queue",
+  },
+  {
+    id: WORKBENCH_STEP_MEDIA,
     key: "media",
     label: "Media",
     short: "Media",
-    cue: "Cutout, captions & tags",
+    cue: "Upload & external edits",
   },
   {
-    id: 2,
-    key: "review",
-    label: "Review",
-    short: "Review",
-    cue: "Check the preview",
+    id: WORKBENCH_STEP_INTENT,
+    key: "intent",
+    label: "Intent",
+    short: "Intent",
+    cue: "DNA & audience",
   },
   {
-    id: 3,
-    key: "dispatch",
+    id: WORKBENCH_STEP_CANVAS,
+    key: "canvas",
+    label: "Canvas",
+    short: "Canvas",
+    cue: "On-image text",
+  },
+  {
+    id: WORKBENCH_STEP_COPY,
+    key: "copy",
+    label: "Copy",
+    short: "Copy",
+    cue: "Hooks & captions",
+  },
+  {
+    id: WORKBENCH_STEP_CHANNELS,
+    key: "channels",
     label: "Schedule",
     short: "Schedule",
-    cue: "Publish or schedule",
+    cue: "Preview & publish",
   },
 ] as const
 
-export type WorkbenchStepId = (typeof WORKBENCH_STEPS)[number]["id"]
+export type WorkbenchStepId = WorkbenchFlowStep
 
 type StepStepperProps = {
   step: WorkbenchStepId
   onStepChange?: (step: WorkbenchStepId) => void
+  todayHref?: string | null
   className?: string
 }
 
 export function StepStepper({
   step,
   onStepChange,
+  todayHref = null,
   className,
 }: StepStepperProps) {
   return (
@@ -50,39 +83,66 @@ export function StepStepper({
         {WORKBENCH_STEPS.map((item) => {
           const active = step === item.id
           const complete = step > item.id
-          return (
-            <li key={item.id} className="flex min-w-0 flex-1">
-              <button
-                type="button"
-                onClick={() => {
-                  onStepChange?.(item.id)
-                  window.scrollTo({ top: 0, behavior: "smooth" })
-                }}
+          const isToday = item.id === WORKBENCH_STEP_TODAY
+
+          const inner = (
+            <>
+              <span
                 className={cn(
-                  "flex w-full items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-center transition",
+                  "flex size-5 shrink-0 items-center justify-center font-typewriter text-[0.65rem] font-bold",
                   active
-                    ? "border-mad-black text-mad-black"
+                    ? "bg-mad-black text-mad-white"
                     : complete
-                      ? "border-mad-lime text-mad-black"
-                      : "border-transparent text-neutral-400 hover:text-mad-black"
+                      ? "bg-mad-lime text-mad-black"
+                      : "bg-neutral-100 text-neutral-500"
                 )}
               >
-                <span
+                {complete ? <Check className="size-3 stroke-[3]" /> : item.id}
+              </span>
+              <span className="truncate font-typewriter text-[0.65rem] font-bold tracking-wider uppercase">
+                {item.label}
+              </span>
+            </>
+          )
+
+          return (
+            <li key={item.id} className="flex min-w-0 flex-1">
+              {isToday && todayHref ? (
+                <Link
+                  href={todayHref}
                   className={cn(
-                    "flex size-5 shrink-0 items-center justify-center font-typewriter text-[0.65rem] font-bold",
+                    "flex w-full items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-center transition",
                     active
-                      ? "bg-mad-black text-mad-white"
+                      ? "border-mad-black text-mad-black"
                       : complete
-                        ? "bg-mad-lime text-mad-black"
-                        : "bg-neutral-100 text-neutral-500"
+                        ? "border-mad-lime text-mad-black"
+                        : "border-transparent text-neutral-400 hover:text-mad-black"
                   )}
                 >
-                  {complete ? <Check className="size-3 stroke-[3]" /> : item.id}
-                </span>
-                <span className="truncate font-typewriter text-[0.65rem] font-bold tracking-wider uppercase">
-                  {item.label}
-                </span>
-              </button>
+                  {inner}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isToday && todayHref) return
+                    onStepChange?.(item.id)
+                    window.scrollTo({ top: 0, behavior: "smooth" })
+                  }}
+                  disabled={isToday && !todayHref}
+                  className={cn(
+                    "flex w-full items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-center transition",
+                    active
+                      ? "border-mad-black text-mad-black"
+                      : complete
+                        ? "border-mad-lime text-mad-black"
+                        : "border-transparent text-neutral-400 hover:text-mad-black",
+                    isToday && !todayHref && "cursor-default opacity-60"
+                  )}
+                >
+                  {inner}
+                </button>
+              )}
             </li>
           )
         })}
@@ -98,10 +158,8 @@ type StepDockProps = {
   nextLabel?: string
   nextDisabled?: boolean
   nextBusy?: boolean
-  /** Step 3 schedule: save draft without arming. */
   onSaveDraft?: () => void
   saveDraftBusy?: boolean
-  /** Step 3 with pack: show Save Draft + Confirm & Arm instead of a single Continue. */
   showScheduleActions?: boolean
   onConfirmArm?: () => void
   confirmArmBusy?: boolean
@@ -125,7 +183,8 @@ export function StepDock({
   className,
 }: StepDockProps) {
   const primary =
-    nextLabel ?? (step === 3 ? "Generate pack" : "Continue")
+    nextLabel ??
+    (step === WORKBENCH_STEP_CHANNELS ? "Confirm & publish" : "Continue")
 
   return (
     <div
@@ -134,14 +193,15 @@ export function StepDock({
         className
       )}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+      <div className="flex w-full items-center justify-between gap-3 py-2">
+
         <button
           type="button"
           onClick={() => {
             onBack()
             window.scrollTo({ top: 0, behavior: "smooth" })
           }}
-          disabled={step <= 1}
+          disabled={step <= WORKBENCH_STEP_MEDIA}
           className="border border-mad-black/30 bg-mad-white px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase hover:border-mad-black hover:bg-mad-lime/40 disabled:cursor-not-allowed disabled:opacity-30"
         >
           Back
@@ -162,7 +222,7 @@ export function StepDock({
               disabled={confirmArmDisabled || confirmArmBusy || saveDraftBusy}
               className="inline-flex min-w-[10rem] items-center justify-center border-2 border-mad-black bg-mad-black px-4 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
             >
-              {confirmArmBusy ? "Arming…" : "🚀 Confirm & Arm"}
+              {confirmArmBusy ? "Arming…" : "🚀 Confirm & Publish / Arm"}
             </button>
           </div>
         ) : (
