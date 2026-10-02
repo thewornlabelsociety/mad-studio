@@ -1,8 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath } from "@server/http-response"
 
-import { approveMarketingEntity } from "@/app/actions/inventory"
+import { approveMarketingEntity } from "./inventory"
 import { createClient } from "@/lib/supabase/server"
 
 async function assertCanEdit(entityId: string) {

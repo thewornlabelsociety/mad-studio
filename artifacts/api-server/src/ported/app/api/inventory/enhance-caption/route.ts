@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse } from "@server/http-response"
 import { z } from "zod"
 
 import { recordOrchestratedCall } from "@/lib/ai/metering"
@@ -40,12 +40,12 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return HttpResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const parsed = bodySchema.safeParse(await request.json())
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid request body." }, { status: 400 })
+      return HttpResponse.json({ error: "Invalid request body." }, { status: 400 })
     }
 
     const {
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       }
     )
     if (accessError || !canEdit) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      return HttpResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { data: entityRow, error: entityError } = await supabase
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       .eq("id", entityId)
       .single()
     if (entityError || !entityRow) {
-      return NextResponse.json({ error: "Entity not found." }, { status: 404 })
+      return HttpResponse.json({ error: "Entity not found." }, { status: 404 })
     }
 
     const { data: itemRow, error: itemError } = await supabase
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       .eq("entity_id", entityId)
       .single()
     if (itemError || !itemRow) {
-      return NextResponse.json({ error: "Inventory item not found." }, { status: 404 })
+      return HttpResponse.json({ error: "Inventory item not found." }, { status: 404 })
     }
 
     const entity = parseStudioEntity(entityRow)
@@ -167,17 +167,17 @@ export async function POST(request: Request) {
     }
 
     if (!nextHeadline.trim() || !nextCaption.trim()) {
-      return NextResponse.json(
+      return HttpResponse.json(
         { error: "Model returned empty copy after cleanup." },
         { status: 422 }
       )
     }
 
-    return NextResponse.json({ headline: nextHeadline, caption: nextCaption })
+    return HttpResponse.json({ headline: nextHeadline, caption: nextCaption })
   } catch (error) {
     console.error("[inventory/enhance-caption]", error)
     const message =
       error instanceof Error ? error.message : "Caption enhance failed."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return HttpResponse.json({ error: message }, { status: 500 })
   }
 }

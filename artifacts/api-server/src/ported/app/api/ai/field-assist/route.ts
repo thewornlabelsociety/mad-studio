@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse } from "@server/http-response"
 import { z } from "zod"
 
 import { recordOrchestratedCall } from "@/lib/ai/metering"
@@ -40,12 +40,12 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return HttpResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const parsed = bodySchema.safeParse(await request.json())
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid request body." }, { status: 400 })
+      return HttpResponse.json({ error: "Invalid request body." }, { status: 400 })
     }
 
     const {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       { ent_id: entityId, allowed_roles: ["entity_manager", "creator"] }
     )
     if (accessError || !canEdit) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      return HttpResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { data: entityRow, error: entityError } = await supabase
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       .eq("id", entityId)
       .single()
     if (entityError || !entityRow) {
-      return NextResponse.json({ error: "Entity not found." }, { status: 404 })
+      return HttpResponse.json({ error: "Entity not found." }, { status: 404 })
     }
 
     const entity = parseStudioEntity(entityRow)
@@ -130,13 +130,13 @@ export async function POST(request: Request) {
       )
 
       if (tags.length === 0) {
-        return NextResponse.json(
+        return HttpResponse.json(
           { error: "Model returned no usable tags. Try again or add manually." },
           { status: 422 }
         )
       }
 
-      return NextResponse.json({ tags })
+      return HttpResponse.json({ tags })
     }
 
     const current = field === "hook" ? headline : caption
@@ -191,17 +191,17 @@ export async function POST(request: Request) {
       .filter((row) => row.toLowerCase() !== current.trim().toLowerCase())
 
     if (variations.length === 0) {
-      return NextResponse.json({
+      return HttpResponse.json({
         variations: [
           scrubAgencyLeak(`${current.trim()} · alt`.slice(0, 200)),
         ],
       })
     }
 
-    return NextResponse.json({ variations: variations.slice(0, 3) })
+    return HttpResponse.json({ variations: variations.slice(0, 3) })
   } catch (error) {
     console.error("[ai/field-assist]", error)
-    return NextResponse.json(
+    return HttpResponse.json(
       { error: error instanceof Error ? error.message : "Field assist failed." },
       { status: 500 }
     )
