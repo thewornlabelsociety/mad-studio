@@ -1,6 +1,5 @@
 import { timingSafeEqual } from "crypto"
-
-import { HttpResponse, type WebRequest } from "@server/http-response"
+import { NextResponse, type NextRequest } from "next/server"
 
 import {
   parseStateCookie,
@@ -26,18 +25,17 @@ function statesMatch(a: string, b: string): boolean {
 }
 
 function finish(
-  request: WebRequest,
+  request: NextRequest,
   status: string,
   reason?: string,
   entityId?: string
 ) {
-  // request.url is the internal proxy address on Replit, not the public site.
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://madstudio.nz"
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin
   const url = new URL("/settings/social", baseUrl)
   url.searchParams.set("status", status)
   if (reason) url.searchParams.set("reason", reason.slice(0, 160))
   if (entityId) url.searchParams.set("eid", entityId)
-  const response = HttpResponse.redirect(url)
+  const response = NextResponse.redirect(url)
   response.cookies.set(TIKTOK_STATE_COOKIE, "", {
     path: "/api/auth/tiktok",
     maxAge: 0,
@@ -45,7 +43,7 @@ function finish(
   return response
 }
 
-export async function GET(request: WebRequest) {
+export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams
   const code = params.get("code")
   const state = params.get("state")
@@ -59,9 +57,7 @@ export async function GET(request: WebRequest) {
     )
   }
 
-  const saved = parseStateCookie(
-    request.cookies.getAll().find((c) => c.name === TIKTOK_STATE_COOKIE)?.value
-  )
+  const saved = parseStateCookie(request.cookies.get(TIKTOK_STATE_COOKIE)?.value)
   if (!saved || !state || !statesMatch(saved.state, state)) {
     return finish(request, "tiktok_error", "state_mismatch")
   }
@@ -142,7 +138,9 @@ export async function GET(request: WebRequest) {
       },
       { onConflict: "entity_id,platform,account_id" }
     )
-    if (saveError) return finish(request, "tiktok_error", saveError.message, saved.entityId)
+    if (saveError) {
+      return finish(request, "tiktok_error", saveError.message, saved.entityId)
+    }
 
     return finish(request, "tiktok_connected", undefined, saved.entityId)
   } catch (err) {

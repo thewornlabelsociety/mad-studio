@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-02s"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-03b"
 
 export type HelpSop = {
   title: string
@@ -393,7 +393,8 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       },
       {
         name: "TikTok",
-        description: "OAuth and publish guards for media requirements.",
+        description:
+          "Settings → Connect with TikTok (Login Kit). OAuth stores access_token, refresh_token, and token_expires_at on social_connections. Env: TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI. Cron: GET/POST /api/cron/refresh-tiktok-tokens with Authorization Bearer CRON_SECRET (refresh when expiry is within 6h). Publish also refreshes inline when needed. Direct Post: .mp4/.mov via /api/media/proxy. Unaudited apps: SELF_ONLY. Webhook fallback if no OAuth.",
       },
       {
         name: "Outbound webhook",
@@ -401,12 +402,13 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       },
     ],
     sop: {
-      title: "Connect Instagram for publishing",
+      title: "Connect social accounts for publishing",
       audience: "Entity manager",
       steps: [
-        "Socials → Connect Meta.",
-        "Complete OAuth; confirm account shows active.",
-        "Arm a test post in Studio with Instagram channel only.",
+        "Settings → Social → Connect with Meta for IG Feed / Facebook autopilot.",
+        "Connect with TikTok for Direct Post (video .mp4/.mov); Test Connection after OAuth.",
+        "Verify TikTok URL prefix / media proxy on madstudio.nz in the TikTok developer portal.",
+        "Studio Schedule → TikTok preview: download + link sticker for phone drop, or Send via TikTok API when connected.",
       ],
     },
   },
@@ -432,7 +434,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Cron",
         description:
-          "/api/cron/dispatch-scheduled and sync-metrics with CRON_SECRET.",
+          "/api/cron/dispatch-scheduled, sync-metrics, and refresh-tiktok-tokens with Authorization Bearer CRON_SECRET (or x-cron-secret). Schedule refresh-tiktok-tokens every few hours.",
       },
       {
         name: "MAD Supabase env",

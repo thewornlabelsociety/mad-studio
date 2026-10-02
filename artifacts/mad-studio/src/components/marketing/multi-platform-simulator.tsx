@@ -71,6 +71,7 @@ import {
 import {
   AUTOPILOT_SOP_HELPER,
   DRAFT_DROP_SOP_HELPER,
+  TIKTOK_API_SOP_HELPER,
   dispatchTrackForPlatform,
 } from "@/lib/studio/dispatch-sop"
 import { cn } from "@/lib/utils"
@@ -815,9 +816,12 @@ export function MultiPlatformSimulator({
     }
   }
 
-  async function onPublish() {
+  async function onPublish(options?: { allowDraftDrop?: boolean }) {
     if (!actionContext) return
-    if (dispatchTrackForPlatform(platform) !== "autopilot") {
+    if (
+      dispatchTrackForPlatform(platform) !== "autopilot" &&
+      !options?.allowDraftDrop
+    ) {
       toast.message(
         "Stories and TikTok use Draft & Drop — download media and copy the link sticker URL."
       )
@@ -1491,6 +1495,26 @@ export function MultiPlatformSimulator({
             <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
               {DRAFT_DROP_SOP_HELPER}
             </p>
+            {platform === "tiktok" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void onPublish({ allowDraftDrop: true })}
+                  disabled={busy != null}
+                  className="inline-flex h-9 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-white font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime disabled:opacity-60"
+                >
+                  {busy === "publish" ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Rocket className="size-3.5" />
+                  )}
+                  Send via TikTok API
+                </button>
+                <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
+                  {TIKTOK_API_SOP_HELPER}
+                </p>
+              </>
+            ) : null}
           </>
         ) : null}
       </div>

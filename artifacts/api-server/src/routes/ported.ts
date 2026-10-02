@@ -18,6 +18,7 @@ import * as dispatch from "../ported/app/api/cron/dispatch/route";
 import * as cronTriggers from "../ported/app/api/cron/triggers/route";
 import * as dispatchScheduled from "../ported/app/api/cron/dispatch-scheduled/route";
 import * as syncMetrics from "../ported/app/api/cron/sync-metrics/route";
+import * as refreshTiktokTokens from "../ported/app/api/cron/refresh-tiktok-tokens/route";
 import * as scrape from "../ported/app/api/entities/scrape/route";
 import * as generatePack from "../ported/app/api/generate/pack/route";
 import * as imageProxy from "../ported/app/api/media/image-proxy/route";
@@ -149,6 +150,8 @@ router.get("/api/cron/dispatch-scheduled", webHandler(method(dispatchScheduled, 
 router.post("/api/cron/dispatch-scheduled", webHandler(method(dispatchScheduled, "POST")));
 router.get("/api/cron/sync-metrics", webHandler(method(syncMetrics, "GET"), false));
 router.post("/api/cron/sync-metrics", webHandler(method(syncMetrics, "POST")));
+router.get("/api/cron/refresh-tiktok-tokens", webHandler(method(refreshTiktokTokens, "GET"), false));
+router.post("/api/cron/refresh-tiktok-tokens", webHandler(method(refreshTiktokTokens, "POST")));
 router.get("/api/cron/triggers", webHandler(method(cronTriggers, "GET"), false));
 router.post("/api/cron/triggers", webHandler(method(cronTriggers, "POST")));
 router.post("/api/entities/scrape", webHandler(method(scrape, "POST")));

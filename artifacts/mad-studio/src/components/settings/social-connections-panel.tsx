@@ -105,6 +105,13 @@ export function SocialConnectionsPanel({
     } else if (status === "meta_error") {
       toast.error(reason ? `Meta login failed: ${reason}` : "Meta login failed.")
       router.replace(`/settings/social?eid=${encodeURIComponent(entityId)}`)
+    } else if (status === "tiktok_connected") {
+      toast.success("TikTok connected — Direct Post ready (sandbox = private videos).")
+      router.replace(`/settings/social?eid=${encodeURIComponent(entityId)}`)
+      router.refresh()
+    } else if (status === "tiktok_error") {
+      toast.error(reason ? `TikTok login failed: ${reason}` : "TikTok login failed.")
+      router.replace(`/settings/social?eid=${encodeURIComponent(entityId)}`)
     }
   }, [entityId, router])
   const [editing, setEditing] = useState<PlatformCardConfig | null>(null)
@@ -331,6 +338,22 @@ export function SocialConnectionsPanel({
                     >
                       <PlugZap data-icon="inline-start" />
                       Connect with Meta
+                    </a>
+                  </Button>
+                ) : null}
+                {card.platform === "tiktok" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-none border-2 border-mad-black bg-mad-lime font-typewriter text-[0.6rem] uppercase shadow-keycap-sm hover:bg-mad-white"
+                    asChild
+                  >
+                    <a
+                      href={`/api/auth/tiktok?entityId=${encodeURIComponent(entityId)}`}
+                    >
+                      <PlugZap data-icon="inline-start" />
+                      Connect with TikTok
                     </a>
                   </Button>
                 ) : null}

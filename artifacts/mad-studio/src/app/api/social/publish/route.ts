@@ -14,7 +14,11 @@ import {
   sendVipEmailViaResend,
   WLS_DEFAULT_ENTITY_ID,
 } from "@/lib/social/outbound-dispatch"
-import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
+import {
+  TIKTOK_SANDBOX_DISPATCH_NOTE,
+  tikTokMediaGuardError,
+} from "@/lib/social/tiktok-media-guard"
+import { publishToTikTok, resolveTikTokConnection } from "@/lib/social/tiktok-publisher"
 import {
   isUuid,
   normalizeBrandKey,
@@ -382,7 +386,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── TikTok outbound webhook ─────────────────────────────────────────
+    // ── TikTok: native OAuth connection, else outbound webhook ──────────
     if (input.platform === "tiktok") {
       if (!mediaUrl) {
         return NextResponse.json(
@@ -390,16 +394,74 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
+
       const tiktokMediaError = tikTokMediaGuardError(mediaUrl)
       if (tiktokMediaError) {
         return NextResponse.json({ error: tiktokMediaError }, { status: 400 })
       }
+
+      const tiktokConnection = await resolveTikTokConnection(supabase, entity.id)
+      if (tiktokConnection) {
+        const posted = await publishToTikTok({
+          accessToken: tiktokConnection.accessToken,
+          mediaUrl,
+          caption,
+        })
+        if (!posted.ok) {
+          return NextResponse.json({ error: posted.error }, { status: posted.status })
+        }
+
+        if (item) {
+          await markItemDispatched({
+            supabase,
+            item,
+            channel: "tiktok",
+            slug,
+            publishedMediaIds: {
+              ...parsePublishedMediaIds(item.published_media_ids),
+              tiktok: posted.publishId,
+            },
+            keepStatus: input.keepEntityStatus,
+          })
+        }
+
+        await supabase.from("activity_logs").insert({
+          entity_id: entity.id,
+          user_id: user?.id ?? null,
+          action: "social_published",
+          details: {
+            marketing_entity_id: item?.id ?? null,
+            platform: "tiktok",
+            via: "tiktok_oauth",
+            tiktok_account: tiktokConnection.accountName,
+            publish_id: posted.publishId,
+            privacy_level: posted.privacyLevel,
+            media_type: posted.mediaType,
+            short_url: shortUrl,
+            slug,
+          },
+        })
+
+        return NextResponse.json({
+          ok: true,
+          entityId: entity.id,
+          entityName: entity.name,
+          platform: "tiktok",
+          status: "dispatched",
+          mediaId: posted.publishId,
+          message: `${TIKTOK_SANDBOX_DISPATCH_NOTE} (${tiktokConnection.accountName}, ${posted.privacyLevel})`,
+          shortUrl,
+          slug,
+          marketingEntityId: item?.id ?? null,
+        })
+      }
+
       const webhookUrl = await resolveOutboundWebhookUrl(supabase, entity.id)
       if (!webhookUrl) {
         return NextResponse.json(
           {
             error:
-              "No outbound webhook configured for this brand. Add one under Settings → Social (Make.com / n8n / Zapier).",
+              "No TikTok connection for this brand. Connect TikTok under Settings → Social, or add an outbound webhook (Make.com / n8n / Zapier).",
           },
           { status: 400 }
         )
