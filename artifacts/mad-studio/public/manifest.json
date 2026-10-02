@@ -1,0 +1,24 @@
+{
+  "name": "MAD Studio",
+  "short_name": "MAD Studio",
+  "description": "Daily marketing command — review drops, approve, and publish.",
+  "start_url": "/today",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fafafa",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "/mad-brain.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

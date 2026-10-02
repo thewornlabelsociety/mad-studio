@@ -17,7 +17,7 @@ export function normalizeOptTag(raw: string): string | null {
     .replace(/^#/, "")
     .toLowerCase()
     .replace(/[^a-z0-9āēīōū]+/gi, "")
-  if (cleaned.length < 2 || cleaned.length > 40) return null
+  if (cleaned.length < 2 || cleaned.length > 30) return null
   return cleaned
 }
 

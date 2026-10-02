@@ -60,6 +60,15 @@ import {
   DEFAULT_CANVAS_TEXT_OVERLAY,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
+import {
+  RemotionCanvas,
+  type RemotionCanvasProps,
+} from "@/components/studio/remotion-canvas"
+import {
+  buildRemotionBadgeOverlay,
+  buildRemotionTextOverlays,
+  remotionCompositionSize,
+} from "@/lib/studio/remotion-overlays"
 import { cn } from "@/lib/utils"
 
 export type SimulatorPlatform =
@@ -246,6 +255,37 @@ async function readError(response: Response): Promise<string> {
     // non-JSON body (e.g. platform error page)
   }
   return `HTTP ${response.status}`
+}
+
+function buildRemotionPreviewInput({
+  mediaUrl,
+  mediaType,
+  mediaFit,
+  aspect,
+  textOverlay,
+  spokenHook,
+  includeOverlays,
+}: {
+  mediaUrl: string
+  mediaType: "video" | "image"
+  mediaFit: "cover" | "contain"
+  aspect: "story" | "feed"
+  textOverlay: CanvasTextOverlayState
+  spokenHook: string
+  includeOverlays: boolean
+}): RemotionCanvasProps {
+  const { width, height } = remotionCompositionSize(aspect)
+  return {
+    mediaUrl: mediaUrl.trim(),
+    mediaType,
+    mediaFit,
+    compositionWidth: width,
+    compositionHeight: height,
+    textOverlays: includeOverlays
+      ? buildRemotionTextOverlays(textOverlay, spokenHook)
+      : [],
+    badge: includeOverlays ? buildRemotionBadgeOverlay(textOverlay) : null,
+  }
 }
 
 export function MultiPlatformSimulator({
@@ -924,6 +964,45 @@ export function MultiPlatformSimulator({
     return activeSlideText || content.headline.trim() || ""
   })()
 
+  const remotionAspect: "story" | "feed" = isFeedPreview ? "feed" : "story"
+  const remotionMediaFit: "cover" | "contain" = isFudiEntity ? "cover" : "contain"
+  const remotionIncludeOverlays = !textOverlayInteractive
+  const usingRemotionForMedia =
+    Boolean(
+      (imageForCanvas && !useStoryCanvasForIg) || (mediaUrl && isVideo)
+    ) ||
+    (isFeedPreview &&
+      slides.some((slide) => carouselItemUrl(slide).length > 0))
+  const remotionDefersOverlays =
+    remotionIncludeOverlays && usingRemotionForMedia
+  const remotionBadgeActive =
+    remotionDefersOverlays && Boolean(buildRemotionBadgeOverlay(textOverlay))
+  const spokenHook = content.headline.trim()
+  const imageRemotionPreview =
+    imageForCanvas && !useStoryCanvasForIg
+      ? buildRemotionPreviewInput({
+          mediaUrl: imageForCanvas,
+          mediaType: "image",
+          mediaFit: remotionMediaFit,
+          aspect: remotionAspect,
+          textOverlay,
+          spokenHook,
+          includeOverlays: remotionDefersOverlays,
+        })
+      : null
+  const videoRemotionPreview =
+    mediaUrl && isVideo
+      ? buildRemotionPreviewInput({
+          mediaUrl,
+          mediaType: "video",
+          mediaFit: remotionMediaFit,
+          aspect: remotionAspect,
+          textOverlay,
+          spokenHook,
+          includeOverlays: remotionDefersOverlays,
+        })
+      : null
+
   const canvasOverlayOnMedia = (
     <CanvasTextOverlayLayer
       overlay={textOverlay}
@@ -932,6 +1011,8 @@ export function MultiPlatformSimulator({
       onOverlayChange={onTextOverlayChange ?? setTextOverlay}
       linkHref={storyLinkUrl}
       storyEditorialStickers={storyEditorialStickers}
+      renderCanvasText={!remotionDefersOverlays}
+      deferBadgeToRemotion={remotionBadgeActive}
     />
   )
 
@@ -1014,12 +1095,16 @@ export function MultiPlatformSimulator({
                       <VideoFill
                         src={mediaUrl}
                         fit={isFudiEntity ? "cover" : "contain"}
+                        remotionPreview={videoRemotionPreview}
+                        mediaOverlay={canvasOverlayOnMedia}
                       />
                     ) : imageForCanvas ? (
                       <StoryMediaStage
                         imageUrl={imageForCanvas}
                         canvasColor={canvasColor}
                         mediaFit={isFudiEntity ? "cover" : "contain"}
+                        remotionPreview={imageRemotionPreview}
+                        mediaOverlay={canvasOverlayOnMedia}
                         storyCanvas={
                           <StoryCanvas
                             model={storyModel}
@@ -1038,7 +1123,6 @@ export function MultiPlatformSimulator({
                         Add media
                       </div>
                     )}
-                    {canvasOverlayOnMedia}
                   </StorySlideNav>
                 </IgStoryChrome>
               ) : null}
@@ -1063,6 +1147,10 @@ export function MultiPlatformSimulator({
                     onNext={() => goSlide(1)}
                     showCarousel={feedCarousel}
                     canvasOverlay={canvasOverlayOnMedia}
+                    textOverlay={textOverlay}
+                    spokenHook={spokenHook}
+                    remotionIncludeOverlays={remotionDefersOverlays}
+                    mediaFit={remotionMediaFit}
                   />
                 </FeedChrome>
               ) : null}
@@ -1075,6 +1163,10 @@ export function MultiPlatformSimulator({
                   }
                   mediaUrl={mediaUrl}
                   mediaType={isVideo ? "video" : "image"}
+                  remotionPreview={
+                    isVideo ? videoRemotionPreview : imageRemotionPreview
+                  }
+                  mediaOverlay={canvasOverlayOnMedia}
                 />
               ) : null}
 
@@ -1718,16 +1810,37 @@ function StoryMediaStage({
   storyCanvas,
   useStoryCanvas,
   mediaFit = "contain",
+  mediaOverlay = null,
+  remotionPreview = null,
 }: {
   imageUrl: string
   canvasColor: string
   storyCanvas: ReactNode
   useStoryCanvas: boolean
   mediaFit?: "cover" | "contain"
+  mediaOverlay?: ReactNode
+  remotionPreview?: RemotionCanvasProps | null
 }) {
   if (useStoryCanvas) {
     return (
-      <div className="relative size-full overflow-hidden">{storyCanvas}</div>
+      <div className="relative size-full overflow-hidden">
+        {storyCanvas}
+        {mediaOverlay}
+      </div>
+    )
+  }
+
+  if (remotionPreview) {
+    return (
+      <div
+        className="relative size-full overflow-hidden"
+        style={
+          mediaFit === "contain" ? { backgroundColor: canvasColor } : undefined
+        }
+      >
+        <RemotionCanvas {...remotionPreview} />
+        {mediaOverlay}
+      </div>
     )
   }
 
@@ -1740,6 +1853,7 @@ function StoryMediaStage({
           alt=""
           className="absolute inset-0 size-full object-cover"
         />
+        {mediaOverlay}
       </div>
     )
   }
@@ -1757,12 +1871,15 @@ function StoryMediaStage({
         className="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-xl"
       />
       <div className="absolute inset-0 flex items-center justify-center p-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageUrl}
-          alt=""
-          className="max-h-full max-w-full object-contain shadow-lg"
-        />
+        <div className="relative max-h-full max-w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt=""
+            className="max-h-full max-w-full object-contain shadow-lg"
+          />
+          {mediaOverlay}
+        </div>
       </div>
     </div>
   )
@@ -1838,24 +1955,33 @@ function FeedChrome({
 function VideoFill({
   src,
   fit = "cover",
+  mediaOverlay = null,
+  remotionPreview = null,
 }: {
   src: string
   fit?: "cover" | "contain"
+  mediaOverlay?: ReactNode
+  remotionPreview?: RemotionCanvasProps | null
 }) {
   const [muted, setMuted] = useState(true)
   return (
     <div className="absolute inset-0">
-      <video
-        src={src}
-        className={cn(
-          "h-full w-full",
-          fit === "contain" ? "object-contain" : "object-cover"
-        )}
-        autoPlay
-        loop
-        muted={muted}
-        playsInline
-      />
+      {remotionPreview ? (
+        <RemotionCanvas {...remotionPreview} />
+      ) : (
+        <video
+          src={src}
+          className={cn(
+            "h-full w-full",
+            fit === "contain" ? "object-contain" : "object-cover"
+          )}
+          autoPlay
+          loop
+          muted={muted}
+          playsInline
+        />
+      )}
+      {mediaOverlay}
       <button
         type="button"
         onClick={() => setMuted((value) => !value)}
@@ -1876,6 +2002,10 @@ function FeedMediaStage({
   onNext,
   showCarousel,
   canvasOverlay = null,
+  textOverlay,
+  spokenHook,
+  remotionIncludeOverlays,
+  mediaFit,
 }: {
   slides: SimulatorCarouselItem[]
   slideIndex: number
@@ -1884,6 +2014,10 @@ function FeedMediaStage({
   onNext: () => void
   showCarousel: boolean
   canvasOverlay?: ReactNode
+  textOverlay: CanvasTextOverlayState
+  spokenHook: string
+  remotionIncludeOverlays: boolean
+  mediaFit: "cover" | "contain"
 }) {
   const active = slides[slideIndex] ?? slides[0] ?? null
   const mediaUrl = active?.url ?? null
@@ -1903,21 +2037,21 @@ function FeedMediaStage({
               detectMediaKindFromUrl(slide.url) === "video"
                 ? "video"
                 : "image"
+            const remotionPreview = buildRemotionPreviewInput({
+              mediaUrl: slide.url,
+              mediaType: kind,
+              mediaFit,
+              aspect: "feed",
+              textOverlay,
+              spokenHook,
+              includeOverlays: remotionIncludeOverlays,
+            })
             return (
               <div
                 key={slide.id ?? slide.url}
                 className="relative h-full w-full shrink-0 basis-full overflow-hidden"
               >
-                {kind === "video" ? (
-                  <VideoFill src={slide.url} />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={slide.url}
-                    alt=""
-                    className="absolute inset-0 size-full object-cover"
-                  />
-                )}
+                <RemotionCanvas {...remotionPreview} />
               </div>
             )
           })}
@@ -1980,23 +2114,35 @@ function TikTokChrome({
   caption,
   mediaUrl,
   mediaType,
+  mediaOverlay = null,
+  remotionPreview = null,
 }: {
   handle: string
   caption: string
   mediaUrl: string | null
   mediaType: "image" | "video"
+  mediaOverlay?: ReactNode
+  remotionPreview?: RemotionCanvasProps | null
 }) {
   return (
     <div className="relative aspect-[9/16] w-full overflow-hidden bg-neutral-950">
-      {mediaUrl && mediaType === "video" ? (
-        <VideoFill src={mediaUrl} />
+      {mediaUrl && remotionPreview ? (
+        <div className="absolute inset-0">
+          <RemotionCanvas {...remotionPreview} />
+          {mediaOverlay}
+        </div>
+      ) : mediaUrl && mediaType === "video" ? (
+        <VideoFill src={mediaUrl} mediaOverlay={mediaOverlay} />
       ) : mediaUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={mediaUrl}
-          alt=""
-          className="absolute inset-0 size-full object-cover"
-        />
+        <div className="absolute inset-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={mediaUrl}
+            alt=""
+            className="absolute inset-0 size-full object-cover"
+          />
+          {mediaOverlay}
+        </div>
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-950" />
       )}

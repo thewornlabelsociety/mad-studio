@@ -54,6 +54,14 @@ export const appendInventoryImage = (...args: any[]) => action("appendInventoryI
 export const removeInventoryImage = (...args: any[]) => action("removeInventoryImage", ...args)
 export const removeInventoryItem = (...args: any[]) => action("removeInventoryItem", ...args)
 export const approveMarketingEntity = (...args: any[]) => action("approveMarketingEntity", ...args)
+export const archiveDailyQueueItem = (...args: any[]) =>
+  action("archiveDailyQueueItem", ...args)
+export const skipDailyQueueItem = (...args: any[]) =>
+  action("skipDailyQueueItem", ...args)
+export const markDailyQueuePublished = (...args: any[]) =>
+  action("markDailyQueuePublished", ...args)
+export const updateDailyQueueCopy = (...args: any[]) =>
+  action("updateDailyQueueCopy", ...args)
 export const scheduleMarketingEntity = (...args: any[]) => action("scheduleMarketingEntity", ...args)
 export const saveDropDraft = (...args: any[]) => action("saveDropDraft", ...args)
 export const patchDropWorkbenchDraft = (...args: any[]) =>

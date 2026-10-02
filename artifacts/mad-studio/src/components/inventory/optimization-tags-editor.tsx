@@ -9,7 +9,7 @@ import {
   formatTagsForCaption,
   normalizeOptTag,
 } from "@/lib/inventory/optimization-tags"
-import { cleanHashtags } from "@/lib/copy/caption-hygiene"
+import { cleanHashtags, isCleanHashtag } from "@/lib/copy/caption-hygiene"
 import { requestFieldAssist } from "@/lib/studio/field-assist-client"
 import { cn } from "@/lib/utils"
 
@@ -87,8 +87,10 @@ export function OptimizationTagsEditor({
       toast.message("Use letters and numbers only (2–40 chars).")
       return
     }
-    if (!cleanHashtags([normalized], { bannedSeeds: bannedTagSeeds }).length) {
-      toast.message("That tag is blocked for this listing.")
+    if (!isCleanHashtag(normalized, bannedTagSeeds)) {
+      toast.message(
+        "That tag isn't allowed (internal listing ID, test/SKU token, or invalid length)."
+      )
       return
     }
     if (tags.includes(normalized)) {
@@ -121,10 +123,10 @@ export function OptimizationTagsEditor({
         max: OPTIMIZATION_TAG_MAX,
         bannedSeeds: bannedTagSeeds,
       })
-      if (incoming.length === 0) {
-        throw new Error("No tags returned.")
-      }
       setAiSuggestions(incoming)
+      if (incoming.length === 0) {
+        throw new Error("No usable tags returned.")
+      }
       const before = new Set(tags)
       const merged = cleanHashtags([...tags, ...incoming], {
         max: OPTIMIZATION_TAG_MAX,

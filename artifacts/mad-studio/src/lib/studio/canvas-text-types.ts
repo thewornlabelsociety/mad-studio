@@ -166,6 +166,14 @@ export type CanvasTextOverlayState = {
 
   positionY: number
 
+  /** Multiplier on baked/preview font size (0.5–2.5). */
+
+  fontScale: number
+
+  /** Degrees, applied around the position anchor (−180…180). */
+
+  rotationDeg: number
+
   textAlign: CanvasTextAlign
 
   stickerEnabled: boolean
@@ -233,6 +241,10 @@ export const DEFAULT_CANVAS_TEXT_OVERLAY: CanvasTextOverlayState = {
   positionX: 50,
 
   positionY: 72,
+
+  fontScale: 1,
+
+  rotationDeg: 0,
 
   textAlign: "center",
 
@@ -397,6 +409,23 @@ export function normalizeCanvasTextOverlay(
     positionX: num("positionX", DEFAULT_CANVAS_TEXT_OVERLAY.positionX),
 
     positionY: num("positionY", DEFAULT_CANVAS_TEXT_OVERLAY.positionY),
+
+    fontScale: (() => {
+      const raw = row.fontScale
+      const n = typeof raw === "number" ? raw : Number(raw)
+      if (!Number.isFinite(n)) return DEFAULT_CANVAS_TEXT_OVERLAY.fontScale
+      return Math.min(2.5, Math.max(0.5, n))
+    })(),
+
+    rotationDeg: (() => {
+      const raw = row.rotationDeg
+      const n = typeof raw === "number" ? raw : Number(raw)
+      if (!Number.isFinite(n)) return DEFAULT_CANVAS_TEXT_OVERLAY.rotationDeg
+      let deg = n % 360
+      if (deg > 180) deg -= 360
+      if (deg < -180) deg += 360
+      return deg
+    })(),
 
     textAlign:
 

@@ -5,6 +5,12 @@ import {
   resolveCanvasTextFont,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
+import {
+  canvasTextFontSizePx,
+  canvasTextLineHeightPx,
+  resolveCanvasTextFontScale,
+  resolveCanvasTextRotationDeg,
+} from "@/lib/studio/canvas-text-layout"
 
 async function loadImageBlob(sourceUrl: string, entityId: string): Promise<Blob> {
   try {
@@ -59,12 +65,18 @@ function drawOverlayText(
 
   const anchorX = (overlay.positionX / 100) * width
   const anchorY = (overlay.positionY / 100) * height
-  const fontSize = Math.max(18, Math.round(width * 0.065))
-  const lineHeight = fontSize * 1.15
+  const fontSize = canvasTextFontSizePx(width, resolveCanvasTextFontScale(overlay))
+  const lineHeight = canvasTextLineHeightPx(fontSize)
   const fontDef = resolveCanvasTextFont(overlay.fontId)
   const fontFamily = canvasFontStack(overlay)
   const weight = fontDef.canvasWeight ?? 700
   const fontStyle = fontDef.canvasStyle ?? "normal"
+  const rotationRad =
+    (resolveCanvasTextRotationDeg(overlay) * Math.PI) / 180
+
+  ctx.save()
+  ctx.translate(anchorX, anchorY)
+  ctx.rotate(rotationRad)
 
   ctx.font = `${fontStyle} ${weight} ${fontSize}px ${fontFamily}`
   ctx.fillStyle = overlay.color || "#FFFFFF"
@@ -79,17 +91,18 @@ function drawOverlayText(
   }
 
   const blockHeight = lines.length * lineHeight
-  let y = anchorY - blockHeight / 2 + lineHeight / 2
+  let y = -blockHeight / 2 + lineHeight / 2
+  const anchorLocalX = 0
 
   for (const line of lines) {
     const metrics = ctx.measureText(line)
     const padX = fontSize * 0.25
     const padY = fontSize * 0.12
-    let boxX = anchorX
+    let boxX = anchorLocalX
     if (overlay.textAlign === "center") {
-      boxX = anchorX - metrics.width / 2
+      boxX = anchorLocalX - metrics.width / 2
     } else if (overlay.textAlign === "right") {
-      boxX = anchorX - metrics.width
+      boxX = anchorLocalX - metrics.width
     }
 
     if (overlay.highlight === "black_pill") {
@@ -120,7 +133,7 @@ function drawOverlayText(
       ctx.shadowOffsetY = overlay.shadow === "hard" ? 3 : 2
     }
 
-    ctx.fillText(line, anchorX, y)
+    ctx.fillText(line, anchorLocalX, y)
 
     ctx.shadowColor = "transparent"
     ctx.shadowBlur = 0
@@ -129,6 +142,8 @@ function drawOverlayText(
 
     y += lineHeight
   }
+
+  ctx.restore()
 }
 
 function countdownPartsAtBake(targetIso: string): {
@@ -321,7 +336,10 @@ export async function bakeCanvasTextOnImage(input: {
   if (!ctx) throw new Error("Canvas unavailable.")
 
   ctx.drawImage(bitmap, 0, 0)
-  const fontSize = Math.max(18, Math.round(canvas.width * 0.065))
+  const fontSize = canvasTextFontSizePx(
+    canvas.width,
+    resolveCanvasTextFontScale(input.overlay)
+  )
   if (input.overlay.enabled) {
     await ensureCanvasFontLoaded(input.overlay, fontSize)
     drawOverlayText(ctx, canvas.width, canvas.height, input.overlay)

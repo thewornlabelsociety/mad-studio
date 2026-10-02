@@ -11,16 +11,14 @@ import {
   TodayCommandDashboard,
   type ArmedTodayRow,
 } from "@/components/today/today-command-dashboard"
-import { looksLikeFashionCatalogContamination } from "@/lib/inventory/entity-intake"
-import { mapMarketingEntityRow } from "@/lib/inventory/types"
 import { parseStudioEntity } from "@/lib/campaigns/entity-dna"
-import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
 import {
   formatAgendaLiveDate,
   getLocalDayBounds,
   resolveBrainDirective,
 } from "@/lib/today/agenda"
-import { buildTodayQueueView } from "@/lib/today/queue"
+import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
+import { TodayActionDeck } from "@/components/today/action-deck"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
 
@@ -67,10 +65,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     : false
 
   const activeEntityId = activeEntity.id
-  const isFudi = isFudiStudioEntity({
-    name: activeEntity.name,
-    industry: activeEntity.industry,
-  })
 
   const { data: entityRow } = await supabase
     .from("entities")
@@ -84,7 +78,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
   const [
     { count: unfeaturedCountRaw },
-    { data: rows },
     { data: takeawayRows },
     { data: scheduledRows },
   ] = await Promise.all([
@@ -93,15 +86,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       .select("id", { count: "exact", head: true })
       .eq("entity_id", activeEntityId)
       .eq("status", "unfeatured"),
-    supabase
-      .from("marketing_entities")
-      .select(
-        "id, entity_id, website_item_id, title, brand, price, description, images, status, metrics, scheduled_at, channels, copy_draft, published_media_ids, trackable_slug, published_at, created_at, updated_at"
-      )
-      .eq("entity_id", activeEntityId)
-      .eq("status", "unfeatured")
-      .order("created_at", { ascending: false })
-      .limit(6),
     supabase
       .from("campaigns")
       .select("ai_takeaway")
@@ -126,20 +110,14 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
   const unfeaturedCount = unfeaturedCountRaw ?? 0
 
-  const mapped = (rows ?? [])
-    .filter((row) => row.entity_id === activeEntityId)
-    .map(mapMarketingEntityRow)
-    .filter((item) =>
-      isFudi ? !looksLikeFashionCatalogContamination(item) : true
-    )
+  const deck = await fetchPendingTodayDeck({
+    supabase,
+    entityId: activeEntityId,
+    brandName: activeEntity.name,
+    industry: activeEntity.industry,
+  })
 
-  const queue = mapped.map((item) =>
-    buildTodayQueueView({
-      item,
-      brandName: activeEntity.name,
-      industry: activeEntity.industry,
-    })
-  )
+  const queue = deck
 
   const campaignIds = [
     ...new Set(
@@ -219,19 +197,31 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         }
       />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        <TodayCommandDashboard
-          entityId={activeEntityId}
-          entityName={activeEntity.name}
-          industry={activeEntity.industry}
-          websiteUrl={entityRow?.website_url ?? null}
-          liveDateLabel={formatAgendaLiveDate()}
-          brainDirective={brainDirective}
-          unfeaturedCount={unfeaturedCount}
-          armedCount={armedRows.length}
-          initialQueue={queue}
-          armedRows={armedRows}
-        />
+      <main className="mx-auto w-full max-w-6xl flex-1 md:px-4 md:py-8">
+        <div className="md:hidden">
+          <TodayActionDeck
+            entityId={activeEntityId}
+            entityName={activeEntity.name}
+            industry={activeEntity.industry}
+            websiteUrl={entityRow?.website_url ?? null}
+            liveDateLabel={formatAgendaLiveDate()}
+            initialDeck={deck}
+          />
+        </div>
+        <div className="hidden px-4 py-8 md:block">
+          <TodayCommandDashboard
+            entityId={activeEntityId}
+            entityName={activeEntity.name}
+            industry={activeEntity.industry}
+            websiteUrl={entityRow?.website_url ?? null}
+            liveDateLabel={formatAgendaLiveDate()}
+            brainDirective={brainDirective}
+            unfeaturedCount={unfeaturedCount}
+            armedCount={armedRows.length}
+            initialQueue={queue}
+            armedRows={armedRows}
+          />
+        </div>
       </main>
     </div>
   )

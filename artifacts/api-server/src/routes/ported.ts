@@ -32,6 +32,7 @@ import * as fudiFeed from "../ported/app/api/intake/fudi-feed/route";
 import * as mobileDrop from "../ported/app/api/intake/mobile-drop/route";
 import * as enhanceCaption from "../ported/app/api/inventory/enhance-caption/route";
 import * as fieldAssist from "../ported/app/api/ai/field-assist/route";
+import * as metaSentimentWebhook from "../ported/app/api/webhooks/meta-sentiment/route";
 import * as carouselSuggest from "../ported/app/api/ai/carousel-suggest/route";
 import * as authCallback from "../ported/app/auth/callback/route";
 import * as authConfirm from "../ported/app/auth/confirm/route";
@@ -49,7 +50,10 @@ function webHandler(handler: WebHandler, bodyExpected = true) {
       }
       let body: RequestInit["body"];
       if (bodyExpected && !["GET", "HEAD"].includes(req.method)) {
-        if (
+        if (Buffer.isBuffer(req.body)) {
+          body = req.body.toString("utf8");
+          if (!headers.has("content-type")) headers.set("content-type", "application/json");
+        } else if (
           req.body !== undefined &&
           req.body !== null &&
           !(typeof req.body === "object" && Object.keys(req.body).length === 0)
@@ -159,6 +163,8 @@ router.post("/api/sync/pull-new-arrivals", webHandler(method(pullArrivals, "POST
 router.post("/api/sync/website", webHandler(method(syncWebsite, "POST")));
 router.post("/api/intake/fudi-feed", webHandler(method(fudiFeed, "POST")));
 router.post("/api/intake/mobile-drop", webHandler(method(mobileDrop, "POST")));
+router.get("/api/webhooks/meta-sentiment", webHandler(method(metaSentimentWebhook, "GET"), false));
+router.post("/api/webhooks/meta-sentiment", webHandler(method(metaSentimentWebhook, "POST")));
 router.post("/api/inventory/enhance-caption", webHandler(method(enhanceCaption, "POST")));
 router.post("/api/ai/field-assist", webHandler(method(fieldAssist, "POST")));
 router.post("/api/ai/carousel-suggest", webHandler(method(carouselSuggest, "POST")));

@@ -6,6 +6,7 @@ import * as createEntity from "../ported/app/actions/create-entity";
 import * as inventory from "../ported/app/actions/inventory";
 import * as scheduling from "../ported/app/actions/scheduling";
 import * as socialConnections from "../ported/app/actions/social-connections";
+import * as todayQueue from "../ported/app/actions/today-queue";
 import { RedirectSignal } from "../lib/http-response";
 import { withRequestContext } from "../lib/request-context";
 
@@ -59,6 +60,10 @@ const actions: Record<string, (...args: any[]) => Promise<unknown>> = {
   upsertOutboundWebhook: socialConnections.upsertOutboundWebhook,
   testOutboundWebhook: socialConnections.testOutboundWebhook,
   ensureInventoryTrackableLink: socialConnections.ensureInventoryTrackableLink,
+  archiveDailyQueueItem: todayQueue.archiveDailyQueueItem,
+  skipDailyQueueItem: todayQueue.skipDailyQueueItem,
+  markDailyQueuePublished: todayQueue.markDailyQueuePublished,
+  updateDailyQueueCopy: todayQueue.updateDailyQueueCopy,
 };
 
 /** Introspection for health checks and ops (dist must be rebuilt after adding actions). */

@@ -19,6 +19,7 @@ import { stripDuplicateHookFromCaption } from "@/lib/inventory/sop"
 import { AutoTextarea } from "@/components/studio/auto-textarea"
 
 import { CanvasTextOverlayEditor } from "@/components/studio/canvas-text-overlay"
+import { OnScreenTextPanel } from "@/components/studio/on-screen-text-panel"
 
 import {
 
@@ -903,6 +904,13 @@ export function StepCustomize({
           ) : null}
 
         </label>
+
+        {onTextOverlayChange ? (
+          <OnScreenTextPanel
+            value={textOverlay}
+            onChange={onTextOverlayChange}
+          />
+        ) : null}
 
       </div>
 

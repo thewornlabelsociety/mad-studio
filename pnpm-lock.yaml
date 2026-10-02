@@ -261,6 +261,16 @@ importers:
         version: 3.1.0
 
   artifacts/mad-studio:
+    dependencies:
+      '@remotion/media':
+        specifier: ^4.0.531
+        version: 4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@remotion/player':
+        specifier: ^4.0.531
+        version: 4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      remotion:
+        specifier: ^4.0.531
+        version: 4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     devDependencies:
       '@ai-sdk/react':
         specifier: ^4.0.119
@@ -2016,6 +2026,18 @@ packages:
   '@radix-ui/rect@1.1.3':
     resolution: {integrity: sha512-JtyZR+mqgBibTo8xea3B6ZRmzZiM/YeVBtUkas6zMuXjAlfIFIW2FgqeM9eLyvEaYX66vr6DJMK+4U6LV0KhNw==}
 
+  '@remotion/media@4.0.531':
+    resolution: {integrity: sha512-MQhJqvn0WC51hBUyqHsR368gYrN+kyZe0HWX652UqxQ601iOHGIJyIHUAx/YNDxOE9qoBt85M+5r0wKULKnrvw==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
+  '@remotion/player@4.0.531':
+    resolution: {integrity: sha512-a2iq13CQvUJMXq2Lf9aJD1TOyQ0Z44n4dEtHjOV1i4P8z6fjnvVDH19n+5ya/NLmakBdLyYmTghF3t0962b92g==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
   '@replit/connectors-sdk@0.4.3':
     resolution: {integrity: sha512-7XoaRty/O6JF161UkVBI8UewZ96XCNNN1kRvT9Q41IRH3xr+6ImylvXtirIghydDd2FCQvIkY4HQscOOr45otA==}
 
@@ -2239,6 +2261,12 @@ packages:
 
   '@types/d3-timer@3.0.2':
     resolution: {integrity: sha512-Ps3T8E8dZDam6fUyNiMkekK3XUsaUEik+idO9/YjPtfj2qruF8tFBXS7XhtE4iIXBLxhmLjP3SXpLhVf21I9Lw==}
+
+  '@types/dom-mediacapture-transform@0.1.12':
+    resolution: {integrity: sha512-d7/QsLRwF864A5mgIM/YrfiglHoYn7zgCcAoJgW404r+2DwnNr7EBbLnCWpmOMgH8y0te73L1AV6H1bmauaWFw==}
+
+  '@types/dom-webcodecs@0.1.13':
+    resolution: {integrity: sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==}
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
@@ -3383,6 +3411,9 @@ packages:
     resolution: {integrity: sha512-yz3xRaG20c6/BOzvYoDaGtPmGscs7YivItZEEqe6GbwNfHuxu9YNmvnEkMzKldAGY4/80pRcQRZSEnhquk9XuQ==}
     engines: {node: '>= 0.8'}
 
+  mediabunny@1.56.1:
+    resolution: {integrity: sha512-DNOm0bRBmeOxJgCK/g3LxNWbxY5morTauNdlychujGmJ9L37ezVezkNoI1WtO2Xdb4WlWWJlYfIKnOEzd5phRw==}
+
   merge-descriptors@2.0.0:
     resolution: {integrity: sha512-Snk314V5ayFLhp3fkUREub6WtjBfPdCPY1Ln8/8munuLuiYhsABgBVWsozAG+MWMbVEvcdcpbi9R7ww22l9Q3g==}
     engines: {node: '>=18'}
@@ -3904,6 +3935,12 @@ packages:
     resolution: {integrity: sha512-+tf74WyTpQT1lHI/zJeXOkMBqb6R9gNcd3T4DpXzjs26PdwEARCPKOjLAwJaQYrvSXS+nxsXMhEZD4NS40QuSg==}
     engines: {node: '>=18.0.0'}
 
+  remotion@4.0.531:
+    resolution: {integrity: sha512-GchTilW0M1zk9NsYxK9pIMBeDQMiQ1TrIz3zhPpMiysf9P0rTUYwxkJ9bFANwykz4nlImpWRtUHSxZnhBYeDdw==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
@@ -4371,6 +4408,9 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zod@4.5.4:
+    resolution: {integrity: sha512-sC95tT5iHHH9gtpj6A81kh+NEaRAUFN+qlUPDUbRfOMvNf5QCBqsb3WgvnpVtK5Y+4UfA6KqufotuTvMGiTlsA==}
 
   zod@4.6.5:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
@@ -5810,6 +5850,20 @@ snapshots:
 
   '@radix-ui/rect@1.1.3': {}
 
+  '@remotion/media@4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      mediabunny: 1.56.1
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+      remotion: 4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      zod: 4.5.4
+
+  '@remotion/player@4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+      remotion: 4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+
   '@replit/connectors-sdk@0.4.3': {}
 
   '@replit/vite-plugin-cartographer@0.5.21':
@@ -6044,6 +6098,12 @@ snapshots:
   '@types/d3-time@3.0.4': {}
 
   '@types/d3-timer@3.0.2': {}
+
+  '@types/dom-mediacapture-transform@0.1.12':
+    dependencies:
+      '@types/dom-webcodecs': 0.1.13
+
+  '@types/dom-webcodecs@0.1.13': {}
 
   '@types/estree@1.0.9': {}
 
@@ -6999,6 +7059,11 @@ snapshots:
 
   media-typer@1.1.1: {}
 
+  mediabunny@1.56.1:
+    dependencies:
+      '@types/dom-mediacapture-transform': 0.1.12
+      '@types/dom-webcodecs': 0.1.13
+
   merge-descriptors@2.0.0: {}
 
   merge-stream@2.0.0: {}
@@ -7602,6 +7667,11 @@ snapshots:
 
   remeda@2.48.0: {}
 
+  remotion@4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+
   require-from-string@2.0.2: {}
 
   resolve-from@4.0.0: {}
@@ -8070,5 +8140,7 @@ snapshots:
       zod: 3.25.76
 
   zod@3.25.76: {}
+
+  zod@4.5.4: {}
 
   zod@4.6.5: {}

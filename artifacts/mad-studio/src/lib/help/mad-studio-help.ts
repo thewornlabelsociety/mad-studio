@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-02c"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-02i"
 
 export type HelpSop = {
   title: string
@@ -113,8 +113,13 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
     title: "Today — Command Hub",
     route: "/today",
     summary:
-      "Daily radar: unfeatured intake count, armed posts, Brain directive, intake cards, refresh feed.",
+      "Daily radar: mobile swipe deck (PWA) from daily_queue pending_review; desktop command hub with armed posts and Brain directive.",
     features: [
+      {
+        name: "Mobile swipe deck (PWA)",
+        description:
+          "On phone viewports, /today shows one card at a time from public.daily_queue (status pending_review). Swipe left to archive, right to skip. Bottom bar: Edit (sheet), Preview (simulator), 1-Tap Approve & Publish (Meta API). Install via manifest.json (standalone) for floor-staff home screen.",
+      },
       {
         name: "Intake radar",
         description: "Count of unfeatured marketing_entities for the active entity.",
@@ -172,7 +177,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Drop workbench (Media step)",
         description:
-          "Drop workbench: Step 2 on-canvas text renders on the photo (lime drag bar + corner handles on the preview text box). Hook/Caption is the IG caption under the post — keep them separate. Save draft or Confirm & Arm bakes on-image text into the PNG (media_url) for immediate and scheduled Meta dispatch.",
+          "Drop workbench: the phone preview uses Remotion for live media + on-screen text (kinetic hook from Hook field, headline/subhead from [ On-Screen Text ] or Canvas). Canvas step still supports drag/rotate on the DOM layer; Copy step edits update the Remotion player instantly. CapCut bridge on Media remains for heavy manual cuts only. Save draft or Confirm & Arm bakes on-image text into the PNG (media_url) for dispatch.",
       },
     ],
     sop: {
@@ -212,7 +217,8 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       },
       {
         name: "Street Ear",
-        description: "Hospitality trend seeds (FÜDI-oriented prompts).",
+        description:
+          "Customer quote vault for hooks. Manual quotes plus inbound Instagram praise via Meta webhook POST /api/webhooks/meta-sentiment (comments + mentions). Positive comments map to the entity by connected Instagram account_id; stored with customer_emotion street_ear_inbound.",
       },
     ],
     sop: {
@@ -258,7 +264,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "On-canvas text styler",
         description:
-          "Canvas step: draggable headline/subhead plus editorial story stickers on IG Story — None, Link badge (VIEW PIECE ↗ / RESERVE TABLE ↗ / EXPLORE DROP ↗ / ORDER NOW ↗), Editorial poll, or Countdown timer. Noir or linen theme; drag link/poll/timer anywhere on the media frame (full height, not locked to a narrow band). Link badges use the trackable URL when armed. Legacy emoji/NEW/SALE decor when story sticker is None. Motion presets animate in preview; Save/Arm bakes decor into the PNG for dispatch.",
+          "Canvas step: draggable headline/subhead plus editorial story stickers on IG Story — None, Link badge (VIEW PIECE ↗ / RESERVE TABLE ↗ / EXPLORE DROP ↗ / ORDER NOW ↗), Editorial poll, or Countdown timer. Noir or linen theme. Text uses the lime Drag bar (move), top-left rotate, bottom-right resize; link/poll/timer use a separate vermillion drag chip above the sticker. Motion presets pause while you edit so handles stay aligned; Save/Arm bakes decor into the PNG for dispatch.",
       },
       {
         name: "CapCut bridge",

@@ -176,13 +176,24 @@ function normalizeTag(raw: string): string {
     .replace(/[^a-z0-9āēīōū]+/gi, "")
 }
 
+/** Long numeric / hex tokens (listing IDs), not short years like 1905 or nz2024. */
+function isLikelySkuNumericTag(normalized: string): boolean {
+  if (/^\d{6,}$/.test(normalized)) return true
+  if (/^[0-9a-f]{8,}$/i.test(normalized) && /\d/.test(normalized)) return true
+  const digitCount = (normalized.match(/\d/g) ?? []).length
+  return (
+    normalized.length >= 5 &&
+    digitCount >= 5 &&
+    digitCount / normalized.length >= 0.85
+  )
+}
+
 /** False for internal test titles, raw item IDs, and SKU-like tokens. */
 export function isCleanHashtag(tag: string, bannedSeeds: string[] = []): boolean {
   const normalized = normalizeTag(tag)
   if (normalized.length < 2 || normalized.length > 30) return false
   if (BANNED_TAG.test(normalized)) return false
-  if (/\d{3,}/.test(normalized)) return false
-  if (/[0-9a-f]{8,}/.test(normalized) && /\d/.test(normalized)) return false
+  if (isLikelySkuNumericTag(normalized)) return false
   return !bannedSeeds.some((seed) => seed && normalizeTag(seed) === normalized)
 }
 

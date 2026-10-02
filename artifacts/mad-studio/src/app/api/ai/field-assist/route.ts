@@ -29,7 +29,7 @@ const copyResultSchema = z.object({
 })
 
 const tagsResultSchema = z.object({
-  tags: z.array(z.string().min(2).max(40)).min(4).max(10),
+  tags: z.array(z.string().min(2).max(30)).min(1).max(10),
 })
 
 export async function POST(request: Request) {
@@ -127,15 +127,13 @@ export async function POST(request: Request) {
       const tags = cleanHashtags(
         object.tags.map((row) => row.trim()).filter(Boolean),
         { max: OPTIMIZATION_TAG_MAX }
-      ).filter(
-        (tag) =>
-          !existingTags.some(
-            (row) => row.toLowerCase() === tag.toLowerCase()
-          )
       )
 
       if (tags.length === 0) {
-        return NextResponse.json({ error: "No new tags generated." }, { status: 422 })
+        return NextResponse.json(
+          { error: "Model returned no usable tags. Try again or add manually." },
+          { status: 422 }
+        )
       }
 
       return NextResponse.json({ tags })

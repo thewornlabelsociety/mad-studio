@@ -2,11 +2,15 @@
 
 import {
   useCallback,
+  useEffect,
   useRef,
+  useState,
+  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type RefObject,
 } from "react"
-import { GripHorizontal } from "lucide-react"
+import { GripHorizontal, RotateCw } from "lucide-react"
 
 import { CanvasStickerVisual } from "@/components/studio/canvas-sticker-visual"
 import { EditorialStoryStickerOverlay } from "@/components/studio/story-stickers"
@@ -26,7 +30,46 @@ import {
   type CanvasTextOverlayState,
   type CanvasTextShadow,
 } from "@/lib/studio/canvas-text-types"
+import {
+  canvasTextFontSizePx,
+  canvasTextLineHeightPx,
+  clampCanvasTextFontScale,
+  clampCanvasTextRotationDeg,
+  resolveCanvasTextFontScale,
+  resolveCanvasTextRotationDeg,
+} from "@/lib/studio/canvas-text-layout"
 import { cn } from "@/lib/utils"
+
+export const CANVAS_MEDIA_FRAME_ATTR = "data-canvas-media-frame"
+
+function mediaFrameElement(from: HTMLElement): HTMLElement | null {
+  return from.closest(`[${CANVAS_MEDIA_FRAME_ATTR}]`) as HTMLElement | null
+}
+
+function attachWindowPointerSession(
+  event: ReactPointerEvent<HTMLElement>,
+  onMove: (event: PointerEvent) => void,
+  onEnd?: () => void
+) {
+  const pointerId = event.pointerId
+  event.preventDefault()
+  event.stopPropagation()
+
+  const move = (ev: PointerEvent) => {
+    if (ev.pointerId !== pointerId) return
+    onMove(ev)
+  }
+  const end = (ev: PointerEvent) => {
+    if (ev.pointerId !== pointerId) return
+    window.removeEventListener("pointermove", move)
+    window.removeEventListener("pointerup", end)
+    window.removeEventListener("pointercancel", end)
+    onEnd?.()
+  }
+  window.addEventListener("pointermove", move)
+  window.addEventListener("pointerup", end)
+  window.addEventListener("pointercancel", end)
+}
 
 function countdownLocalInputValue(iso: string): string {
   if (!iso.trim()) return ""
@@ -43,14 +86,19 @@ function localDatetimeToIso(local: string): string {
   return date.toISOString()
 }
 
+function useOverlayRef(overlay: CanvasTextOverlayState) {
+  const ref = useRef(overlay)
+  ref.current = overlay
+  return ref
+}
+
 function useCanvasDrag(
   interactive: boolean,
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
-  overlay: CanvasTextOverlayState,
+  overlayRef: MutableRefObject<CanvasTextOverlayState>,
   keys: {
     x: "positionX" | "stickerX"
     y: "positionY" | "stickerY"
-    /** Percent clamp for drag (default text: 4–96, stickers: 1–99). */
     min?: number
     max?: number
   }
@@ -65,132 +113,222 @@ function useCanvasDrag(
   } | null>(null)
 
   const onPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
+    (event: ReactPointerEvent<HTMLElement>) => {
       if (!interactive || !onChange) return
-      event.preventDefault()
-      event.stopPropagation()
-      event.currentTarget.setPointerCapture(event.pointerId)
+      const host = mediaFrameElement(event.currentTarget)
+      if (!host) return
+      const overlay = overlayRef.current
       dragRef.current = {
         startX: event.clientX,
         startY: event.clientY,
         originX: overlay[keys.x],
         originY: overlay[keys.y],
       }
-    },
-    [interactive, onChange, overlay, keys.x, keys.y]
-  )
-
-  const onPointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!dragRef.current || !onChange) return
-      const host = event.currentTarget.parentElement
-      if (!host) return
-      const rect = host.getBoundingClientRect()
-      if (rect.width < 1 || rect.height < 1) return
-      const dx = ((event.clientX - dragRef.current.startX) / rect.width) * 100
-      const dy = ((event.clientY - dragRef.current.startY) / rect.height) * 100
-      onChange({
-        ...overlay,
-        [keys.x]: Math.min(max, Math.max(min, dragRef.current.originX + dx)),
-        [keys.y]: Math.min(max, Math.max(min, dragRef.current.originY + dy)),
+      attachWindowPointerSession(event, (ev) => {
+        if (!dragRef.current || !onChange) return
+        const rect = host.getBoundingClientRect()
+        if (rect.width < 1 || rect.height < 1) return
+        const dx = ((ev.clientX - dragRef.current.startX) / rect.width) * 100
+        const dy = ((ev.clientY - dragRef.current.startY) / rect.height) * 100
+        onChange({
+          ...overlayRef.current,
+          [keys.x]: Math.min(max, Math.max(min, dragRef.current.originX + dx)),
+          [keys.y]: Math.min(max, Math.max(min, dragRef.current.originY + dy)),
+        })
+      }, () => {
+        dragRef.current = null
       })
     },
-    [onChange, overlay, keys.min, keys.max, keys.x, keys.y, min, max]
+    [interactive, onChange, overlayRef, keys.x, keys.y, min, max]
   )
 
-  const onPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    dragRef.current = null
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    } catch {
-      // ignore
-    }
-  }, [])
-
-  return { onPointerDown, onPointerMove, onPointerUp }
+  return { onPointerDown }
 }
 
-function CanvasDragCorner({ className }: { className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "absolute size-2.5 border-2 border-mad-lime bg-mad-black shadow-[0_0_0_1px_rgba(0,0,0,0.5)]",
-        className
-      )}
-    />
+function useCanvasFontScaleResize(
+  interactive: boolean,
+  onChange: ((next: CanvasTextOverlayState) => void) | undefined,
+  overlayRef: MutableRefObject<CanvasTextOverlayState>
+) {
+  const resizeRef = useRef<{ startY: number; originScale: number } | null>(null)
+
+  const onResizePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!interactive || !onChange) return
+      const host = mediaFrameElement(event.currentTarget)
+      if (!host) return
+      resizeRef.current = {
+        startY: event.clientY,
+        originScale: resolveCanvasTextFontScale(overlayRef.current),
+      }
+      attachWindowPointerSession(event, (ev) => {
+        if (!resizeRef.current || !onChange) return
+        const rect = host.getBoundingClientRect()
+        if (rect.height < 1) return
+        const dy = (ev.clientY - resizeRef.current.startY) / rect.height
+        const nextScale = clampCanvasTextFontScale(
+          resizeRef.current.originScale + dy * 2.4
+        )
+        onChange({ ...overlayRef.current, fontScale: nextScale })
+      }, () => {
+        resizeRef.current = null
+      })
+    },
+    [interactive, onChange, overlayRef]
   )
+
+  return { onResizePointerDown }
+}
+
+function useCanvasTextRotation(
+  interactive: boolean,
+  onChange: ((next: CanvasTextOverlayState) => void) | undefined,
+  overlayRef: MutableRefObject<CanvasTextOverlayState>,
+  boxRef: RefObject<HTMLDivElement | null>
+) {
+  const rotateRef = useRef<{
+    centerX: number
+    centerY: number
+    startAngle: number
+    originDeg: number
+  } | null>(null)
+
+  const onRotatePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!interactive || !onChange) return
+      const box = boxRef.current
+      if (!box) return
+      const rect = box.getBoundingClientRect()
+      const centerX = rect.left + rect.width / 2
+      const centerY = rect.top + rect.height / 2
+      const startAngle =
+        (Math.atan2(event.clientY - centerY, event.clientX - centerX) * 180) /
+        Math.PI
+      rotateRef.current = {
+        centerX,
+        centerY,
+        startAngle,
+        originDeg: resolveCanvasTextRotationDeg(overlayRef.current),
+      }
+      attachWindowPointerSession(event, (ev) => {
+        if (!rotateRef.current || !onChange) return
+        const { centerX: cx, centerY: cy, startAngle: sa, originDeg } =
+          rotateRef.current
+        const angle =
+          (Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI
+        const delta = angle - sa
+        onChange({
+          ...overlayRef.current,
+          rotationDeg: clampCanvasTextRotationDeg(originDeg + delta),
+        })
+      }, () => {
+        rotateRef.current = null
+      })
+    },
+    [interactive, onChange, overlayRef, boxRef]
+  )
+
+  return { onRotatePointerDown }
 }
 
 function DraggableDecor({
   interactive,
   x,
   y,
+  rotationDeg = 0,
   onPointerDown,
-  onPointerMove,
-  onPointerUp,
   children,
   hint,
   showDragHandles = false,
+  onResizePointerDown,
+  onRotatePointerDown,
+  boxRef,
 }: {
   interactive: boolean
   x: number
   y: number
-  onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void
-  onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void
-  onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void
+  rotationDeg?: number
+  onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void
   children: ReactNode
   hint?: string
-  /** Top grip + corner brackets for on-screen text in canvas step. */
   showDragHandles?: boolean
+  onResizePointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void
+  onRotatePointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void
+  boxRef?: RefObject<HTMLDivElement | null>
 }) {
   const handlesOn = interactive && showDragHandles
+  const localBoxRef = useRef<HTMLDivElement>(null)
+  const textBoxRef = boxRef ?? localBoxRef
 
   return (
     <div
-      className="absolute max-w-[88%] touch-none select-none"
+      className="absolute inline-block w-max max-w-[92%] touch-none select-none"
       style={{
         left: `${x}%`,
         top: `${y}%`,
         transform: "translate(-50%, -50%)",
       }}
     >
+      {handlesOn ? (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Drag on-screen text"
+          onPointerDown={onPointerDown}
+          className="pointer-events-auto absolute bottom-full left-1/2 z-20 mb-1 flex -translate-x-1/2 cursor-grab items-center justify-center gap-1 border-2 border-mad-lime/80 bg-mad-lime/90 px-2 py-0.5 shadow-keycap-sm active:cursor-grabbing"
+        >
+          <GripHorizontal className="size-3.5 shrink-0 text-mad-black" />
+          <span className="font-typewriter text-[0.4rem] font-bold tracking-wider text-mad-black uppercase">
+            Drag
+          </span>
+        </div>
+      ) : null}
       <div
-        role={interactive ? "button" : undefined}
-        tabIndex={interactive ? 0 : undefined}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        aria-label={handlesOn ? "Drag on-screen text" : hint}
-        className={cn(
-          "relative",
-          interactive && "pointer-events-auto cursor-grab active:cursor-grabbing",
-          handlesOn &&
-            "rounded-sm border-2 border-dashed border-mad-lime/90 bg-black/25 px-2 pb-2 pt-7 shadow-[0_2px_12px_rgba(0,0,0,0.35)]",
-          interactive &&
-            !handlesOn &&
-            "ring-2 ring-transparent hover:ring-mad-vermillion/80 hover:ring-offset-1 hover:ring-offset-black/20"
-        )}
+        ref={textBoxRef}
+        className="inline-block w-max max-w-full"
+        style={{
+          transform: rotationDeg ? `rotate(${rotationDeg}deg)` : undefined,
+          transformOrigin: "center center",
+        }}
       >
-        {handlesOn ? (
-          <>
-            <div
-              className="absolute top-0 right-0 left-0 flex cursor-grab items-center justify-center gap-1 border-b-2 border-mad-lime/80 bg-mad-lime/90 py-0.5 active:cursor-grabbing"
-              aria-hidden
-            >
-              <GripHorizontal className="size-3.5 shrink-0 text-mad-black" />
-              <span className="font-typewriter text-[0.4rem] font-bold tracking-wider text-mad-black uppercase">
-                Drag
-              </span>
-            </div>
-            <CanvasDragCorner className="-top-1.5 -left-1.5" />
-            <CanvasDragCorner className="-top-1.5 -right-1.5" />
-            <CanvasDragCorner className="-bottom-1.5 -left-1.5" />
-            <CanvasDragCorner className="-bottom-1.5 -right-1.5" />
-          </>
-        ) : null}
-        {children}
+        <div
+          role={interactive && !handlesOn ? "button" : undefined}
+          tabIndex={interactive && !handlesOn ? 0 : undefined}
+          onPointerDown={interactive && !handlesOn ? onPointerDown : undefined}
+          className={cn(
+            "relative inline-block w-max max-w-full",
+            handlesOn &&
+              "rounded-sm border-2 border-dashed border-mad-lime/90 bg-black/25 p-0.5 shadow-[0_2px_12px_rgba(0,0,0,0.35)]",
+            interactive && !handlesOn && "pointer-events-auto cursor-grab active:cursor-grabbing",
+            interactive &&
+              !handlesOn &&
+              "ring-2 ring-transparent hover:ring-mad-vermillion/80 hover:ring-offset-1 hover:ring-offset-black/20"
+          )}
+        >
+          {handlesOn ? (
+            <>
+              {onRotatePointerDown ? (
+                <button
+                  type="button"
+                  aria-label="Rotate on-screen text"
+                  onPointerDown={onRotatePointerDown}
+                  className="absolute -top-1 -left-1 z-30 flex size-5 cursor-grab items-center justify-center border-2 border-mad-black bg-mad-white text-mad-black shadow-keycap-sm touch-none active:cursor-grabbing"
+                >
+                  <RotateCw className="size-3" />
+                </button>
+              ) : null}
+              {onResizePointerDown ? (
+                <button
+                  type="button"
+                  aria-label="Resize on-screen text"
+                  onPointerDown={onResizePointerDown}
+                  className="absolute -bottom-1 -right-1 z-30 size-5 cursor-nwse-resize border-2 border-mad-vermillion bg-mad-lime shadow-keycap-sm touch-none"
+                />
+              ) : null}
+            </>
+          ) : null}
+          {children}
+        </div>
       </div>
       {interactive && hint && !handlesOn ? (
         <span className="mt-1 block text-center font-typewriter text-[0.45rem] font-bold tracking-wider text-white/80 uppercase drop-shadow-md">
@@ -211,6 +349,10 @@ type LayerProps = {
   linkHref?: string | null
   /** IG story safe-zone editorial stickers (poll, timer, link badge). */
   storyEditorialStickers?: boolean
+  /** When false, text is rendered by Remotion preview (stickers/handles only). */
+  renderCanvasText?: boolean
+  /** Skip link badge / link pill when Remotion renders the badge. */
+  deferBadgeToRemotion?: boolean
 }
 
 export function CanvasTextOverlayLayer({
@@ -220,12 +362,43 @@ export function CanvasTextOverlayLayer({
   onOverlayChange,
   linkHref = null,
   storyEditorialStickers = false,
+  renderCanvasText = true,
+  deferBadgeToRemotion = false,
 }: LayerProps) {
-  const textDrag = useCanvasDrag(interactive, onOverlayChange, overlay, {
+  const frameRef = useRef<HTMLDivElement>(null)
+  const textBoxRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useOverlayRef(overlay)
+  const [frameWidthPx, setFrameWidthPx] = useState(0)
+
+  useEffect(() => {
+    const node = frameRef.current
+    if (!node) return
+    const measure = () => {
+      const rect = node.getBoundingClientRect()
+      setFrameWidthPx(Math.max(0, Math.round(rect.width)))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  const textDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, {
     x: "positionX",
     y: "positionY",
   })
-  const stickerDrag = useCanvasDrag(interactive, onOverlayChange, overlay, {
+  const textResize = useCanvasFontScaleResize(
+    interactive,
+    onOverlayChange,
+    overlayRef
+  )
+  const textRotate = useCanvasTextRotation(
+    interactive,
+    onOverlayChange,
+    overlayRef,
+    textBoxRef
+  )
+  const stickerDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, {
     x: "stickerX",
     y: "stickerY",
     min: 1,
@@ -238,10 +411,12 @@ export function CanvasTextOverlayLayer({
     CANVAS_TEXT_FONTS.find((row) => row.id === overlay.fontId) ??
     CANVAS_TEXT_FONTS[0]
   const lines = [overlay.headline.trim(), overlay.subhead.trim()].filter(Boolean)
-  const showText = overlay.enabled && lines.length > 0
-  const motionClass = canvasTextAnimationClass(overlay.animation, {
-    motionPreview: true,
-  })
+  const showText = renderCanvasText && overlay.enabled && lines.length > 0
+  const motionClass = interactive
+    ? ""
+    : canvasTextAnimationClass(overlay.animation, {
+        motionPreview: true,
+      })
 
   const alignClass =
     overlay.textAlign === "left"
@@ -250,10 +425,29 @@ export function CanvasTextOverlayLayer({
         ? "text-right items-end"
         : "text-center items-center"
 
+  const fontSizePx =
+    frameWidthPx > 0
+      ? canvasTextFontSizePx(frameWidthPx, resolveCanvasTextFontScale(overlay))
+      : null
+  const lineHeightPx =
+    fontSizePx != null ? canvasTextLineHeightPx(fontSizePx) : undefined
+  const highlightPad =
+    fontSizePx != null
+      ? {
+          paddingLeft: fontSizePx * 0.25,
+          paddingRight: fontSizePx * 0.25,
+          paddingTop: fontSizePx * 0.12,
+          paddingBottom: fontSizePx * 0.12,
+        }
+      : undefined
+
   return (
     <div
+      ref={frameRef}
+      {...{ [CANVAS_MEDIA_FRAME_ATTR]: "" }}
       className={cn(
-        "pointer-events-none absolute inset-0 z-20 overflow-hidden",
+        "pointer-events-none absolute inset-0 z-20",
+        interactive ? "overflow-visible" : "overflow-hidden",
         className
       )}
       aria-hidden={!interactive}
@@ -263,40 +457,56 @@ export function CanvasTextOverlayLayer({
           interactive={interactive}
           x={overlay.positionX}
           y={overlay.positionY}
+          rotationDeg={resolveCanvasTextRotationDeg(overlay)}
           showDragHandles
+          boxRef={textBoxRef}
           {...textDrag}
+          {...textResize}
+          {...textRotate}
         >
-          <div className={cn("flex flex-col gap-1", alignClass, motionClass)}>
+          <div
+            className={cn("inline-block w-max max-w-full", alignClass, motionClass)}
+            style={{ gap: fontSizePx != null ? fontSizePx * 0.15 : 4 }}
+          >
             {lines.map((line, index) => (
-              <p
+              <span
                 key={`${line}-${index}`}
                 className={cn(
-                  "text-[clamp(0.75rem,5.5vw,1.45rem)] leading-tight",
+                  "block w-max max-w-full leading-none",
                   font.className,
                   canvasTextShadowClass(overlay.shadow),
                   canvasTextHighlightClass(overlay.highlight)
                 )}
-                style={{ ...font.style, color: overlay.color }}
+                style={{
+                  ...font.style,
+                  color: overlay.color,
+                  fontSize: fontSizePx ?? undefined,
+                  lineHeight: lineHeightPx,
+                  marginTop: index > 0 ? (fontSizePx != null ? fontSizePx * 0.15 : 4) : 0,
+                  ...highlightPad,
+                }}
               >
                 {line}
-              </p>
+              </span>
             ))}
           </div>
         </DraggableDecor>
       ) : null}
 
-      {storyEditorialStickers && overlay.storyStickerMode !== "none" ? (
+      {storyEditorialStickers &&
+      overlay.storyStickerMode !== "none" &&
+      !(deferBadgeToRemotion && overlay.storyStickerMode === "link_badge") ? (
         <EditorialStoryStickerOverlay
           overlay={overlay}
           interactive={interactive}
           linkHref={linkHref}
           onPointerDown={stickerDrag.onPointerDown}
-          onPointerMove={stickerDrag.onPointerMove}
-          onPointerUp={stickerDrag.onPointerUp}
         />
       ) : null}
 
-      {overlay.storyStickerMode === "none" && overlay.stickerEnabled ? (
+      {overlay.storyStickerMode === "none" &&
+      overlay.stickerEnabled &&
+      !(deferBadgeToRemotion && overlay.stickerId === "link_pill") ? (
         overlay.stickerId === "link_pill" && linkHref?.trim() && !interactive ? (
           <a
             href={linkHref.trim()}
@@ -389,10 +599,12 @@ export function CanvasTextOverlayEditor({
       </div>
 
       <p className="font-typewriter text-[0.45rem] leading-relaxed text-neutral-600 normal-case">
-        Text and stickers render on the photo — not in the caption strip. Use the
-        lime drag bar on the text box in the preview to reposition. Motion plays
-        in the studio; baked PNGs use a
-        still frame{isVideo ? " (Reels keep motion in-app only)" : ""}.
+        Text and stickers render on the photo — not in the caption strip. Drag the
+        lime bar to move; bottom-right handle (or size slider) to scale; top-left
+        handle (or rotation slider) to tilt. Box hugs the text. Preview matches
+        baked PNG on IG, TikTok, and Facebook media frames.
+        Motion plays in the studio; baked PNGs use a still frame
+        {isVideo ? " (Reels keep motion in-app only)" : ""}.
       </p>
 
       <input
@@ -413,6 +625,44 @@ export function CanvasTextOverlayEditor({
         placeholder="Subhead (optional)"
         className="w-full border-2 border-mad-black px-2 py-1 text-xs outline-none focus:bg-mad-lime/20"
       />
+
+      <label className="grid gap-1">
+        <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
+          On-screen size ({Math.round(resolveCanvasTextFontScale(value) * 100)}%)
+        </span>
+        <input
+          type="range"
+          min={0.5}
+          max={2.5}
+          step={0.05}
+          value={resolveCanvasTextFontScale(value)}
+          onChange={(event) =>
+            patch({
+              fontScale: clampCanvasTextFontScale(Number(event.target.value)),
+            })
+          }
+          className="w-full"
+        />
+      </label>
+
+      <label className="grid gap-1">
+        <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
+          Rotation ({Math.round(resolveCanvasTextRotationDeg(value))}°)
+        </span>
+        <input
+          type="range"
+          min={-180}
+          max={180}
+          step={1}
+          value={resolveCanvasTextRotationDeg(value)}
+          onChange={(event) =>
+            patch({
+              rotationDeg: clampCanvasTextRotationDeg(Number(event.target.value)),
+            })
+          }
+          className="w-full"
+        />
+      </label>
 
       <div className="grid grid-cols-3 gap-1">
         {(

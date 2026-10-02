@@ -29,6 +29,11 @@ app.use(
   }),
 );
 app.use(cors());
+// Meta webhooks require the raw JSON body for X-Hub-Signature-256 verification.
+app.use(
+  "/api/webhooks/meta-sentiment",
+  express.raw({ type: "application/json", limit: "1mb" }),
+);
 // Imported media inspection and document actions submit encoded files as JSON.
 // Keep a bounded payload allowance for those routes without raising every endpoint's limit.
 app.use(["/api/actions/uploadEntityDocument", "/api/media/inspect", "/api/media/remove-bg", "/api/media/upload-cutout"], express.json({ limit: "30mb" }));

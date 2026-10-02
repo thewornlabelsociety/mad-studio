@@ -229,8 +229,6 @@ type OverlaySlotProps = {
   interactive?: boolean
   linkHref?: string | null
   onPointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void
-  onPointerMove?: (event: ReactPointerEvent<HTMLDivElement>) => void
-  onPointerUp?: (event: ReactPointerEvent<HTMLDivElement>) => void
   dragHint?: string
 }
 
@@ -299,8 +297,6 @@ export function EditorialStoryStickerOverlay({
   interactive = false,
   linkHref = null,
   onPointerDown,
-  onPointerMove,
-  onPointerUp,
   dragHint = "Drag sticker",
   className,
 }: OverlaySlotProps & { className?: string }) {
@@ -324,31 +320,35 @@ export function EditorialStoryStickerOverlay({
       )}
     >
       <div
-        role={interactive ? "button" : undefined}
-        tabIndex={interactive ? 0 : undefined}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        className={cn(
-          "absolute max-w-[92%] touch-none select-none",
-          interactive &&
-            "pointer-events-auto cursor-grab active:cursor-grabbing",
-          interactive &&
-            "ring-2 ring-transparent hover:ring-mad-vermillion/80 hover:ring-offset-1 hover:ring-offset-black/20"
-        )}
+        className="absolute inline-block w-max max-w-[92%] touch-none select-none"
         style={{
           left: `${overlay.stickerX}%`,
           top: `${overlay.stickerY}%`,
           transform: "translate(-50%, -50%)",
         }}
       >
-        {body}
-        {interactive && dragHint ? (
-          <span className="mt-1 block text-center font-typewriter text-[0.45rem] font-bold tracking-wider text-white/80 uppercase drop-shadow-md">
-            {dragHint}
-          </span>
+        {interactive && onPointerDown ? (
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={dragHint || "Drag story sticker"}
+            onPointerDown={onPointerDown}
+            className="pointer-events-auto absolute bottom-full left-1/2 z-20 mb-1 flex -translate-x-1/2 cursor-grab items-center justify-center gap-1 border-2 border-mad-vermillion/80 bg-mad-vermillion/90 px-2 py-0.5 shadow-keycap-sm active:cursor-grabbing"
+          >
+            <span className="font-typewriter text-[0.4rem] font-bold tracking-wider text-mad-black uppercase">
+              {dragHint || "Drag"}
+            </span>
+          </div>
         ) : null}
+        <div
+          className={cn(
+            "inline-block w-max max-w-full",
+            interactive &&
+              "pointer-events-auto ring-2 ring-transparent hover:ring-mad-vermillion/80 hover:ring-offset-1 hover:ring-offset-black/20"
+          )}
+        >
+          {body}
+        </div>
       </div>
     </div>
   )
