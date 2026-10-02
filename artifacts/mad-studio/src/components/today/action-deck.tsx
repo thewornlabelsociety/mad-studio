@@ -8,7 +8,15 @@ import {
   useTransform,
   type PanInfo,
 } from "framer-motion"
-import { Loader2, Pencil, Rocket, Smartphone } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  ArrowRight,
+  Loader2,
+  Pencil,
+  Rocket,
+  Smartphone,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -230,8 +238,25 @@ export function TodayActionDeck({
           Today · {entityName}
         </h1>
         <p className="text-xs text-neutral-500">
-          {index + 1} of {deck.length} · swipe ← archive · → skip
+          {index + 1} of {deck.length}
         </p>
+        <div
+          className="mt-2 flex items-center justify-between gap-2"
+          aria-label="Swipe left to archive, swipe right to skip"
+        >
+          <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-mad-vermillion/20 px-2 py-1.5 font-typewriter text-[0.45rem] font-bold tracking-wider text-mad-black uppercase shadow-keycap-sm">
+            <ArrowLeft className="size-3.5 shrink-0" aria-hidden />
+            Archive
+          </span>
+          <ArrowLeftRight
+            className="size-5 shrink-0 text-neutral-500"
+            aria-hidden
+          />
+          <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-neutral-100 px-2 py-1.5 font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-800 uppercase shadow-keycap-sm">
+            Skip
+            <ArrowRight className="size-3.5 shrink-0" aria-hidden />
+          </span>
+        </div>
       </header>
 
       <div className="relative flex flex-1 items-center justify-center px-4 py-4">

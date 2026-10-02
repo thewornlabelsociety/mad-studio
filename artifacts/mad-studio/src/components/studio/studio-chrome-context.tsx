@@ -12,6 +12,10 @@ import { Loader2 } from "lucide-react"
 
 import { AppTopbar } from "@/components/layout/app-topbar"
 import { DraftActivePill } from "@/components/studio/draft-active-pill"
+import {
+  DropdownMenuItem,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu"
 import type { AccessibleEntity } from "@/lib/types"
 
 type StudioChromeState = {
@@ -99,5 +103,35 @@ export function StudioChromeTopbar(props: StudioChromeTopbarProps) {
     )
   }
 
-  return <AppTopbar {...props} centerSlot={centerSlot} />
+  let mobileMenuSlot: ReactNode = null
+  if (draftActive && onStartFresh) {
+    mobileMenuSlot = (
+      <>
+        <DropdownMenuLabel className="font-typewriter text-[0.55rem] font-bold tracking-wider uppercase">
+          Draft active
+        </DropdownMenuLabel>
+        <DropdownMenuItem
+          className="rounded-none font-typewriter text-[0.65rem] font-bold uppercase text-mad-vermillion"
+          onSelect={onStartFresh}
+        >
+          Start fresh
+        </DropdownMenuItem>
+      </>
+    )
+  } else if (rehydrating) {
+    mobileMenuSlot = (
+      <DropdownMenuLabel className="inline-flex items-center gap-1.5 font-typewriter text-[0.55rem] uppercase">
+        <Loader2 className="size-3 animate-spin" />
+        Restoring…
+      </DropdownMenuLabel>
+    )
+  }
+
+  return (
+    <AppTopbar
+      {...props}
+      centerSlot={centerSlot}
+      mobileMenuSlot={mobileMenuSlot}
+    />
+  )
 }

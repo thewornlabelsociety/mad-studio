@@ -1,13 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { Link } from "wouter"
 import { usePathname, useRouter } from "@/lib/next-compat"
 import { useTransition } from "react"
 import { Check, ChevronsUpDown, CircleHelp, Menu, Plus, User } from "lucide-react"
 
 import { setActiveEntity, signOut } from "@/lib/actions"
-import { MadStudioLogo } from "@/components/brand/mad-logo"
-import { TeamSopGuideDrawer } from "@/components/studio/sop-guide-drawer"
+import { MadFavicon, MadStudioLogo } from "@/components/brand/mad-logo"
+import { TeamSopGuideDrawer, TeamSopGuideSheet } from "@/components/studio/sop-guide-drawer"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -118,8 +119,9 @@ export type TopbarProps = {
   isOrgAdmin: boolean
   organizationId: string | null
   teamSlot?: React.ReactNode
-  /** Studio draft pill, restoring indicator, etc. */
   centerSlot?: React.ReactNode
+  /** Draft / studio actions rendered inside mobile Menu only (< md). */
+  mobileMenuSlot?: React.ReactNode
 }
 
 export function AppTopbar({
@@ -130,8 +132,10 @@ export function AppTopbar({
   organizationId,
   teamSlot,
   centerSlot = null,
+  mobileMenuSlot = null,
 }: TopbarProps) {
   const pathname = usePathname()
+  const [sopSheetOpen, setSopSheetOpen] = useState(false)
   const entityQuery = activeEntityId
     ? `?eid=${encodeURIComponent(activeEntityId)}`
     : ""
@@ -156,7 +160,38 @@ export function AppTopbar({
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-mad-black bg-mad-white">
-      <div className="flex w-full items-center justify-between gap-2 py-2 pl-2 pr-3 sm:pl-3 sm:pr-4 lg:pr-5">
+      <TeamSopGuideSheet open={sopSheetOpen} onOpenChange={setSopSheetOpen} />
+
+      <div className="flex w-full items-center justify-between gap-2 px-2 py-2 md:hidden">
+        <Link
+          href={`/today${entityQuery}`}
+          className="inline-flex shrink-0 items-center"
+          aria-label="MAD STUDIO home"
+        >
+          <MadFavicon className="size-8 border-2 border-mad-black" />
+        </Link>
+        <div className="flex min-w-0 flex-1 justify-center px-1">
+          <BrandSwitcher
+            entities={entities}
+            activeEntityId={activeEntityId}
+            className="max-w-[min(100%,11rem)]"
+          />
+        </div>
+        <MobileNav
+          primaryLinks={primaryLinks}
+          entityQuery={entityQuery}
+          isActive={isActive}
+          userEmail={userEmail}
+          isOrgAdmin={isOrgAdmin}
+          organizationId={organizationId}
+          teamSlot={teamSlot}
+          mobileMenuSlot={mobileMenuSlot}
+          onOpenTeamSop={() => setSopSheetOpen(true)}
+          triggerLabel="☰ Menu"
+        />
+      </div>
+
+      <div className="hidden w-full items-center justify-between gap-2 py-2 pl-2 pr-3 md:flex sm:pl-3 sm:pr-4 lg:pr-5">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <MadStudioLogo size="sm" href={`/today${entityQuery}`} />
           <BrandSwitcher
@@ -164,7 +199,7 @@ export function AppTopbar({
             activeEntityId={activeEntityId}
           />
           <nav
-            className="hidden min-w-0 items-center gap-1 md:flex"
+            className="hidden min-w-0 items-center gap-1 lg:flex"
             aria-label="Primary"
           >
             {primaryLinks.map((link) => (
@@ -183,20 +218,19 @@ export function AppTopbar({
             ))}
           </nav>
           {centerSlot ? (
-            <div className="hidden min-w-0 shrink sm:block">{centerSlot}</div>
+            <div className="hidden min-w-0 shrink xl:block">{centerSlot}</div>
           ) : null}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           {centerSlot ? (
-            <div className="min-w-0 shrink sm:hidden">{centerSlot}</div>
+            <div className="hidden min-w-0 shrink md:block xl:hidden">{centerSlot}</div>
           ) : null}
-          <TeamSopGuideDrawer className="hidden sm:inline-flex" />
-          <TeamSopGuideDrawer compact className="sm:hidden" />
+          <TeamSopGuideDrawer className="hidden md:inline-flex" />
           <Link
             href={`/help${entityQuery}`}
             className={cn(
-              "hidden items-center gap-1.5 border-2 px-2.5 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase transition-colors sm:inline-flex",
+              "hidden items-center gap-1.5 border-2 px-2.5 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase transition-colors lg:inline-flex",
               isActive("/help")
                 ? "border-mad-black bg-mad-black text-mad-white"
                 : "border-mad-black bg-mad-white text-mad-black hover:bg-mad-lime"
@@ -206,17 +240,6 @@ export function AppTopbar({
             <CircleHelp className="size-3.5" aria-hidden />
             Help
           </Link>
-          <div className="md:hidden">
-            <MobileNav
-              primaryLinks={primaryLinks}
-              entityQuery={entityQuery}
-              isActive={isActive}
-              userEmail={userEmail}
-              isOrgAdmin={isOrgAdmin}
-              organizationId={organizationId}
-              teamSlot={teamSlot}
-            />
-          </div>
           <AccountMenu
             entityQuery={entityQuery}
             userEmail={userEmail}
@@ -224,7 +247,6 @@ export function AppTopbar({
             organizationId={organizationId}
             teamSlot={teamSlot}
             isActive={isActive}
-            className="hidden md:flex"
           />
         </div>
       </div>
@@ -320,6 +342,9 @@ function MobileNav({
   isOrgAdmin,
   organizationId,
   teamSlot,
+  mobileMenuSlot,
+  onOpenTeamSop,
+  triggerLabel = "Menu",
 }: {
   primaryLinks: NavLink[]
   entityQuery: string
@@ -328,6 +353,9 @@ function MobileNav({
   isOrgAdmin: boolean
   organizationId: string | null
   teamSlot?: React.ReactNode
+  mobileMenuSlot?: React.ReactNode
+  onOpenTeamSop?: () => void
+  triggerLabel?: string
 }) {
   return (
     <DropdownMenu>
@@ -335,17 +363,23 @@ function MobileNav({
         <Button
           variant="outline"
           size="sm"
-          className="rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase shadow-keycap-sm"
-          aria-label="Open navigation"
+          className="shrink-0 rounded-none border-2 border-mad-black px-2.5 font-typewriter text-[0.65rem] font-bold uppercase shadow-keycap-sm"
+          aria-label="Open menu"
         >
           <Menu className="size-4" />
-          Menu
+          {triggerLabel}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
         className="min-w-[12rem] rounded-none border-2 border-mad-black shadow-keycap"
       >
+        {mobileMenuSlot ? (
+          <>
+            {mobileMenuSlot}
+            <DropdownMenuSeparator className="bg-mad-black" />
+          </>
+        ) : null}
         {primaryLinks.map((link) => (
           <DropdownMenuItem key={link.href} asChild className="rounded-none">
             <Link
@@ -357,6 +391,12 @@ function MobileNav({
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator className="bg-mad-black" />
+        <DropdownMenuItem
+          className="rounded-none font-typewriter text-[0.65rem] font-bold uppercase"
+          onSelect={() => onOpenTeamSop?.()}
+        >
+          📖 Team SOP &amp; posting guide
+        </DropdownMenuItem>
         <DropdownMenuItem asChild className="rounded-none">
           <Link href={`/analytics${entityQuery}`}>Meter</Link>
         </DropdownMenuItem>
@@ -375,6 +415,15 @@ function MobileNav({
         ) : null}
         <DropdownMenuItem asChild className="rounded-none">
           <Link href={`/help${entityQuery}`}>Help &amp; SOPs</Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-mad-black" />
+        <DropdownMenuItem
+          onSelect={() => {
+            void signOut().then(() => window.location.assign("/login"))
+          }}
+          className="rounded-none font-bold"
+        >
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

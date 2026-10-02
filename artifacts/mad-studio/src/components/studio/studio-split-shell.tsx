@@ -6,17 +6,11 @@ import { AnchoredPhoneShell } from "@/components/studio/anchored-phone-shell"
 import { cn } from "@/lib/utils"
 
 type Props = {
-  /** Step header + stepper (full width above grid). */
   header?: ReactNode
-  /** Active step form — left column, should fit viewport without page scroll. */
   controls: ReactNode
-  /** Fixed bottom/back/next inside left column. */
   navigationDock?: ReactNode
-  /** Vertical platform pills (desktop). */
   channelRail?: ReactNode
-  /** Phone preview. */
   preview: ReactNode
-  /** When true, controls column does not scroll (schedule step fits viewport). */
   lockControlsScroll?: boolean
   className?: string
 }
@@ -34,13 +28,20 @@ export function StudioSplitShell({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 w-full flex-col overflow-hidden px-3 py-1 sm:px-5 xl:px-8 2xl:px-10",
+        "flex h-full min-h-0 w-full flex-col overflow-hidden px-2 py-1 sm:px-5 xl:px-8 2xl:px-10",
         className
       )}
     >
-      {header ? (
-        <div className="mb-1 shrink-0 min-w-0">{header}</div>
-      ) : null}
+      {header ? <div className="mb-1 shrink-0 min-w-0">{header}</div> : null}
+
+      <div className="flex shrink-0 flex-col items-center gap-2 pb-3 lg:hidden">
+        {channelRail}
+        <div className="w-full max-w-[min(100%,360px)]">
+          <AnchoredPhoneShell className="max-w-[360px]">
+            {preview}
+          </AnchoredPhoneShell>
+        </div>
+      </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-4 lg:grid-cols-12 lg:gap-6 xl:gap-8">
         <div className="flex min-h-0 min-w-0 flex-col lg:col-span-8 xl:col-span-9 2xl:col-span-9">
@@ -66,8 +67,6 @@ export function StudioSplitShell({
           </div>
         </div>
       </div>
-
-      <div className="mt-4 flex justify-center lg:hidden">{preview}</div>
     </div>
   )
 }

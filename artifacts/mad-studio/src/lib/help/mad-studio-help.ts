@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-02m"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-02o"
 
 export type HelpSop = {
   title: string
@@ -118,7 +118,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Mobile swipe deck (PWA)",
         description:
-          "On phone viewports, /today shows one card at a time from public.daily_queue (status pending_review). Swipe left to archive, right to skip. Bottom bar: Edit (sheet), Preview (simulator), 1-Tap Approve & Publish (Meta API). Install via manifest.json (standalone) for floor-staff home screen. Apply Supabase migration 20261002_daily_queue.sql on MAD; until then, mobile Edit still saves copy on marketing_entities even if queue mirror columns are missing.",
+          "On phone viewports, /today shows one card at a time from public.daily_queue (status pending_review). Header shows Archive ↔ Skip swipe pills; swipe the card left to archive, right to skip. Bottom bar: Edit (sheet), Preview (simulator), 1-Tap Approve & Publish (Meta API). Install via manifest.json (standalone) for floor-staff home screen. Apply Supabase migration 20261002_daily_queue.sql on MAD; until then, mobile Edit still saves copy on marketing_entities even if queue mirror columns are missing.",
       },
       {
         name: "Intake radar",
@@ -240,8 +240,13 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
     title: "Campaign Studio (Multiplexer)",
     route: "/studio",
     summary:
-      "Five-step widescreen wizard: Media → Intent → Canvas → Copy → Schedule (formula or AI pack, then arm multi-channel).",
+      "Five-step wizard: Media → Intent → Canvas → Copy → Schedule. On phone, preview + icon channel rail sit above controls; draft/SOP live in ☰ Menu.",
     features: [
+      {
+        name: "Mobile Studio layout",
+        description:
+          "Under 768px: compact header (logo mark, brand pill, ☰ Menu). Step tracker shows Step N of 5 with dot progress. Preview phone and icon-only channel rail appear above the active step form (Schedule included).",
+      },
       {
         name: "Formula bank ($0 render)",
         description:
