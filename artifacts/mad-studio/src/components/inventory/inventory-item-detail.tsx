@@ -1179,6 +1179,7 @@ export function InventoryItemDetail({
         <>
           <StudioSplitShell
             className="min-h-0 flex-1"
+            showPreview={step !== WORKBENCH_STEP_MEDIA}
             channelRail={
               <CompactChannelRail
                 platform={simPlatform}

@@ -5,13 +5,13 @@ import { Link } from "wouter"
 import { Eye, Loader2, Zap } from "lucide-react"
 import { toast } from "sonner"
 
-import { approveMarketingEntity } from "@/lib/actions"
+import { skipDailyQueueItem } from "@/lib/actions"
 import { FUDI_DROP_BADGES } from "@/lib/today/agenda"
 import type { TodayQueueView } from "@/lib/today/queue"
 import { cn } from "@/lib/utils"
 
 type Props = {
-  view: TodayQueueView
+  view: TodayQueueView & { queueId?: string }
   entityId: string
   onSkip: (itemId: string) => void
   onPreview: (view: TodayQueueView) => void
@@ -26,10 +26,11 @@ export function IntakeActionCard({
   const [pending, startTransition] = useTransition()
   const studioHref = `/studio?eid=${encodeURIComponent(entityId)}&itemId=${encodeURIComponent(view.item.id)}&step=2`
 
-  function onArchive() {
+  function onSkipClick() {
     startTransition(async () => {
-      const result = await approveMarketingEntity({
+      const result = await skipDailyQueueItem({
         entityId,
+        queueId: view.queueId ?? view.item.id,
         itemId: view.item.id,
       })
       if (!result.ok) {
@@ -37,7 +38,7 @@ export function IntakeActionCard({
         return
       }
       onSkip(view.item.id)
-      toast.message("Removed from today’s intake queue.")
+      toast.message("Skipped — won’t show on Today again.")
     })
   }
 
@@ -147,7 +148,7 @@ export function IntakeActionCard({
         <button
           type="button"
           disabled={pending}
-          onClick={onArchive}
+          onClick={onSkipClick}
           className={cn(
             "inline-flex h-9 items-center justify-center border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase hover:bg-neutral-200 disabled:opacity-50 sm:h-10 sm:px-3 sm:text-[0.6rem]"
           )}

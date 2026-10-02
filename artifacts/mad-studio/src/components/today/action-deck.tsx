@@ -108,6 +108,7 @@ export function TodayActionDeck({
         const result = await skipDailyQueueItem({
           entityId,
           queueId: card.queueId,
+          itemId: card.item.id,
         })
         if (!result.ok) {
           toast.error(result.error)

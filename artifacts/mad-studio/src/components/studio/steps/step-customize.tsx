@@ -2,7 +2,7 @@
 
 
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 
 import { Loader2, RotateCcw, Sparkles } from "lucide-react"
 
@@ -51,6 +51,14 @@ import {
 
 } from "@/lib/studio/canvas-text-types"
 
+import {
+  STUDIO_WIZARD_STEP_SOP,
+} from "@/lib/studio/studio-wizard-sop"
+import {
+  WORKBENCH_STEP_CANVAS,
+  WORKBENCH_STEP_COPY,
+  WORKBENCH_STEP_INTENT,
+} from "@/lib/studio/workbench-steps"
 import { cn } from "@/lib/utils"
 
 
@@ -59,6 +67,22 @@ type HookChip = { id: string; label: string; hook: string }
 
 const DNA_SELECT_TRIGGER_CLASS =
   "h-9 w-full max-w-full min-w-0 overflow-hidden rounded-none border-2 border-mad-black text-xs shadow-none [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
+
+const SELECT_CUSTOM = "__custom__"
+const SELECT_NONE = "__none__"
+
+const DNA_SELECT_CONTENT_CLASS =
+  "z-[100] rounded-none border-2 border-mad-black"
+
+function pickSelectValue(
+  current: string | null | undefined,
+  allowed: string[],
+  fallback: string
+): string {
+  if (current && allowed.includes(current)) return current
+  if (fallback && allowed.includes(fallback)) return fallback
+  return allowed[0] ?? SELECT_NONE
+}
 
 export type CustomizeWizardPhase = "intent" | "canvas" | "copy" | "all"
 
@@ -206,17 +230,17 @@ const PHASE_META: Record<
   intent: {
     step: "Step 2 · Intent",
     title: "Audience & DNA",
-    subtitle: "Drop type, pillars, persona, hook blueprint, CTA.",
+    subtitle: STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_INTENT].hint,
   },
   canvas: {
     step: "Step 3 · Canvas",
     title: "On-image text",
-    subtitle: "Drag text on the phone preview — not the caption block.",
+    subtitle: STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_CANVAS].hint,
   },
   copy: {
     step: "Step 4 · Copy",
     title: "Hook & caption",
-    subtitle: "Instagram caption lives here; on-image text is on Canvas.",
+    subtitle: STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_COPY].hint,
   },
 }
 
@@ -318,7 +342,51 @@ export function StepCustomize({
 
   const ctas = entity.conversion_goals
 
+  const pillarOptions = [...pillars]
+  const [pillarCustom, setPillarCustom] = useState(
+    () =>
+      Boolean(contentPillar.trim()) &&
+      !pillarOptions.some(
+        (p) => p.toLowerCase() === contentPillar.trim().toLowerCase()
+      )
+  )
+  useEffect(() => {
+    const trimmed = contentPillar.trim()
+    if (!trimmed) return
+    const inList = pillarOptions.some(
+      (p) => p.toLowerCase() === trimmed.toLowerCase()
+    )
+    if (!inList) setPillarCustom(true)
+  }, [contentPillar, pillarOptions])
 
+  const pillarSelectValue = pillarCustom
+    ? SELECT_CUSTOM
+    : pickSelectValue(
+        contentPillar,
+        pillarOptions,
+        pillarOptions[0] ?? SELECT_CUSTOM
+      )
+
+  const personaIds = personas.map((p) => p.id)
+  const personaSelectValue = pickSelectValue(
+    personaId,
+    personaIds,
+    personas[0]?.id ?? SELECT_NONE
+  )
+
+  const hookIds = bank.hook_styles.map((h) => h.id)
+  const hookSelectValue = pickSelectValue(
+    hookBlueprintId,
+    hookIds,
+    bank.hook_styles[0]?.id ?? SELECT_NONE
+  )
+
+  const ctaIds = ctas.map((c) => c.id)
+  const ctaSelectValue = pickSelectValue(
+    ctaId,
+    ctaIds,
+    ctas[0]?.id ?? SELECT_NONE
+  )
 
   function commitCaption(next: string) {
 
@@ -403,7 +471,7 @@ export function StepCustomize({
 
         </h2>
 
-        {meta.subtitle ? (
+        {meta.subtitle && phase === "all" ? (
           <p className="mt-0.5 text-xs leading-snug text-neutral-600">{meta.subtitle}</p>
         ) : null}
 
@@ -445,35 +513,40 @@ export function StepCustomize({
           </span>
 
           <Select
-
-            value={contentPillar || pillars[0]}
-
-            onValueChange={(value) => onContentPillarChange?.(value)}
-
+            value={pillarSelectValue}
+            onValueChange={(value) => {
+              if (value === SELECT_CUSTOM) {
+                setPillarCustom(true)
+                onContentPillarChange?.("")
+                return
+              }
+              setPillarCustom(false)
+              onContentPillarChange?.(value)
+            }}
           >
-
             <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
-
-              <SelectValue />
-
+              <SelectValue placeholder="Content pillar" />
             </SelectTrigger>
-
-            <SelectContent className="rounded-none border-2 border-mad-black">
-
-              {pillars.map((pillar) => (
-
+            <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
+              {pillarOptions.map((pillar) => (
                 <SelectItem key={pillar} value={pillar} title={pillar}>
-
                   <span className="block truncate">{pillar}</span>
-
                 </SelectItem>
-
               ))}
-
+              <SelectItem value={SELECT_CUSTOM}>Custom…</SelectItem>
             </SelectContent>
-
           </Select>
-
+          {pillarSelectValue === SELECT_CUSTOM ? (
+            <input
+              type="text"
+              value={contentPillar}
+              onChange={(event) =>
+                onContentPillarChange?.(event.target.value)
+              }
+              placeholder="Custom pillar / vibe…"
+              className="h-9 w-full border-2 border-mad-black bg-mad-white px-2 font-sans text-sm outline-none focus:bg-mad-lime/20"
+            />
+          ) : null}
         </label>
 
 
@@ -486,52 +559,31 @@ export function StepCustomize({
 
           </span>
 
-          <Select
-
-            value={personaId || personas[0]?.id || "__none__"}
-
-            onValueChange={(value) =>
-
-              onPersonaIdChange?.(value === "__none__" ? "" : value)
-
-            }
-
-          >
-
-            <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
-
-              <SelectValue placeholder="Persona" />
-
-            </SelectTrigger>
-
-            <SelectContent className="rounded-none border-2 border-mad-black">
-
-              {personas.length === 0 ? (
-
-                <SelectItem value="__none__" disabled>
-
-                  Add segments in Brain
-
-                </SelectItem>
-
-              ) : (
-
-                personas.map((persona) => (
-
+          {personas.length === 0 ? (
+            <p className="font-typewriter text-[0.55rem] text-neutral-500 normal-case">
+              Add audience segments in Brain to pick a persona.
+            </p>
+          ) : (
+            <Select
+              value={personaSelectValue}
+              onValueChange={(value) =>
+                onPersonaIdChange?.(
+                  value === SELECT_NONE ? "" : value
+                )
+              }
+            >
+              <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
+                <SelectValue placeholder="Persona" />
+              </SelectTrigger>
+              <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
+                {personas.map((persona) => (
                   <SelectItem key={persona.id} value={persona.id}>
-
                     {persona.name}
-
                   </SelectItem>
-
-                ))
-
-              )}
-
-            </SelectContent>
-
-          </Select>
-
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </label>
 
 
@@ -544,36 +596,31 @@ export function StepCustomize({
 
           </span>
 
-          <Select
-
-            value={hookBlueprintId ?? bank.hook_styles[0]?.id ?? ""}
-
-            onValueChange={(value) => onHookBlueprintIdChange?.(value)}
-
-          >
-
-            <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
-
-              <SelectValue />
-
-            </SelectTrigger>
-
-            <SelectContent className="rounded-none border-2 border-mad-black">
-
-              {bank.hook_styles.map((hook) => (
-
-                <SelectItem key={hook.id} value={hook.id}>
-
-                  {hook.label}
-
-                </SelectItem>
-
-              ))}
-
-            </SelectContent>
-
-          </Select>
-
+          {bank.hook_styles.length === 0 ? (
+            <p className="font-typewriter text-[0.55rem] text-neutral-500 normal-case">
+              Add hook blueprints in Brain DNA presets.
+            </p>
+          ) : (
+            <Select
+              value={hookSelectValue}
+              onValueChange={(value) => {
+                if (value !== SELECT_NONE) {
+                  onHookBlueprintIdChange?.(value)
+                }
+              }}
+            >
+              <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
+                <SelectValue placeholder="Hook blueprint" />
+              </SelectTrigger>
+              <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
+                {bank.hook_styles.map((hook) => (
+                  <SelectItem key={hook.id} value={hook.id}>
+                    {hook.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </label>
 
 
@@ -586,36 +633,29 @@ export function StepCustomize({
 
           </span>
 
-          <Select
-
-            value={ctaId ?? ctas[0]?.id ?? ""}
-
-            onValueChange={(value) => onCtaIdChange?.(value)}
-
-          >
-
-            <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
-
-              <SelectValue />
-
-            </SelectTrigger>
-
-            <SelectContent className="rounded-none border-2 border-mad-black">
-
-              {ctas.map((cta) => (
-
-                <SelectItem key={cta.id} value={cta.id}>
-
-                  {cta.label}
-
-                </SelectItem>
-
-              ))}
-
-            </SelectContent>
-
-          </Select>
-
+          {ctas.length === 0 ? (
+            <p className="font-typewriter text-[0.55rem] text-neutral-500 normal-case">
+              Add conversion goals in Brain to pick a CTA.
+            </p>
+          ) : (
+            <Select
+              value={ctaSelectValue}
+              onValueChange={(value) => {
+                if (value !== SELECT_NONE) onCtaIdChange?.(value)
+              }}
+            >
+              <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
+                <SelectValue placeholder="Call to action" />
+              </SelectTrigger>
+              <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
+                {ctas.map((cta) => (
+                  <SelectItem key={cta.id} value={cta.id}>
+                    {cta.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </label>
 
       </div>

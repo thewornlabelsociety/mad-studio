@@ -8,6 +8,7 @@ import {
   isPostgrestMissingRelationError,
   resilientTableUpdate,
 } from "@/lib/today/resilient-table-update"
+import { persistTodayDeckDismissal } from "@/lib/today/today-deck-dismiss"
 
 async function assertCanEdit(entityId: string) {
   const supabase = await createClient()
@@ -84,12 +85,22 @@ export async function archiveDailyQueueItem(input: {
     return { ok: false, error: auth.error ?? "Unauthorized" }
   }
 
+  const dismissMeta = await persistTodayDeckDismissal({
+    supabase: auth.supabase,
+    entityId: input.entityId,
+    itemId: input.itemId,
+    status: "archived",
+  })
+  if (!dismissMeta.ok) {
+    return { ok: false, error: dismissMeta.error }
+  }
+
   const queueResult = await updateDailyQueueStatus(auth.supabase, {
     entityId: input.entityId,
     queueId: input.queueId,
     status: "archived",
   })
-  if (!queueResult.ok) {
+  if (!queueResult.ok && !queueResult.error.includes("not migrated")) {
     return { ok: false, error: queueResult.error }
   }
 
@@ -108,10 +119,21 @@ export async function archiveDailyQueueItem(input: {
 export async function skipDailyQueueItem(input: {
   entityId: string
   queueId: string
+  itemId: string
 }): Promise<TodayQueueActionResult> {
   const auth = await assertCanEdit(input.entityId)
   if (auth.error || !auth.user) {
     return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+
+  const dismissMeta = await persistTodayDeckDismissal({
+    supabase: auth.supabase,
+    entityId: input.entityId,
+    itemId: input.itemId,
+    status: "skipped",
+  })
+  if (!dismissMeta.ok) {
+    return { ok: false, error: dismissMeta.error }
   }
 
   const queueResult = await updateDailyQueueStatus(auth.supabase, {
@@ -119,11 +141,12 @@ export async function skipDailyQueueItem(input: {
     queueId: input.queueId,
     status: "skipped",
   })
-  if (!queueResult.ok) {
+  if (!queueResult.ok && !queueResult.error.includes("not migrated")) {
     return { ok: false, error: queueResult.error }
   }
 
   revalidatePath("/today")
+  revalidatePath("/inventory")
   return { ok: true }
 }
 

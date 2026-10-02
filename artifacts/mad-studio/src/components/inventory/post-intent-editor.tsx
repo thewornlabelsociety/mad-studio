@@ -10,14 +10,24 @@ import {
 } from "react"
 
 import {
-  CHANNEL_HINT_PRESETS,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   FUDI_DROP_KIND_OPTIONS,
   type PostIntentState,
 } from "@/lib/inventory/post-intent"
 import type { FudiDropKind } from "@/lib/today/agenda"
 import { cn } from "@/lib/utils"
 
-/** Controlled text field — avoids typewriter letter-spacing caret bugs in Chrome. */
+const SELECT_CUSTOM = "__custom__"
+
+const INTENT_SELECT_TRIGGER =
+  "h-9 w-full max-w-full min-w-0 overflow-hidden rounded-none border-2 border-mad-black text-xs shadow-none [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
+
 function PostIntentTextField({
   value,
   onValueChange,
@@ -99,6 +109,14 @@ type Props = {
   className?: string
 }
 
+function listingVibeMatchesOption(listingVibe: string, vibeOptions: string[]) {
+  const trimmed = listingVibe.trim()
+  if (!trimmed) return null
+  return (
+    vibeOptions.find((v) => v.toLowerCase() === trimmed.toLowerCase()) ?? null
+  )
+}
+
 export function PostIntentEditor({
   isFudi,
   vibeOptions,
@@ -106,6 +124,30 @@ export function PostIntentEditor({
   onChange,
   className,
 }: Props) {
+  const [listingCustom, setListingCustom] = useState(
+    () =>
+      Boolean(value.listingVibe.trim()) &&
+      !listingVibeMatchesOption(value.listingVibe, vibeOptions)
+  )
+  const [dropCustom, setDropCustom] = useState(
+    () => !value.dropKind && Boolean(value.channelHint.trim())
+  )
+
+  const matchedListingVibe = listingVibeMatchesOption(
+    value.listingVibe,
+    vibeOptions
+  )
+  const vibeSelectValue = listingCustom
+    ? SELECT_CUSTOM
+    : (matchedListingVibe ??
+        (value.listingVibe.trim() || vibeOptions[0] || SELECT_CUSTOM))
+
+  const dropSelectValue = dropCustom
+    ? SELECT_CUSTOM
+    : value.dropKind ??
+      FUDI_DROP_KIND_OPTIONS[0]?.id ??
+      SELECT_CUSTOM
+
   return (
     <section
       className={cn(
@@ -117,112 +159,99 @@ export function PostIntentEditor({
         Post intent
       </p>
       <p className="font-typewriter text-[0.5rem] leading-relaxed text-neutral-500 normal-case">
-        Same chips as Today — edit what this drop is about and where it should
-        land. Saved with your draft.
+        What this drop is about — saved with your draft. Channel targeting is
+        chosen on Schedule.
       </p>
 
       {isFudi ? (
-        <>
-          <div className="space-y-1">
-            <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-              Drop type
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {FUDI_DROP_KIND_OPTIONS.map((option) => {
-                const active = value.dropKind === option.id
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() =>
-                      onChange((prev) => ({ ...prev, dropKind: option.id }))
-                    }
-                    className={cn(
-                      "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase transition",
-                      active
-                        ? "bg-[#CCFF00] text-mad-black"
-                        : "bg-mad-white hover:bg-mad-lime"
-                    )}
-                  >
-                    {option.emoji} {option.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-              Channel hint
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {CHANNEL_HINT_PRESETS.map((preset) => {
-                const active = value.channelHint === preset
-                return (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() =>
-                      onChange((prev) => ({ ...prev, channelHint: preset }))
-                    }
-                    className={cn(
-                      "border border-mad-black/60 px-1.5 py-0.5 font-typewriter text-[0.45rem] font-bold tracking-wider uppercase transition",
-                      active
-                        ? "border-mad-black bg-mad-black text-mad-white"
-                        : "bg-mad-white hover:bg-mad-lime"
-                    )}
-                  >
-                    {preset}
-                  </button>
-                )
-              })}
-            </div>
+        <label className="grid min-w-0 gap-1">
+          <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
+            Drop type
+          </span>
+          <Select
+            value={dropSelectValue}
+            onValueChange={(next) => {
+              if (next === SELECT_CUSTOM) {
+                setDropCustom(true)
+                onChange((prev) => ({ ...prev, dropKind: null }))
+                return
+              }
+              setDropCustom(false)
+              onChange((prev) => ({
+                ...prev,
+                dropKind: next as FudiDropKind,
+                channelHint: "",
+              }))
+            }}
+          >
+            <SelectTrigger className={INTENT_SELECT_TRIGGER}>
+              <SelectValue placeholder="Drop type" />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              className="z-[100] rounded-none border-2 border-mad-black"
+            >
+              {FUDI_DROP_KIND_OPTIONS.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.emoji} {option.label}
+                </SelectItem>
+              ))}
+              <SelectItem value={SELECT_CUSTOM}>Custom…</SelectItem>
+            </SelectContent>
+          </Select>
+          {dropSelectValue === SELECT_CUSTOM ? (
             <PostIntentTextField
               value={value.channelHint}
               onValueChange={(channelHint) =>
-                onChange((prev) => ({ ...prev, channelHint }))
+                onChange((prev) => ({ ...prev, channelHint, dropKind: null }))
               }
-              placeholder="Custom channel hint…"
+              placeholder="Describe custom drop type…"
             />
-          </div>
-        </>
+          ) : null}
+        </label>
       ) : null}
 
-      <div className="space-y-1">
+      <label className="grid min-w-0 gap-1">
         <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
           Listing vibe
         </span>
-        <div className="flex flex-wrap gap-1">
-          {vibeOptions.map((vibe) => {
-            const active =
-              value.listingVibe.trim().toLowerCase() === vibe.toLowerCase()
-            return (
-              <button
-                key={vibe}
-                type="button"
-                onClick={() =>
-                  onChange((prev) => ({ ...prev, listingVibe: vibe }))
-                }
-                className={cn(
-                  "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase transition",
-                  active
-                    ? "bg-mad-lime text-mad-black"
-                    : "bg-mad-white hover:bg-mad-lime/60"
-                )}
-              >
+        <Select
+          value={vibeSelectValue}
+          onValueChange={(next) => {
+            if (next === SELECT_CUSTOM) {
+              setListingCustom(true)
+              onChange((prev) => ({ ...prev, listingVibe: "" }))
+              return
+            }
+            setListingCustom(false)
+            onChange((prev) => ({ ...prev, listingVibe: next }))
+          }}
+        >
+          <SelectTrigger className={INTENT_SELECT_TRIGGER}>
+            <SelectValue placeholder="Listing vibe" />
+          </SelectTrigger>
+          <SelectContent
+            position="popper"
+            className="z-[100] rounded-none border-2 border-mad-black"
+          >
+            {vibeOptions.map((vibe) => (
+              <SelectItem key={vibe} value={vibe}>
                 {vibe}
-              </button>
-            )
-          })}
-        </div>
-        <PostIntentTextField
-          value={value.listingVibe}
-          onValueChange={(listingVibe) =>
-            onChange((prev) => ({ ...prev, listingVibe }))
-          }
-          placeholder="Custom vibe label…"
-        />
-      </div>
+              </SelectItem>
+            ))}
+            <SelectItem value={SELECT_CUSTOM}>Custom…</SelectItem>
+          </SelectContent>
+        </Select>
+        {vibeSelectValue === SELECT_CUSTOM ? (
+          <PostIntentTextField
+            value={value.listingVibe}
+            onValueChange={(listingVibe) =>
+              onChange((prev) => ({ ...prev, listingVibe }))
+            }
+            placeholder="Custom vibe label…"
+          />
+        ) : null}
+      </label>
     </section>
   )
 }

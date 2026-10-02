@@ -60,6 +60,9 @@ export type MarketingCopyDraft = {
     origin?: string | null
     sender?: string | null
     auto_template?: string | null
+    /** Today swipe deck: skipped or archived — hide from pending deck even if still unfeatured. */
+    today_deck_status?: "skipped" | "archived" | null
+    today_deck_dismissed_at?: string | null
   }
 }
 

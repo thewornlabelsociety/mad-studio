@@ -1,18 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { looksLikeFashionCatalogContamination } from "@/lib/inventory/entity-intake"
-import { mapMarketingEntityRow } from "@/lib/inventory/types"
+import {
+  mapMarketingEntityRow,
+  type MarketingEntity,
+} from "@/lib/inventory/types"
 import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
 import { buildTodayQueueView, type TodayQueueView } from "@/lib/today/queue"
-
-export type DailyQueueRow = {
-  id: string
-  entity_id: string
-  marketing_entity_id: string
-  status: string
-  proposed_hook: string | null
-  proposed_headline: string | null
-}
+import {
+  fetchDismissedMarketingEntityIds,
+  readTodayDeckDismissStatus,
+} from "@/lib/today/today-deck-dismiss"
 
 export type TodayDeckCard = TodayQueueView & {
   queueId: string
@@ -21,17 +19,34 @@ export type TodayDeckCard = TodayQueueView & {
 const MARKETING_SELECT =
   "id, entity_id, website_item_id, title, brand, price, description, images, status, metrics, scheduled_at, channels, copy_draft, published_media_ids, trackable_slug, published_at, created_at, updated_at"
 
+function isHiddenFromTodayDeck(
+  item: Pick<MarketingEntity, "status" | "copy_draft">
+): boolean {
+  if (item.status !== "unfeatured") return true
+  const dismissed = readTodayDeckDismissStatus(item.copy_draft ?? null)
+  return dismissed === "skipped" || dismissed === "archived"
+}
+
 export async function syncDailyQueueFromIntake(
   supabase: SupabaseClient,
   entityId: string
 ): Promise<void> {
   const { data: intakeRows } = await supabase
     .from("marketing_entities")
-    .select("id")
+    .select("id, status, copy_draft")
     .eq("entity_id", entityId)
     .eq("status", "unfeatured")
 
-  const ids = (intakeRows ?? []).map((row) => row.id)
+  const ids = (intakeRows ?? [])
+    .filter(
+      (row) =>
+        !isHiddenFromTodayDeck({
+          status: row.status as MarketingEntity["status"],
+          copy_draft: row.copy_draft as MarketingEntity["copy_draft"],
+        })
+    )
+    .map((row) => row.id)
+
   if (ids.length === 0) return
 
   const inserts = ids.map((marketingEntityId) => ({
@@ -40,12 +55,10 @@ export async function syncDailyQueueFromIntake(
     status: "pending_review" as const,
   }))
 
-  await supabase
-    .from("daily_queue")
-    .upsert(inserts, {
-      onConflict: "entity_id,marketing_entity_id",
-      ignoreDuplicates: true,
-    })
+  await supabase.from("daily_queue").upsert(inserts, {
+    onConflict: "entity_id,marketing_entity_id",
+    ignoreDuplicates: true,
+  })
 }
 
 export async function fetchPendingTodayDeck(input: {
@@ -59,6 +72,11 @@ export async function fetchPendingTodayDeck(input: {
 
   await syncDailyQueueFromIntake(supabase, entityId)
 
+  const dismissedIds = await fetchDismissedMarketingEntityIds({
+    supabase,
+    entityId,
+  })
+
   const { data: queueRows, error } = await supabase
     .from("daily_queue")
     .select(
@@ -70,13 +88,24 @@ export async function fetchPendingTodayDeck(input: {
     .order("created_at", { ascending: false })
 
   if (error) {
-    console.warn("[today] daily_queue unavailable, falling back to intake:", error.message)
-    return fetchIntakeFallbackDeck({ supabase, entityId, brandName, industry })
+    console.warn(
+      "[today] daily_queue unavailable, falling back to intake:",
+      error.message
+    )
+    return fetchIntakeFallbackDeck({
+      supabase,
+      entityId,
+      brandName,
+      industry,
+      dismissedIds,
+    })
   }
 
   const cards: TodayDeckCard[] = []
 
   for (const row of queueRows ?? []) {
+    if (dismissedIds.has(row.marketing_entity_id)) continue
+
     const nestedRaw = row.marketing_entities as
       | Record<string, unknown>
       | Record<string, unknown>[]
@@ -86,8 +115,8 @@ export async function fetchPendingTodayDeck(input: {
     const item = mapMarketingEntityRow(
       nested as Parameters<typeof mapMarketingEntityRow>[0]
     )
+    if (isHiddenFromTodayDeck(item)) continue
     if (isFudi && looksLikeFashionCatalogContamination(item)) continue
-    if (item.status !== "unfeatured") continue
 
     const view = buildTodayQueueView({ item, brandName, industry })
     if (row.proposed_headline?.trim()) {
@@ -110,10 +139,6 @@ export async function fetchPendingTodayDeck(input: {
     })
   }
 
-  if (cards.length === 0) {
-    return fetchIntakeFallbackDeck({ supabase, entityId, brandName, industry })
-  }
-
   return cards
 }
 
@@ -122,6 +147,7 @@ async function fetchIntakeFallbackDeck(input: {
   entityId: string
   brandName: string
   industry?: string | null
+  dismissedIds: Set<string>
 }): Promise<TodayDeckCard[]> {
   const isFudi = isFudiStudioEntity({
     name: input.brandName,
@@ -133,11 +159,15 @@ async function fetchIntakeFallbackDeck(input: {
     .eq("entity_id", input.entityId)
     .eq("status", "unfeatured")
     .order("created_at", { ascending: false })
-    .limit(12)
+    .limit(24)
 
   return (rows ?? [])
     .map(mapMarketingEntityRow)
-    .filter((item) => (isFudi ? !looksLikeFashionCatalogContamination(item) : true))
+    .filter((item) => !input.dismissedIds.has(item.id))
+    .filter((item) => !isHiddenFromTodayDeck(item))
+    .filter((item) =>
+      isFudi ? !looksLikeFashionCatalogContamination(item) : true
+    )
     .map((item) => ({
       ...buildTodayQueueView({
         item,

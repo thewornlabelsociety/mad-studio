@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-02o"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-02s"
 
 export type HelpSop = {
   title: string
@@ -118,7 +118,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Mobile swipe deck (PWA)",
         description:
-          "On phone viewports, /today shows one card at a time from public.daily_queue (status pending_review). Header shows Archive ↔ Skip swipe pills; swipe the card left to archive, right to skip. Bottom bar: Edit (sheet), Preview (simulator), 1-Tap Approve & Publish (Meta API). Install via manifest.json (standalone) for floor-staff home screen. Apply Supabase migration 20261002_daily_queue.sql on MAD; until then, mobile Edit still saves copy on marketing_entities even if queue mirror columns are missing.",
+          "On phone viewports, /today shows one card at a time from public.daily_queue (status pending_review). Header shows Archive ↔ Skip swipe pills; swipe left to archive, right to skip — both persist (daily_queue status + copy_draft.metadata.today_deck_status) so dismissed drops do not reappear on refresh. Bottom bar: Edit, Preview, 1-Tap Approve. Apply migration 20261002_daily_queue.sql on MAD for full queue sync.",
       },
       {
         name: "Intake radar",
@@ -245,7 +245,17 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Mobile Studio layout",
         description:
-          "Under 768px: compact header (logo mark, brand pill, ☰ Menu). Step tracker shows Step N of 5 with dot progress. Preview phone and icon-only channel rail appear above the active step form (Schedule included).",
+          "Under 768px: compact header (logo mark, brand pill, ☰ Menu). Step tracker shows Step N of 5 with dot progress. Preview phone + icon channel rail appear from Intent onward; Media step is tray-only (no phone).",
+      },
+      {
+        name: "Intent step (Step 2)",
+        description:
+          "FÜDI drop type and listing vibe use dropdowns with a Custom… option (free-text when custom). Content pillar, persona, hook blueprint, and CTA are dropdowns tied to Brain DNA — no channel-hint pills on Intent; pick channels on Schedule.",
+      },
+      {
+        name: "In-flow wizard SOP",
+        description:
+          "Each Studio step shows a one-line SOP hint under the step tracker; hover a step tab (desktop) for the numbered checklist. Mobile uses the hint strip plus the ? icon for the full step list. Team SOP drawer still has the full two-track posting playbook.",
       },
       {
         name: "Formula bank ($0 render)",

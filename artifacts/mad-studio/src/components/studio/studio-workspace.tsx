@@ -1364,6 +1364,7 @@ export function StudioWorkspace({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <StudioSplitShell
         className="min-h-0 flex-1"
+        showPreview={workbenchStep !== WORKBENCH_STEP_MEDIA}
         lockControlsScroll={
           workbenchStep === WORKBENCH_STEP_CHANNELS &&
           showStudio &&
