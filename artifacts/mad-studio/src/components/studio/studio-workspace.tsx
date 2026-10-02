@@ -1222,12 +1222,15 @@ export function StudioWorkspace({
     if (textOverlay.enabled && textOverlay.headline.trim()) {
       parts.push(textOverlay.headline.trim().slice(0, 32))
     }
-    if (textOverlay.stickerEnabled) {
-      parts.push(
-        textOverlay.stickerId === "link_pill"
-          ? `Sticker · ${textOverlay.stickerLabel.trim() || "Link"}`
-          : "Sticker"
-      )
+    if (textOverlay.storyStickerMode === "editorial_poll") {
+      parts.push("Poll")
+    } else if (textOverlay.storyStickerMode === "countdown_timer") {
+      parts.push("Countdown")
+    } else if (
+      textOverlay.stickerEnabled &&
+      textOverlay.stickerId !== "link_pill"
+    ) {
+      parts.push("Sticker")
     }
     if (textOverlay.animation !== "none") parts.push("Motion")
     return parts.length > 0 ? parts.join(" · ") : "No on-canvas decor"
@@ -1432,11 +1435,12 @@ export function StudioWorkspace({
             externalCutoutRequestId={cutoutRequestId}
             showTextStyler={false}
             showCreativeControls={false}
-            showActionDock={false}
+            showActionDock={workbenchStep === WORKBENCH_STEP_CHANNELS}
             hidePlatformSwitcher
             actionContext={{
               entityId: activeEntity.id,
               marketingEntityId: null,
+              destinationUrl: null,
             }}
           />
         }

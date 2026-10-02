@@ -92,22 +92,7 @@ export function buildRemotionTextOverlays(
 }
 
 export function buildRemotionBadgeOverlay(
-  overlay: CanvasTextOverlayState
+  _overlay: CanvasTextOverlayState
 ): RemotionBadgeOverlay | null {
-  if (overlay.storyStickerMode === "link_badge") {
-    const label = overlay.linkBadgeLabel?.trim() || "EXPLORE DROP ↗"
-    return { label, x: overlay.stickerX, y: overlay.stickerY }
-  }
-  if (
-    overlay.storyStickerMode === "none" &&
-    overlay.stickerEnabled &&
-    overlay.stickerId === "link_pill"
-  ) {
-    return {
-      label: overlay.stickerLabel.trim() || "Shop now",
-      x: overlay.stickerX,
-      y: overlay.stickerY,
-    }
-  }
   return null
 }

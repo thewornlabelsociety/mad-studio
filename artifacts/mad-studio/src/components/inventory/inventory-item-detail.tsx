@@ -331,15 +331,6 @@ export function InventoryItemDetail({
       return normalizeCanvasTextOverlay(raw.metadata.canvas_text_overlay)
     }
     const base = normalizeCanvasTextOverlay(null)
-    if (isFudi) {
-      return {
-        ...base,
-        storyStickerMode: "link_badge" as const,
-        linkBadgeLabel: "EXPLORE DROP ↗",
-        storyStickerTheme: "noir" as const,
-        stickerY: 52,
-      }
-    }
     return base
   })
   const textOverlayPersistReady = useRef(false)
@@ -929,15 +920,16 @@ export function InventoryItemDetail({
     if (textOverlay.enabled && textOverlay.headline.trim()) {
       parts.push(textOverlay.headline.trim().slice(0, 32))
     }
-    if (textOverlay.storyStickerMode !== "none") {
-      parts.push(
-        textOverlay.storyStickerMode === "link_badge"
-          ? "Link badge"
-          : textOverlay.storyStickerMode === "editorial_poll"
-            ? "Poll"
-            : "Countdown"
-      )
-    } else if (textOverlay.stickerEnabled) parts.push("Sticker")
+    if (textOverlay.storyStickerMode === "editorial_poll") {
+      parts.push("Poll")
+    } else if (textOverlay.storyStickerMode === "countdown_timer") {
+      parts.push("Countdown")
+    } else if (
+      textOverlay.stickerEnabled &&
+      textOverlay.stickerId !== "link_pill"
+    ) {
+      parts.push("Sticker")
+    }
     if (textOverlay.animation !== "none") parts.push("Motion")
     return parts.length > 0 ? parts.join(" · ") : "No on-canvas decor"
   })()
@@ -1161,7 +1153,7 @@ export function InventoryItemDetail({
                 industry={industry}
                 visualPresets={visualPresets}
                 showCreativeControls={false}
-                showActionDock={false}
+                showActionDock={step === WORKBENCH_STEP_CHANNELS}
                 actionContext={{
                   entityId,
                   marketingEntityId: item.id,

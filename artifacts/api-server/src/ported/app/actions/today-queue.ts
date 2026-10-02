@@ -4,6 +4,10 @@ import { revalidatePath } from "@server/http-response"
 
 import { approveMarketingEntity } from "./inventory"
 import { createClient } from "@/lib/supabase/server"
+import {
+  isPostgrestMissingRelationError,
+  resilientTableUpdate,
+} from "@/lib/today/resilient-table-update"
 
 async function assertCanEdit(entityId: string) {
   const supabase = await createClient()
@@ -39,6 +43,37 @@ export type TodayQueueActionResult<T = void> =
   | { ok: true; data?: T }
   | { ok: false; error: string }
 
+async function updateDailyQueueStatus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  input: { entityId: string; queueId: string; status: string }
+) {
+  const { error, droppedColumns } = await resilientTableUpdate(
+    supabase,
+    "daily_queue",
+    {
+      status: input.status,
+      updated_at: new Date().toISOString(),
+    },
+    [
+      ["id", input.queueId],
+      ["entity_id", input.entityId],
+    ]
+  )
+
+  if (error) {
+    if (isPostgrestMissingRelationError(error)) {
+      return { ok: false as const, error: "daily_queue table is not migrated yet." }
+    }
+    return { ok: false as const, error: error.message ?? "Queue update failed." }
+  }
+
+  if (droppedColumns.includes("updated_at")) {
+    console.warn("[today-queue] daily_queue.updated_at omitted (schema cache).")
+  }
+
+  return { ok: true as const }
+}
+
 export async function archiveDailyQueueItem(input: {
   entityId: string
   queueId: string
@@ -49,17 +84,13 @@ export async function archiveDailyQueueItem(input: {
     return { ok: false, error: auth.error ?? "Unauthorized" }
   }
 
-  const { error: queueError } = await auth.supabase
-    .from("daily_queue")
-    .update({
-      status: "archived",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.queueId)
-    .eq("entity_id", input.entityId)
-
-  if (queueError) {
-    return { ok: false, error: queueError.message }
+  const queueResult = await updateDailyQueueStatus(auth.supabase, {
+    entityId: input.entityId,
+    queueId: input.queueId,
+    status: "archived",
+  })
+  if (!queueResult.ok) {
+    return { ok: false, error: queueResult.error }
   }
 
   const approved = await approveMarketingEntity({
@@ -83,17 +114,13 @@ export async function skipDailyQueueItem(input: {
     return { ok: false, error: auth.error ?? "Unauthorized" }
   }
 
-  const { error } = await auth.supabase
-    .from("daily_queue")
-    .update({
-      status: "skipped",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.queueId)
-    .eq("entity_id", input.entityId)
-
-  if (error) {
-    return { ok: false, error: error.message }
+  const queueResult = await updateDailyQueueStatus(auth.supabase, {
+    entityId: input.entityId,
+    queueId: input.queueId,
+    status: "skipped",
+  })
+  if (!queueResult.ok) {
+    return { ok: false, error: queueResult.error }
   }
 
   revalidatePath("/today")
@@ -109,17 +136,13 @@ export async function markDailyQueuePublished(input: {
     return { ok: false, error: auth.error ?? "Unauthorized" }
   }
 
-  const { error } = await auth.supabase
-    .from("daily_queue")
-    .update({
-      status: "published",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.queueId)
-    .eq("entity_id", input.entityId)
-
-  if (error) {
-    return { ok: false, error: error.message }
+  const queueResult = await updateDailyQueueStatus(auth.supabase, {
+    entityId: input.entityId,
+    queueId: input.queueId,
+    status: "published",
+  })
+  if (!queueResult.ok) {
+    return { ok: false, error: queueResult.error }
   }
 
   revalidatePath("/today")
@@ -155,35 +178,62 @@ export async function updateDailyQueueCopy(input: {
       ? (row.copy_draft as Record<string, unknown>)
       : {}
 
-  const { error: itemError } = await auth.supabase
-    .from("marketing_entities")
-    .update({
-      copy_draft: {
-        ...existing,
-        headline: headline || existing.headline,
-        caption: hook || existing.caption,
+  const { error: itemError, droppedColumns: itemDropped } =
+    await resilientTableUpdate(
+      auth.supabase,
+      "marketing_entities",
+      {
+        copy_draft: {
+          ...existing,
+          headline: headline || existing.headline,
+          caption: hook || existing.caption,
+        },
+        updated_at: new Date().toISOString(),
       },
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.itemId)
-    .eq("entity_id", input.entityId)
+      [
+        ["id", input.itemId],
+        ["entity_id", input.entityId],
+      ]
+    )
 
   if (itemError) {
-    return { ok: false, error: itemError.message }
+    return {
+      ok: false,
+      error: itemError.message ?? "Could not save copy on marketing item.",
+    }
   }
 
-  const { error: queueError } = await auth.supabase
-    .from("daily_queue")
-    .update({
-      proposed_hook: hook || null,
-      proposed_headline: headline || null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.queueId)
-    .eq("entity_id", input.entityId)
+  if (itemDropped.includes("updated_at")) {
+    console.warn(
+      "[today-queue] marketing_entities.updated_at omitted (schema cache)."
+    )
+  }
+
+  const { error: queueError, droppedColumns: queueDropped } =
+    await resilientTableUpdate(
+      auth.supabase,
+      "daily_queue",
+      {
+        proposed_hook: hook || null,
+        proposed_headline: headline || null,
+        updated_at: new Date().toISOString(),
+      },
+      [
+        ["id", input.queueId],
+        ["entity_id", input.entityId],
+      ]
+    )
 
   if (queueError) {
-    return { ok: false, error: queueError.message }
+    console.warn(
+      "[today-queue] daily_queue copy mirror skipped:",
+      queueError.message ?? "unknown",
+      queueDropped.length ? `(dropped: ${queueDropped.join(", ")})` : ""
+    )
+  }
+
+  if (queueDropped.length > 0) {
+    console.warn("[today-queue] daily_queue columns omitted:", queueDropped.join(", "))
   }
 
   revalidatePath("/today")

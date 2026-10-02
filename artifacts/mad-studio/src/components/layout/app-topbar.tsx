@@ -7,6 +7,7 @@ import { Check, ChevronsUpDown, CircleHelp, Menu, Plus, User } from "lucide-reac
 
 import { setActiveEntity, signOut } from "@/lib/actions"
 import { MadStudioLogo } from "@/components/brand/mad-logo"
+import { TeamSopGuideDrawer } from "@/components/studio/sop-guide-drawer"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -190,6 +191,8 @@ export function AppTopbar({
           {centerSlot ? (
             <div className="min-w-0 shrink sm:hidden">{centerSlot}</div>
           ) : null}
+          <TeamSopGuideDrawer className="hidden sm:inline-flex" />
+          <TeamSopGuideDrawer compact className="sm:hidden" />
           <Link
             href={`/help${entityQuery}`}
             className={cn(

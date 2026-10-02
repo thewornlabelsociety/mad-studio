@@ -45,7 +45,6 @@ import {
   conciseProductLabel,
   type StoryStylePreset,
 } from "@/lib/marketing/story-presets"
-import { FUDI_PUBLIC_ORIGIN } from "@/lib/studio/fudi-platform"
 import type { MarketingEntity } from "@/lib/inventory/types"
 import type { ActiveMedia } from "@/components/marketing/media-tray"
 import { detectMediaKindFromUrl } from "@/components/marketing/media-tray"
@@ -69,6 +68,11 @@ import {
   buildRemotionTextOverlays,
   remotionCompositionSize,
 } from "@/lib/studio/remotion-overlays"
+import {
+  AUTOPILOT_SOP_HELPER,
+  DRAFT_DROP_SOP_HELPER,
+  dispatchTrackForPlatform,
+} from "@/lib/studio/dispatch-sop"
 import { cn } from "@/lib/utils"
 
 export type SimulatorPlatform =
@@ -302,7 +306,7 @@ export function MultiPlatformSimulator({
   showCreativeControls = false,
   showActionDock = false,
   showPublishCta = true,
-  publishCtaLabel = "Dispatch",
+  publishCtaLabel = "Confirm & Publish Live",
   onDispatchSuccess,
   compact = false,
   stacked = false,
@@ -802,8 +806,8 @@ export function MultiPlatformSimulator({
           : (await ensureLink()).shortUrl
       await navigator.clipboard.writeText(short)
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1600)
-      toast.success("Link sticker copied.")
+      window.setTimeout(() => setCopied(false), 2800)
+      toast.success("Link copied — ready for IG Link sticker.")
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Copy failed.")
     } finally {
@@ -813,6 +817,12 @@ export function MultiPlatformSimulator({
 
   async function onPublish() {
     if (!actionContext) return
+    if (dispatchTrackForPlatform(platform) !== "autopilot") {
+      toast.message(
+        "Stories and TikTok use Draft & Drop — download media and copy the link sticker URL."
+      )
+      return
+    }
     const media =
       resolvedMedia?.url ||
       displayImageUrl ||
@@ -873,12 +883,7 @@ export function MultiPlatformSimulator({
       }
       if (!response.ok) throw new Error(payload.error || "Publish failed.")
       if (payload.slug) setTrackableSlug(payload.slug)
-      toast.success(
-        payload.message ||
-          (payload.linkSticker
-            ? `Dispatched. Add link sticker: ${payload.linkSticker}`
-            : "Approved & dispatched.")
-      )
+      toast.success(payload.message || "Published live to feed.")
       onDispatchSuccess?.()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Publish failed.")
@@ -889,25 +894,42 @@ export function MultiPlatformSimulator({
 
   async function onDownload() {
     const node = captureRef.current
-    if (!node) return
-    if (isVideo) {
-      toast.message("Download PNG captures a frame — pause-friendly stills work best for images.")
-    }
+    const downloadMediaUrl = resolvedMedia?.url ?? null
+    const fileStem = content.brandName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
     setBusy("download")
     try {
+      if (
+        isVideo &&
+        downloadMediaUrl &&
+        !downloadMediaUrl.startsWith("blob:") &&
+        !downloadMediaUrl.startsWith("data:")
+      ) {
+        const response = await fetch(downloadMediaUrl)
+        if (!response.ok) throw new Error("Could not fetch video file.")
+        const blob = await response.blob()
+        const objectUrl = URL.createObjectURL(blob)
+        const anchor = document.createElement("a")
+        anchor.download = `${fileStem}-${platform}.mp4`
+        anchor.href = objectUrl
+        anchor.click()
+        URL.revokeObjectURL(objectUrl)
+        toast.success("MP4 downloaded — ready for Story/Reel upload.")
+        return
+      }
+      if (!node) return
       const dataUrl = await toPng(node, {
         cacheBust: true,
-        pixelRatio: 2.5,
+        pixelRatio: 3,
         width: node.offsetWidth,
         height: node.offsetHeight,
       })
       const anchor = document.createElement("a")
-      anchor.download = `${content.brandName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")}-${platform}.png`
+      anchor.download = `${fileStem}-${platform}-9x16.png`
       anchor.href = dataUrl
       anchor.click()
-      toast.success("PNG downloaded.")
+      toast.success("9:16 image downloaded — ready for Story/Reel upload.")
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Export failed.")
     } finally {
@@ -926,17 +948,6 @@ export function MultiPlatformSimulator({
   const useStoryCanvasForIg =
     !isFudiEntity && (cutoutMode !== "original" || Boolean(item))
 
-  const storyLinkUrl =
-    trackableSlug != null
-      ? trackableUrl(trackableSlug)
-      : actionContext?.destinationUrl ??
-        (isFudiEntity ? FUDI_PUBLIC_ORIGIN : null)
-
-  const canvasLinkPillOn =
-    textOverlay.storyStickerMode === "link_badge" ||
-    (textOverlay.storyStickerMode === "none" &&
-      textOverlay.stickerEnabled &&
-      textOverlay.stickerId === "link_pill")
   const storyEditorialStickers = platform === "ig_story"
 
   const isFeedPreview =
@@ -975,8 +986,6 @@ export function MultiPlatformSimulator({
       slides.some((slide) => carouselItemUrl(slide).length > 0))
   const remotionDefersOverlays =
     remotionIncludeOverlays && usingRemotionForMedia
-  const remotionBadgeActive =
-    remotionDefersOverlays && Boolean(buildRemotionBadgeOverlay(textOverlay))
   const spokenHook = content.headline.trim()
   const imageRemotionPreview =
     imageForCanvas && !useStoryCanvasForIg
@@ -1003,16 +1012,17 @@ export function MultiPlatformSimulator({
         })
       : null
 
+  const canvasEditActive =
+    textOverlayInteractive && Boolean(onTextOverlayChange)
+
   const canvasOverlayOnMedia = (
     <CanvasTextOverlayLayer
       overlay={textOverlay}
       isVideo={isVideo}
-      interactive={textOverlayInteractive && Boolean(onTextOverlayChange)}
+      interactive={canvasEditActive}
       onOverlayChange={onTextOverlayChange ?? setTextOverlay}
-      linkHref={storyLinkUrl}
       storyEditorialStickers={storyEditorialStickers}
       renderCanvasText={!remotionDefersOverlays}
-      deferBadgeToRemotion={remotionBadgeActive}
     />
   )
 
@@ -1037,7 +1047,9 @@ export function MultiPlatformSimulator({
               "relative flex bg-black",
               isFeedPreview
                 ? "min-h-0 w-full overflow-y-auto overflow-x-hidden"
-                : "overflow-hidden",
+                : canvasEditActive
+                  ? "overflow-visible"
+                  : "overflow-hidden",
               lockedViewport
                 ? isFeedPreview
                   ? cn(
@@ -1058,7 +1070,8 @@ export function MultiPlatformSimulator({
                 isFeedPreview
                   ? "w-full shrink-0"
                   : cn(
-                      "max-h-full overflow-hidden",
+                      "max-h-full",
+                      canvasEditActive ? "overflow-visible" : "overflow-hidden",
                       stageAspectClass,
                       lockedViewport ? "h-full w-auto" : "w-full"
                     )
@@ -1069,19 +1082,11 @@ export function MultiPlatformSimulator({
                   handle={handle}
                   slideCount={slides.length}
                   activeSlideIndex={safeSlideIndex}
+                  allowMediaOverflow={canvasEditActive}
                   onSegmentSelect={
                     storyCarousel
                       ? (index) => setSlideIndex(index)
                       : undefined
-                  }
-                  linkLabel={
-                    canvasLinkPillOn
-                      ? undefined
-                      : (content.stickerLabel ??
-                        (isFudiEntity ? "View on FÜDI" : "TAP TO VIEW"))
-                  }
-                  linkHref={
-                    canvasLinkPillOn ? undefined : storyLinkUrl ?? undefined
                   }
                 >
                   <StorySlideNav
@@ -1097,6 +1102,7 @@ export function MultiPlatformSimulator({
                         fit={isFudiEntity ? "cover" : "contain"}
                         remotionPreview={videoRemotionPreview}
                         mediaOverlay={canvasOverlayOnMedia}
+                        allowCanvasOverflow={canvasEditActive}
                       />
                     ) : imageForCanvas ? (
                       <StoryMediaStage
@@ -1105,6 +1111,7 @@ export function MultiPlatformSimulator({
                         mediaFit={isFudiEntity ? "cover" : "contain"}
                         remotionPreview={imageRemotionPreview}
                         mediaOverlay={canvasOverlayOnMedia}
+                        allowCanvasOverflow={canvasEditActive}
                         storyCanvas={
                           <StoryCanvas
                             model={storyModel}
@@ -1261,7 +1268,6 @@ export function MultiPlatformSimulator({
             value={textOverlay}
             onChange={setTextOverlay}
             isVideo={isVideo}
-            linkHref={storyLinkUrl}
           />
         ) : null}
         <label className="grid gap-1">
@@ -1414,56 +1420,81 @@ export function MultiPlatformSimulator({
     </section>
   )
 
+  const dispatchTrack = dispatchTrackForPlatform(platform)
+  const linkStickerPath = trackableSlug
+    ? `/r/${trackableSlug}`
+    : "/r/…"
+
   const actionDock =
     showActionDock && actionContext ? (
-            <div className="mt-2 flex w-full flex-col gap-1.5">
-              {showPublishCta ? (
-                <button
-                  type="button"
-                  onClick={() => void onPublish()}
-                  disabled={busy != null}
-                  className="inline-flex h-9 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-60"
-                >
-                  {busy === "publish" ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Rocket className="size-3.5" />
-                  )}
-                  {publishCtaLabel}
-                </button>
-              ) : null}
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => void onCopyLink()}
-                  disabled={busy != null}
-                  className="inline-flex h-8 items-center justify-center gap-1 border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime disabled:opacity-60"
-                >
-                  {busy === "link" ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : copied ? (
-                    <Check className="size-3" />
-                  ) : (
-                    <ClipboardCopy className="size-3" />
-                  )}
-                  {copied ? "Copied" : "Copy link"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void onDownload()}
-                  disabled={busy != null}
-                  className="inline-flex h-8 items-center justify-center gap-1 border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime disabled:opacity-60"
-                >
-                  {busy === "download" ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <Download className="size-3" />
-                  )}
-                  PNG
-                </button>
-              </div>
-            </div>
-          ) : null
+      <div className="mt-2 flex w-full flex-col gap-2">
+        {dispatchTrack === "autopilot" && showPublishCta ? (
+          <>
+            <button
+              type="button"
+              onClick={() => void onPublish()}
+              disabled={busy != null}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-60"
+            >
+              {busy === "publish" ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Rocket className="size-3.5" />
+              )}
+              {publishCtaLabel.startsWith("🚀")
+                ? publishCtaLabel
+                : `🚀 ${publishCtaLabel}`}
+            </button>
+            <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
+              {AUTOPILOT_SOP_HELPER}
+            </p>
+          </>
+        ) : null}
+
+        {dispatchTrack === "draft_drop" ? (
+          <>
+            <button
+              type="button"
+              onClick={() => void onDownload()}
+              disabled={busy != null}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-60"
+            >
+              {busy === "download" ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Download className="size-3.5" />
+              )}
+              📥 Download ready media (9:16)
+            </button>
+            <button
+              type="button"
+              onClick={() => void onCopyLink()}
+              disabled={busy != null}
+              className={cn(
+                "inline-flex min-h-9 w-full items-center justify-center gap-2 border-2 border-mad-black px-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors disabled:opacity-60",
+                copied
+                  ? "animate-pulse bg-mad-lime text-mad-black"
+                  : "bg-mad-vermillion text-mad-white hover:bg-mad-black"
+              )}
+            >
+              {busy === "link" ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : copied ? (
+                <Check className="size-3.5" />
+              ) : (
+                <ClipboardCopy className="size-3.5" />
+              )}
+              {copied
+                ? "✓ Link copied — ready for IG sticker"
+                : `📋 Copy link sticker URL (${linkStickerPath})`}
+            </button>
+            <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
+              {DRAFT_DROP_SOP_HELPER}
+            </p>
+          </>
+        ) : null}
+      </div>
+    ) : null
 
   const stylingDock =
     previewMinimal || hideStylingDock
@@ -1604,7 +1635,6 @@ export function MultiPlatformSimulator({
             value={textOverlay}
             onChange={setTextOverlay}
             isVideo={isVideo}
-            linkHref={storyLinkUrl}
             className="w-full max-w-[360px]"
           />
         ) : null}
@@ -1730,16 +1760,14 @@ function IgStoryChrome({
   slideCount = 1,
   activeSlideIndex = 0,
   onSegmentSelect,
-  linkLabel,
-  linkHref,
+  allowMediaOverflow = false,
 }: {
   handle: string
   children: ReactNode
   slideCount?: number
   activeSlideIndex?: number
   onSegmentSelect?: (index: number) => void
-  linkLabel?: string
-  linkHref?: string | null
+  allowMediaOverflow?: boolean
 }) {
   const segments = Math.max(slideCount, 1)
   return (
@@ -1772,26 +1800,14 @@ function IgStoryChrome({
         </div>
       </div>
 
-      <div className="relative z-0 min-h-0 flex-1">{children}</div>
-
-      {linkLabel ? (
-        <div className="pointer-events-none absolute inset-x-0 top-[58%] z-20 flex justify-center px-4">
-          {linkHref?.trim() ? (
-            <a
-              href={linkHref.trim()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="pointer-events-auto rounded-full border border-white/50 bg-black/45 px-3 py-1.5 text-[0.65rem] font-semibold tracking-wide text-white shadow-lg backdrop-blur-sm hover:bg-black/60"
-            >
-              🔗 {linkLabel}
-            </a>
-          ) : (
-            <span className="rounded-full border border-white/50 bg-black/45 px-3 py-1.5 text-[0.65rem] font-semibold tracking-wide text-white shadow-lg backdrop-blur-sm">
-              🔗 {linkLabel}
-            </span>
-          )}
-        </div>
-      ) : null}
+      <div
+        className={cn(
+          "relative z-0 min-h-0 flex-1",
+          allowMediaOverflow ? "overflow-visible" : "overflow-hidden"
+        )}
+      >
+        {children}
+      </div>
 
       <div className="relative z-10 flex h-[15%] min-h-[64px] shrink-0 items-center gap-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pt-4 pb-3">
         <div className="flex-1 rounded-full border border-white/40 px-3 py-2 text-[0.7rem] text-white/80">
@@ -1812,6 +1828,7 @@ function StoryMediaStage({
   mediaFit = "contain",
   mediaOverlay = null,
   remotionPreview = null,
+  allowCanvasOverflow = false,
 }: {
   imageUrl: string
   canvasColor: string
@@ -1820,10 +1837,13 @@ function StoryMediaStage({
   mediaFit?: "cover" | "contain"
   mediaOverlay?: ReactNode
   remotionPreview?: RemotionCanvasProps | null
+  allowCanvasOverflow?: boolean
 }) {
+  const overflowClass = allowCanvasOverflow ? "overflow-visible" : "overflow-hidden"
+
   if (useStoryCanvas) {
     return (
-      <div className="relative size-full overflow-hidden">
+      <div className={cn("relative size-full", overflowClass)}>
         {storyCanvas}
         {mediaOverlay}
       </div>
@@ -1833,7 +1853,7 @@ function StoryMediaStage({
   if (remotionPreview) {
     return (
       <div
-        className="relative size-full overflow-hidden"
+        className={cn("relative size-full", overflowClass)}
         style={
           mediaFit === "contain" ? { backgroundColor: canvasColor } : undefined
         }
@@ -1846,7 +1866,7 @@ function StoryMediaStage({
 
   if (mediaFit === "cover") {
     return (
-      <div className="relative size-full overflow-hidden bg-black">
+      <div className={cn("relative size-full bg-black", overflowClass)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
@@ -1860,7 +1880,7 @@ function StoryMediaStage({
 
   return (
     <div
-      className="relative size-full overflow-hidden"
+      className={cn("relative size-full", overflowClass)}
       style={{ backgroundColor: canvasColor }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1871,7 +1891,12 @@ function StoryMediaStage({
         className="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-xl"
       />
       <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="relative max-h-full max-w-full">
+        <div
+          className={cn(
+            "relative max-h-full max-w-full",
+            allowCanvasOverflow && "overflow-visible"
+          )}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}
@@ -1957,15 +1982,22 @@ function VideoFill({
   fit = "cover",
   mediaOverlay = null,
   remotionPreview = null,
+  allowCanvasOverflow = false,
 }: {
   src: string
   fit?: "cover" | "contain"
   mediaOverlay?: ReactNode
   remotionPreview?: RemotionCanvasProps | null
+  allowCanvasOverflow?: boolean
 }) {
   const [muted, setMuted] = useState(true)
   return (
-    <div className="absolute inset-0">
+    <div
+      className={cn(
+        "absolute inset-0",
+        allowCanvasOverflow ? "overflow-visible" : "overflow-hidden"
+      )}
+    >
       {remotionPreview ? (
         <RemotionCanvas {...remotionPreview} />
       ) : (

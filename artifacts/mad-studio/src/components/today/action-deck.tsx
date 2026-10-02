@@ -122,6 +122,7 @@ export function TodayActionDeck({
   function saveEdit() {
     if (!card) return
     startTransition(async () => {
+      try {
       const result = await updateDailyQueueCopy({
         entityId,
         queueId: card.queueId,
@@ -153,6 +154,11 @@ export function TodayActionDeck({
       )
       setEditOpen(false)
       toast.success("Copy updated.")
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not save copy."
+        )
+      }
     })
   }
 

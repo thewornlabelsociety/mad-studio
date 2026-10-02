@@ -633,8 +633,6 @@ export function StepCustomize({
 
           isVideo={isVideoPreview}
 
-          linkHref={trackablePreview?.trim() || destinationUrl?.trim() || null}
-
         />
 
       ) : null}

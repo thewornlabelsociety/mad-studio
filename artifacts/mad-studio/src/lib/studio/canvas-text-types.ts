@@ -234,7 +234,7 @@ export const DEFAULT_CANVAS_TEXT_OVERLAY: CanvasTextOverlayState = {
 
   shadow: "hard",
 
-  highlight: "black_pill",
+  highlight: "none",
 
   animation: "none",
 
@@ -316,9 +316,15 @@ export function canvasOverlayHasDecor(overlay: CanvasTextOverlayState): boolean 
 
     overlay.stickerEnabled &&
 
-    Boolean(overlay.stickerId)
+    Boolean(overlay.stickerId) &&
 
-  const hasEditorial = overlay.storyStickerMode !== "none"
+    overlay.stickerId !== "link_pill"
+
+  const hasEditorial =
+
+    overlay.storyStickerMode === "editorial_poll" ||
+
+    overlay.storyStickerMode === "countdown_timer"
 
   return hasText || hasLegacySticker || hasEditorial
 
@@ -435,7 +441,11 @@ export function normalizeCanvasTextOverlay(
 
         : "center",
 
-    stickerEnabled: Boolean(row.stickerEnabled),
+    stickerEnabled: (() => {
+      const id = isCanvasStickerId(rawSticker) ? rawSticker : "link_pill"
+      if (id === "link_pill") return false
+      return Boolean(row.stickerEnabled)
+    })(),
 
     stickerId: isCanvasStickerId(rawSticker) ? rawSticker : "link_pill",
 
@@ -461,15 +471,8 @@ export function normalizeCanvasTextOverlay(
 
     storyStickerMode: ((): StoryStickerMode => {
       const rawMode = str("storyStickerMode", "")
-      if (
-        rawMode === "link_badge" ||
-        rawMode === "editorial_poll" ||
-        rawMode === "countdown_timer"
-      ) {
+      if (rawMode === "editorial_poll" || rawMode === "countdown_timer") {
         return rawMode
-      }
-      if (Boolean(row.stickerEnabled) && rawSticker === "link_pill") {
-        return "link_badge"
       }
       return "none"
     })(),
@@ -897,23 +900,14 @@ export function canvasTextShadowClass(shadow: CanvasTextShadow): string {
 
 
 export function canvasTextHighlightClass(highlight: CanvasTextHighlight): string {
-
   switch (highlight) {
-
     case "black_pill":
-
-      return "rounded-sm bg-black/55 px-2 py-0.5"
-
+      return "rounded-md bg-black/60 px-3 py-1"
     case "brand_pill":
-
       return "rounded-sm bg-[#CCFF00] px-2 py-0.5 text-black"
-
     default:
-
-      return ""
-
+      return "bg-transparent"
   }
-
 }
 
 

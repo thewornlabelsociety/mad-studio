@@ -1,5 +1,4 @@
 import {
-  canvasLinkPillBorderRadius,
   canvasOverlayHasDecor,
   resolveCanvasSticker,
   resolveCanvasTextFont,
@@ -106,7 +105,7 @@ function drawOverlayText(
     }
 
     if (overlay.highlight === "black_pill") {
-      ctx.fillStyle = "rgba(0,0,0,0.55)"
+      ctx.fillStyle = "rgba(0,0,0,0.6)"
       ctx.fillRect(
         boxX - padX,
         y - fontSize / 2 - padY,
@@ -188,24 +187,7 @@ function drawEditorialStorySticker(
   ctx.textBaseline = "middle"
   ctx.font = `600 ${Math.max(10, Math.round(scale * 11))}px ui-monospace, monospace`
 
-  if (overlay.storyStickerMode === "link_badge") {
-    const label = (overlay.linkBadgeLabel || "EXPLORE DROP ↗").toUpperCase()
-    const metrics = ctx.measureText(label)
-    const padX = scale * 14
-    const padY = scale * 8
-    const boxW = metrics.width + padX * 2
-    const boxH = Math.max(28, scale * 22)
-    ctx.fillStyle = fill
-    ctx.strokeStyle = stroke
-    ctx.lineWidth = Math.max(1, scale * 0.6)
-    ctx.beginPath()
-    ctx.roundRect(x - boxW / 2, y - boxH / 2, boxW, boxH, boxH / 2)
-    ctx.fill()
-    ctx.stroke()
-    ctx.fillStyle = ink
-    ctx.fillText(label, x, y)
-    return
-  }
+  if (overlay.storyStickerMode === "link_badge") return
 
   const cardW = Math.min(width * 0.82, scale * 320)
   const cardH =
@@ -257,6 +239,7 @@ function drawOverlaySticker(
   if (overlay.storyStickerMode !== "none") return
   if (!overlay.stickerEnabled) return
   const def = resolveCanvasSticker(overlay.stickerId)
+  if (def.kind === "link_pill") return
   const x = (overlay.stickerX / 100) * width
   const y = (overlay.stickerY / 100) * height
   const scale = width / 400
@@ -274,30 +257,20 @@ function drawOverlaySticker(
     return
   }
 
-  const label =
-    def.kind === "link_pill"
-      ? (overlay.stickerLabel.trim() || "Shop now").toUpperCase()
-      : def.glyph
+  const label = def.glyph
   const fontSize = Math.max(13, Math.round(scale * 15))
   ctx.font = `700 ${fontSize}px Inter, sans-serif`
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   const padX = fontSize * 0.65
   const padY = fontSize * 0.35
-  const text = def.kind === "link_pill" ? `🔗 ${label}` : label
+  const text = label
   const metrics = ctx.measureText(text)
   const boxW = metrics.width + padX * 2
   const boxH = fontSize + padY * 2
-  const rx =
-    def.kind === "link_pill"
-      ? canvasLinkPillBorderRadius(overlay.stickerLinkShape, boxH)
-      : boxH / 2
+  const rx = boxH / 2
 
-  const fill =
-    def.kind === "link_pill"
-      ? overlay.stickerLinkBg || "#FFFFFF"
-      : "rgba(255,255,255,0.94)"
-  ctx.fillStyle = fill
+  ctx.fillStyle = "rgba(255,255,255,0.94)"
   ctx.strokeStyle = "rgba(0,0,0,0.12)"
   ctx.lineWidth = Math.max(1, scale * 0.5)
   ctx.beginPath()
@@ -305,10 +278,7 @@ function drawOverlaySticker(
   ctx.fill()
   ctx.stroke()
 
-  ctx.fillStyle =
-    def.kind === "link_pill"
-      ? overlay.stickerLinkText || "#111111"
-      : "#111111"
+  ctx.fillStyle = "#111111"
   ctx.shadowColor = "transparent"
   ctx.fillText(text, x, y)
 }

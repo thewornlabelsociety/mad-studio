@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-02i"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-02m"
 
 export type HelpSop = {
   title: string
@@ -118,7 +118,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Mobile swipe deck (PWA)",
         description:
-          "On phone viewports, /today shows one card at a time from public.daily_queue (status pending_review). Swipe left to archive, right to skip. Bottom bar: Edit (sheet), Preview (simulator), 1-Tap Approve & Publish (Meta API). Install via manifest.json (standalone) for floor-staff home screen.",
+          "On phone viewports, /today shows one card at a time from public.daily_queue (status pending_review). Swipe left to archive, right to skip. Bottom bar: Edit (sheet), Preview (simulator), 1-Tap Approve & Publish (Meta API). Install via manifest.json (standalone) for floor-staff home screen. Apply Supabase migration 20261002_daily_queue.sql on MAD; until then, mobile Edit still saves copy on marketing_entities even if queue mirror columns are missing.",
       },
       {
         name: "Intake radar",
@@ -264,7 +264,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "On-canvas text styler",
         description:
-          "Canvas step: draggable headline/subhead plus editorial story stickers on IG Story — None, Link badge (VIEW PIECE ↗ / RESERVE TABLE ↗ / EXPLORE DROP ↗ / ORDER NOW ↗), Editorial poll, or Countdown timer. Noir or linen theme. Text uses the lime Drag bar (move), top-left rotate, bottom-right resize; link/poll/timer use a separate vermillion drag chip above the sticker. Motion presets pause while you edit so handles stay aligned; Save/Arm bakes decor into the PNG for dispatch.",
+          "Canvas step: draggable headline/subhead with Highlight pill None (transparent), Translucent black, or brand lime. Rotated text uses center transform-origin and is not clipped while editing. IG Story preview does not show fake link stickers (Meta stories are not clickable in MAD). Story stickers: None, Editorial poll, or Countdown timer (noir or linen). Optional emoji decor stickers when None is selected. Text uses the lime Drag bar (move), top-left rotate, bottom-right resize; poll/timer use a vermillion drag chip. Motion presets pause while you edit; Save/Arm bakes decor into the PNG for dispatch.",
       },
       {
         name: "CapCut bridge",
@@ -276,22 +276,25 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         description: "Arm Instagram/Facebook/TikTok/email slots; brain timing suggestions.",
       },
       {
+        name: "Two-track dispatch dock",
+        description:
+          "Schedule step preview dock follows platform: **Track 1 Autopilot** (IG Feed + Facebook) → **Confirm & publish live** via /api/social/publish with trackable /r/ link in caption. **Track 2 Draft & drop** (IG Story + TikTok) → **Download ready media (9:16)** and **Copy link sticker URL** — no fake link stickers in preview; native music/poll/link stickers are added on phone. Header **Team SOP & posting guide** opens the full slide-over playbook.",
+      },
+      {
         name: "Save / dispatch",
         description:
           "Save draft to campaigns; arm queue; optional outbound webhook dispatch for legacy flows.",
       },
     ],
     sop: {
-      title: "Produce a drop from intake",
+      title: "Two-track team posting (Vanessa SOP)",
       audience: "Creator",
-      prerequisites: ["Unfeatured item or fresh spark text"],
+      prerequisites: ["Signed in", "Brand selected", "Media attached on Schedule step"],
       steps: [
-        "Open Studio with itemId from intake or enter a short spark (≤500 chars).",
-        "Attach or confirm hero media (Media step).",
-        "Set DNA intent, pillar, and persona (Intent); optional on-image text (Canvas).",
-        "Write hook and caption; use formula bank on Copy.",
-        "On Schedule, click Render formula pack ($0) or Generate with AI; review pack tabs, arm channels or save draft.",
-        "Confirm armed rows on Today and Campaigns ledger.",
+        "Open **Team SOP & posting guide** from the top bar anytime.",
+        "Track 1 (IG Feed / Facebook): review 4:5 preview → **Confirm & publish live**.",
+        "Track 2 (IG Story / TikTok): **Download ready media** → **Copy link sticker URL** → post from phone with native Link/Music/Poll stickers.",
+        "Optional: arm multi-channel rows on Schedule; confirm on Today and Campaigns.",
       ],
     },
   },

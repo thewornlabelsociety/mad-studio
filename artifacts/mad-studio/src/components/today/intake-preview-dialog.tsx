@@ -178,8 +178,8 @@ export function IntakePreviewDialog({
                 Quick preview
               </DialogTitle>
               <p className="font-typewriter text-[0.5rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
-                Live post preview — pick IG Story, Feed, or TikTok, then quick
-                publish. Scroll for actions and full caption.
+                Live preview — Feed/Facebook can publish live; Story/TikTok use
+                Download media + Copy link sticker URL for your phone drop.
               </p>
             </DialogHeader>
 

@@ -18,8 +18,8 @@ import {
   CANVAS_BRAND_SWATCHES,
   CANVAS_STICKERS,
   CANVAS_TEXT_FONTS,
-  STORY_LINK_BADGE_LABELS,
   canvasOverlayHasDecor,
+  normalizeCanvasTextOverlay,
   canvasTextAnimationClass,
   canvasTextHighlightClass,
   canvasTextShadowClass,
@@ -262,7 +262,7 @@ function DraggableDecor({
 
   return (
     <div
-      className="absolute inline-block w-max max-w-[92%] touch-none select-none"
+      className="absolute inline-block w-max max-w-[92%] touch-none select-none overflow-visible"
       style={{
         left: `${x}%`,
         top: `${y}%`,
@@ -285,7 +285,7 @@ function DraggableDecor({
       ) : null}
       <div
         ref={textBoxRef}
-        className="inline-block w-max max-w-full"
+        className="inline-flex w-max max-w-full flex-col items-center justify-center overflow-visible"
         style={{
           transform: rotationDeg ? `rotate(${rotationDeg}deg)` : undefined,
           transformOrigin: "center center",
@@ -296,7 +296,7 @@ function DraggableDecor({
           tabIndex={interactive && !handlesOn ? 0 : undefined}
           onPointerDown={interactive && !handlesOn ? onPointerDown : undefined}
           className={cn(
-            "relative inline-block w-max max-w-full",
+            "relative inline-flex w-max max-w-full flex-col items-center justify-center overflow-visible",
             handlesOn &&
               "rounded-sm border-2 border-dashed border-mad-lime/90 bg-black/25 p-0.5 shadow-[0_2px_12px_rgba(0,0,0,0.35)]",
             interactive && !handlesOn && "pointer-events-auto cursor-grab active:cursor-grabbing",
@@ -345,14 +345,10 @@ type LayerProps = {
   className?: string
   interactive?: boolean
   onOverlayChange?: (next: CanvasTextOverlayState) => void
-  /** Trackable or destination URL for the link pill sticker. */
-  linkHref?: string | null
-  /** IG story safe-zone editorial stickers (poll, timer, link badge). */
+  /** IG story safe-zone editorial stickers (poll, timer). */
   storyEditorialStickers?: boolean
   /** When false, text is rendered by Remotion preview (stickers/handles only). */
   renderCanvasText?: boolean
-  /** Skip link badge / link pill when Remotion renders the badge. */
-  deferBadgeToRemotion?: boolean
 }
 
 export function CanvasTextOverlayLayer({
@@ -360,10 +356,8 @@ export function CanvasTextOverlayLayer({
   className,
   interactive = false,
   onOverlayChange,
-  linkHref = null,
   storyEditorialStickers = false,
   renderCanvasText = true,
-  deferBadgeToRemotion = false,
 }: LayerProps) {
   const frameRef = useRef<HTMLDivElement>(null)
   const textBoxRef = useRef<HTMLDivElement>(null)
@@ -431,16 +425,6 @@ export function CanvasTextOverlayLayer({
       : null
   const lineHeightPx =
     fontSizePx != null ? canvasTextLineHeightPx(fontSizePx) : undefined
-  const highlightPad =
-    fontSizePx != null
-      ? {
-          paddingLeft: fontSizePx * 0.25,
-          paddingRight: fontSizePx * 0.25,
-          paddingTop: fontSizePx * 0.12,
-          paddingBottom: fontSizePx * 0.12,
-        }
-      : undefined
-
   return (
     <div
       ref={frameRef}
@@ -465,7 +449,11 @@ export function CanvasTextOverlayLayer({
           {...textRotate}
         >
           <div
-            className={cn("inline-block w-max max-w-full", alignClass, motionClass)}
+            className={cn(
+              "inline-flex w-max max-w-full flex-col",
+              alignClass,
+              motionClass
+            )}
             style={{ gap: fontSizePx != null ? fontSizePx * 0.15 : 4 }}
           >
             {lines.map((line, index) => (
@@ -473,6 +461,8 @@ export function CanvasTextOverlayLayer({
                 key={`${line}-${index}`}
                 className={cn(
                   "block w-max max-w-full leading-none",
+                  overlay.textAlign === "center" && "mx-auto",
+                  overlay.textAlign === "right" && "ml-auto",
                   font.className,
                   canvasTextShadowClass(overlay.shadow),
                   canvasTextHighlightClass(overlay.highlight)
@@ -483,7 +473,6 @@ export function CanvasTextOverlayLayer({
                   fontSize: fontSizePx ?? undefined,
                   lineHeight: lineHeightPx,
                   marginTop: index > 0 ? (fontSizePx != null ? fontSizePx * 0.15 : 4) : 0,
-                  ...highlightPad,
                 }}
               >
                 {line}
@@ -494,34 +483,27 @@ export function CanvasTextOverlayLayer({
       ) : null}
 
       {storyEditorialStickers &&
-      overlay.storyStickerMode !== "none" &&
-      !(deferBadgeToRemotion && overlay.storyStickerMode === "link_badge") ? (
+      (overlay.storyStickerMode === "editorial_poll" ||
+        overlay.storyStickerMode === "countdown_timer") ? (
         <EditorialStoryStickerOverlay
           overlay={overlay}
           interactive={interactive}
-          linkHref={linkHref}
           onPointerDown={stickerDrag.onPointerDown}
         />
       ) : null}
 
-      {overlay.storyStickerMode === "none" &&
+      {!storyEditorialStickers &&
+      overlay.storyStickerMode === "none" &&
       overlay.stickerEnabled &&
-      !(deferBadgeToRemotion && overlay.stickerId === "link_pill") ? (
-        overlay.stickerId === "link_pill" && linkHref?.trim() && !interactive ? (
-          <a
-            href={linkHref.trim()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              "absolute max-w-[88%] touch-none select-none pointer-events-auto",
-              motionClass
-            )}
-            style={{
-              left: `${overlay.stickerX}%`,
-              top: `${overlay.stickerY}%`,
-              transform: "translate(-50%, -50%)",
-            }}
-          >
+      overlay.stickerId !== "link_pill" ? (
+        <DraggableDecor
+          interactive={interactive}
+          x={overlay.stickerX}
+          y={overlay.stickerY}
+          hint="Drag sticker"
+          {...stickerDrag}
+        >
+          <div className={motionClass}>
             <CanvasStickerVisual
               stickerId={overlay.stickerId}
               stickerLabel={overlay.stickerLabel}
@@ -529,28 +511,8 @@ export function CanvasTextOverlayLayer({
               linkText={overlay.stickerLinkText}
               linkShape={overlay.stickerLinkShape}
             />
-          </a>
-        ) : (
-          <DraggableDecor
-            interactive={interactive}
-            x={overlay.stickerX}
-            y={overlay.stickerY}
-            hint={
-              overlay.stickerId === "link_pill" ? "Drag link pill" : "Drag sticker"
-            }
-            {...stickerDrag}
-          >
-            <div className={motionClass}>
-              <CanvasStickerVisual
-                stickerId={overlay.stickerId}
-                stickerLabel={overlay.stickerLabel}
-                linkBg={overlay.stickerLinkBg}
-                linkText={overlay.stickerLinkText}
-                linkShape={overlay.stickerLinkShape}
-              />
-            </div>
-          </DraggableDecor>
-        )
+          </div>
+        </DraggableDecor>
       ) : null}
     </div>
   )
@@ -561,7 +523,6 @@ type EditorProps = {
   onChange: (next: CanvasTextOverlayState) => void
   isVideo?: boolean
   className?: string
-  linkHref?: string | null
 }
 
 export function CanvasTextOverlayEditor({
@@ -569,10 +530,29 @@ export function CanvasTextOverlayEditor({
   onChange,
   isVideo = false,
   className,
-  linkHref = null,
 }: EditorProps) {
+  useEffect(() => {
+    const legacyLink =
+      value.storyStickerMode === "link_badge" ||
+      (value.stickerEnabled && value.stickerId === "link_pill")
+    if (!legacyLink) return
+    onChange(
+      normalizeCanvasTextOverlay({
+        ...value,
+        storyStickerMode: "none",
+        stickerEnabled: false,
+      })
+    )
+  }, [
+    onChange,
+    value.storyStickerMode,
+    value.stickerEnabled,
+    value.stickerId,
+    value,
+  ])
+
   function patch(partial: Partial<CanvasTextOverlayState>) {
-    onChange({ ...value, ...partial })
+    onChange(normalizeCanvasTextOverlay({ ...value, ...partial }))
   }
 
   return (
@@ -777,11 +757,10 @@ export function CanvasTextOverlayEditor({
         <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
           Story sticker
         </span>
-        <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-1">
           {(
             [
               { id: "none", label: "None" },
-              { id: "link_badge", label: "Link badge" },
               { id: "editorial_poll", label: "Editorial poll" },
               { id: "countdown_timer", label: "Countdown" },
             ] as const
@@ -792,7 +771,7 @@ export function CanvasTextOverlayEditor({
               onClick={() =>
                 patch({
                   storyStickerMode: row.id,
-                  stickerEnabled: row.id === "none" ? value.stickerEnabled : false,
+                  ...(row.id === "none" ? { stickerEnabled: false } : {}),
                 })
               }
               className={cn(
@@ -823,36 +802,6 @@ export function CanvasTextOverlayEditor({
             </button>
           ))}
         </div>
-        {value.storyStickerMode === "link_badge" ? (
-          <label className="grid gap-1">
-            <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-              Link label
-            </span>
-            <select
-              value={value.linkBadgeLabel}
-              onChange={(event) =>
-                patch({ linkBadgeLabel: event.target.value })
-              }
-              className="h-8 w-full border-2 border-mad-black bg-mad-white px-2 font-mono text-[0.55rem] uppercase"
-            >
-              {STORY_LINK_BADGE_LABELS.map((label) => (
-                <option key={label} value={label}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            {linkHref?.trim() ? (
-              <a
-                href={linkHref.trim()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex w-fit border-2 border-mad-black bg-mad-lime px-2 py-1 font-typewriter text-[0.45rem] font-bold uppercase hover:bg-mad-black hover:text-mad-white"
-              >
-                Test link
-              </a>
-            ) : null}
-          </label>
-        ) : null}
         {value.storyStickerMode === "editorial_poll" ? (
           <div className="space-y-1.5">
             <input
@@ -949,7 +898,7 @@ export function CanvasTextOverlayEditor({
           </button>
         </div>
         <div className="grid grid-cols-4 gap-1 sm:grid-cols-4">
-          {CANVAS_STICKERS.map((sticker) => {
+          {CANVAS_STICKERS.filter((sticker) => sticker.id !== "link_pill").map((sticker) => {
             const active =
               value.stickerEnabled && value.stickerId === sticker.id
             return (
@@ -973,97 +922,6 @@ export function CanvasTextOverlayEditor({
             )
           })}
         </div>
-        {value.stickerEnabled && value.stickerId === "link_pill" ? (
-          <div className="space-y-2">
-            <input
-              type="text"
-              value={value.stickerLabel}
-              onChange={(event) =>
-                patch({ stickerLabel: event.target.value.slice(0, 48) })
-              }
-              placeholder="Link pill label (e.g. View on FÜDI)"
-              className="w-full border-2 border-mad-black px-2 py-1 text-xs outline-none focus:bg-mad-lime/20"
-            />
-            <div className="grid grid-cols-3 gap-1">
-              {(
-                [
-                  { id: "pill", label: "Pill" },
-                  { id: "rounded", label: "Rounded" },
-                  { id: "square", label: "Square" },
-                ] as const
-              ).map((row) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  onClick={() => patch({ stickerLinkShape: row.id })}
-                  className={cn(
-                    "border-2 border-mad-black py-1 font-typewriter text-[0.45rem] font-bold uppercase",
-                    value.stickerLinkShape === row.id
-                      ? "bg-mad-black text-mad-white"
-                      : "bg-mad-white hover:bg-mad-lime"
-                  )}
-                >
-                  {row.label}
-                </button>
-              ))}
-            </div>
-            <div className="space-y-1">
-              <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-                Pill colors
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-1 font-typewriter text-[0.45rem] uppercase">
-                  Fill
-                  <input
-                    type="color"
-                    value={value.stickerLinkBg}
-                    onChange={(event) =>
-                      patch({ stickerLinkBg: event.target.value.toUpperCase() })
-                    }
-                    className="size-6 border-2 border-mad-black bg-transparent"
-                  />
-                </label>
-                <label className="flex items-center gap-1 font-typewriter text-[0.45rem] uppercase">
-                  Text
-                  <input
-                    type="color"
-                    value={value.stickerLinkText}
-                    onChange={(event) =>
-                      patch({
-                        stickerLinkText: event.target.value.toUpperCase(),
-                      })
-                    }
-                    className="size-6 border-2 border-mad-black bg-transparent"
-                  />
-                </label>
-                {CANVAS_BRAND_SWATCHES.slice(0, 4).map((swatch) => (
-                  <button
-                    key={`link-${swatch.id}`}
-                    type="button"
-                    title={`Fill ${swatch.label}`}
-                    onClick={() => patch({ stickerLinkBg: swatch.hex })}
-                    className="size-6 border-2 border-mad-black"
-                    style={{ background: swatch.hex }}
-                  />
-                ))}
-              </div>
-            </div>
-            {linkHref?.trim() ? (
-              <a
-                href={linkHref.trim()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex border-2 border-mad-black bg-mad-lime px-2 py-1 font-typewriter text-[0.45rem] font-bold uppercase hover:bg-mad-black hover:text-mad-white"
-              >
-                Test link in new tab
-              </a>
-            ) : (
-              <p className="font-typewriter text-[0.45rem] text-neutral-500 normal-case">
-                Trackable link appears after the item has a destination URL.
-              </p>
-            )}
-          </div>
-        ) : null}
           </>
         ) : null}
       </div>

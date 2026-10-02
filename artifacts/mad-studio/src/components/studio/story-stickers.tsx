@@ -244,25 +244,6 @@ function EditorialStickerBody({
   const theme = overlay.storyStickerTheme
   const countdown = useCountdownParts(overlay.countdownTargetAt)
 
-  if (overlay.storyStickerMode === "link_badge") {
-    const pill = (
-      <StoryLinkPill label={overlay.linkBadgeLabel} theme={theme} />
-    )
-    if (linkHref?.trim() && !interactive) {
-      return (
-        <a
-          href={linkHref.trim()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pointer-events-auto"
-        >
-          {pill}
-        </a>
-      )
-    }
-    return pill
-  }
-
   if (overlay.storyStickerMode === "editorial_poll") {
     return (
       <EditorialPoll
