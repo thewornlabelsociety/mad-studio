@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-03c"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-03d"
 
 export type HelpSop = {
   title: string
@@ -177,7 +177,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Drop workbench (Media step)",
         description:
-          "Drop workbench: the phone preview uses Remotion for live media + on-screen text (kinetic hook from Hook field, headline/subhead from [ On-Screen Text ] or Canvas). Canvas step still supports drag/rotate on the DOM layer; Copy step edits update the Remotion player instantly. CapCut bridge on Media remains for heavy manual cuts only. Save draft or Confirm & Arm bakes on-image text into the PNG (media_url) for dispatch.",
+          "Drop workbench: the phone preview uses Remotion for live media + on-screen text (kinetic hook from Hook field, headline/subhead from [ On-Screen Text ] or Canvas). Copy step [ On-Screen Text ] includes quick tilt chips (−12° … +12°) plus a rotation slider for fine control on touchscreens. Canvas step still supports drag/rotate on the DOM layer. CapCut bridge on Media remains for heavy manual cuts only. Save draft or Confirm & Arm bakes on-image text into the PNG (media_url) for dispatch.",
       },
     ],
     sop: {
