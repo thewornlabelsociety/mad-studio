@@ -12,6 +12,7 @@ import * as tiktokCallback from "../ported/app/api/auth/tiktok/callback/route";
 import * as brainChat from "../ported/app/api/brain/chat/route";
 import * as brainMemory from "../ported/app/api/brain/memory/route";
 import * as brainSuggest from "../ported/app/api/brain/suggest/route";
+import * as brainMapIntent from "../ported/app/api/brain/map-intent/route";
 import * as postMortem from "../ported/app/api/campaigns/post-mortem/route";
 import * as markWinner from "../ported/app/api/campaigns/mark-winner/route";
 import * as dispatch from "../ported/app/api/cron/dispatch/route";
@@ -142,6 +143,7 @@ router.get("/api/auth/tiktok/callback", webHandler(method(tiktokCallback, "GET")
 router.post("/api/brain/chat", webHandler(method(brainChat, "POST")));
 router.post("/api/brain/memory", webHandler(method(brainMemory, "POST")));
 router.post("/api/brain/suggest", webHandler(method(brainSuggest, "POST")));
+router.post("/api/brain/map-intent", webHandler(method(brainMapIntent, "POST")));
 router.post("/api/campaigns/post-mortem", webHandler(method(postMortem, "POST")));
 router.post("/api/campaigns/mark-winner", webHandler(method(markWinner, "POST")));
 router.get("/api/cron/dispatch", webHandler(method(dispatch, "GET"), false));

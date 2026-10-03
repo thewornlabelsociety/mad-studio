@@ -33,31 +33,10 @@ export function remotionCompositionSize(aspect: "story" | "feed"): {
   return { width: 1080, height: 1920 }
 }
 
-function kineticHookPosition(): { x: number; y: number } {
-  const height = 1920
-  const safeCenterY =
-    REMOTION_SAFE_TOP_PX + (height - REMOTION_SAFE_TOP_PX - REMOTION_SAFE_BOTTOM_PX) / 2
-  return { x: 50, y: (safeCenterY / height) * 100 }
-}
-
 export function buildRemotionTextOverlays(
-  overlay: CanvasTextOverlayState,
-  spokenHook: string
+  overlay: CanvasTextOverlayState
 ): RemotionTextOverlay[] {
   const blocks: RemotionTextOverlay[] = []
-  const hookText = spokenHook.trim()
-  if (hookText) {
-    const pos = kineticHookPosition()
-    blocks.push({
-      id: "kinetic-hook",
-      text: hookText,
-      preset: "kinetic_hook",
-      role: "hook",
-      x: pos.x,
-      y: pos.y,
-    })
-  }
-
   const scale = resolveCanvasTextFontScale(overlay)
 
   if (overlay.enabled && overlay.headline.trim()) {

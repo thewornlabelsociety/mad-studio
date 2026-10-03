@@ -56,9 +56,14 @@ import {
   CanvasTextOverlayLayer,
 } from "@/components/studio/canvas-text-overlay"
 import {
+  canvasOverlayHasDecor,
   DEFAULT_CANVAS_TEXT_OVERLAY,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
+import {
+  bakeCanvasTextOnImage,
+  canvasOverlayNeedsBake,
+} from "@/lib/media/bake-canvas-text"
 import {
   RemotionCanvas,
   type RemotionCanvasProps,
@@ -268,7 +273,6 @@ function buildRemotionPreviewInput({
   mediaFit,
   aspect,
   textOverlay,
-  spokenHook,
   includeOverlays,
 }: {
   mediaUrl: string
@@ -276,7 +280,6 @@ function buildRemotionPreviewInput({
   mediaFit: "cover" | "contain"
   aspect: "story" | "feed"
   textOverlay: CanvasTextOverlayState
-  spokenHook: string
   includeOverlays: boolean
 }): RemotionCanvasProps {
   const { width, height } = remotionCompositionSize(aspect)
@@ -287,7 +290,7 @@ function buildRemotionPreviewInput({
     compositionWidth: width,
     compositionHeight: height,
     textOverlays: includeOverlays
-      ? buildRemotionTextOverlays(textOverlay, spokenHook)
+      ? buildRemotionTextOverlays(textOverlay)
       : [],
     badge: includeOverlays ? buildRemotionBadgeOverlay(textOverlay) : null,
   }
@@ -876,7 +879,7 @@ export function MultiPlatformSimulator({
           emailSubject: content.emailSubject,
           emailPreview: content.emailPreview,
           onScreenText: activeSlideText || content.headline,
-          spokenHook: content.caption,
+          spokenHook: content.headline,
         }),
       })
       const payload = (await response.json()) as {
@@ -894,6 +897,18 @@ export function MultiPlatformSimulator({
     } finally {
       setBusy(null)
     }
+  }
+
+  async function downloadImageFile(sourceUrl: string, fileName: string) {
+    const response = await fetch(sourceUrl, { cache: "no-store" })
+    if (!response.ok) throw new Error("Could not fetch image file.")
+    const blob = await response.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.download = fileName
+    anchor.href = objectUrl
+    anchor.click()
+    URL.revokeObjectURL(objectUrl)
   }
 
   async function onDownload() {
@@ -922,6 +937,41 @@ export function MultiPlatformSimulator({
         toast.success("MP4 downloaded — ready for Story/Reel upload.")
         return
       }
+
+      const baseImageUrl =
+        downloadMediaUrl ||
+        displayImageUrl ||
+        originalImageUrl ||
+        null
+      if (
+        baseImageUrl &&
+        !baseImageUrl.startsWith("blob:") &&
+        !baseImageUrl.startsWith("data:")
+      ) {
+        let exportUrl = baseImageUrl
+        if (canvasOverlayNeedsBake(textOverlay)) {
+          if (!actionContext?.entityId) {
+            throw new Error("Missing entity context for text bake.")
+          }
+          exportUrl = await bakeCanvasTextOnImage({
+            entityId: actionContext.entityId,
+            marketingEntityId: actionContext.marketingEntityId,
+            sourceUrl: baseImageUrl,
+            overlay: textOverlay,
+          })
+        }
+        await downloadImageFile(
+          exportUrl,
+          `${fileStem}-${platform}-9x16.png`
+        )
+        toast.success(
+          canvasOverlayHasDecor(textOverlay)
+            ? "9:16 image downloaded with your Canvas on-screen text only."
+            : "9:16 image downloaded — clean media, no caption burned in."
+        )
+        return
+      }
+
       if (!node) return
       const dataUrl = await toPng(node, {
         cacheBust: true,
@@ -997,7 +1047,6 @@ export function MultiPlatformSimulator({
           mediaFit: remotionMediaFit,
           aspect: remotionAspect,
           textOverlay,
-          spokenHook,
           includeOverlays: remotionDefersOverlays,
         })
       : null
@@ -1009,7 +1058,6 @@ export function MultiPlatformSimulator({
           mediaFit: remotionMediaFit,
           aspect: remotionAspect,
           textOverlay,
-          spokenHook,
           includeOverlays: remotionDefersOverlays,
         })
       : null
@@ -2096,7 +2144,6 @@ function FeedMediaStage({
               mediaFit,
               aspect: "feed",
               textOverlay,
-              spokenHook,
               includeOverlays: remotionIncludeOverlays,
             })
             return (

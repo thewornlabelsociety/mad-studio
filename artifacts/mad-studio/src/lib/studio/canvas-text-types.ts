@@ -311,6 +311,50 @@ export function canvasOverlayHasDecor(overlay: CanvasTextOverlayState): boolean 
 }
 
 /** Poll, countdown, emoji, and link-pill overlays are no longer supported on export. */
+export function clearCanvasTextOverlay(): CanvasTextOverlayState {
+  return {
+    ...DEFAULT_CANVAS_TEXT_OVERLAY,
+    enabled: false,
+    headline: "",
+    subhead: "",
+  }
+}
+
+/** Drop ghost on-image text synced from caption/hook by mistake. */
+export function reconcileUnwantedCanvasTextOverlay(
+  overlay: CanvasTextOverlayState,
+  draft: { hook?: string; caption?: string }
+): CanvasTextOverlayState {
+  const next = normalizeCanvasTextOverlay(overlay)
+  if (!next.enabled) return next
+  const headline = next.headline.trim()
+  if (!headline && !next.subhead.trim()) {
+    return clearCanvasTextOverlay()
+  }
+  if (!headline) return next
+
+  const hook = (draft.hook ?? "").trim()
+  const caption = (draft.caption ?? "").trim()
+  const captionFirstWord =
+    caption.split(/\s+/).find((word) => word.length > 0) ?? ""
+
+  const isSingleWord = headline.split(/\s+/).length === 1
+  const matchesCaptionLead =
+    captionFirstWord.length > 0 &&
+    headline.localeCompare(captionFirstWord, undefined, {
+      sensitivity: "accent",
+    }) === 0
+  const matchesHook =
+    hook.length > 0 &&
+    headline.localeCompare(hook, undefined, { sensitivity: "accent" }) === 0
+
+  if (isSingleWord && matchesCaptionLead && !matchesHook) {
+    return clearCanvasTextOverlay()
+  }
+
+  return next
+}
+
 export function stripLegacyCanvasStickers(
   overlay: CanvasTextOverlayState
 ): CanvasTextOverlayState {

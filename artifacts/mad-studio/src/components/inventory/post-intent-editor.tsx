@@ -94,7 +94,7 @@ function PostIntentTextField({
       }}
       onChange={(event) => commit(event.target.value, event)}
       className={cn(
-        "w-full border-2 border-mad-black bg-mad-white px-2 py-1 font-sans text-sm normal-case tracking-normal outline-none focus:bg-mad-lime/20",
+        "w-full border-2 border-mad-black bg-mad-white px-2 py-1 font-sans text-base normal-case tracking-normal outline-none focus:bg-mad-lime/20 md:text-sm",
         className
       )}
     />
@@ -107,6 +107,8 @@ type Props = {
   value: PostIntentState
   onChange: Dispatch<SetStateAction<PostIntentState>>
   className?: string
+  aiSuggested?: Partial<Record<"dropType" | "listingVibe", boolean>>
+  onManualFieldChange?: (field: "dropType" | "listingVibe") => void
 }
 
 function listingVibeMatchesOption(listingVibe: string, vibeOptions: string[]) {
@@ -117,12 +119,17 @@ function listingVibeMatchesOption(listingVibe: string, vibeOptions: string[]) {
   )
 }
 
+const AI_SELECT_TINT =
+  "bg-[#CCFF00]/10 ring-1 ring-inset ring-[#CCFF00]/45 [&_[data-slot=select-value]]:flex-1"
+
 export function PostIntentEditor({
   isFudi,
   vibeOptions,
   value,
   onChange,
   className,
+  aiSuggested = {},
+  onManualFieldChange,
 }: Props) {
   const [listingCustom, setListingCustom] = useState(
     () =>
@@ -148,6 +155,21 @@ export function PostIntentEditor({
       FUDI_DROP_KIND_OPTIONS[0]?.id ??
       SELECT_CUSTOM
 
+  useEffect(() => {
+    const trimmed = value.listingVibe.trim()
+    if (!trimmed) return
+    if (!listingVibeMatchesOption(trimmed, vibeOptions)) {
+      setListingCustom(true)
+    }
+  }, [value.listingVibe, vibeOptions])
+
+  useEffect(() => {
+    if (!isFudi) return
+    if (value.channelHint.trim() && !value.dropKind) {
+      setDropCustom(true)
+    }
+  }, [isFudi, value.channelHint, value.dropKind])
+
   return (
     <section
       className={cn(
@@ -171,6 +193,7 @@ export function PostIntentEditor({
           <Select
             value={dropSelectValue}
             onValueChange={(next) => {
+              onManualFieldChange?.("dropType")
               if (next === SELECT_CUSTOM) {
                 setDropCustom(true)
                 onChange((prev) => ({ ...prev, dropKind: null }))
@@ -184,8 +207,18 @@ export function PostIntentEditor({
               }))
             }}
           >
-            <SelectTrigger className={INTENT_SELECT_TRIGGER}>
+            <SelectTrigger
+              className={cn(
+                INTENT_SELECT_TRIGGER,
+                aiSuggested.dropType && AI_SELECT_TINT
+              )}
+            >
               <SelectValue placeholder="Drop type" />
+              {aiSuggested.dropType ? (
+                <span className="shrink-0 text-xs" aria-hidden>
+                  ✨
+                </span>
+              ) : null}
             </SelectTrigger>
             <SelectContent
               position="popper"
@@ -218,6 +251,7 @@ export function PostIntentEditor({
         <Select
           value={vibeSelectValue}
           onValueChange={(next) => {
+            onManualFieldChange?.("listingVibe")
             if (next === SELECT_CUSTOM) {
               setListingCustom(true)
               onChange((prev) => ({ ...prev, listingVibe: "" }))
@@ -227,8 +261,18 @@ export function PostIntentEditor({
             onChange((prev) => ({ ...prev, listingVibe: next }))
           }}
         >
-          <SelectTrigger className={INTENT_SELECT_TRIGGER}>
+          <SelectTrigger
+            className={cn(
+              INTENT_SELECT_TRIGGER,
+              aiSuggested.listingVibe && AI_SELECT_TINT
+            )}
+          >
             <SelectValue placeholder="Listing vibe" />
+            {aiSuggested.listingVibe ? (
+              <span className="shrink-0 text-xs" aria-hidden>
+                ✨
+              </span>
+            ) : null}
           </SelectTrigger>
           <SelectContent
             position="popper"

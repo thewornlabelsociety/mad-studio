@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-03d"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-04b"
 
 export type HelpSop = {
   title: string
@@ -177,7 +177,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Drop workbench (Media step)",
         description:
-          "Drop workbench: the phone preview uses Remotion for live media + on-screen text (kinetic hook from Hook field, headline/subhead from [ On-Screen Text ] or Canvas). Copy step [ On-Screen Text ] includes quick tilt chips (−12° … +12°) plus a rotation slider for fine control on touchscreens. Canvas step still supports drag/rotate on the DOM layer. CapCut bridge on Media remains for heavy manual cuts only. Save draft or Confirm & Arm bakes on-image text into the PNG (media_url) for dispatch.",
+          "Drop workbench: Remotion preview shows your media plus **Canvas / [ On-Screen Text ] only** — Hook and caption stay in the caption strip, not burned on the photo. Copy step tilt chips (−12° … +12°) and Canvas drag handles style text that bakes into the PNG on Save/Arm. **Clear on-image text** removes baked layers; re-save or download again for clean media. Story/TikTok download exports the source photo (plus Canvas text if enabled), not a phone-screenshot with extra words.",
       },
     ],
     sop: {
@@ -251,6 +251,11 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         name: "Intent step (Step 2)",
         description:
           "FÜDI drop type and listing vibe use dropdowns with a Custom… option (free-text when custom). Content pillar, persona, hook blueprint, and CTA are dropdowns tied to Brain DNA — no channel-hint pills on Intent; pick channels on Schedule.",
+      },
+      {
+        name: "Auto-suggest intent from media",
+        description:
+          "After Step 1 visual inspect, use Auto-Suggest Intent from Media on Step 2 to map drop type, vibe, pillar, persona, hook, and CTA from the media description (Gemini). AI-filled dropdowns show a ✨ hint; change any field manually to override or pick Custom… for free text.",
       },
       {
         name: "In-flow wizard SOP",

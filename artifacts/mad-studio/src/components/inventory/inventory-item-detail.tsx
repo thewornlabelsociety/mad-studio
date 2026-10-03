@@ -53,6 +53,7 @@ import {
 import {
   DEFAULT_CANVAS_TEXT_OVERLAY,
   normalizeCanvasTextOverlay,
+  reconcileUnwantedCanvasTextOverlay,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
 import {
@@ -327,11 +328,13 @@ export function InventoryItemDetail({
     const raw = item.copy_draft as {
       metadata?: { canvas_text_overlay?: unknown }
     }
-    if (raw.metadata?.canvas_text_overlay) {
-      return normalizeCanvasTextOverlay(raw.metadata.canvas_text_overlay)
-    }
-    const base = normalizeCanvasTextOverlay(null)
-    return base
+    const saved = raw.metadata?.canvas_text_overlay
+      ? normalizeCanvasTextOverlay(raw.metadata.canvas_text_overlay)
+      : normalizeCanvasTextOverlay(null)
+    return reconcileUnwantedCanvasTextOverlay(saved, {
+      hook: item.copy_draft.headline ?? "",
+      caption: item.copy_draft.caption ?? "",
+    })
   })
   const textOverlayPersistReady = useRef(false)
 
@@ -967,6 +970,7 @@ export function InventoryItemDetail({
         ctaId={ctaBlueprintId}
         onCtaIdChange={setCtaBlueprintId}
         visualDescription={visualInspection?.visualDescription ?? null}
+        visualInspection={visualInspection}
         isVideoPreview={activeMedia?.type === "video"}
         captionVariantLabel={
           captionVariants.length > 0
@@ -1022,7 +1026,7 @@ export function InventoryItemDetail({
     <div
       className={
         onWizardStep
-          ? "flex h-[calc(100vh-64px)] flex-col overflow-hidden"
+          ? "flex min-h-0 flex-1 flex-col overflow-x-hidden max-lg:overflow-y-auto lg:h-[calc(100vh-64px)] lg:overflow-hidden"
           : "space-y-3 pb-24"
       }
     >

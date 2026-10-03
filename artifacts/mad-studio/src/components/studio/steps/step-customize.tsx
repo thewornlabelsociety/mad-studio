@@ -2,7 +2,13 @@
 
 
 
-import { useEffect, useState, type ReactNode } from "react"
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react"
 
 import { Loader2, RotateCcw, Sparkles } from "lucide-react"
 
@@ -11,6 +17,12 @@ import { toast } from "sonner"
 
 
 import { PostIntentEditor } from "@/components/inventory/post-intent-editor"
+import { FUDI_DROP_KIND_OPTIONS } from "@/lib/inventory/post-intent"
+import type { MediaVisualInspection } from "@/lib/media/inspect-schema"
+import {
+  requestMapIntentFromMedia,
+} from "@/lib/studio/map-intent-client"
+import type { IntentAiSuggestedField } from "@/lib/studio/map-intent"
 
 import type { PostIntentState } from "@/lib/inventory/post-intent"
 
@@ -74,6 +86,36 @@ const SELECT_NONE = "__none__"
 const DNA_SELECT_CONTENT_CLASS =
   "z-[100] rounded-none border-2 border-mad-black"
 
+const AI_SELECT_TINT =
+  "bg-[#CCFF00]/10 ring-1 ring-inset ring-[#CCFF00]/45"
+
+function IntentSelectTrigger({
+  aiSuggested = false,
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof SelectTrigger> & {
+  aiSuggested?: boolean
+}) {
+  return (
+    <SelectTrigger
+      className={cn(
+        DNA_SELECT_TRIGGER_CLASS,
+        aiSuggested && AI_SELECT_TINT,
+        className
+      )}
+      {...props}
+    >
+      {children}
+      {aiSuggested ? (
+        <span className="shrink-0 text-xs leading-none" aria-hidden>
+          ✨
+        </span>
+      ) : null}
+    </SelectTrigger>
+  )
+}
+
 function pickSelectValue(
   current: string | null | undefined,
   allowed: string[],
@@ -135,6 +177,8 @@ type Props = {
   onTextOverlayChange?: (next: CanvasTextOverlayState) => void
 
   visualDescription?: string | null
+
+  visualInspection?: MediaVisualInspection | null
 
   isVideoPreview?: boolean
 
@@ -294,6 +338,8 @@ export function StepCustomize({
 
   visualDescription = null,
 
+  visualInspection = null,
+
   isVideoPreview = false,
 
   contentPillar = "",
@@ -328,6 +374,20 @@ export function StepCustomize({
 
   const [captionVariations, setCaptionVariations] = useState<string[]>([])
 
+  const [intentMapBusy, setIntentMapBusy] = useState(false)
+  const [aiSuggested, setAiSuggested] = useState<
+    Partial<Record<IntentAiSuggestedField, boolean>>
+  >({})
+
+  function clearAiField(field: IntentAiSuggestedField) {
+    setAiSuggested((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
   const personas = personasFromAudienceSegments(entity.audience_segments)
 
   const bank = resolveFormulaBank(entity.brand_identity)
@@ -342,7 +402,7 @@ export function StepCustomize({
 
   const ctas = entity.conversion_goals
 
-  const pillarOptions = [...pillars]
+  const pillarOptions = useMemo(() => [...pillars], [pillars])
   const [pillarCustom, setPillarCustom] = useState(
     () =>
       Boolean(contentPillar.trim()) &&
@@ -387,6 +447,81 @@ export function StepCustomize({
     ctaIds,
     ctas[0]?.id ?? SELECT_NONE
   )
+
+  const hasMediaContext = Boolean(
+    visualDescription?.trim() ||
+      visualInspection?.visualDescription?.trim() ||
+      (visualInspection?.aestheticTags?.length ?? 0) > 0 ||
+      (visualInspection?.concreteFeatures?.length ?? 0) > 0
+  )
+
+  async function runIntentAutoSuggest() {
+    if (!hasMediaContext) {
+      toast.message("Inspect media on Step 1 (Media) first.")
+      return
+    }
+    if (personas.length === 0 || bank.hook_styles.length === 0 || ctas.length === 0) {
+      toast.error("Add personas, hook blueprints, and CTAs in Brain DNA first.")
+      return
+    }
+    setIntentMapBusy(true)
+    try {
+      const description =
+        visualInspection?.visualDescription?.trim() ||
+        visualDescription?.trim() ||
+        ""
+      const result = await requestMapIntentFromMedia({
+        entityId,
+        visualDescription: description,
+        activeBrand: entity.name,
+        aestheticTags: visualInspection?.aestheticTags ?? [],
+        concreteFeatures: visualInspection?.concreteFeatures ?? [],
+        optionSource: {
+          dropTypes: isFudi
+            ? FUDI_DROP_KIND_OPTIONS.map((row) => ({
+                id: row.id,
+                label: row.label,
+              }))
+            : undefined,
+          listingVibes: vibeOptions,
+          pillars: pillarOptions,
+          personas: personas.map((row) => ({ id: row.id, name: row.name })),
+          hookBlueprints: bank.hook_styles.map((row) => ({
+            id: row.id,
+            label: row.label,
+          })),
+          ctas: ctas.map((row) => ({ id: row.id, label: row.label })),
+        },
+      })
+
+      onPostIntentChange({
+        ...postIntent,
+        dropKind: result.dropKind,
+        channelHint: result.dropTypeCustom ?? "",
+        listingVibe: result.listingVibe,
+      })
+      setPillarCustom(result.contentPillarIsCustom)
+      onContentPillarChange?.(result.contentPillar)
+      onPersonaIdChange?.(result.personaId)
+      onHookBlueprintIdChange?.(result.hookBlueprintId)
+      onCtaIdChange?.(result.ctaId)
+      setAiSuggested({
+        dropType: isFudi,
+        listingVibe: true,
+        pillar: true,
+        persona: true,
+        hookBlueprint: true,
+        cta: true,
+      })
+      toast.success("Intent mapped from media — override any dropdown as needed.")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Auto-suggest failed."
+      )
+    } finally {
+      setIntentMapBusy(false)
+    }
+  }
 
   function commitCaption(next: string) {
 
@@ -477,7 +612,35 @@ export function StepCustomize({
 
       </div>
 
-
+      {showIntent ? (
+        <div className="space-y-1">
+          <button
+            type="button"
+            disabled={!hasMediaContext || intentMapBusy}
+            onClick={() => void runIntentAutoSuggest()}
+            className={cn(
+              "flex w-full items-center justify-center gap-2 border-2 border-mad-black px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm transition",
+              hasMediaContext
+                ? "bg-mad-lime text-mad-black hover:bg-mad-black hover:text-mad-white disabled:opacity-60"
+                : "cursor-not-allowed bg-neutral-100 text-neutral-400"
+            )}
+          >
+            {intentMapBusy ? (
+              <>
+                <Loader2 className="size-3.5 animate-spin" />
+                Analyzing media…
+              </>
+            ) : (
+              <>🧠 Auto-Suggest Intent from Media</>
+            )}
+          </button>
+          {!hasMediaContext ? (
+            <p className="font-typewriter text-[0.45rem] text-neutral-500 normal-case">
+              Run visual inspect on Step 1 to unlock auto-suggest.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {showIntent ? topSlot : null}
 
@@ -495,6 +658,11 @@ export function StepCustomize({
 
           onChange={onPostIntentChange}
 
+          aiSuggested={{
+            dropType: aiSuggested.dropType,
+            listingVibe: aiSuggested.listingVibe,
+          }}
+          onManualFieldChange={(field) => clearAiField(field)}
         />
 
       ) : null}
@@ -515,6 +683,7 @@ export function StepCustomize({
           <Select
             value={pillarSelectValue}
             onValueChange={(value) => {
+              clearAiField("pillar")
               if (value === SELECT_CUSTOM) {
                 setPillarCustom(true)
                 onContentPillarChange?.("")
@@ -524,9 +693,9 @@ export function StepCustomize({
               onContentPillarChange?.(value)
             }}
           >
-            <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
+            <IntentSelectTrigger aiSuggested={Boolean(aiSuggested.pillar)}>
               <SelectValue placeholder="Content pillar" />
-            </SelectTrigger>
+            </IntentSelectTrigger>
             <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
               {pillarOptions.map((pillar) => (
                 <SelectItem key={pillar} value={pillar} title={pillar}>
@@ -540,11 +709,12 @@ export function StepCustomize({
             <input
               type="text"
               value={contentPillar}
-              onChange={(event) =>
+              onChange={(event) => {
+                clearAiField("pillar")
                 onContentPillarChange?.(event.target.value)
-              }
+              }}
               placeholder="Custom pillar / vibe…"
-              className="h-9 w-full border-2 border-mad-black bg-mad-white px-2 font-sans text-sm outline-none focus:bg-mad-lime/20"
+              className="h-9 w-full border-2 border-mad-black bg-mad-white px-2 font-sans text-base outline-none focus:bg-mad-lime/20 md:text-sm"
             />
           ) : null}
         </label>
@@ -566,15 +736,14 @@ export function StepCustomize({
           ) : (
             <Select
               value={personaSelectValue}
-              onValueChange={(value) =>
-                onPersonaIdChange?.(
-                  value === SELECT_NONE ? "" : value
-                )
-              }
+              onValueChange={(value) => {
+                clearAiField("persona")
+                onPersonaIdChange?.(value === SELECT_NONE ? "" : value)
+              }}
             >
-              <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
+              <IntentSelectTrigger aiSuggested={Boolean(aiSuggested.persona)}>
                 <SelectValue placeholder="Persona" />
-              </SelectTrigger>
+              </IntentSelectTrigger>
               <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
                 {personas.map((persona) => (
                   <SelectItem key={persona.id} value={persona.id}>
@@ -604,14 +773,15 @@ export function StepCustomize({
             <Select
               value={hookSelectValue}
               onValueChange={(value) => {
+                clearAiField("hookBlueprint")
                 if (value !== SELECT_NONE) {
                   onHookBlueprintIdChange?.(value)
                 }
               }}
             >
-              <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
+              <IntentSelectTrigger aiSuggested={Boolean(aiSuggested.hookBlueprint)}>
                 <SelectValue placeholder="Hook blueprint" />
-              </SelectTrigger>
+              </IntentSelectTrigger>
               <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
                 {bank.hook_styles.map((hook) => (
                   <SelectItem key={hook.id} value={hook.id}>
@@ -641,12 +811,13 @@ export function StepCustomize({
             <Select
               value={ctaSelectValue}
               onValueChange={(value) => {
+                clearAiField("cta")
                 if (value !== SELECT_NONE) onCtaIdChange?.(value)
               }}
             >
-              <SelectTrigger className={DNA_SELECT_TRIGGER_CLASS}>
+              <IntentSelectTrigger aiSuggested={Boolean(aiSuggested.cta)}>
                 <SelectValue placeholder="Call to action" />
-              </SelectTrigger>
+              </IntentSelectTrigger>
               <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
                 {ctas.map((cta) => (
                   <SelectItem key={cta.id} value={cta.id}>
@@ -845,7 +1016,7 @@ export function StepCustomize({
 
             placeholder="0–3s spoken / on-screen hook"
 
-            className="rounded-none border-2 border-mad-black bg-mad-white px-2 py-1.5 text-sm font-medium focus:bg-mad-lime/20"
+            className="rounded-none border-2 border-mad-black bg-mad-white px-2 py-1.5 text-base font-medium focus:bg-mad-lime/20 md:text-sm"
 
           />
 
@@ -909,7 +1080,7 @@ export function StepCustomize({
 
             placeholder="Caption body (hook not repeated here)"
 
-            className="rounded-none border-2 border-mad-black bg-mad-white px-2 py-1.5 text-sm focus:bg-mad-lime/20"
+            className="rounded-none border-2 border-mad-black bg-mad-white px-2 py-1.5 text-base focus:bg-mad-lime/20 md:text-sm"
 
           />
 

@@ -110,7 +110,7 @@ export function AutoTextarea({
       onFocus={handleFocus}
       onBlur={handleBlur}
       className={cn(
-        "w-full resize-none overflow-hidden border border-transparent bg-transparent px-2 py-1.5 font-sans text-sm leading-relaxed tracking-normal text-mad-black outline-none transition-[border-color,box-shadow] placeholder:text-neutral-400 focus:rounded-lg focus:border-black focus:ring-1 focus:ring-black",
+        "w-full resize-none overflow-hidden border border-transparent bg-transparent px-2 py-1.5 font-sans text-base leading-relaxed tracking-normal text-mad-black outline-none transition-[border-color,box-shadow] placeholder:text-neutral-400 focus:rounded-lg focus:border-black focus:ring-1 focus:ring-black md:text-sm",
         className
       )}
     />

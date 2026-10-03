@@ -16,6 +16,7 @@ import {
   CANVAS_BRAND_SWATCHES,
   CANVAS_TEXT_FONTS,
   canvasOverlayHasDecor,
+  clearCanvasTextOverlay,
   normalizeCanvasTextOverlay,
   canvasTextAnimationClass,
   canvasTextHighlightClass,
@@ -472,7 +473,13 @@ export function CanvasTextOverlayEditor({
   useEffect(() => {
     if (value.storyStickerMode === "none" && !value.stickerEnabled) return
     onChange(normalizeCanvasTextOverlay(value))
-  }, [onChange, value])
+  }, [
+    onChange,
+    value.storyStickerMode,
+    value.stickerEnabled,
+    value.stickerId,
+    value.stickerLabel,
+  ])
 
   function patch(partial: Partial<CanvasTextOverlayState>) {
     onChange(normalizeCanvasTextOverlay({ ...value, ...partial }))
@@ -485,20 +492,29 @@ export function CanvasTextOverlayEditor({
         className
       )}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-typewriter text-[0.5rem] font-bold tracking-widest text-mad-vermillion uppercase">
           On-canvas text
         </p>
-        <button
-          type="button"
-          onClick={() => patch({ enabled: !value.enabled })}
-          className={cn(
-            "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.45rem] font-bold uppercase",
-            value.enabled ? "bg-mad-black text-mad-white" : "bg-mad-white"
-          )}
-        >
-          {value.enabled ? "On" : "Off"}
-        </button>
+        <div className="flex flex-wrap items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onChange(clearCanvasTextOverlay())}
+            className="border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.4rem] font-bold uppercase hover:bg-mad-vermillion hover:text-mad-white"
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            onClick={() => patch({ enabled: !value.enabled })}
+            className={cn(
+              "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.45rem] font-bold uppercase",
+              value.enabled ? "bg-mad-black text-mad-white" : "bg-mad-white"
+            )}
+          >
+            {value.enabled ? "On" : "Off"}
+          </button>
+        </div>
       </div>
 
       <p className="font-typewriter text-[0.45rem] leading-relaxed text-neutral-600 normal-case">
@@ -518,8 +534,8 @@ export function CanvasTextOverlayEditor({
           patch({ headline: event.target.value, enabled: true })
         }
         placeholder="Headline on image"
-        className="w-full border-2 border-mad-black px-2 py-1 text-xs outline-none focus:bg-mad-lime/20"
-      />
+        className="w-full border-2 border-mad-black px-2 py-1 text-base outline-none focus:bg-mad-lime/20 md:text-xs"
+        />
       <input
         type="text"
         value={value.subhead}
@@ -527,7 +543,7 @@ export function CanvasTextOverlayEditor({
           patch({ subhead: event.target.value, enabled: true })
         }
         placeholder="Subhead (optional)"
-        className="w-full border-2 border-mad-black px-2 py-1 text-xs outline-none focus:bg-mad-lime/20"
+        className="w-full border-2 border-mad-black px-2 py-1 text-base outline-none focus:bg-mad-lime/20 md:text-xs"
       />
 
       <label className="grid gap-1">

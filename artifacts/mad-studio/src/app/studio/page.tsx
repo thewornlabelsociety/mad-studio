@@ -172,7 +172,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
           }
         />
 
-        <main className="flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden">
+        <main className="flex min-h-0 w-full max-w-none flex-1 flex-col overflow-x-hidden max-lg:overflow-y-auto lg:overflow-hidden">
         {params.error && !dropItem ? (
           <p
             className="border-2 border-mad-black bg-mad-vermillion px-3 py-2 text-sm font-bold text-mad-white"

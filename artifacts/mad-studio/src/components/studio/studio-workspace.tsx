@@ -1278,6 +1278,7 @@ export function StudioWorkspace({
         onTextOverlayChange={setTextOverlay}
         isVideoPreview={activeMedia?.type === "video"}
         visualDescription={visualInspection?.visualDescription ?? null}
+        visualInspection={visualInspection}
         topSlot={
           !isFudi ? (
             <div className="space-y-3">
@@ -1353,7 +1354,7 @@ export function StudioWorkspace({
           : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden max-lg:overflow-y-auto lg:overflow-hidden">
       <StudioSplitShell
         className="min-h-0 flex-1"
         showPreview={workbenchStep !== WORKBENCH_STEP_MEDIA}
