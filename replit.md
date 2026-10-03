@@ -5,7 +5,7 @@ MAD STUDIO is a multi-brand marketing workspace for inventory, content generatio
 ## Run & verify
 
 - **Preview needs two processes:** UI (port **24726**) and API (port **8080**). `/api/*` and server actions fail with **502** if only the UI is running.
-- If your Repl has a **Workflows** panel, start `artifacts/mad-studio: web` and `artifacts/api-server: API Server`.
+- If your Repl has a **Workflows** panel, start `artifacts/mad-studio: web` and `artifacts/api-server: API Server`. Do **not** also run `replit-dev.sh` for Vite — port 24726 will already be taken. If the API workflow is off, run `bash scripts/replit-dev.sh` once: it skips Vite when 24726 is busy and only starts the API.
 - If you **do not** see Workflows, use **Shell** after `git pull`:
 
   ```bash
