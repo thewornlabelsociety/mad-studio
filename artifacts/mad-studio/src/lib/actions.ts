@@ -1,4 +1,9 @@
 import { action } from "@/lib/action-client"
+import {
+  getAccessibleEntitiesClient,
+  getActiveOrganizationIdClient,
+  isCurrentUserOrgAdminClient,
+} from "@/lib/auth-access-client"
 
 export type InventoryActionResult<T = any> = { ok: true; data: T } | { ok: false; error: string }
 export type SocialActionResult<T = any> = InventoryActionResult<T>
@@ -21,9 +26,12 @@ export const setActiveEntity = async (entityId: string, options?: { redirectTo?:
 }
 export const createInvitation = (...args: any[]) => action("createInvitation", ...args)
 export const acceptInvitation = (...args: any[]) => action<{ entityId: string | null; error?: string }>("acceptInvitation", ...args)
-export const getAccessibleEntities = (...args: any[]) => action<import("@/lib/types").AccessibleEntity[]>("getAccessibleEntities", ...args)
-export const getActiveOrganizationId = (...args: any[]) => action<string | null>("getActiveOrganizationId", ...args)
-export const isCurrentUserOrgAdmin = (...args: any[]) => action<boolean>("isCurrentUserOrgAdmin", ...args)
+export const getAccessibleEntities = (userId: string) =>
+  getAccessibleEntitiesClient(userId)
+export const getActiveOrganizationId = (userId: string) =>
+  getActiveOrganizationIdClient(userId)
+export const isCurrentUserOrgAdmin = (organizationId: string) =>
+  isCurrentUserOrgAdminClient(organizationId)
 export const claimFirstOrgAdmin = async (...args: any[]) => {
   await action("claimFirstOrgAdmin", ...args)
   window.dispatchEvent(new Event("mad:refresh"))

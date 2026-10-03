@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 echo "[mad] Installing workspace dependencies..."
-pnpm install --frozen-lockfile
+CI=true pnpm install --frozen-lockfile
 
 echo "[mad] Building API server..."
 pnpm --filter @workspace/api-server run build

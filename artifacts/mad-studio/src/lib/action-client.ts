@@ -33,7 +33,14 @@ export async function action<T = any>(name: string, ...args: any[]): Promise<T> 
     redirect?: string
     result?: unknown
   }>(response)
-  if (!parsed.ok) throw new Error(parsed.error)
+  if (!parsed.ok) {
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      throw new Error(
+        `${parsed.error} The MAD API server may be stopped — on Replit, start the API Server workflow (port 8080) or run bash scripts/replit-dev.sh.`
+      )
+    }
+    throw new Error(parsed.error)
+  }
   const payload = parsed.data
   if (!response.ok) {
     throw new Error(payload.error ?? `Action ${name} failed (${response.status}).`)

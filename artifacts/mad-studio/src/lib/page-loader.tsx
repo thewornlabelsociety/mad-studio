@@ -42,7 +42,7 @@ export function PageLoader({ load }: { load: () => Promise<ReactNode> }) {
       <div className="max-w-lg border-2 border-mad-black p-7 shadow-keycap">
         <p className="brand-typewriter text-xs text-mad-vermillion">MAD STUDIO / CONFIGURATION</p>
         <h1 className="mt-4 font-typewriter text-xl font-bold uppercase">Workspace unavailable</h1>
-        <p className="mt-3 text-sm">{state.error}</p>
+        <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">{state.error}</p>
         <button type="button" className="mt-5 border-2 border-mad-black bg-mad-lime px-5 py-2 font-typewriter text-xs font-bold uppercase" onClick={() => window.dispatchEvent(new Event("mad:refresh"))}>Retry</button>
       </div>
     </div>

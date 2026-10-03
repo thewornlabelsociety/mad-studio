@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse } from "@server/http-response"
 
 import { generateObjectWithFallback } from "@/lib/ai/orchestrator"
 import {
@@ -20,12 +20,12 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return HttpResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const parsed = mapIntentRequestSchema.safeParse(await request.json())
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid request body." }, { status: 400 })
+      return HttpResponse.json({ error: "Invalid request body." }, { status: 400 })
     }
 
     const {
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       aestheticTags.length === 0 &&
       concreteFeatures.length === 0
     ) {
-      return NextResponse.json(
+      return HttpResponse.json(
         { error: "Run media inspect on Step 1 before auto-suggesting intent." },
         { status: 400 }
       )
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       { ent_id: entityId, allowed_roles: ["entity_manager", "creator"] }
     )
     if (accessError || !canEdit) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      return HttpResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const optionsJson = JSON.stringify(availableOptions, null, 2)
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     const result = coerceMapIntentResult(object, availableOptions, maps)
 
     if (!result.personaId || !result.hookBlueprintId || !result.ctaId) {
-      return NextResponse.json(
+      return HttpResponse.json(
         {
           error:
             "Brain DNA is missing personas, hook blueprints, or CTAs — complete entity setup first.",
@@ -107,11 +107,11 @@ export async function POST(request: Request) {
       )
     }
 
-    return NextResponse.json(result)
+    return HttpResponse.json(result)
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Intent mapping failed."
     console.error("[brain/map-intent]", error)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return HttpResponse.json({ error: message }, { status: 500 })
   }
 }
