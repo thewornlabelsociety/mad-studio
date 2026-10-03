@@ -20,8 +20,9 @@ export function OnScreenTextPanel({ value, onChange }: Props) {
       </p>
       <p className="text-[0.65rem] leading-snug text-neutral-600">
         Updates the Remotion phone preview instantly. Hook above drives the 0–3s
-        kinetic word reveal; headline uses Acid Lime when Brand pill is on in
-        Canvas.
+        kinetic word reveal. For static exports, open the Canvas step to style
+        headline/subhead (font, shadow, highlight) — that text bakes into the PNG;
+        polls and link stickers stay native on your phone.
       </p>
       <label className="block space-y-1">
         <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">

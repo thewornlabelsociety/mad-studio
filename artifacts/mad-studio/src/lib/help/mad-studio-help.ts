@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-03b"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-03c"
 
 export type HelpSop = {
   title: string
@@ -279,7 +279,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "On-canvas text styler",
         description:
-          "Canvas step: draggable headline/subhead with Highlight pill None (transparent), Translucent black, or brand lime. Rotated text uses center transform-origin and is not clipped while editing. IG Story preview does not show fake link stickers (Meta stories are not clickable in MAD). Story stickers: None, Editorial poll, or Countdown timer (noir or linen). Optional emoji decor stickers when None is selected. Text uses the lime Drag bar (move), top-left rotate, bottom-right resize; poll/timer use a vermillion drag chip. Motion presets pause while you edit; Save/Arm bakes decor into the PNG for dispatch.",
+          "Canvas step: draggable headline/subhead only — platforms reject baked poll, countdown, emoji decor, or fake link stickers in exported media. Style with font, color, shadow, Highlight pill (None, translucent black, or brand lime), align, size, and rotation. Quick presets: Center frame, Lower third, Reset size & tilt. Lime drag bar moves text; top-left rotates; bottom-right scales. Motion presets pause while you edit; Save/Arm bakes text into the PNG for dispatch. Native music, poll, and link stickers are added on your phone (Track 2 SOP).",
       },
       {
         name: "CapCut bridge",

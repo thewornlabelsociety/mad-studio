@@ -920,18 +920,10 @@ export function InventoryItemDetail({
     if (textOverlay.enabled && textOverlay.headline.trim()) {
       parts.push(textOverlay.headline.trim().slice(0, 32))
     }
-    if (textOverlay.storyStickerMode === "editorial_poll") {
-      parts.push("Poll")
-    } else if (textOverlay.storyStickerMode === "countdown_timer") {
-      parts.push("Countdown")
-    } else if (
-      textOverlay.stickerEnabled &&
-      textOverlay.stickerId !== "link_pill"
-    ) {
-      parts.push("Sticker")
-    }
     if (textOverlay.animation !== "none") parts.push("Motion")
-    return parts.length > 0 ? parts.join(" · ") : "No on-canvas decor"
+    if (textOverlay.shadow !== "none") parts.push("Shadow")
+    if (textOverlay.highlight !== "none") parts.push("Highlight")
+    return parts.length > 0 ? parts.join(" · ") : "No on-canvas text"
   })()
   function renderDropCustomize(phase: CustomizeWizardPhase) {
     if (!entity) return null

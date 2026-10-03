@@ -12,18 +12,14 @@ import {
 } from "react"
 import { GripHorizontal, RotateCw } from "lucide-react"
 
-import { CanvasStickerVisual } from "@/components/studio/canvas-sticker-visual"
-import { EditorialStoryStickerOverlay } from "@/components/studio/story-stickers"
 import {
   CANVAS_BRAND_SWATCHES,
-  CANVAS_STICKERS,
   CANVAS_TEXT_FONTS,
   canvasOverlayHasDecor,
   normalizeCanvasTextOverlay,
   canvasTextAnimationClass,
   canvasTextHighlightClass,
   canvasTextShadowClass,
-  type CanvasStickerId,
   type CanvasTextAnimation,
   type CanvasTextFontId,
   type CanvasTextHighlight,
@@ -69,21 +65,6 @@ function attachWindowPointerSession(
   window.addEventListener("pointermove", move)
   window.addEventListener("pointerup", end)
   window.addEventListener("pointercancel", end)
-}
-
-function countdownLocalInputValue(iso: string): string {
-  if (!iso.trim()) return ""
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return ""
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
-function localDatetimeToIso(local: string): string {
-  if (!local.trim()) return ""
-  const date = new Date(local)
-  if (Number.isNaN(date.getTime())) return ""
-  return date.toISOString()
 }
 
 function useOverlayRef(overlay: CanvasTextOverlayState) {
@@ -345,9 +326,7 @@ type LayerProps = {
   className?: string
   interactive?: boolean
   onOverlayChange?: (next: CanvasTextOverlayState) => void
-  /** IG story safe-zone editorial stickers (poll, timer). */
-  storyEditorialStickers?: boolean
-  /** When false, text is rendered by Remotion preview (stickers/handles only). */
+  /** When false, text is rendered by Remotion preview (handles only). */
   renderCanvasText?: boolean
 }
 
@@ -356,7 +335,6 @@ export function CanvasTextOverlayLayer({
   className,
   interactive = false,
   onOverlayChange,
-  storyEditorialStickers = false,
   renderCanvasText = true,
 }: LayerProps) {
   const frameRef = useRef<HTMLDivElement>(null)
@@ -392,13 +370,6 @@ export function CanvasTextOverlayLayer({
     overlayRef,
     textBoxRef
   )
-  const stickerDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, {
-    x: "stickerX",
-    y: "stickerY",
-    min: 1,
-    max: 99,
-  })
-
   if (!canvasOverlayHasDecor(overlay)) return null
 
   const font =
@@ -481,39 +452,6 @@ export function CanvasTextOverlayLayer({
           </div>
         </DraggableDecor>
       ) : null}
-
-      {storyEditorialStickers &&
-      (overlay.storyStickerMode === "editorial_poll" ||
-        overlay.storyStickerMode === "countdown_timer") ? (
-        <EditorialStoryStickerOverlay
-          overlay={overlay}
-          interactive={interactive}
-          onPointerDown={stickerDrag.onPointerDown}
-        />
-      ) : null}
-
-      {!storyEditorialStickers &&
-      overlay.storyStickerMode === "none" &&
-      overlay.stickerEnabled &&
-      overlay.stickerId !== "link_pill" ? (
-        <DraggableDecor
-          interactive={interactive}
-          x={overlay.stickerX}
-          y={overlay.stickerY}
-          hint="Drag sticker"
-          {...stickerDrag}
-        >
-          <div className={motionClass}>
-            <CanvasStickerVisual
-              stickerId={overlay.stickerId}
-              stickerLabel={overlay.stickerLabel}
-              linkBg={overlay.stickerLinkBg}
-              linkText={overlay.stickerLinkText}
-              linkShape={overlay.stickerLinkShape}
-            />
-          </div>
-        </DraggableDecor>
-      ) : null}
     </div>
   )
 }
@@ -532,24 +470,9 @@ export function CanvasTextOverlayEditor({
   className,
 }: EditorProps) {
   useEffect(() => {
-    const legacyLink =
-      value.storyStickerMode === "link_badge" ||
-      (value.stickerEnabled && value.stickerId === "link_pill")
-    if (!legacyLink) return
-    onChange(
-      normalizeCanvasTextOverlay({
-        ...value,
-        storyStickerMode: "none",
-        stickerEnabled: false,
-      })
-    )
-  }, [
-    onChange,
-    value.storyStickerMode,
-    value.stickerEnabled,
-    value.stickerId,
-    value,
-  ])
+    if (value.storyStickerMode === "none" && !value.stickerEnabled) return
+    onChange(normalizeCanvasTextOverlay(value))
+  }, [onChange, value])
 
   function patch(partial: Partial<CanvasTextOverlayState>) {
     onChange(normalizeCanvasTextOverlay({ ...value, ...partial }))
@@ -579,12 +502,13 @@ export function CanvasTextOverlayEditor({
       </div>
 
       <p className="font-typewriter text-[0.45rem] leading-relaxed text-neutral-600 normal-case">
-        Text and stickers render on the photo — not in the caption strip. Drag the
+        Headline and subhead render on the photo — not in the caption strip.
+        Platforms no longer allow fake poll, countdown, or decor stickers in
+        exported media; add those natively on your phone at post time. Drag the
         lime bar to move; bottom-right handle (or size slider) to scale; top-left
-        handle (or rotation slider) to tilt. Box hugs the text. Preview matches
-        baked PNG on IG, TikTok, and Facebook media frames.
-        Motion plays in the studio; baked PNGs use a still frame
-        {isVideo ? " (Reels keep motion in-app only)" : ""}.
+        handle (or rotation slider) to tilt. Preview matches the baked PNG on IG,
+        TikTok, and Facebook. Motion plays in the studio; baked PNGs use a still
+        frame{isVideo ? " (Reels keep motion in-app only)" : ""}.
       </p>
 
       <input
@@ -666,6 +590,30 @@ export function CanvasTextOverlayEditor({
             {row.label}
           </button>
         ))}
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        <button
+          type="button"
+          onClick={() => patch({ positionX: 50, positionY: 50 })}
+          className="border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.4rem] font-bold uppercase hover:bg-mad-lime"
+        >
+          Center frame
+        </button>
+        <button
+          type="button"
+          onClick={() => patch({ positionX: 50, positionY: 72 })}
+          className="border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.4rem] font-bold uppercase hover:bg-mad-lime"
+        >
+          Lower third
+        </button>
+        <button
+          type="button"
+          onClick={() => patch({ fontScale: 1, rotationDeg: 0 })}
+          className="border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.4rem] font-bold uppercase hover:bg-mad-lime"
+        >
+          Reset size & tilt
+        </button>
       </div>
 
       <label className="grid gap-1">
@@ -751,179 +699,6 @@ export function CanvasTextOverlayEditor({
             <option value="brand_pill">Acid lime</option>
           </select>
         </label>
-      </div>
-
-      <div className="space-y-1.5 border-t border-mad-black/15 pt-2">
-        <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-          Story sticker
-        </span>
-        <div className="grid grid-cols-3 gap-1">
-          {(
-            [
-              { id: "none", label: "None" },
-              { id: "editorial_poll", label: "Editorial poll" },
-              { id: "countdown_timer", label: "Countdown" },
-            ] as const
-          ).map((row) => (
-            <button
-              key={row.id}
-              type="button"
-              onClick={() =>
-                patch({
-                  storyStickerMode: row.id,
-                  ...(row.id === "none" ? { stickerEnabled: false } : {}),
-                })
-              }
-              className={cn(
-                "border-2 border-mad-black py-1 font-typewriter text-[0.4rem] font-bold uppercase",
-                value.storyStickerMode === row.id
-                  ? "bg-mad-black text-mad-white"
-                  : "bg-mad-white hover:bg-mad-lime"
-              )}
-            >
-              {row.label}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-1">
-          {(["noir", "linen"] as const).map((theme) => (
-            <button
-              key={theme}
-              type="button"
-              onClick={() => patch({ storyStickerTheme: theme })}
-              className={cn(
-                "border-2 border-mad-black py-1 font-typewriter text-[0.45rem] font-bold uppercase",
-                value.storyStickerTheme === theme
-                  ? "bg-mad-vermillion text-mad-white"
-                  : "bg-mad-white hover:bg-mad-lime"
-              )}
-            >
-              {theme}
-            </button>
-          ))}
-        </div>
-        {value.storyStickerMode === "editorial_poll" ? (
-          <div className="space-y-1.5">
-            <input
-              type="text"
-              value={value.pollQuestion}
-              onChange={(event) =>
-                patch({ pollQuestion: event.target.value.slice(0, 80) })
-              }
-              placeholder="Poll question"
-              className="w-full border-2 border-mad-black px-2 py-1 text-xs outline-none focus:bg-mad-lime/20"
-            />
-            <div className="grid grid-cols-2 gap-1">
-              <input
-                type="text"
-                value={value.pollOptionA}
-                onChange={(event) =>
-                  patch({ pollOptionA: event.target.value.slice(0, 32) })
-                }
-                placeholder="Option A"
-                className="w-full border-2 border-mad-black px-2 py-1 text-xs outline-none focus:bg-mad-lime/20"
-              />
-              <input
-                type="text"
-                value={value.pollOptionB}
-                onChange={(event) =>
-                  patch({ pollOptionB: event.target.value.slice(0, 32) })
-                }
-                placeholder="Option B"
-                className="w-full border-2 border-mad-black px-2 py-1 text-xs outline-none focus:bg-mad-lime/20"
-              />
-            </div>
-            <label className="grid gap-1">
-              <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-                Preview split A ({value.pollPercentA}%)
-              </span>
-              <input
-                type="range"
-                min={10}
-                max={90}
-                value={value.pollPercentA}
-                onChange={(event) =>
-                  patch({ pollPercentA: Number(event.target.value) })
-                }
-                className="w-full"
-              />
-            </label>
-          </div>
-        ) : null}
-        {value.storyStickerMode === "countdown_timer" ? (
-          <div className="space-y-1.5">
-            <input
-              type="text"
-              value={value.countdownTitle}
-              onChange={(event) =>
-                patch({ countdownTitle: event.target.value.slice(0, 64) })
-              }
-              placeholder="Drop event title"
-              className="w-full border-2 border-mad-black px-2 py-1 text-xs outline-none focus:bg-mad-lime/20"
-            />
-            <label className="grid gap-1">
-              <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-                Target date & time
-              </span>
-              <input
-                type="datetime-local"
-                value={countdownLocalInputValue(value.countdownTargetAt)}
-                onChange={(event) =>
-                  patch({
-                    countdownTargetAt: localDatetimeToIso(event.target.value),
-                  })
-                }
-                className="w-full border-2 border-mad-black px-2 py-1 text-xs outline-none focus:bg-mad-lime/20"
-              />
-            </label>
-          </div>
-        ) : null}
-        {value.storyStickerMode === "none" ? (
-          <>
-        <div className="flex items-center justify-between gap-2 pt-1">
-          <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-            Decor stickers
-          </span>
-          <button
-            type="button"
-            onClick={() => patch({ stickerEnabled: !value.stickerEnabled })}
-            className={cn(
-              "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.45rem] font-bold uppercase",
-              value.stickerEnabled
-                ? "bg-mad-black text-mad-white"
-                : "bg-mad-white"
-            )}
-          >
-            {value.stickerEnabled ? "On" : "Off"}
-          </button>
-        </div>
-        <div className="grid grid-cols-4 gap-1 sm:grid-cols-4">
-          {CANVAS_STICKERS.filter((sticker) => sticker.id !== "link_pill").map((sticker) => {
-            const active =
-              value.stickerEnabled && value.stickerId === sticker.id
-            return (
-              <button
-                key={sticker.id}
-                type="button"
-                title={sticker.label}
-                onClick={() =>
-                  patch({ stickerEnabled: true, stickerId: sticker.id })
-                }
-                className={cn(
-                  "flex min-h-9 flex-col items-center justify-center gap-0.5 border-2 border-mad-black px-1 py-1 font-typewriter text-[0.4rem] font-bold uppercase",
-                  active
-                    ? "bg-mad-lime text-mad-black"
-                    : "bg-mad-white hover:bg-mad-lime/50"
-                )}
-              >
-                <span className="text-base leading-none">{sticker.glyph.slice(0, 2)}</span>
-                <span className="line-clamp-1 w-full text-center">{sticker.label.split(" ")[0]}</span>
-              </button>
-            )
-          })}
-        </div>
-          </>
-        ) : null}
       </div>
 
       <label className="grid gap-1">

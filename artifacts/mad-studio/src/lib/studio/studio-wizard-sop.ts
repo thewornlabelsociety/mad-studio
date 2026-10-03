@@ -43,7 +43,7 @@ export const STUDIO_WIZARD_STEP_SOP: Record<
     checklist: [
       "Move headline/subhead with the lime drag bar; rotate and resize handles.",
       "Highlight pill: None, translucent black, or brand lime.",
-      "Story: poll or countdown sticker when needed — native link stickers go on your phone at post time.",
+      "Use Center frame / Lower third if needed — polls, links, and music go on your phone at post time.",
     ],
   },
   [WORKBENCH_STEP_COPY]: {

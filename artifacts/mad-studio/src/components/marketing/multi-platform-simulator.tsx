@@ -952,8 +952,6 @@ export function MultiPlatformSimulator({
   const useStoryCanvasForIg =
     !isFudiEntity && (cutoutMode !== "original" || Boolean(item))
 
-  const storyEditorialStickers = platform === "ig_story"
-
   const isFeedPreview =
     platform === "ig_feed" || platform === "facebook"
 
@@ -1025,7 +1023,6 @@ export function MultiPlatformSimulator({
       isVideo={isVideo}
       interactive={canvasEditActive}
       onOverlayChange={onTextOverlayChange ?? setTextOverlay}
-      storyEditorialStickers={storyEditorialStickers}
       renderCanvasText={!remotionDefersOverlays}
     />
   )

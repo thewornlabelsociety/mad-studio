@@ -302,32 +302,26 @@ export function isCanvasStickerId(value: string): value is CanvasStickerId {
 
 
 
+/** True when baked PNG / preview should show on-image headline or subhead. */
 export function canvasOverlayHasDecor(overlay: CanvasTextOverlayState): boolean {
-
-  const hasText =
-
+  return (
     overlay.enabled &&
-
     Boolean(overlay.headline.trim() || overlay.subhead.trim())
+  )
+}
 
-  const hasLegacySticker =
-
-    overlay.storyStickerMode === "none" &&
-
-    overlay.stickerEnabled &&
-
-    Boolean(overlay.stickerId) &&
-
-    overlay.stickerId !== "link_pill"
-
-  const hasEditorial =
-
-    overlay.storyStickerMode === "editorial_poll" ||
-
-    overlay.storyStickerMode === "countdown_timer"
-
-  return hasText || hasLegacySticker || hasEditorial
-
+/** Poll, countdown, emoji, and link-pill overlays are no longer supported on export. */
+export function stripLegacyCanvasStickers(
+  overlay: CanvasTextOverlayState
+): CanvasTextOverlayState {
+  if (overlay.storyStickerMode === "none" && !overlay.stickerEnabled) {
+    return overlay
+  }
+  return {
+    ...overlay,
+    storyStickerMode: "none",
+    stickerEnabled: false,
+  }
 }
 
 
@@ -392,7 +386,7 @@ export function normalizeCanvasTextOverlay(
 
     : "none"
 
-  return {
+  const base: CanvasTextOverlayState = {
 
     enabled: Boolean(row.enabled),
 
@@ -441,11 +435,7 @@ export function normalizeCanvasTextOverlay(
 
         : "center",
 
-    stickerEnabled: (() => {
-      const id = isCanvasStickerId(rawSticker) ? rawSticker : "link_pill"
-      if (id === "link_pill") return false
-      return Boolean(row.stickerEnabled)
-    })(),
+    stickerEnabled: false,
 
     stickerId: isCanvasStickerId(rawSticker) ? rawSticker : "link_pill",
 
@@ -469,13 +459,7 @@ export function normalizeCanvasTextOverlay(
         : "pill"
     })(),
 
-    storyStickerMode: ((): StoryStickerMode => {
-      const rawMode = str("storyStickerMode", "")
-      if (rawMode === "editorial_poll" || rawMode === "countdown_timer") {
-        return rawMode
-      }
-      return "none"
-    })(),
+    storyStickerMode: "none" as StoryStickerMode,
 
     storyStickerTheme:
       str("storyStickerTheme", "noir") === "linen" ? "linen" : "noir",
@@ -507,6 +491,8 @@ export function normalizeCanvasTextOverlay(
     ),
 
   }
+
+  return stripLegacyCanvasStickers(base)
 
 }
 

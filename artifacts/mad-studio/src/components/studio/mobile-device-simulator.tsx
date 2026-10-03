@@ -38,7 +38,7 @@ type MobileDeviceSimulatorProps = {
   onModeChange?: (mode: SimulatorMode) => void
   visualPresets?: VisualPresets | null
   industry?: string | null
-  /** Optional IG-style editorial story sticker on 9:16 reel preview. */
+  /** On-canvas headline/subhead for 9:16 reel preview. */
   textOverlay?: CanvasTextOverlayState | null
 }
 
@@ -263,11 +263,7 @@ function ReelScreen({
     <div className="relative aspect-[9/16] w-full overflow-hidden bg-mad-black">
       <VisualBackdrop imageUrl={imageUrl} />
       <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/75" />
-      <CanvasTextOverlayLayer
-        overlay={storyOverlay}
-        storyEditorialStickers
-        className="z-20"
-      />
+      <CanvasTextOverlayLayer overlay={storyOverlay} className="z-20" />
 
       <div className="absolute top-4 right-14 left-4 z-10">
         <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-white uppercase drop-shadow">

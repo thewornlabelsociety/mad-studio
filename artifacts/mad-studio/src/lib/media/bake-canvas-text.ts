@@ -1,6 +1,5 @@
 import {
   canvasOverlayHasDecor,
-  resolveCanvasSticker,
   resolveCanvasTextFont,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
@@ -145,144 +144,6 @@ function drawOverlayText(
   ctx.restore()
 }
 
-function countdownPartsAtBake(targetIso: string): {
-  days: string
-  hours: string
-  minutes: string
-  seconds: string
-} {
-  const target = Date.parse(targetIso)
-  if (!Number.isFinite(target)) {
-    return { days: "00", hours: "00", minutes: "00", seconds: "00" }
-  }
-  const diffMs = Math.max(0, target - Date.now())
-  const totalSec = Math.floor(diffMs / 1000)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return {
-    days: pad(Math.floor(totalSec / 86400)),
-    hours: pad(Math.floor((totalSec % 86400) / 3600)),
-    minutes: pad(Math.floor((totalSec % 3600) / 60)),
-    seconds: pad(totalSec % 60),
-  }
-}
-
-function drawEditorialStorySticker(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  overlay: CanvasTextOverlayState
-) {
-  if (overlay.storyStickerMode === "none") return
-
-  const x = (overlay.stickerX / 100) * width
-  const y = (overlay.stickerY / 100) * height
-  const scale = width / 400
-  const noir = overlay.storyStickerTheme !== "linen"
-  const fill = noir ? "rgba(24,24,22,0.9)" : "rgba(255,255,255,0.95)"
-  const stroke = noir ? "rgba(82,82,82,0.9)" : "rgba(212,212,212,0.9)"
-  const ink = noir ? "#EDECE8" : "#171717"
-  const muted = noir ? "#a3a3a3" : "#737373"
-
-  ctx.textAlign = "center"
-  ctx.textBaseline = "middle"
-  ctx.font = `600 ${Math.max(10, Math.round(scale * 11))}px ui-monospace, monospace`
-
-  if (overlay.storyStickerMode === "link_badge") return
-
-  const cardW = Math.min(width * 0.82, scale * 320)
-  const cardH =
-    overlay.storyStickerMode === "countdown_timer" ? scale * 96 : scale * 110
-  ctx.fillStyle = fill
-  ctx.strokeStyle = stroke
-  ctx.lineWidth = Math.max(1, scale * 0.6)
-  ctx.beginPath()
-  ctx.roundRect(x - cardW / 2, y - cardH / 2, cardW, cardH, scale * 10)
-  ctx.fill()
-  ctx.stroke()
-
-  ctx.fillStyle = muted
-  ctx.font = `500 ${Math.max(9, Math.round(scale * 10))}px ui-monospace, monospace`
-  const eyebrow =
-    overlay.storyStickerMode === "countdown_timer"
-      ? overlay.countdownTitle.trim() || "Drop opens"
-      : overlay.pollQuestion.trim() || "Which direction?"
-  ctx.fillText(eyebrow.toUpperCase(), x, y - cardH * 0.28)
-
-  ctx.fillStyle = ink
-  ctx.font = `600 ${Math.max(11, Math.round(scale * 13))}px ui-monospace, monospace`
-
-  if (overlay.storyStickerMode === "countdown_timer") {
-    const parts = countdownPartsAtBake(overlay.countdownTargetAt)
-    ctx.fillText(
-      `${parts.days} : ${parts.hours} : ${parts.minutes} : ${parts.seconds}`,
-      x,
-      y + cardH * 0.08
-    )
-    return
-  }
-
-  const a = Math.min(90, Math.max(10, overlay.pollPercentA))
-  const left = overlay.pollOptionA.trim() || "Option A"
-  const right = overlay.pollOptionB.trim() || "Option B"
-  ctx.font = `500 ${Math.max(9, Math.round(scale * 10))}px ui-monospace, monospace`
-  ctx.textAlign = "left"
-  ctx.fillText(`${left.toUpperCase()} · ${a}%`, x - cardW * 0.4, y + cardH * 0.05)
-  ctx.fillText(`${right.toUpperCase()} · ${100 - a}%`, x - cardW * 0.4, y + cardH * 0.22)
-}
-
-function drawOverlaySticker(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  overlay: CanvasTextOverlayState
-) {
-  if (overlay.storyStickerMode !== "none") return
-  if (!overlay.stickerEnabled) return
-  const def = resolveCanvasSticker(overlay.stickerId)
-  if (def.kind === "link_pill") return
-  const x = (overlay.stickerX / 100) * width
-  const y = (overlay.stickerY / 100) * height
-  const scale = width / 400
-
-  if (def.kind === "emoji") {
-    const size = Math.max(28, Math.round(scale * 44))
-    ctx.font = `${size}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillStyle = "#FFFFFF"
-    ctx.shadowColor = "rgba(0,0,0,0.45)"
-    ctx.shadowBlur = 6
-    ctx.fillText(def.glyph, x, y)
-    ctx.shadowBlur = 0
-    return
-  }
-
-  const label = def.glyph
-  const fontSize = Math.max(13, Math.round(scale * 15))
-  ctx.font = `700 ${fontSize}px Inter, sans-serif`
-  ctx.textAlign = "center"
-  ctx.textBaseline = "middle"
-  const padX = fontSize * 0.65
-  const padY = fontSize * 0.35
-  const text = label
-  const metrics = ctx.measureText(text)
-  const boxW = metrics.width + padX * 2
-  const boxH = fontSize + padY * 2
-  const rx = boxH / 2
-
-  ctx.fillStyle = "rgba(255,255,255,0.94)"
-  ctx.strokeStyle = "rgba(0,0,0,0.12)"
-  ctx.lineWidth = Math.max(1, scale * 0.5)
-  ctx.beginPath()
-  ctx.roundRect(x - boxW / 2, y - boxH / 2, boxW, boxH, rx)
-  ctx.fill()
-  ctx.stroke()
-
-  ctx.fillStyle = "#111111"
-  ctx.shadowColor = "transparent"
-  ctx.fillText(text, x, y)
-}
-
 export function canvasOverlayNeedsBake(overlay: CanvasTextOverlayState): boolean {
   return canvasOverlayHasDecor(overlay)
 }
@@ -314,8 +175,6 @@ export async function bakeCanvasTextOnImage(input: {
     await ensureCanvasFontLoaded(input.overlay, fontSize)
     drawOverlayText(ctx, canvas.width, canvas.height, input.overlay)
   }
-  drawOverlaySticker(ctx, canvas.width, canvas.height, input.overlay)
-  drawEditorialStorySticker(ctx, canvas.width, canvas.height, input.overlay)
 
   const outBlob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
