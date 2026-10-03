@@ -9,8 +9,11 @@ MAD STUDIO is a multi-brand marketing workspace for inventory, content generatio
 - If you **do not** see Workflows, use **Shell** after `git pull`:
 
   ```bash
+  pnpm install --frozen-lockfile
   bash scripts/replit-dev.sh
   ```
+
+  If Vite reports `Failed to resolve import "@remotion/player"`, dependencies are stale — run `pnpm install --frozen-lockfile` at the repo root and restart the mad-studio dev server.
 
   Or two tabs: (1) `PORT=8080 pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/api-server run start` (2) `PORT=24726 BASE_PATH=/ pnpm --filter @workspace/mad-studio run dev`.
 

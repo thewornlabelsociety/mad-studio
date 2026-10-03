@@ -94,7 +94,10 @@ export default defineConfig({
         'attached_assets',
       ),
     },
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'remotion', '@remotion/player', '@remotion/media'],
+  },
+  optimizeDeps: {
+    include: ['remotion', '@remotion/player', '@remotion/media'],
   },
   root: path.resolve(import.meta.dirname),
   build: {
