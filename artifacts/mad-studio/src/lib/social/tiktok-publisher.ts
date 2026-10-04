@@ -194,6 +194,7 @@ export async function publishToTikTok(input: {
   accessToken: string
   mediaUrl: string
   caption: string
+  autoAddMusic?: boolean
 }): Promise<TikTokPublishResult> {
   const video = isVideoUrl(input.mediaUrl)
   const mediaUrl = tiktokVerifiedMediaUrl(input.mediaUrl)
@@ -223,7 +224,7 @@ export async function publishToTikTok(input: {
               description: input.caption.slice(0, 4000),
               privacy_level: TIKTOK_POST_PRIVACY,
               disable_comment: false,
-              auto_add_music: true,
+              auto_add_music: input.autoAddMusic ?? false,
             },
             source_info: {
               source: "PULL_FROM_URL",

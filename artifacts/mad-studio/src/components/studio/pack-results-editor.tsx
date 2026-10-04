@@ -11,6 +11,7 @@ import {
   type MediaAsset,
 } from "@/components/marketing/media-tray"
 import { CapCutBridge } from "@/components/studio/capcut-bridge"
+import { FinishedRenderDropZone } from "@/components/studio/finished-render-drop"
 import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
 import {
   DEFAULT_CANVAS_TEXT_OVERLAY,
@@ -685,7 +686,6 @@ export function PackResultsEditor({
           />
           <CapCutBridge
             className="mt-3"
-            entityId={entityId}
             payload={{
               hook: pack.algorithmic_signals.spoken_hook,
               headline:
@@ -698,7 +698,13 @@ export function PackResultsEditor({
                 pack.algorithmic_signals.spoken_hook,
               assetUrl: mediaUrl,
             }}
-            onVideoReady={onCapCutVideoReady}
+          />
+          <FinishedRenderDropZone
+            className="mt-2"
+            entityId={entityId}
+            onReady={(publicUrl, kind) => {
+              if (kind === "video") onCapCutVideoReady(publicUrl)
+            }}
           />
         </div>
         )}

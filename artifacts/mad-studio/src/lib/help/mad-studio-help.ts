@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-04f"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-05a"
 
 export type HelpSop = {
   title: string
@@ -127,7 +127,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Refresh / Pull feed",
         description:
-          "FÜDI: POST /api/intake/fudi-feed (read FÜDI Supabase tables fudi_deals, fudi_events, fudi_posts, marketplace_items, trails → MAD marketing_entities, latest 20 with image + title). Other brands: POST /api/sync/pull-new-arrivals.",
+          "FÜDI: POST /api/intake/fudi-feed (read FÜDI Supabase tables fudi_deals, fudi_events, fudi_posts, marketplace_items, trails → MAD marketing_entities, latest 20 with image + title). Other brands: POST /api/sync/pull-new-arrivals. If the brand website catalog responds but has zero live listings (e.g. Worn Label Society with nothing published), the pull shows a success toast \"No live listings on the brand website right now — inventory is up to date.\" instead of an error — publish listings on the brand site, then pull again.",
       },
       {
         name: "Intake cards",
@@ -289,7 +289,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "CapCut bridge",
         description:
-          "Step 1 (video) and pack preview: Edit reel in CapCut copies hook/caption/script JSON and opens CapCut Web; drop finished MP4 back to replace the draft reel without losing metadata.",
+          "Step 1 (video) and pack preview: **Edit reel in CapCut** copies hook/caption/script JSON and opens CapCut Web. Drop the finished MP4/MOV (or PNG/JPG) on **Drop finished render here** once — replaces active draft media and keeps hook, caption, and queue metadata.",
       },
       {
         name: "Multi-channel scheduler",
@@ -298,7 +298,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Two-track dispatch dock",
         description:
-          "Schedule step preview dock follows platform: **Track 1 Autopilot** (IG Feed + Facebook) → **Confirm & publish live** via /api/social/publish with a trackable short link in the Facebook caption (FÜDI entity uses **https://fudi.nz/r/…**; other brands use your MAD Studio site /r/ slug). **Track 2 Draft & drop** (IG Story + TikTok) → **Download ready media (9:16)** and **Copy link sticker URL** — no fake link stickers in preview; native music/poll/link stickers are added on phone. Header **Team SOP & posting guide** opens the full slide-over playbook.",
+          "Schedule step preview dock follows platform: **Track 1 Autopilot** (IG Feed + Facebook) → **Confirm & publish live** via /api/social/publish with a trackable short link in the Facebook caption (FÜDI entity uses **https://fudi.nz/r/…**; other brands use your MAD Studio site /r/ slug). **Track 2 Draft & drop** (IG Story + TikTok) → **Download ready media (9:16)** and **Copy link sticker URL** — no fake link stickers in preview; native music/poll/link stickers are added on phone. **Video drops (incl. FÜDI):** **Video audio** — *No audio (add music in-app)* strips the track before download or API dispatch (TikTok, Meta, webhooks); *Keep original audio* sends the file unchanged except TikTok Direct Post (AAC optimize). Header **Team SOP & posting guide** opens the full slide-over playbook.",
       },
       {
         name: "Save / dispatch",
@@ -399,7 +399,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "TikTok",
         description:
-          "Settings → Connect with TikTok (Login Kit). OAuth stores access_token, refresh_token, and token_expires_at on social_connections. Env: TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI. Cron: GET/POST /api/cron/refresh-tiktok-tokens with Authorization Bearer CRON_SECRET (refresh when expiry is within 6h). Publish also refreshes inline when needed. Direct Post: .mp4/.mov via /api/media/proxy. Unaudited apps: SELF_ONLY. Webhook fallback if no OAuth.",
+          "Settings → Connect with TikTok (Login Kit). OAuth stores access_token, refresh_token, and token_expires_at on social_connections. Env: TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI. Cron: GET/POST /api/cron/refresh-tiktok-tokens with Authorization Bearer CRON_SECRET (refresh when expiry is within 6h). Publish also refreshes inline when needed. Direct Post: .mp4/.mov via /api/media/proxy; Schedule **Video audio** (mute vs keep) runs ffmpeg on the API host before any platform pull. Unaudited apps: SELF_ONLY. Webhook fallback if no OAuth.",
       },
       {
         name: "Outbound webhook",
@@ -413,7 +413,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         "Settings → Social → Connect with Meta for IG Feed / Facebook autopilot.",
         "Connect with TikTok for Direct Post (video .mp4/.mov); Test Connection after OAuth.",
         "Verify TikTok URL prefix / media proxy on madstudio.nz in the TikTok developer portal.",
-        "Studio Schedule → TikTok preview: download + link sticker for phone drop, or Send via TikTok API when connected.",
+        "Studio Schedule → video: set **Video audio** (keep vs off) for FÜDI and other brands; download + link sticker for phone drop, or **Send via TikTok API** / autopilot Meta when connected.",
       ],
     },
   },

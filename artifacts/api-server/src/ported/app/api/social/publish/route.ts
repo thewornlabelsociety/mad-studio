@@ -15,6 +15,9 @@ import {
   TIKTOK_SANDBOX_DISPATCH_NOTE,
   tikTokMediaGuardError,
 } from "@/lib/social/tiktok-media-guard"
+import { prepareVideoForSocialPublish } from "@/lib/social/prepare-publish-video"
+import { isTikTokVideoUrl } from "@/lib/social/tiktok-media-guard"
+import { isPublishVideoUrl } from "@/lib/social/video-media"
 import { publishToTikTok, resolveTikTokConnection } from "@/lib/social/tiktok-publisher"
 import {
   formatMetaDispatchError,
@@ -30,6 +33,7 @@ import {
   normalizeBrandKey,
   normalizePublishPlacement,
   parsePublishedMediaIds,
+  resolveVideoAudioMode,
   socialPublishRequestSchema,
 } from "@/lib/social/types"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -419,12 +423,30 @@ export async function POST(request: Request) {
         return HttpResponse.json({ error: tiktokMediaError }, { status: 400 })
       }
 
+      const videoAudioMode = resolveVideoAudioMode(input)
+      let tiktokDispatchUrl = mediaUrl
+      let tiktokPrepNote: string | undefined
+      if (isTikTokVideoUrl(mediaUrl)) {
+        const prepared = await prepareVideoForSocialPublish({
+          mediaUrl,
+          entityId: entity.id,
+          audioMode: videoAudioMode,
+          optimizeAudioForTikTok: videoAudioMode === "preserve",
+        })
+        if (!prepared.ok) {
+          return HttpResponse.json({ error: prepared.error }, { status: 502 })
+        }
+        tiktokDispatchUrl = prepared.url
+        tiktokPrepNote = prepared.note
+      }
+
       const tiktokConnection = await resolveTikTokConnection(supabase, entity.id)
       if (tiktokConnection) {
         const posted = await publishToTikTok({
           accessToken: tiktokConnection.accessToken,
-          mediaUrl,
+          mediaUrl: tiktokDispatchUrl,
           caption,
+          autoAddMusic: input.tiktokAutoAddMusic,
         })
         if (!posted.ok) {
           return HttpResponse.json({ error: posted.error }, { status: posted.status })
@@ -456,11 +478,15 @@ export async function POST(request: Request) {
             publish_id: posted.publishId,
             privacy_level: posted.privacyLevel,
             media_type: posted.mediaType,
+            video_audio_mode: videoAudioMode,
+            tiktok_auto_add_music: input.tiktokAutoAddMusic,
+            tiktok_prep_note: tiktokPrepNote ?? null,
             short_url: shortUrl,
             slug,
           },
         })
 
+        const prepSuffix = tiktokPrepNote ? ` ${tiktokPrepNote}` : ""
         return HttpResponse.json({
           ok: true,
           entityId: entity.id,
@@ -469,7 +495,7 @@ export async function POST(request: Request) {
           status: "dispatched",
           mediaId: posted.publishId,
           message: posted.publishId
-            ? `${TIKTOK_SANDBOX_DISPATCH_NOTE} (${tiktokConnection.accountName}, ${posted.privacyLevel})`
+            ? `${TIKTOK_SANDBOX_DISPATCH_NOTE}${prepSuffix} (${tiktokConnection.accountName}, ${posted.privacyLevel})`
             : `Sent to TikTok (${tiktokConnection.accountName}, ${posted.privacyLevel})`,
           shortUrl,
           slug,
@@ -495,11 +521,14 @@ export async function POST(request: Request) {
           entityId: entity.id,
           entityName: entity.name,
           marketingEntityId: item?.id ?? null,
-          mediaUrl,
+          mediaUrl: tiktokDispatchUrl,
           caption,
           spokenHook: input.spokenHook ?? draftHeadline ?? null,
           onScreenText: input.onScreenText ?? null,
           searchKeywords: input.searchKeywords ?? [],
+          videoAudioMode,
+          tiktokVideoAudioMode: videoAudioMode,
+          tiktokAutoAddMusic: input.tiktokAutoAddMusic,
           shortUrl,
           slug,
           timestamp: new Date().toISOString(),
@@ -730,11 +759,26 @@ export async function POST(request: Request) {
       )
     }
 
+    const videoAudioMode = resolveVideoAudioMode(input)
+    let metaMediaUrl = mediaUrl
+    if (isPublishVideoUrl(mediaUrl)) {
+      const prepared = await prepareVideoForSocialPublish({
+        mediaUrl,
+        entityId: entity.id,
+        audioMode: videoAudioMode,
+        optimizeAudioForTikTok: false,
+      })
+      if (!prepared.ok) {
+        return HttpResponse.json({ error: prepared.error }, { status: 502 })
+      }
+      metaMediaUrl = prepared.url
+    }
+
     let publishResult
     try {
       publishResult = await publishToMeta({
         connection,
-        mediaUrl,
+        mediaUrl: metaMediaUrl,
         caption,
         placement,
       })

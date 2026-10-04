@@ -49,7 +49,7 @@ import type { MarketingEntity } from "@/lib/inventory/types"
 import type { ActiveMedia } from "@/components/marketing/media-tray"
 import { detectMediaKindFromUrl } from "@/components/marketing/media-tray"
 import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
-import { trackableUrl } from "@/lib/social/types"
+import { trackableUrl, type VideoAudioMode } from "@/lib/social/types"
 import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
 import {
   CanvasTextOverlayEditor,
@@ -373,6 +373,8 @@ export function MultiPlatformSimulator({
     "link" | "publish" | "download" | "cutout" | null
   >(null)
   const [copied, setCopied] = useState(false)
+  const [videoAudioMode, setVideoAudioMode] =
+    useState<VideoAudioMode>("preserve")
   const [uncontrolledSlideIndex, setUncontrolledSlideIndex] = useState(0)
   const [localSlideTexts, setLocalSlideTexts] = useState<string[]>([])
   const [localTextOverlay, setLocalTextOverlay] =
@@ -880,6 +882,9 @@ export function MultiPlatformSimulator({
           emailPreview: content.emailPreview,
           onScreenText: activeSlideText || content.headline,
           spokenHook: content.headline,
+          ...(isVideo
+            ? { videoAudioMode, tiktokVideoAudioMode: videoAudioMode }
+            : {}),
         }),
       })
       const payload = (await response.json()) as {
@@ -925,7 +930,32 @@ export function MultiPlatformSimulator({
         !downloadMediaUrl.startsWith("blob:") &&
         !downloadMediaUrl.startsWith("data:")
       ) {
-        const response = await fetch(downloadMediaUrl)
+        let fetchUrl = downloadMediaUrl
+        if (videoAudioMode === "mute") {
+          if (!actionContext?.entityId) {
+            throw new Error("Missing entity context to prepare silent video.")
+          }
+          const prep = await fetch("/api/media/prepare-publish-video", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              entityId: actionContext.entityId,
+              mediaUrl: downloadMediaUrl,
+              videoAudioMode: "mute",
+            }),
+          })
+          const prepPayload = (await prep.json()) as {
+            error?: string
+            url?: string
+          }
+          if (!prep.ok || !prepPayload.url) {
+            throw new Error(
+              prepPayload.error || "Could not prepare silent video."
+            )
+          }
+          fetchUrl = prepPayload.url
+        }
+        const response = await fetch(fetchUrl)
         if (!response.ok) throw new Error("Could not fetch video file.")
         const blob = await response.blob()
         const objectUrl = URL.createObjectURL(blob)
@@ -1192,6 +1222,7 @@ export function MultiPlatformSimulator({
                     onNext={() => goSlide(1)}
                     showCarousel={feedCarousel}
                     canvasOverlay={canvasOverlayOnMedia}
+                    canvasOverlayInteractive={canvasEditActive}
                     textOverlay={textOverlay}
                     spokenHook={spokenHook}
                     remotionIncludeOverlays={remotionDefersOverlays}
@@ -1466,6 +1497,45 @@ export function MultiPlatformSimulator({
   const actionDock =
     showActionDock && actionContext ? (
       <div className="mt-2 flex w-full flex-col gap-2">
+        {isVideo ? (
+          <div className="space-y-1 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
+            <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+              Video audio
+            </p>
+            <Select
+              value={videoAudioMode}
+              onValueChange={(value) =>
+                setVideoAudioMode(value as VideoAudioMode)
+              }
+              disabled={busy != null}
+            >
+              <SelectTrigger className="h-9 w-full rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.55rem] uppercase shadow-keycap-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-none border-2 border-mad-black">
+                <SelectItem
+                  value="preserve"
+                  className="font-typewriter text-[0.55rem] uppercase"
+                >
+                  Keep original audio
+                </SelectItem>
+                <SelectItem
+                  value="mute"
+                  className="font-typewriter text-[0.55rem] uppercase"
+                >
+                  No audio (add music in-app)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
+              {videoAudioMode === "mute"
+                ? "Applies to download and API publish — silent MP4 for TikTok, Reels, or Facebook."
+                : platform === "tiktok"
+                  ? "TikTok Direct Post re-encodes to AAC before upload; other platforms send your file as-is."
+                  : "Original soundtrack is kept for autopilot publish; TikTok API posts still optimize AAC when you switch to TikTok."}
+            </p>
+          </div>
+        ) : null}
         {dispatchTrack === "autopilot" && showPublishCta ? (
           <>
             <button
@@ -2092,8 +2162,8 @@ function FeedMediaStage({
   onNext,
   showCarousel,
   canvasOverlay = null,
+  canvasOverlayInteractive = false,
   textOverlay,
-  spokenHook,
   remotionIncludeOverlays,
   mediaFit,
 }: {
@@ -2104,60 +2174,110 @@ function FeedMediaStage({
   onNext: () => void
   showCarousel: boolean
   canvasOverlay?: ReactNode
+  canvasOverlayInteractive?: boolean
   textOverlay: CanvasTextOverlayState
   spokenHook: string
   remotionIncludeOverlays: boolean
   mediaFit: "cover" | "contain"
 }) {
+  const touchStartX = useRef<number | null>(null)
+  const slideCount = slides.length
   const active = slides[slideIndex] ?? slides[0] ?? null
   const mediaUrl = active?.url ?? null
+  const trackWidthPercent = slideCount > 0 ? slideCount * 100 : 100
+  const slideWidthPercent = slideCount > 0 ? 100 / slideCount : 100
+
+  function onTouchStart(event: React.TouchEvent) {
+    touchStartX.current = event.touches[0]?.clientX ?? null
+  }
+
+  function onTouchEnd(event: React.TouchEvent) {
+    if (touchStartX.current == null || !showCarousel) return
+    const endX = event.changedTouches[0]?.clientX
+    if (endX == null) return
+    const delta = endX - touchStartX.current
+    touchStartX.current = null
+    if (Math.abs(delta) < 36) return
+    if (delta > 0) onPrev()
+    else onNext()
+  }
 
   return (
     <div className="flex w-full flex-col">
-      <div className="relative aspect-[4/5] w-full shrink-0 overflow-hidden bg-neutral-100">
-        <div
-          className="flex h-full w-full transition-transform duration-300 ease-out"
-          style={{
-            transform: `translateX(-${(slideIndex * 100) / Math.max(slides.length, 1)}%)`,
-          }}
-        >
-          {slides.map((slide) => {
-            const kind =
-              slide.type === "video" ||
-              detectMediaKindFromUrl(slide.url) === "video"
-                ? "video"
-                : "image"
-            const remotionPreview = buildRemotionPreviewInput({
-              mediaUrl: slide.url,
-              mediaType: kind,
-              mediaFit,
-              aspect: "feed",
-              textOverlay,
-              includeOverlays: remotionIncludeOverlays,
-            })
-            return (
-              <div
-                key={slide.id ?? slide.url}
-                className="relative h-full w-full shrink-0 basis-full overflow-hidden"
-              >
-                <RemotionCanvas {...remotionPreview} />
-              </div>
-            )
-          })}
-        </div>
+      <div
+        className="relative aspect-[4/5] w-full shrink-0 overflow-hidden bg-neutral-100"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        {slideCount > 0 ? (
+          <div
+            className="flex h-full transition-transform duration-300 ease-out"
+            style={{
+              width: `${trackWidthPercent}%`,
+              transform: `translateX(-${(slideIndex / Math.max(slideCount, 1)) * 100}%)`,
+            }}
+          >
+            {slides.map((slide) => {
+              const kind =
+                slide.type === "video" ||
+                detectMediaKindFromUrl(slide.url) === "video"
+                  ? "video"
+                  : "image"
+              return (
+                <div
+                  key={slide.id ?? slide.url}
+                  className="relative h-full shrink-0 overflow-hidden bg-neutral-950"
+                  style={{ width: `${slideWidthPercent}%` }}
+                >
+                  {kind === "video" ? (
+                    <RemotionCanvas
+                      {...buildRemotionPreviewInput({
+                        mediaUrl: slide.url,
+                        mediaType: "video",
+                        mediaFit,
+                        aspect: "feed",
+                        textOverlay,
+                        includeOverlays: remotionIncludeOverlays,
+                      })}
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={slide.url}
+                      alt=""
+                      className={cn(
+                        "absolute inset-0 size-full",
+                        mediaFit === "contain"
+                          ? "object-contain"
+                          : "object-cover"
+                      )}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ) : null}
 
-        {!mediaUrl && slides.length === 0 ? (
+        {!mediaUrl && slideCount === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-xs text-neutral-400">
             Add media
           </div>
         ) : null}
 
-        {canvasOverlay}
+        <div
+          className={cn(
+            "absolute inset-0 z-20",
+            canvasOverlayInteractive ? "pointer-events-auto" : "pointer-events-none"
+          )}
+        >
+          {canvasOverlay}
+        </div>
 
         {showCarousel ? (
           <>
             <span className="absolute top-2 right-2 z-30 border border-mad-black bg-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold text-mad-white">
-              {slideIndex + 1}/{slides.length}
+              {slideIndex + 1}/{slideCount}
             </span>
             <button
               type="button"

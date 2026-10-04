@@ -129,8 +129,6 @@ export function StepMedia({
 
       <div className="grid gap-2 sm:grid-cols-2">
         <CapCutBridge
-          entityId={entityId}
-          marketingEntityId={marketingEntityId}
           payload={{
             hook: bridgePayload.spokenHook,
             headline: bridgePayload.onScreenHeadline,
@@ -141,7 +139,6 @@ export function StepMedia({
             spokenHook: bridgePayload.spokenHook,
             onScreenHeadline: bridgePayload.onScreenHeadline,
           }}
-          onVideoReady={(publicUrl) => onFinishedRender(publicUrl, "video")}
         />
         <PhotoRoomBridge />
       </div>

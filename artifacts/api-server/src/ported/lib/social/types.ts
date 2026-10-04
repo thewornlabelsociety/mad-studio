@@ -14,6 +14,20 @@ export type PublishPlacementInput = z.infer<typeof publishPlacementSchema>
 /** Meta Graph placements actually dispatched today. */
 export type PublishPlacement = "feed" | "story"
 
+/** Video publish: keep audio or strip before dispatch (all platforms). */
+export const videoAudioModeSchema = z.enum(["preserve", "mute"])
+export type VideoAudioMode = z.infer<typeof videoAudioModeSchema>
+/** @deprecated Use VideoAudioMode */
+export type TikTokVideoAudioMode = VideoAudioMode
+export const tiktokVideoAudioModeSchema = videoAudioModeSchema
+
+export function resolveVideoAudioMode(input: {
+  videoAudioMode?: VideoAudioMode
+  tiktokVideoAudioMode?: VideoAudioMode
+}): VideoAudioMode {
+  return input.videoAudioMode ?? input.tiktokVideoAudioMode ?? "preserve"
+}
+
 export const socialPublishRequestSchema = z.object({
   entityId: z.string().min(1).max(200).optional().nullable(),
   marketingEntityId: z.string().uuid().optional().nullable(),
@@ -34,6 +48,12 @@ export const socialPublishRequestSchema = z.object({
   ctaUrl: z.string().max(2000).optional().nullable(),
   /** Queue dispatches leave the parent drop status for the queue to finalise. */
   keepEntityStatus: z.boolean().optional(),
+  /** Video: preserve original audio or mute before any social dispatch. */
+  videoAudioMode: videoAudioModeSchema.optional().default("preserve"),
+  /** Legacy alias for videoAudioMode (TikTok UI). */
+  tiktokVideoAudioMode: videoAudioModeSchema.optional(),
+  /** Photo Direct Post only: TikTok auto_add_music (default off). */
+  tiktokAutoAddMusic: z.boolean().optional().default(false),
 })
 
 export type SocialPublishRequest = z.infer<typeof socialPublishRequestSchema>

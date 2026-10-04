@@ -61,7 +61,7 @@ export function FinishedRenderDropZone({
     setBusy(true)
     try {
       const publicUrl = await uploadEntityAsset(entityId, file)
-      if (marketingEntityId && kind === "image") {
+      if (marketingEntityId) {
         const result = await appendInventoryImage({
           entityId,
           itemId: marketingEntityId,
