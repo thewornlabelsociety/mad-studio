@@ -19,6 +19,7 @@ import {
 import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import {
   extractVideoKeyframeDataUrl,
+  extractVideoKeyframeFromUrl,
   requestMediaInspection,
 } from "@/lib/media/client-inspect"
 import type { MediaVisualInspection } from "@/lib/media/inspect-schema"
@@ -190,8 +191,13 @@ export function MediaTray({
       updateById(input.assetId, { inspecting: true })
       try {
         let frameDataUrl: string | null = null
-        if (input.mediaType === "video" && input.file) {
-          frameDataUrl = await extractVideoKeyframeDataUrl(input.file)
+        if (input.mediaType === "video") {
+          if (input.file) {
+            frameDataUrl = await extractVideoKeyframeDataUrl(input.file)
+          }
+          if (!frameDataUrl && /^https?:\/\//i.test(input.mediaUrl)) {
+            frameDataUrl = await extractVideoKeyframeFromUrl(input.mediaUrl)
+          }
         }
         const inspection = await requestMediaInspection({
           mediaUrl: input.mediaUrl,

@@ -18,7 +18,10 @@ import { toast } from "sonner"
 
 import { PostIntentEditor } from "@/components/inventory/post-intent-editor"
 import { FUDI_DROP_KIND_OPTIONS } from "@/lib/inventory/post-intent"
-import { requestMediaInspection } from "@/lib/media/client-inspect"
+import {
+  extractVideoKeyframeFromUrl,
+  requestMediaInspection,
+} from "@/lib/media/client-inspect"
 import type { MediaVisualInspection } from "@/lib/media/inspect-schema"
 import {
   requestMapIntentFromMedia,
@@ -494,11 +497,22 @@ export function StepCustomize({
     if (!publicInspectableUrl) {
       throw new Error("Attach media on Step 1 (wait for upload to finish) first.")
     }
+    const mediaType =
+      inspectableMediaType ?? (isVideoPreview ? "video" : "image")
+    let frameDataUrl: string | null = null
+    if (mediaType === "video") {
+      frameDataUrl = await extractVideoKeyframeFromUrl(publicInspectableUrl)
+      if (!frameDataUrl) {
+        throw new Error(
+          "Could not sample a video frame. On Step 1 Media, wait for vision to finish or re-upload the reel."
+        )
+      }
+    }
     const inspection = await requestMediaInspection({
       mediaUrl: publicInspectableUrl,
-      mediaType:
-        inspectableMediaType ?? (isVideoPreview ? "video" : "image"),
+      mediaType,
       entityId,
+      frameDataUrl,
     })
     onVisualInspectionResolved?.(inspection)
     return {
