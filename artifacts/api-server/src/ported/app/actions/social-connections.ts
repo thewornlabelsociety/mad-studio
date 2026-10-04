@@ -434,7 +434,6 @@ export async function ensureInventoryTrackableLink(input: {
   }
 
   const { ensureTrackableLink } = await import("@/lib/social/link-tracker")
-  const { trackableUrl } = await import("@/lib/social/types")
 
   const link = await ensureTrackableLink({
     entityId: input.entityId,
@@ -459,6 +458,6 @@ export async function ensureInventoryTrackableLink(input: {
   revalidatePath(`/inventory/${item.id}`)
   return {
     ok: true,
-    data: { slug: link.slug, shortUrl: trackableUrl(link.slug) },
+    data: { slug: link.slug, shortUrl: link.shortUrl },
   }
 }

@@ -264,7 +264,9 @@ export function PackResultsEditor({
   }
 
   async function copyForCapCut() {
-    const link = redirectSlugSeed ? trackableUrl(redirectSlugSeed) : ""
+    const link = redirectSlugSeed
+      ? trackableUrl(redirectSlugSeed, entityId)
+      : ""
     const text = [
       pack.algorithmic_signals.spoken_hook,
       pack.algorithmic_signals.on_screen_text,
@@ -292,7 +294,7 @@ export function PackResultsEditor({
 
   async function copyRedirectSlug() {
     if (!redirectSlugSeed) return
-    const short = trackableUrl(redirectSlugSeed)
+    const short = trackableUrl(redirectSlugSeed, entityId)
     await navigator.clipboard.writeText(short)
     setSlugCopied(true)
     window.setTimeout(() => setSlugCopied(false), 1600)

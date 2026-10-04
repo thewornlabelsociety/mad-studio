@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-04b"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-04d"
 
 export type HelpSop = {
   title: string
@@ -298,7 +298,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Two-track dispatch dock",
         description:
-          "Schedule step preview dock follows platform: **Track 1 Autopilot** (IG Feed + Facebook) → **Confirm & publish live** via /api/social/publish with trackable /r/ link in caption. **Track 2 Draft & drop** (IG Story + TikTok) → **Download ready media (9:16)** and **Copy link sticker URL** — no fake link stickers in preview; native music/poll/link stickers are added on phone. Header **Team SOP & posting guide** opens the full slide-over playbook.",
+          "Schedule step preview dock follows platform: **Track 1 Autopilot** (IG Feed + Facebook) → **Confirm & publish live** via /api/social/publish with a trackable short link in the Facebook caption (FÜDI entity uses **https://fudi.nz/r/…**; other brands use your MAD Studio site /r/ slug). **Track 2 Draft & drop** (IG Story + TikTok) → **Download ready media (9:16)** and **Copy link sticker URL** — no fake link stickers in preview; native music/poll/link stickers are added on phone. Header **Team SOP & posting guide** opens the full slide-over playbook.",
       },
       {
         name: "Save / dispatch",

@@ -1,6 +1,11 @@
 import { z } from "zod"
 import { getRequestOrigin } from "@server/request-context"
 
+import {
+  FUDI_ENTITY_ID,
+  FUDI_PUBLIC_ORIGIN,
+} from "@/lib/studio/fudi-platform"
+
 export const SOCIAL_PLATFORMS = ["instagram", "facebook", "tiktok"] as const
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]
 
@@ -118,8 +123,23 @@ export function siteOrigin(): string {
   return getRequestOrigin()
 }
 
-export function trackableUrl(slug: string): string {
-  return `${siteOrigin()}/r/${encodeURIComponent(slug)}`
+/** Public origin for /r/ short links (FÜDI consumer domain vs MAD Studio ops domain). */
+export function trackablePublicOrigin(input?: {
+  entityId?: string | null
+  websiteUrl?: string | null
+}): string {
+  if (input?.entityId === FUDI_ENTITY_ID) return FUDI_PUBLIC_ORIGIN
+  const website = input?.websiteUrl?.trim() ?? ""
+  if (website && /fudi\.nz/i.test(website)) return FUDI_PUBLIC_ORIGIN
+  return siteOrigin()
+}
+
+export function trackableUrl(
+  slug: string,
+  entityId?: string | null,
+  websiteUrl?: string | null
+): string {
+  return `${trackablePublicOrigin({ entityId, websiteUrl })}/r/${encodeURIComponent(slug)}`
 }
 
 export function appendUtmParams(

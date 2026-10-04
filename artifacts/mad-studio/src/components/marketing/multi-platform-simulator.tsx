@@ -806,7 +806,7 @@ export function MultiPlatformSimulator({
     try {
       const short =
         trackableSlug != null
-          ? trackableUrl(trackableSlug)
+          ? trackableUrl(trackableSlug, actionContext.entityId)
           : (await ensureLink()).shortUrl
       await navigator.clipboard.writeText(short)
       setCopied(true)

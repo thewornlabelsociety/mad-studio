@@ -325,7 +325,10 @@ export async function dispatchDueScheduledDrops(input?: {
 }
 
 /** Helper for UI toasts — absolute shop URL when a slug exists. */
-export function scheduledShopPreview(slug: string | null | undefined): string | null {
+export function scheduledShopPreview(
+  slug: string | null | undefined,
+  entityId?: string | null
+): string | null {
   if (!slug?.trim()) return null
-  return trackableUrl(slug.trim())
+  return trackableUrl(slug.trim(), entityId)
 }

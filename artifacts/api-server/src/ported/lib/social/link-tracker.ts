@@ -41,7 +41,7 @@ export async function ensureTrackableLink(input: {
       }
       return {
         slug: existing.slug,
-        shortUrl: trackableUrl(existing.slug),
+        shortUrl: trackableUrl(existing.slug, input.entityId),
         destinationUrl: withUtm,
       }
     }
@@ -64,7 +64,7 @@ export async function ensureTrackableLink(input: {
     if (!error && data) {
       return {
         slug: data.slug,
-        shortUrl: trackableUrl(data.slug),
+        shortUrl: trackableUrl(data.slug, input.entityId),
         destinationUrl: data.destination_url,
       }
     }

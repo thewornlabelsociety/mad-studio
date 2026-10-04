@@ -454,7 +454,7 @@ export function InventoryItemDetail({
   const trackablePreviewUrl = useMemo(
     () =>
       item.trackable_slug?.trim()
-        ? trackableUrl(item.trackable_slug.trim())
+        ? trackableUrl(item.trackable_slug.trim(), item.entity_id)
         : itemDestinationUrl,
     [item.trackable_slug, itemDestinationUrl]
   )
