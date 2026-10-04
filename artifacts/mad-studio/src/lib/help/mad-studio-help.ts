@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-04e"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-04f"
 
 export type HelpSop = {
   title: string
@@ -177,7 +177,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Drop workbench (Media step)",
         description:
-          "Drop workbench: Remotion preview shows your media plus **Canvas / [ On-Screen Text ] only** — Hook and caption stay in the caption strip, not burned on the photo. Copy step tilt chips (−12° … +12°) and Canvas drag handles style text that bakes into the PNG on Save/Arm. **Clear on-image text** removes baked layers; re-save or download again for clean media. Story/TikTok download exports the source photo (plus Canvas text if enabled), not a phone-screenshot with extra words.",
+          "Drop workbench: Phone preview keeps the same on-image text styling from Canvas through Copy and Schedule (photo + your font/color/tilt overlay). Hook and caption stay in the Copy fields, not burned on the photo unless Canvas text is enabled. Copy step tilt chips (−12° … +12°) and Canvas drag handles style text that bakes into the PNG on Save/Arm. **Clear on-image text** removes baked layers; re-save or download again for clean media. Story/TikTok download exports the source photo (plus Canvas text if enabled), not a phone-screenshot with extra words.",
       },
     ],
     sop: {

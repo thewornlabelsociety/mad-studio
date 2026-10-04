@@ -1029,27 +1029,16 @@ export function MultiPlatformSimulator({
 
   const remotionAspect: "story" | "feed" = isFeedPreview ? "feed" : "story"
   const remotionMediaFit: "cover" | "contain" = isFudiEntity ? "cover" : "contain"
-  const remotionIncludeOverlays = !textOverlayInteractive
-  const usingRemotionForMedia =
-    Boolean(
-      (imageForCanvas && !useStoryCanvasForIg) || (mediaUrl && isVideo)
-    ) ||
-    (isFeedPreview &&
-      slides.some((slide) => carouselItemUrl(slide).length > 0))
-  const remotionDefersOverlays =
-    remotionIncludeOverlays && usingRemotionForMedia
+  /** Studio wizard preview always uses DOM canvas text (WYSIWYG with Step 3). Remotion is for video playback / export only. */
+  const remotionIncludeOverlays = false
+  const usingRemotionForMedia = Boolean(
+    (mediaUrl && isVideo) ||
+      (isFeedPreview &&
+        slides.some((slide) => carouselItemUrl(slide).length > 0))
+  )
+  const remotionDefersOverlays = false
   const spokenHook = content.headline.trim()
-  const imageRemotionPreview =
-    imageForCanvas && !useStoryCanvasForIg
-      ? buildRemotionPreviewInput({
-          mediaUrl: imageForCanvas,
-          mediaType: "image",
-          mediaFit: remotionMediaFit,
-          aspect: remotionAspect,
-          textOverlay,
-          includeOverlays: remotionDefersOverlays,
-        })
-      : null
+  const imageRemotionPreview = null
   const videoRemotionPreview =
     mediaUrl && isVideo
       ? buildRemotionPreviewInput({
@@ -1058,7 +1047,7 @@ export function MultiPlatformSimulator({
           mediaFit: remotionMediaFit,
           aspect: remotionAspect,
           textOverlay,
-          includeOverlays: remotionDefersOverlays,
+          includeOverlays: false,
         })
       : null
 
