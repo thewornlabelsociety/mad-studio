@@ -30,8 +30,10 @@ export async function POST(request: Request) {
       skipped: result.skipped,
       feedUrl: result.feedUrl,
       items: result.items,
-      message:
-        result.imported === 0
+      emptyFeed: result.emptyFeed ?? false,
+      message: result.emptyFeed
+        ? "No live listings on the brand website right now — inventory is up to date."
+        : result.imported === 0
           ? "No new arrivals — inventory already up to date."
           : `Imported ${result.imported} new arrival${result.imported === 1 ? "" : "s"}.`,
     })

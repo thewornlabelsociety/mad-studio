@@ -29,6 +29,8 @@ export type PullNewArrivalsResult = {
   skipped: number
   feedUrl: string
   items: Array<{ id: string; website_item_id: string; title: string }>
+  /** Feed responded OK but had zero live listings. */
+  emptyFeed?: boolean
 }
 
 function stripHtml(input: string): string {
@@ -713,6 +715,7 @@ export async function pullNewArrivalsForEntity(input: {
 
   let arrivals: PulledArrival[] = []
   let usedFeed = ""
+  let emptyFeedUrl: string | null = null
   const errors: string[] = []
 
   const candidates = resolveArrivalFeedCandidates({
@@ -728,6 +731,7 @@ export async function pullNewArrivalsForEntity(input: {
       const json = await fetchJsonFeed(feedUrl)
       const parsed = parseArrivalPayload(json, intakeMode)
       if (parsed.length === 0) {
+        emptyFeedUrl ??= feedUrl
         errors.push(`${feedUrl}: empty product list`)
         continue
       }
@@ -770,6 +774,29 @@ export async function pullNewArrivalsForEntity(input: {
     } else {
       arrivals = wornLabelDemoArrivals()
       usedFeed = "demo://worn-label-new-arrivals"
+    }
+  }
+
+  if (arrivals.length === 0 && emptyFeedUrl) {
+    await supabase.from("activity_logs").insert({
+      entity_id: input.entityId,
+      user_id: user.id,
+      action: "pulled_new_arrivals",
+      details: {
+        imported: 0,
+        skipped: 0,
+        feed_url: emptyFeedUrl,
+        intake_mode: intakeMode,
+        empty_feed: true,
+        item_ids: [],
+      },
+    })
+    return {
+      imported: 0,
+      skipped: 0,
+      feedUrl: emptyFeedUrl,
+      items: [],
+      emptyFeed: true,
     }
   }
 
