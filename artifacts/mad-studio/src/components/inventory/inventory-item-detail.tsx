@@ -971,6 +971,12 @@ export function InventoryItemDetail({
         onCtaIdChange={setCtaBlueprintId}
         visualDescription={visualInspection?.visualDescription ?? null}
         visualInspection={visualInspection}
+        inspectableMediaUrl={resolvePublicMedia()}
+        inspectableMediaType={activeMedia?.type ?? "image"}
+        onVisualInspectionResolved={(inspection) => {
+          if (activeMediaId) onVisualInspect(activeMediaId, inspection)
+          else setVisualInspection(inspection)
+        }}
         isVideoPreview={activeMedia?.type === "video"}
         captionVariantLabel={
           captionVariants.length > 0

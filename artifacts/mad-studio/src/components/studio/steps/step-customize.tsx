@@ -18,6 +18,7 @@ import { toast } from "sonner"
 
 import { PostIntentEditor } from "@/components/inventory/post-intent-editor"
 import { FUDI_DROP_KIND_OPTIONS } from "@/lib/inventory/post-intent"
+import { requestMediaInspection } from "@/lib/media/client-inspect"
 import type { MediaVisualInspection } from "@/lib/media/inspect-schema"
 import {
   requestMapIntentFromMedia,
@@ -180,6 +181,13 @@ type Props = {
 
   visualInspection?: MediaVisualInspection | null
 
+  /** Public HTTPS media URL — auto-suggest can inspect on click if Step 1 vision is missing. */
+  inspectableMediaUrl?: string | null
+
+  inspectableMediaType?: "image" | "video"
+
+  onVisualInspectionResolved?: (inspection: MediaVisualInspection) => void
+
   isVideoPreview?: boolean
 
   contentPillar?: string
@@ -340,6 +348,12 @@ export function StepCustomize({
 
   visualInspection = null,
 
+  inspectableMediaUrl = null,
+
+  inspectableMediaType = "image",
+
+  onVisualInspectionResolved,
+
   isVideoPreview = false,
 
   contentPillar = "",
@@ -448,16 +462,55 @@ export function StepCustomize({
     ctas[0]?.id ?? SELECT_NONE
   )
 
-  const hasMediaContext = Boolean(
+  const hasVisionCache = Boolean(
     visualDescription?.trim() ||
       visualInspection?.visualDescription?.trim() ||
       (visualInspection?.aestheticTags?.length ?? 0) > 0 ||
       (visualInspection?.concreteFeatures?.length ?? 0) > 0
   )
 
+  const publicInspectableUrl = useMemo(() => {
+    const trimmed = inspectableMediaUrl?.trim() ?? ""
+    return /^https?:\/\//i.test(trimmed) ? trimmed : null
+  }, [inspectableMediaUrl])
+
+  const canAutoSuggestIntent = hasVisionCache || Boolean(publicInspectableUrl)
+
+  async function resolveVisionForIntentMap(): Promise<{
+    visualDescription: string
+    aestheticTags: string[]
+    concreteFeatures: string[]
+  }> {
+    if (hasVisionCache) {
+      return {
+        visualDescription:
+          visualInspection?.visualDescription?.trim() ||
+          visualDescription?.trim() ||
+          "",
+        aestheticTags: visualInspection?.aestheticTags ?? [],
+        concreteFeatures: visualInspection?.concreteFeatures ?? [],
+      }
+    }
+    if (!publicInspectableUrl) {
+      throw new Error("Attach media on Step 1 (wait for upload to finish) first.")
+    }
+    const inspection = await requestMediaInspection({
+      mediaUrl: publicInspectableUrl,
+      mediaType:
+        inspectableMediaType ?? (isVideoPreview ? "video" : "image"),
+      entityId,
+    })
+    onVisualInspectionResolved?.(inspection)
+    return {
+      visualDescription: inspection.visualDescription,
+      aestheticTags: inspection.aestheticTags ?? [],
+      concreteFeatures: inspection.concreteFeatures ?? [],
+    }
+  }
+
   async function runIntentAutoSuggest() {
-    if (!hasMediaContext) {
-      toast.message("Inspect media on Step 1 (Media) first.")
+    if (!canAutoSuggestIntent) {
+      toast.message("Attach media on Step 1 (upload must finish) first.")
       return
     }
     if (personas.length === 0 || bank.hook_styles.length === 0 || ctas.length === 0) {
@@ -466,16 +519,13 @@ export function StepCustomize({
     }
     setIntentMapBusy(true)
     try {
-      const description =
-        visualInspection?.visualDescription?.trim() ||
-        visualDescription?.trim() ||
-        ""
+      const vision = await resolveVisionForIntentMap()
       const result = await requestMapIntentFromMedia({
         entityId,
-        visualDescription: description,
+        visualDescription: vision.visualDescription,
         activeBrand: entity.name,
-        aestheticTags: visualInspection?.aestheticTags ?? [],
-        concreteFeatures: visualInspection?.concreteFeatures ?? [],
+        aestheticTags: vision.aestheticTags,
+        concreteFeatures: vision.concreteFeatures,
         optionSource: {
           dropTypes: isFudi
             ? FUDI_DROP_KIND_OPTIONS.map((row) => ({
@@ -616,11 +666,11 @@ export function StepCustomize({
         <div className="space-y-1">
           <button
             type="button"
-            disabled={!hasMediaContext || intentMapBusy}
+            disabled={!canAutoSuggestIntent || intentMapBusy}
             onClick={() => void runIntentAutoSuggest()}
             className={cn(
               "flex w-full items-center justify-center gap-2 border-2 border-mad-black px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm transition",
-              hasMediaContext
+              canAutoSuggestIntent
                 ? "bg-mad-lime text-mad-black hover:bg-mad-black hover:text-mad-white disabled:opacity-60"
                 : "cursor-not-allowed bg-neutral-100 text-neutral-400"
             )}
@@ -634,9 +684,13 @@ export function StepCustomize({
               <>🧠 Auto-Suggest Intent from Media</>
             )}
           </button>
-          {!hasMediaContext ? (
+          {!canAutoSuggestIntent ? (
             <p className="font-typewriter text-[0.45rem] text-neutral-500 normal-case">
-              Run visual inspect on Step 1 to unlock auto-suggest.
+              Attach media on Step 1 (upload must finish) to unlock auto-suggest.
+            </p>
+          ) : !hasVisionCache ? (
+            <p className="font-typewriter text-[0.45rem] text-neutral-500 normal-case">
+              Step 1 vision not run yet — click above to inspect and map intent.
             </p>
           ) : null}
         </div>

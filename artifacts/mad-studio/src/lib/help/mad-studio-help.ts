@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-04d"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-04e"
 
 export type HelpSop = {
   title: string
@@ -255,7 +255,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Auto-suggest intent from media",
         description:
-          "After Step 1 visual inspect, use Auto-Suggest Intent from Media on Step 2 to map drop type, vibe, pillar, persona, hook, and CTA from the media description (Gemini). AI-filled dropdowns show a ✨ hint; change any field manually to override or pick Custom… for free text.",
+          "On Step 2, Auto-Suggest Intent from Media maps drop type, vibe, pillar, persona, hook, and CTA from your attached image or reel (Gemini). If Step 1 vision has not run yet, the button inspects the public media URL on click. AI-filled dropdowns show a ✨ hint; change any field manually to override or pick Custom… for free text.",
       },
       {
         name: "In-flow wizard SOP",

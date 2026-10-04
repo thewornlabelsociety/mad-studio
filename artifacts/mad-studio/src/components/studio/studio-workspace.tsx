@@ -355,6 +355,21 @@ export function StudioWorkspace({
         ? attachedImageUrl
         : null
   const studioMediaUrl = activeMedia?.url ?? attachedImageUrl
+  const inspectableStudioMediaUrl = useMemo(() => {
+    const trayAsset =
+      mediaAssets.find((row) => row.id === activeMediaId) ?? mediaAssets[0]
+    for (const candidate of [
+      trayAsset?.publicUrl,
+      trayAsset?.url,
+      activeMedia?.url,
+      attachedImageUrl,
+      apiImageUrl,
+    ]) {
+      const trimmed = candidate?.trim()
+      if (trimmed && /^https?:\/\//i.test(trimmed)) return trimmed
+    }
+    return null
+  }, [mediaAssets, activeMediaId, activeMedia, attachedImageUrl, apiImageUrl])
 
   function syncMediaFromUrl(url: string | null) {
     setAttachedImageUrl(url)
@@ -1279,6 +1294,19 @@ export function StudioWorkspace({
         isVideoPreview={activeMedia?.type === "video"}
         visualDescription={visualInspection?.visualDescription ?? null}
         visualInspection={visualInspection}
+        inspectableMediaUrl={inspectableStudioMediaUrl}
+        inspectableMediaType={activeMedia?.type ?? "image"}
+        onVisualInspectionResolved={(inspection) => {
+          setVisualInspection(inspection)
+          if (!activeMediaId) return
+          setMediaAssets((current) =>
+            current.map((row) =>
+              row.id === activeMediaId
+                ? { ...row, visualInspection: inspection }
+                : row
+            )
+          )
+        }}
         topSlot={
           !isFudi ? (
             <div className="space-y-3">
