@@ -13,6 +13,12 @@ export const audienceSegmentSchema = z.object({
   winning_rebuttal: z
     .string()
     .describe("Their #1 doubt and how the brand solves it"),
+  audience_type: z.enum(["b2c", "b2b"]).optional(),
+  age_bracket: z.string().optional(),
+  primary_feature: z.string().optional(),
+  target_channels: z.array(z.string()).optional(),
+  forecasting_tag: z.string().optional(),
+  conversion_goal: z.string().optional(),
 })
 
 export const visualPresetsSchema = z.object({
@@ -68,6 +74,9 @@ export const brandIdentitySchema = z.object({
           id: z.string(),
           label: z.string(),
           template: z.string(),
+          weight: z.number().positive().optional(),
+          success_count: z.number().int().nonnegative().optional(),
+          failure_count: z.number().int().nonnegative().optional(),
         })
       ),
       visual_directions: z.array(

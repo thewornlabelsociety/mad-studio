@@ -24,18 +24,33 @@ export async function POST(request: Request) {
       feedUrl: body.feedUrl ?? null,
     })
 
+    const pruned = result.pruned ?? 0
+    const feedHint = result.feedUrl
+      ? ` Source: ${result.feedUrl.replace(/^https?:\/\//, "").slice(0, 120)}`
+      : ""
+
     return HttpResponse.json({
       ok: true,
       imported: result.imported,
       skipped: result.skipped,
+      pruned,
       feedUrl: result.feedUrl,
       items: result.items,
       emptyFeed: result.emptyFeed ?? false,
       message: result.emptyFeed
-        ? "No live listings on the brand website right now — inventory is up to date."
-        : result.imported === 0
-          ? "No new arrivals — inventory already up to date."
-          : `Imported ${result.imported} new arrival${result.imported === 1 ? "" : "s"}.`,
+        ? `No live listings on the brand website right now — intake cleared stale rows (${pruned} removed).${feedHint}`
+        : result.imported === 0 && pruned === 0
+          ? `No new arrivals — inventory already matches the live catalog.${feedHint}`
+          : [
+              result.imported > 0
+                ? `Imported ${result.imported} new arrival${result.imported === 1 ? "" : "s"}.`
+                : null,
+              pruned > 0
+                ? `Removed ${pruned} sold or delisted drop${pruned === 1 ? "" : "s"} from intake.`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" ") + feedHint,
     })
   } catch (error) {
     const message =

@@ -261,14 +261,16 @@ export function CampaignsLedger({
         <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
             <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              Drop Performance
+              MAD Studio · Past ledger
             </p>
             <h1 className="font-typewriter text-2xl font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-3xl">
-              Campaigns Ledger // {entityName}
+              Drop performance
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
-              Executive financial view — spend, sales, profit, and ROAS — plus
-              published drop conversion metrics and post-mortem winners for Brain.
+              Executive financial view for{" "}
+              <span className="font-semibold text-mad-black">{entityName}</span>{" "}
+              — spend, sales, profit, ROAS, published-drop conversion, and
+              post-mortem winners for Brain.
             </p>
           </div>
           <BrainEmblemLink entityId={entityId} size={96} />

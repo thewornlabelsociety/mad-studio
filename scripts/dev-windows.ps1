@@ -1,45 +1,64 @@
-# ==============================================================================
-# MAD STUDIO - Windows Local Dev Launcher (API + Vite)
-# ==============================================================================
-$root = Split-Path -Parent $PSScriptRoot
-Set-Location $root
-
-# 1. Load Root .env into Current Session
-if (Test-Path "$root\.env") {
-    Write-Host "[env] Loading root .env..." -ForegroundColor Cyan
-    Get-Content "$root\.env" | ForEach-Object {
-        $line = $_.Trim()
-        if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
-            $key, $value = $line.Split("=", 2)
-            [System.Environment]::SetEnvironmentVariable($key.Trim(), $value.Trim(), "Process")
-        }
-    }
-} else {
-    Write-Warning "[env] No .env file found at root!"
-}
-
-# 2. Cleanup Old Next.js Leftovers If Present
-if (Test-Path "$root\.next") {
-    Write-Host "[clean] Removing legacy .next folder..." -ForegroundColor Yellow
-    Remove-Item -Recurse -Force "$root\.next" -ErrorAction SilentlyContinue
-}
-
-# 3. Spawn API Server on Port 8080 (New Window)
-Write-Host "[api] Starting API server on http://localhost:8080..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", @"
-    Set-Location '$root'
-    `$env:PORT = '8080'
-    pnpm --filter @workspace/api-server run build
-    pnpm --filter @workspace/api-server run start
-"@
-
-# 4. Spawn Frontend on Port 5173 (New Window)
-Write-Host "[ui] Starting Vite UI on http://localhost:5173..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", @"
-    Set-Location '$root'
-    `$env:PORT = '5173'
-    `$env:BASE_PATH = '/'
-    pnpm --filter @workspace/mad-studio run dev
-"@
-
-Write-Host "MAD STUDIO local processes initiated. Open http://localhost:5173" -ForegroundColor Green
+# ==============================================================================
+# MAD STUDIO - Windows Local Dev Launcher (API + Vite)
+# ==============================================================================
+$root = Split-Path -Parent $PSScriptRoot
+Set-Location $root
+
+$loadEnvScript = Join-Path $PSScriptRoot "load-root-env.ps1"
+
+if (Test-Path "$root\.env") {
+    Write-Host "[env] Loading root .env..." -ForegroundColor Cyan
+    & $loadEnvScript -Root $root
+} else {
+    Write-Warning "[env] No .env file found at root!"
+}
+
+if (Test-Path "$root\.next") {
+    Write-Host "[clean] Removing legacy .next folder..." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force "$root\.next" -ErrorAction SilentlyContinue
+}
+
+function Get-ListenerProcessIds([int]$Port) {
+    $ids = [System.Collections.Generic.HashSet[int]]::new()
+    try {
+        Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+            ForEach-Object { if ($_.OwningProcess -gt 0) { [void]$ids.Add($_.OwningProcess) } }
+    } catch {}
+
+    if ($ids.Count -eq 0) {
+        netstat -ano | Select-String "LISTENING" | Select-String ":$Port\s" | ForEach-Object {
+            if ($_.Line -match '\s(\d+)\s*$') {
+                [void]$ids.Add([int]$Matches[1])
+            }
+        }
+    }
+    return @($ids)
+}
+
+function Stop-ListenerOnPort([int]$Port) {
+    foreach ($procId in Get-ListenerProcessIds -Port $Port) {
+        Write-Host "[clean] Stopping PID $procId on port $Port..." -ForegroundColor Yellow
+        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 400
+}
+
+Stop-ListenerOnPort -Port 8080
+Stop-ListenerOnPort -Port 5173
+
+$rootEsc = $root -replace "'", "''"
+$loadEnvEsc = $loadEnvScript -replace "'", "''"
+$buildId = "campaign-programs-" + (Get-Date -Format "yyyyMMdd-HHmm")
+
+Write-Host "[api] Building + starting http://localhost:8080 (build $buildId)..." -ForegroundColor Green
+$apiCmd = "Set-Location '$rootEsc'; & '$loadEnvEsc' -Root '$rootEsc'; `$env:PORT='8080'; `$env:MAD_API_BUILD_ID='$buildId'; Set-Location '$rootEsc\artifacts\api-server'; node ./build.mjs; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; node --enable-source-maps ./dist/index.mjs"
+Start-Process powershell -ArgumentList @("-NoExit", "-Command", $apiCmd)
+
+Write-Host "[ui] Starting Vite http://localhost:5173..." -ForegroundColor Green
+$uiCmd = "Set-Location '$rootEsc'; & '$loadEnvEsc' -Root '$rootEsc'; `$env:PORT='5173'; `$env:BASE_PATH='/'; pnpm --filter @workspace/mad-studio run dev"
+Start-Process powershell -ArgumentList @("-NoExit", "-Command", $uiCmd)
+
+Write-Host ""
+Write-Host "Open http://localhost:5173" -ForegroundColor Green
+Write-Host "Verify API build: curl http://127.0.0.1:8080/api/healthz  (look for madApiBuildId)" -ForegroundColor DarkGray
+Write-Host "If programs 404 persists, run: powershell -File scripts/restart-api.ps1" -ForegroundColor DarkGray

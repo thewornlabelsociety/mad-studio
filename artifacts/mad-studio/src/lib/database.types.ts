@@ -719,6 +719,174 @@ export type Database = {
           },
         ]
       }
+      campaign_program_days: {
+        Row: {
+          approved_at: string | null
+          campaign_id: string | null
+          created_at: string
+          day_index: number
+          directorial_action: string | null
+          formula_id: string | null
+          hook: string
+          id: string
+          last_error: string | null
+          marketing_entity_id: string | null
+          pack_snapshot: Json | null
+          phase: string
+          program_id: string
+          requires_approval: boolean
+          scheduled_date: string
+          status: string
+          updated_at: string
+          vibe: string
+        }
+        Insert: {
+          approved_at?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          day_index: number
+          directorial_action?: string | null
+          formula_id?: string | null
+          hook: string
+          id?: string
+          last_error?: string | null
+          marketing_entity_id?: string | null
+          pack_snapshot?: Json | null
+          phase: string
+          program_id: string
+          requires_approval?: boolean
+          scheduled_date: string
+          status?: string
+          updated_at?: string
+          vibe: string
+        }
+        Update: {
+          approved_at?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          day_index?: number
+          directorial_action?: string | null
+          formula_id?: string | null
+          hook?: string
+          id?: string
+          last_error?: string | null
+          marketing_entity_id?: string | null
+          pack_snapshot?: Json | null
+          phase?: string
+          program_id?: string
+          requires_approval?: boolean
+          scheduled_date?: string
+          status?: string
+          updated_at?: string
+          vibe?: string
+        }
+        Relationships: []
+      }
+      campaign_programs: {
+        Row: {
+          autonomy_mode: string
+          brief: string
+          created_at: string
+          created_by: string | null
+          duration_key: string | null
+          end_date: string
+          entity_id: string
+          id: string
+          spend_cap_cents: number
+          start_date: string
+          status: string
+          target_channels: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          autonomy_mode?: string
+          brief: string
+          created_at?: string
+          created_by?: string | null
+          duration_key?: string | null
+          end_date: string
+          entity_id: string
+          id?: string
+          spend_cap_cents?: number
+          start_date: string
+          status?: string
+          target_channels?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          autonomy_mode?: string
+          brief?: string
+          created_at?: string
+          created_by?: string | null
+          duration_key?: string | null
+          end_date?: string
+          entity_id?: string
+          id?: string
+          spend_cap_cents?: number
+          start_date?: string
+          status?: string
+          target_channels?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      campaign_takeaways: {
+        Row: {
+          ai_takeaway: string
+          applied: boolean
+          campaign_id: string | null
+          created_at: string
+          entity_id: string
+          id: string
+          metric_summary: Json
+          program_id: string | null
+        }
+        Insert: {
+          ai_takeaway: string
+          applied?: boolean
+          campaign_id?: string | null
+          created_at?: string
+          entity_id: string
+          id?: string
+          metric_summary?: Json
+          program_id?: string | null
+        }
+        Update: {
+          ai_takeaway?: string
+          applied?: boolean
+          campaign_id?: string | null
+          created_at?: string
+          entity_id?: string
+          id?: string
+          metric_summary?: Json
+          program_id?: string | null
+        }
+        Relationships: []
+      }
+      cron_heartbeats: {
+        Row: {
+          detail: Json | null
+          job_name: string
+          last_run_at: string
+          last_status: string | null
+        }
+        Insert: {
+          detail?: Json | null
+          job_name: string
+          last_run_at?: string
+          last_status?: string | null
+        }
+        Update: {
+          detail?: Json | null
+          job_name?: string
+          last_run_at?: string
+          last_status?: string | null
+        }
+        Relationships: []
+      }
       scheduled_posts: {
         Row: {
           attempts: number
@@ -732,10 +900,12 @@ export type Database = {
           id: string
           last_error: string | null
           marketing_entity_id: string | null
+          max_retries: number
           media_url: string | null
           mode: string
           payload: Json | null
           platform: string
+          program_day_id: string | null
           published_at: string | null
           remote_media_id: string | null
           scheduled_time: string
@@ -755,10 +925,12 @@ export type Database = {
           id?: string
           last_error?: string | null
           marketing_entity_id?: string | null
+          max_retries?: number
           media_url?: string | null
           mode?: string
           payload?: Json | null
           platform: string
+          program_day_id?: string | null
           published_at?: string | null
           remote_media_id?: string | null
           scheduled_time: string
@@ -778,10 +950,12 @@ export type Database = {
           id?: string
           last_error?: string | null
           marketing_entity_id?: string | null
+          max_retries?: number
           media_url?: string | null
           mode?: string
           payload?: Json | null
           platform?: string
+          program_day_id?: string | null
           published_at?: string | null
           remote_media_id?: string | null
           scheduled_time?: string

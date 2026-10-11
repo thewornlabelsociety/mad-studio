@@ -48,7 +48,7 @@ export function parseMeteringRange(value: string | undefined): MeteringRange {
   if (value === "today" || value === "7d" || value === "30d" || value === "all") {
     return value
   }
-  return "7d"
+  return "30d"
 }
 
 export function rangeStartIso(range: MeteringRange, now = new Date()): string | null {

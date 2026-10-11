@@ -16,6 +16,7 @@ import {
   platformLabel,
 } from "@/lib/today/agenda"
 import { resolveInventoryIntakeMode } from "@/lib/inventory/entity-intake"
+import type { DispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { cn } from "@/lib/utils"
 
 export type ArmedTodayRow = {
@@ -37,6 +38,8 @@ type Props = {
   armedCount: number
   initialQueue: TodayQueueView[]
   armedRows: ArmedTodayRow[]
+  dispatchCronHealth?: DispatchCronHealth
+  failedDispatchCount?: number
 }
 
 function formatTime(iso: string) {
@@ -58,6 +61,8 @@ export function TodayCommandDashboard({
   armedCount,
   initialQueue,
   armedRows,
+  dispatchCronHealth,
+  failedDispatchCount = 0,
 }: Props) {
   const [queue, setQueue] = useState(initialQueue)
   const [preview, setPreview] = useState<TodayQueueView | null>(null)
@@ -90,7 +95,7 @@ export function TodayCommandDashboard({
           <BrainEmblemLink entityId={entityId} size={96} />
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
             <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
               Intake Radar
@@ -127,6 +132,45 @@ export function TodayCommandDashboard({
             <p className="mt-2 text-sm font-medium leading-snug text-mad-black">
               {brainDirective}
             </p>
+          </div>
+
+          <div
+            className={cn(
+              "border-2 border-mad-black p-4 shadow-keycap-sm",
+              dispatchCronHealth?.stale !== false
+                ? "bg-mad-vermillion/15"
+                : "bg-mad-white"
+            )}
+          >
+            <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+              Dispatch cron
+            </p>
+            <p className="mt-2 font-typewriter text-sm font-bold text-mad-black">
+              {dispatchCronHealth?.stale === false ? "Healthy" : "Stale / unknown"}
+            </p>
+            <p className="mt-1 text-xs text-neutral-600">
+              Last tick:{" "}
+              {dispatchCronHealth?.lastRunAt
+                ? formatTime(dispatchCronHealth.lastRunAt)
+                : "Never"}
+              {dispatchCronHealth?.lastStatus
+                ? ` · ${dispatchCronHealth.lastStatus}`
+                : ""}
+            </p>
+            {dispatchCronHealth?.stale !== false ? (
+              <Link
+                href={`/campaigns?eid=${encodeURIComponent(entityId)}`}
+                className="mt-2 inline-block font-typewriter text-[0.55rem] font-bold uppercase underline"
+              >
+                Check queue →
+              </Link>
+            ) : null}
+            {failedDispatchCount > 0 ? (
+              <p className="mt-2 font-typewriter text-[0.55rem] font-bold uppercase text-mad-vermillion">
+                {failedDispatchCount} dead-letter post
+                {failedDispatchCount === 1 ? "" : "s"} — open Campaigns ledger
+              </p>
+            ) : null}
           </div>
         </div>
       </header>

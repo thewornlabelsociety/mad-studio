@@ -18,6 +18,13 @@ import {
 import { MeteringRangeFilter } from "@/components/analytics/metering-range-filter"
 import type { MeteringRange } from "@/lib/analytics/metering"
 
+const RANGE_LABELS: Record<MeteringRange, string> = {
+  today: "Today",
+  "7d": "Last 7 days",
+  "30d": "Last 30 days",
+  all: "All time",
+}
+
 const TELEMETRY_PREVIEW = 5
 const TELEMETRY_MAX = 50
 
@@ -98,7 +105,11 @@ export function EntityMeteringDashboard({
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
             Exact token capture, model latency, and calculated provider cost —
-            scoped to this brand.
+            scoped to this brand. Showing{" "}
+            <span className="font-typewriter text-xs font-bold text-mad-black uppercase">
+              {RANGE_LABELS[range]}
+            </span>
+            .
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">

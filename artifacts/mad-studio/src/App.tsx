@@ -12,6 +12,7 @@ import InventoryPage from "@/app/inventory/page"
 import InventoryItemPage from "@/app/inventory/[id]/page"
 import BrainPage from "@/app/brain/page"
 import CampaignsPage from "@/app/campaigns/page"
+import PlannerPage from "@/app/planner/page"
 import AnalyticsPage from "@/app/analytics/page"
 import SocialSettingsPage from "@/app/settings/social/page"
 import NewEntityPage from "@/app/entities/new/page"
@@ -19,6 +20,7 @@ import InvitePage from "@/app/invite/[token]/page"
 import PrivacyPolicyPage from "@/app/privacy/page"
 import TermsOfServicePage from "@/app/terms/page"
 import HelpPage from "@/app/help/page"
+import PromoPage from "@/app/promo/page"
 import { AuthForm } from "@/components/auth/auth-form"
 import { createClient } from "@/lib/supabase/client"
 import type { EmailOtpType } from "@supabase/supabase-js"
@@ -97,6 +99,8 @@ function App() {
         <Route path="/terms" component={TermsOfServicePage} />
         <Route path="/studio">{() => <PageLoader load={() => StudioPage({ searchParams: query() })} />}</Route>
         <Route path="/today">{() => <PageLoader load={() => TodayPage({ searchParams: query() })} />}</Route>
+        <Route path="/planner">{() => <PageLoader load={() => PlannerPage({ searchParams: query() })} />}</Route>
+        <Route path="/promo">{() => <PageLoader load={() => PromoPage({ searchParams: query() })} />}</Route>
         <Route path="/inventory">{() => <PageLoader load={() => InventoryPage({ searchParams: query() })} />}</Route>
         <Route path="/help">{() => <PageLoader load={() => HelpPage({ searchParams: query() })} />}</Route>
         <Route path="/inventory/:id">{(params) => <PageLoader load={async () => { await InventoryItemPage({ params: Promise.resolve(params), searchParams: query() }); return null }} />}</Route>

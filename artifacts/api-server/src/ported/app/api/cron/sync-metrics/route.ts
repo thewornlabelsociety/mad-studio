@@ -1,9 +1,11 @@
 import { timingSafeEqual } from "crypto"
-import { HttpResponse } from "@server/http-response"
+import { NextResponse } from "next/server"
 
 import type { Json } from "@/lib/database.types"
 import { fetchMediaInsights } from "@/lib/social/meta-publisher"
 import { parsePublishedMediaIds } from "@/lib/social/types"
+import { recordCronHeartbeat } from "@/lib/cron/record-heartbeat"
+import { syncAndLearnAllEntities } from "@/lib/metrics/sync-and-learn"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
@@ -46,7 +48,7 @@ async function runSync(request: Request) {
       process.env.CRON_SECRET?.trim() ||
       process.env.SYNC_WEBHOOK_SECRET?.trim()
     if (!expected) {
-      return HttpResponse.json(
+      return NextResponse.json(
         { error: "CRON_SECRET is not configured." },
         { status: 500 }
       )
@@ -54,7 +56,7 @@ async function runSync(request: Request) {
 
     const provided = extractCronSecret(request)
     if (!provided || !secretsMatch(provided, expected)) {
-      return HttpResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const admin = createAdminClient()
@@ -73,7 +75,7 @@ async function runSync(request: Request) {
       .limit(200)
 
     if (error) {
-      return HttpResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     const { data: connections } = await admin
@@ -192,16 +194,41 @@ async function runSync(request: Request) {
       synced += 1
     }
 
-    return HttpResponse.json({
+    let learnSummary: Awaited<ReturnType<typeof syncAndLearnAllEntities>> | null =
+      null
+    try {
+      learnSummary = await syncAndLearnAllEntities(admin)
+    } catch (learnError) {
+      console.warn("[cron/sync-metrics] sync-and-learn", learnError)
+    }
+
+    const payload = {
       ok: true,
       scanned: items?.length ?? 0,
       synced,
       skipped,
       failures: failures.slice(0, 20),
+      learn: learnSummary,
+    }
+
+    await recordCronHeartbeat({
+      jobName: "sync-metrics",
+      status: "ok",
+      detail: {
+        synced,
+        learnEntities: learnSummary?.entities ?? 0,
+      },
     })
+
+    return NextResponse.json(payload)
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Metrics sync failed."
-    return HttpResponse.json({ error: message }, { status: 500 })
+    await recordCronHeartbeat({
+      jobName: "sync-metrics",
+      status: "error",
+      detail: { message },
+    })
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

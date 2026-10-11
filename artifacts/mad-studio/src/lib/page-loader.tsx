@@ -3,11 +3,43 @@ import { useLocation } from "wouter"
 
 type State = { node: ReactNode; error: string | null; loading: boolean }
 
+function currentRouteKey(): string {
+  return `${window.location.pathname}${window.location.search}`
+}
+
 export function PageLoader({ load }: { load: () => Promise<ReactNode> }) {
   const [pathname] = useLocation()
+  const [routeKey, setRouteKey] = useState(currentRouteKey)
   const [state, setState] = useState<State>({ node: null, error: null, loading: true })
   const loadRef = useRef(load)
   loadRef.current = load
+
+  useEffect(() => {
+    setRouteKey(currentRouteKey())
+  }, [pathname])
+
+  useEffect(() => {
+    const bump = () => setRouteKey(currentRouteKey())
+    window.addEventListener("popstate", bump)
+    window.addEventListener("mad:refresh", bump)
+    const pushState = history.pushState.bind(history)
+    const replaceState = history.replaceState.bind(history)
+    history.pushState = (...args) => {
+      pushState(...args)
+      bump()
+    }
+    history.replaceState = (...args) => {
+      replaceState(...args)
+      bump()
+    }
+    return () => {
+      window.removeEventListener("popstate", bump)
+      window.removeEventListener("mad:refresh", bump)
+      history.pushState = pushState
+      history.replaceState = replaceState
+    }
+  }, [])
+
   useEffect(() => {
     let mounted = true
     let latestRun = 0
@@ -25,11 +57,11 @@ export function PageLoader({ load }: { load: () => Promise<ReactNode> }) {
         }
       }
     }
-    const onRefresh = () => { void run() }
-    onRefresh()
-    window.addEventListener("mad:refresh", onRefresh)
-    return () => { mounted = false; window.removeEventListener("mad:refresh", onRefresh) }
-  }, [pathname])
+    void run()
+    return () => {
+      mounted = false
+    }
+  }, [routeKey])
   if (state.loading) return (
     <div className="flex min-h-svh flex-col bg-mad-white p-6">
       <div className="h-12 w-full animate-pulse bg-neutral-100" />

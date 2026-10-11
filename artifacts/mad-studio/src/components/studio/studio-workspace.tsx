@@ -27,6 +27,10 @@ import { StudioInnerStepper } from "@/components/studio/studio-inner-stepper"
 import { StudioSplitShell } from "@/components/studio/studio-split-shell"
 import { StudioStepSummary } from "@/components/studio/studio-step-summary"
 import {
+  buildPlannerStudioSpark,
+  readStudioPlannerHandoff,
+} from "@/lib/planner/studio-handoff"
+import {
   WORKBENCH_STEP_CANVAS,
   WORKBENCH_STEP_CHANNELS,
   WORKBENCH_STEP_COPY,
@@ -749,9 +753,23 @@ export function StudioWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeEntity.id])
 
-  // Brand Director "Send to Studio" handoff — seed the spark from URL/sessionStorage.
+  // Planner day card + Brand Director handoff — seed spark from sessionStorage / URL.
   useEffect(() => {
     if (rehydrating) return
+
+    const plannerHandoff = readStudioPlannerHandoff(activeEntity.id)
+    if (plannerHandoff) {
+      setRawSpark(buildPlannerStudioSpark(plannerHandoff))
+      setWorkbenchHeadline(plannerHandoff.hook.slice(0, 200))
+      setWorkbenchStep(WORKBENCH_STEP_INTENT)
+      const fromUrl = searchParams.get("prompt")?.trim() ?? ""
+      if (fromUrl) {
+        const params = new URLSearchParams(searchParams.toString())
+        params.delete("prompt")
+        router.replace(`/studio?${params.toString()}`, { scroll: false })
+      }
+      return
+    }
 
     const fromUrl = searchParams.get("prompt")?.trim() ?? ""
     let fromStorage = ""

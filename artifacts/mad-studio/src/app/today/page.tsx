@@ -17,6 +17,7 @@ import {
   getLocalDayBounds,
   resolveBrainDirective,
 } from "@/lib/today/agenda"
+import { readDispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
 import { TodayActionDeck } from "@/components/today/action-deck"
 import { createClient } from "@/lib/supabase/client"
@@ -78,6 +79,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
   const [
     { count: unfeaturedCountRaw },
+    { count: failedDispatchCountRaw },
     { data: takeawayRows },
     { data: scheduledRows },
   ] = await Promise.all([
@@ -86,6 +88,11 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       .select("id", { count: "exact", head: true })
       .eq("entity_id", activeEntityId)
       .eq("status", "unfeatured"),
+    supabase
+      .from("scheduled_posts")
+      .select("id", { count: "exact", head: true })
+      .eq("entity_id", activeEntityId)
+      .eq("status", "failed"),
     supabase
       .from("campaigns")
       .select("ai_takeaway")
@@ -109,6 +116,9 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   ])
 
   const unfeaturedCount = unfeaturedCountRaw ?? 0
+  const failedDispatchCount = failedDispatchCountRaw ?? 0
+
+  const dispatchCronHealth = await readDispatchCronHealth()
 
   const deck = await fetchPendingTodayDeck({
     supabase,
@@ -220,6 +230,8 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             armedCount={armedRows.length}
             initialQueue={queue}
             armedRows={armedRows}
+            dispatchCronHealth={dispatchCronHealth}
+            failedDispatchCount={failedDispatchCount}
           />
         </div>
       </main>

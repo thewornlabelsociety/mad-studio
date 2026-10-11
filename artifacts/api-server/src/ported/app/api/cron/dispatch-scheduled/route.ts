@@ -1,7 +1,10 @@
 import { timingSafeEqual } from "crypto"
-import { HttpResponse } from "@server/http-response"
+import { NextResponse } from "next/server"
 
+import { recordCronHeartbeat } from "@/lib/cron/record-heartbeat"
 import { dispatchDueScheduledDrops } from "@/lib/inventory/dispatch-due"
+import { processScheduledPosts } from "@/lib/scheduling/process-scheduled-posts"
+import { resolveAppOrigin } from "@/lib/social/publish-campaign"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -31,7 +34,7 @@ async function runDispatch(request: Request) {
       process.env.CRON_SECRET?.trim() ||
       process.env.SYNC_WEBHOOK_SECRET?.trim()
     if (!expected) {
-      return HttpResponse.json(
+      return NextResponse.json(
         { error: "CRON_SECRET is not configured." },
         { status: 500 }
       )
@@ -39,15 +42,45 @@ async function runDispatch(request: Request) {
 
     const provided = extractCronSecret(request)
     if (!provided || !secretsMatch(provided, expected)) {
-      return HttpResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const result = await dispatchDueScheduledDrops({ limit: 25 })
-    return HttpResponse.json({ ok: true, ...result })
+    const legacy = await dispatchDueScheduledDrops({ limit: 25 })
+    const queue = await processScheduledPosts({
+      ctx: { origin: resolveAppOrigin(), secret: expected },
+      limit: 25,
+    })
+
+    const detail = {
+      legacy,
+      scheduled_posts: queue,
+    }
+
+    await recordCronHeartbeat({
+      jobName: "dispatch-scheduled",
+      status: "ok",
+      detail: detail as Record<string, unknown>,
+    })
+
+    return NextResponse.json({
+      ok: true,
+      legacy,
+      scheduled_posts: {
+        processed: queue.processed,
+        successes: queue.successes,
+        failures: queue.failures,
+        errors: queue.errors,
+      },
+    })
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Scheduled dispatch failed."
-    return HttpResponse.json({ error: message }, { status: 500 })
+    await recordCronHeartbeat({
+      jobName: "dispatch-scheduled",
+      status: "error",
+      detail: { message },
+    })
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 

@@ -4,6 +4,8 @@ import { NextResponse } from "next/server"
 import type { Json } from "@/lib/database.types"
 import { fetchMediaInsights } from "@/lib/social/meta-publisher"
 import { parsePublishedMediaIds } from "@/lib/social/types"
+import { recordCronHeartbeat } from "@/lib/cron/record-heartbeat"
+import { syncAndLearnAllEntities } from "@/lib/metrics/sync-and-learn"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
@@ -192,16 +194,41 @@ async function runSync(request: Request) {
       synced += 1
     }
 
-    return NextResponse.json({
+    let learnSummary: Awaited<ReturnType<typeof syncAndLearnAllEntities>> | null =
+      null
+    try {
+      learnSummary = await syncAndLearnAllEntities(admin)
+    } catch (learnError) {
+      console.warn("[cron/sync-metrics] sync-and-learn", learnError)
+    }
+
+    const payload = {
       ok: true,
       scanned: items?.length ?? 0,
       synced,
       skipped,
       failures: failures.slice(0, 20),
+      learn: learnSummary,
+    }
+
+    await recordCronHeartbeat({
+      jobName: "sync-metrics",
+      status: "ok",
+      detail: {
+        synced,
+        learnEntities: learnSummary?.entities ?? 0,
+      },
     })
+
+    return NextResponse.json(payload)
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Metrics sync failed."
+    await recordCronHeartbeat({
+      jobName: "sync-metrics",
+      status: "error",
+      detail: { message },
+    })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -2059,6 +2059,9 @@ function FeedChrome({
 
   return (
     <div className="flex w-full flex-col bg-white">
+      <p className="shrink-0 border-b border-neutral-200 bg-neutral-50 px-3 py-1 font-typewriter text-[0.48rem] font-bold tracking-widest text-neutral-500 uppercase">
+        MAD Studio · channel mock (not live {network})
+      </p>
       <div className="flex shrink-0 items-center gap-2.5 border-b border-neutral-100 px-3 py-2">
         <span className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-[0.65rem] font-bold text-white">
           {brandName.slice(0, 1).toUpperCase()}

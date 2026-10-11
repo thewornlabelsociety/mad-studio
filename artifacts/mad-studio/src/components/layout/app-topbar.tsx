@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { resolveEntityType } from "@/lib/social-creative/resolve-entity-type"
 import { cn } from "@/lib/utils"
 import type { AccessibleEntity } from "@/lib/types"
 
@@ -144,9 +145,24 @@ export function AppTopbar({
     ? `/studio${entityQuery}&step=2`
     : "/studio?step=2"
 
+  const activeEntity =
+    entities.find((entity) => entity.id === activeEntityId) ??
+    entities[0] ??
+    null
+  const showPromoNav =
+    resolveEntityType({
+      name: activeEntity?.name,
+      industry: activeEntity?.industry,
+      entityId: activeEntity?.id,
+    }) === "WORN_LABEL"
+
   const primaryLinks: NavLink[] = [
     { href: `/today${entityQuery}`, label: "Today", match: "/today" },
+    { href: `/planner${entityQuery}`, label: "Planner", match: "/planner" },
     { href: studioHref, label: "Studio", match: "/studio" },
+    ...(showPromoNav
+      ? [{ href: `/promo${entityQuery}`, label: "Promo", match: "/promo" }]
+      : []),
     {
       href: `/campaigns${entityQuery}`,
       label: "Campaigns",

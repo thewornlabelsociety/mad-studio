@@ -6,6 +6,7 @@ import {
   type ServiceDispatchContext,
 } from "@/lib/social/publish-campaign"
 import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
+import { claimDuePostsForDispatch } from "@/lib/dispatch/claim-posts"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 type ScheduledPostRow = Database["public"]["Tables"]["scheduled_posts"]["Row"]
@@ -26,8 +27,18 @@ export type ProcessScheduledPostsResult = {
   errors: Array<{ id: string; platform: string; error: string }>
 }
 
-const MAX_ATTEMPTS = 3
+const DEFAULT_MAX_RETRIES = 3
 const STALE_PROCESSING_MS = 10 * 60 * 1000
+const BACKOFF_BASE_MS = 5 * 60 * 1000
+
+function maxRetriesForRow(row: ScheduledPostRow): number {
+  return row.max_retries > 0 ? row.max_retries : DEFAULT_MAX_RETRIES
+}
+
+function backoffScheduledTime(attempts: number, from: Date): string {
+  const multiplier = Math.max(1, attempts)
+  return new Date(from.getTime() + BACKOFF_BASE_MS * multiplier).toISOString()
+}
 
 function readPayload(raw: unknown): ScheduledPostPayload {
   return raw && typeof raw === "object" && !Array.isArray(raw)
@@ -184,42 +195,45 @@ export async function processScheduledPosts(input: {
       .lt("updated_at", new Date(now.getTime() - STALE_PROCESSING_MS).toISOString())
   }
 
-  let query = admin
-    .from("scheduled_posts")
-    .select("*")
-    .eq("status", "scheduled")
-    .lte("scheduled_time", now.toISOString())
-    .order("scheduled_time", { ascending: true })
-    .limit(input.limit ?? 25)
+  let due: ScheduledPostRow[] = []
+
   if (input.ids) {
     if (input.ids.length === 0) return result
-    query = query.in("id", input.ids)
+    const { data, error } = await admin
+      .from("scheduled_posts")
+      .select("*")
+      .in("id", input.ids)
+      .eq("status", "scheduled")
+    if (error) throw new Error(error.message)
+    const claimedAt = now.toISOString()
+    const claimedRows: ScheduledPostRow[] = []
+    for (const row of (data ?? []) as ScheduledPostRow[]) {
+      const { data: claimed } = await admin
+        .from("scheduled_posts")
+        .update({
+          status: "processing",
+          attempts: row.attempts + 1,
+          updated_at: claimedAt,
+        })
+        .eq("id", row.id)
+        .eq("status", "scheduled")
+        .select("*")
+        .maybeSingle()
+      if (claimed) claimedRows.push(claimed as ScheduledPostRow)
+    }
+    due = claimedRows
+  } else {
+    due = await claimDuePostsForDispatch(admin, input.limit ?? 25)
   }
-
-  const { data: due, error } = await query
-  if (error) throw new Error(error.message)
 
   const touchedParents = new Set<string>()
   const touchedCampaigns = new Set<string>()
 
-  for (const row of due ?? []) {
-    const claimedAt = new Date().toISOString()
-    const { data: claimed } = await admin
-      .from("scheduled_posts")
-      .update({
-        status: "processing",
-        attempts: row.attempts + 1,
-        updated_at: claimedAt,
-      })
-      .eq("id", row.id)
-      .eq("status", "scheduled")
-      .select("*")
-      .maybeSingle()
-    if (!claimed) continue
-
+  for (const claimed of due) {
     result.processed += 1
     const outcome = await dispatchRow(input.ctx, claimed)
     const finishedAt = new Date().toISOString()
+    const retryLimit = maxRetriesForRow(claimed)
 
     if (outcome.ok) {
       result.successes += 1
@@ -230,6 +244,7 @@ export async function processScheduledPosts(input: {
           published_at: finishedAt,
           remote_media_id: outcome.mediaId,
           last_error: null,
+          error_message: null,
           updated_at: finishedAt,
         })
         .eq("id", claimed.id)
@@ -240,11 +255,16 @@ export async function processScheduledPosts(input: {
         platform: claimed.platform,
         error: outcome.error,
       })
+      const deadLetter = claimed.attempts >= retryLimit
       await admin
         .from("scheduled_posts")
         .update({
-          status: claimed.attempts >= MAX_ATTEMPTS ? "failed" : "scheduled",
+          status: deadLetter ? "failed" : "scheduled",
           last_error: outcome.error.slice(0, 1000),
+          error_message: outcome.error.slice(0, 1000),
+          scheduled_time: deadLetter
+            ? claimed.scheduled_time
+            : backoffScheduledTime(claimed.attempts, now),
           updated_at: finishedAt,
         })
         .eq("id", claimed.id)

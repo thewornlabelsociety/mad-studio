@@ -74,6 +74,9 @@ export const brandIdentitySchema = z.object({
           id: z.string(),
           label: z.string(),
           template: z.string(),
+          weight: z.number().positive().optional(),
+          success_count: z.number().int().nonnegative().optional(),
+          failure_count: z.number().int().nonnegative().optional(),
         })
       ),
       visual_directions: z.array(

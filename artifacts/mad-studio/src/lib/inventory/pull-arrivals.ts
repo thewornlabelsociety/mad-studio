@@ -27,6 +27,8 @@ export type PulledArrival = {
 export type PullNewArrivalsResult = {
   imported: number
   skipped: number
+  /** Unfeatured intake rows removed because they are no longer on the live catalog. */
+  pruned: number
   feedUrl: string
   items: Array<{ id: string; website_item_id: string; title: string }>
   /** Feed responded OK but had zero live listings. */
@@ -221,6 +223,59 @@ function buildDescription(parts: Array<string | null | undefined>): string | nul
   return cleaned.join(" · ").slice(0, 8000)
 }
 
+const WLS_LIVE_STATUSES = new Set(["active", "available", "published", "live"])
+
+function booleanField(
+  record: Record<string, unknown>,
+  ...keys: string[]
+): boolean {
+  for (const key of keys) {
+    const value = record[key]
+    if (value === true) return true
+    if (value === false) return false
+    if (value === 1 || value === "1" || value === "true") return true
+  }
+  return false
+}
+
+/** WLS storefront JSON — only intake listings that are still live for sale. */
+function isWornLabelListingLive(record: Record<string, unknown>): boolean {
+  const status = stringField(
+    record,
+    "status",
+    "listingStatus",
+    "listing_status"
+  )?.toLowerCase()
+  if (status && !WLS_LIVE_STATUSES.has(status)) return false
+
+  if (
+    booleanField(record, "isSold", "is_sold", "sold", "soldOut", "sold_out")
+  ) {
+    return false
+  }
+
+  if (
+    stringField(record, "delistedAt", "delisted_at", "soldAt", "sold_at")
+  ) {
+    return false
+  }
+
+  const expiresAt = stringField(record, "expiresAt", "expires_at")
+  if (expiresAt) {
+    const expiresMs = Date.parse(expiresAt)
+    if (Number.isFinite(expiresMs) && expiresMs < Date.now()) return false
+  }
+
+  return true
+}
+
+function wornLabelStableItemId(record: Record<string, unknown>): string | null {
+  return (
+    stringField(record, "sourceItemId", "source_item_id", "itemId", "item_id") ??
+    stringField(record, "id")
+  )
+}
+
 function extractListingAesthetics(record: Record<string, unknown>): {
   vibe: string | null
   aesthetic_slugs: string[]
@@ -254,13 +309,9 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
       const record = asRecord(row)
       if (!record) return null
 
-      const status = stringField(record, "status")?.toLowerCase()
-      if (status && !["active", "available", "published"].includes(status)) {
-        return null
-      }
+      if (!isWornLabelListingLive(record)) return null
 
-      const itemId =
-        stringField(record, "itemId", "sourceItemId", "id") ?? null
+      const itemId = wornLabelStableItemId(record)
       const title =
         stringField(record, "listingTitle", "title", "itemName", "name") ??
         null
@@ -323,15 +374,9 @@ function parseWornLabelItems(payload: unknown): PulledArrival[] {
       const record = asRecord(row)
       if (!record) return null
 
-      const status = stringField(record, "status")?.toLowerCase()
-      if (
-        status &&
-        !["active", "available", "published"].includes(status)
-      ) {
-        return null
-      }
+      if (!isWornLabelListingLive(record)) return null
 
-      const id = stringField(record, "id", "itemId")
+      const id = wornLabelStableItemId(record)
       const title = stringField(record, "itemName", "title", "name")
       if (!id || !title) return null
 
@@ -674,6 +719,39 @@ async function pullInstagramFeedArrivals(entityId: string): Promise<{
   }
 }
 
+async function pruneStaleWebsiteIntake(input: {
+  admin: ReturnType<typeof createAdminClient>
+  entityId: string
+  liveWebsiteItemIds: Set<string>
+}): Promise<number> {
+  let pruned = 0
+  const { data: staleRows, error: staleError } = await input.admin
+    .from("marketing_entities")
+    .select("id, website_item_id")
+    .eq("entity_id", input.entityId)
+    .eq("status", "unfeatured")
+    .not("website_item_id", "is", null)
+
+  if (staleError) {
+    throw new Error(staleError.message)
+  }
+
+  for (const row of staleRows ?? []) {
+    const websiteItemId = row.website_item_id?.trim()
+    if (!websiteItemId || input.liveWebsiteItemIds.has(websiteItemId)) continue
+    const { error: deleteError } = await input.admin
+      .from("marketing_entities")
+      .delete()
+      .eq("id", row.id)
+    if (deleteError) {
+      throw new Error(deleteError.message)
+    }
+    pruned += 1
+  }
+
+  return pruned
+}
+
 export async function pullNewArrivalsForEntity(input: {
   entityId: string
   feedUrl?: string | null
@@ -778,6 +856,12 @@ export async function pullNewArrivalsForEntity(input: {
   }
 
   if (arrivals.length === 0 && emptyFeedUrl) {
+    const admin = createAdminClient()
+    const pruned = await pruneStaleWebsiteIntake({
+      admin,
+      entityId: input.entityId,
+      liveWebsiteItemIds: new Set(),
+    })
     await supabase.from("activity_logs").insert({
       entity_id: input.entityId,
       user_id: user.id,
@@ -785,6 +869,7 @@ export async function pullNewArrivalsForEntity(input: {
       details: {
         imported: 0,
         skipped: 0,
+        pruned,
         feed_url: emptyFeedUrl,
         intake_mode: intakeMode,
         empty_feed: true,
@@ -794,6 +879,7 @@ export async function pullNewArrivalsForEntity(input: {
     return {
       imported: 0,
       skipped: 0,
+      pruned,
       feedUrl: emptyFeedUrl,
       items: [],
       emptyFeed: true,
@@ -830,8 +916,19 @@ export async function pullNewArrivalsForEntity(input: {
   const now = new Date().toISOString()
   let imported = 0
   let skipped = 0
+  let pruned = 0
   const inserted: Array<{ id: string; website_item_id: string; title: string }> =
     []
+
+  const shouldReconcileIntake =
+    !usedFeed.startsWith("demo://") && !usedFeed.startsWith("instagram://")
+  if (shouldReconcileIntake) {
+    pruned = await pruneStaleWebsiteIntake({
+      admin,
+      entityId: input.entityId,
+      liveWebsiteItemIds: new Set(arrivals.map((row) => row.website_item_id)),
+    })
+  }
 
   for (const item of arrivals) {
     const { data: existing } = await admin
@@ -900,6 +997,7 @@ export async function pullNewArrivalsForEntity(input: {
     details: {
       imported,
       skipped,
+      pruned,
       feed_url: usedFeed,
       intake_mode: intakeMode,
       item_ids: inserted.map((row) => row.id),
@@ -909,6 +1007,7 @@ export async function pullNewArrivalsForEntity(input: {
   return {
     imported,
     skipped,
+    pruned,
     feedUrl: usedFeed,
     items: inserted,
   }

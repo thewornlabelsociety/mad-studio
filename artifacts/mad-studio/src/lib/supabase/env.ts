@@ -3,7 +3,7 @@ export function getSupabaseUrl(): string {
   const value = import.meta.env.VITE_SUPABASE_URL
   if (!value) {
     throw new Error(
-      "Missing environment variable: VITE_SUPABASE_URL (set NEXT_PUBLIC_SUPABASE_URL in Replit Secrets, then restart the MAD Studio web service)."
+      "Supabase URL was not baked into this Vite build. Set NEXT_PUBLIC_SUPABASE_URL (and NEXT_PUBLIC_SUPABASE_ANON_KEY) in the repo root .env or Replit Secrets, then fully restart the MAD Studio dev server — a browser refresh alone is not enough."
     )
   }
   return value

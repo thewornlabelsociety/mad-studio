@@ -5,6 +5,9 @@ export type FormulaHookStyle = {
   id: string
   label: string
   template: string
+  weight?: number
+  success_count?: number
+  failure_count?: number
 }
 
 export type FormulaVisualDirection = {
@@ -115,6 +118,13 @@ const SLOT_MAP: Record<string, keyof FormulaRenderSlots> = {
   "Painful Action": "painfulAction",
   "City/Area": "cityArea",
   Interest: "interest",
+}
+
+export function sortFormulaBankByWeight(bank: FormulaBank): FormulaBank {
+  const hook_styles = [...bank.hook_styles].sort(
+    (a, b) => (b.weight ?? 1) - (a.weight ?? 1)
+  )
+  return { ...bank, hook_styles }
 }
 
 export function resolveFormulaBank(

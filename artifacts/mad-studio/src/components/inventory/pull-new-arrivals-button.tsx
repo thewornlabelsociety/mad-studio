@@ -5,6 +5,7 @@ import { useState } from "react"
 import { Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
+import { parseApiJsonResponse } from "@/lib/api/parse-response"
 import {
   inventoryIntakeBusyLabel,
   inventoryIntakeLabel,
@@ -39,12 +40,13 @@ export function PullNewArrivalsButton({
             entity_id: FUDI_ENTITY_ID,
           }),
         })
-        const payload = (await response.json()) as {
+        const payload = await parseApiJsonResponse<{
           imported?: number
           updated?: number
+          pruned?: number
           message?: string
           error?: string
-        }
+        }>(response)
 
         if (!response.ok) {
           throw new Error(payload.error ?? "Failed to pull FÜDI app feed.")
@@ -67,22 +69,24 @@ export function PullNewArrivalsButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entityId }),
       })
-      const payload = (await response.json()) as {
+      const payload = await parseApiJsonResponse<{
         imported?: number
         skipped?: number
+        pruned?: number
         message?: string
+        feedUrl?: string
         error?: string
-      }
+      }>(response)
 
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to pull new arrivals.")
       }
 
-      const imported = payload.imported ?? 0
       toast.success(
-        imported === 0
-          ? (payload.message ?? "No new arrivals to import.")
-          : `Imported ${imported} new arrival${imported === 1 ? "" : "s"}`
+        payload.message ??
+          (payload.imported
+            ? `Imported ${payload.imported} new arrival${payload.imported === 1 ? "" : "s"}.`
+            : "No new arrivals to import.")
       )
       router.refresh()
     } catch (error) {

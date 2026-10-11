@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-05a"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-10a"
 
 export type HelpSop = {
   title: string
@@ -59,7 +59,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Navigation",
         description:
-          "Top header: logo, brand switcher, Today · Studio · Campaigns, Help, Account. Meter and Socials live under Account. Brain and Inventory open from Studio/Today or direct URLs.",
+          "Top header: logo, brand switcher, Today · Planner · Studio · Promo (Worn Label only) · Campaigns, Help, Account. Meter and Socials live under Account. Brain and Inventory open from Studio/Today or direct URLs.",
       },
     ],
     sop: {
@@ -127,7 +127,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Refresh / Pull feed",
         description:
-          "FÜDI: POST /api/intake/fudi-feed (read FÜDI Supabase tables fudi_deals, fudi_events, fudi_posts, marketplace_items, trails → MAD marketing_entities, latest 20 with image + title). Other brands: POST /api/sync/pull-new-arrivals. If the brand website catalog responds but has zero live listings (e.g. Worn Label Society with nothing published), the pull shows a success toast \"No live listings on the brand website right now — inventory is up to date.\" instead of an error — publish listings on the brand site, then pull again.",
+          "FÜDI: POST /api/intake/fudi-feed (read FÜDI Supabase tables fudi_deals, fudi_events, fudi_posts, marketplace_items, trails → MAD marketing_entities, latest 20 with image + title). Worn Label Society / fashion: POST /api/sync/pull-new-arrivals reads the brand website JSON catalog (default `entities.website_url` + `/api/public/marketplace/listings` and `/api/public/items`, or INVENTORY_FEED_URL / INVENTORY_FEED_URL_WORN_LABEL_SOCIETY). Only listings with live status (active/published) import; sold or delisted rows are skipped and stale unfeatured intake is removed on refresh. Toast shows the feed URL used. Dev-only INVENTORY_USE_DEMO_FEED=true injects a sample item — keep it false in production.",
       },
       {
         name: "Intake cards",
@@ -151,6 +151,45 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       ],
       tips: [
         "Pull reads FÜDI Supabase tables (fudi_deals, fudi_events, fudi_posts, marketplace_items, trails) via FUDI_SUPABASE_* on the API server; writes go to MAD marketing_entities only.",
+      ],
+    },
+  },
+  {
+    id: "planner",
+    title: "Planner — Campaign timeline",
+    route: "/planner",
+    summary:
+      "Split workspace: Campaign Engine (left) for multi-day launch briefs; calendar canvas (right) with Day, Week, and Month grids for Brain-injected timeline cards.",
+    features: [
+      {
+        name: "Campaign Engine",
+        description:
+          "Monospace sidebar: launch brief textarea, duration pills (3-Day, 5-Day, 1-Week), and [ ✨ GENERATE TIMELINE ]. POST /api/generate/campaign writes MAD `campaign_programs` + `campaign_program_days` (migration 20261008_campaign_programs.sql) and returns `programId` so refresh reloads the same flight plan.",
+      },
+      {
+        name: "Calendar day cards",
+        description:
+          "After generation, each scheduled day shows a 🟡 DRAFT card (phase title + shoot cue). Click for Hook / Vibe / Action detail; [ ⚡ Craft in Studio → ] opens /studio?eid=…&step=3 with the day’s creative angle pre-loaded (MAD Supabase only — not FÜDI).",
+      },
+      {
+        name: "Calendar canvas",
+        description:
+          "Toolbar shows month/year (e.g. OCTOBER 2026) and view toggles [ DAY ] [ WEEK ] [ MONTH ] (active = solid black). Month view: 7-column Mon–Sun grid with 2px borders and date in the top-right of each cell. Only the calendar area scrolls; the sidebar stays fixed.",
+      },
+    ],
+    sop: {
+      title: "Generate and craft a planner day",
+      audience: "Creator or entity manager",
+      prerequisites: ["Signed in", "Correct brand selected in the top bar", "API server running (port 8080) with Gemini configured"],
+      steps: [
+        "Top bar → Planner (between Today and Studio).",
+        "Describe the event or launch in the Campaign Engine textarea (8+ characters).",
+        "Pick duration: 3-Day, 5-Day, or 1-Week.",
+        "Choose Autonomy: Suggest (packs only), Arm (auto-queue scheduled_posts), or Full auto (arm + cron dispatch).",
+        "Click [ ✨ GENERATE TIMELINE ] and confirm day cards appear on the calendar (URL may include programId=).",
+        "Refresh the page — timeline should reload from MAD Supabase, not vanish.",
+        "Open a card → [ ⚡ Craft in Studio → ] to continue on Studio Intent with hook and vibe seeded.",
+        "Optional: Campaigns → Storyboard → Generate pack / Bulk generate for headless Studio packs.",
       ],
     },
   },
@@ -232,6 +271,52 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       ],
       tips: [
         "If you see origin/env errors, ensure API server has NEXT_PUBLIC_SITE_URL or REPLIT_DOMAINS.",
+      ],
+    },
+  },
+  {
+    id: "promo-builder",
+    title: "Promo Builder (Color Dot Special)",
+    route: "/promo",
+    summary:
+      "Worn Label Society only: generate weekly tag-color sale graphics (1:1 feed and 9:16 story) with isolated obsidian + champagne promo styling — separate from inventory Story Canvas themes.",
+    features: [
+      {
+        name: "Tag color grid",
+        description:
+          "Pick one of eight in-store tag colors (purple, orange, black, pink, green, red, blue, yellow); discount text and headline are editable.",
+      },
+      {
+        name: "Date treatments",
+        description:
+          "Date label with presets (e.g. THIS WEEKEND ONLY) and styles: gold pill, stamp, ribbon, or minimal.",
+      },
+      {
+        name: "High-res PNG export",
+        description:
+          "Download WLS-{COLOR}-TAG-{ratio}.png at 1080×1080 or 1080×1920 via 3× retina capture.",
+      },
+      {
+        name: "FÜDI gate",
+        description:
+          "Hospitality deal layouts are Phase 2; FÜDI and other brands see a coming-soon state on /promo.",
+      },
+    ],
+    sop: {
+      title: "Export a Color Dot Special graphic",
+      audience: "Creator or entity manager (Worn Label Society)",
+      prerequisites: [
+        "Signed in with Worn Label Society selected in the brand switcher.",
+      ],
+      steps: [
+        "Header → Promo (or open /promo?eid=…).",
+        "Choose 1:1 or 9:16, select the tag color matching this week's in-store dots.",
+        "Enter discount text, headline, and date label (use presets if helpful).",
+        "Pick a date style, preview on the right, then Download high-res PNG.",
+        "Upload the PNG to Instagram/Facebook/TikTok or attach in Studio Schedule as needed.",
+      ],
+      tips: [
+        "Promo visuals use #09090B / #C5A880 tokens; listing Story previews still use the emerald obsidian shop-by-vibe theme.",
       ],
     },
   },
@@ -320,11 +405,21 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
   },
   {
     id: "campaigns",
-    title: "Campaigns — Drop Performance Ledger",
+    title: "Campaigns — Storyboard & Ledger",
     route: "/campaigns",
     summary:
-      "Executive financial view: Money Spent, Sales Made, Net Profit, Return Multiplier (ROAS), published-drop conversion table, and post-mortem winners.",
+      "Dual-tab workspace on **MAD Studio** (not the consumer brand site): **Campaign storyboard** (planning scaffold) and **Past ledger** (financial view for the active brand). Phone/social mocks stay in **Studio → Schedule** — feed chrome is labeled “MAD Studio · channel mock”. Ledger loads via GET /api/campaigns/ledger when you open Past ledger.",
     features: [
+      {
+        name: "Campaign storyboard tab",
+        description:
+          "Lists `campaign_program_days` for the active or ?programId= program: status per day, Generate pack (POST /api/campaign-days/:id/generate), Arm posts (creates `scheduled_posts` with program_day_id), Bulk generate (POST /api/campaigns/orchestrate). Requires intake media with https URLs.",
+      },
+      {
+        name: "Past ledger tab",
+        description:
+          "Former Campaigns page: financial summary, published drops table, campaign accordions, log spend/sales, post-mortem. Fetched via GET /api/campaigns/ledger?entityId=… on first visit.",
+      },
       {
         name: "Financial summary",
         description:
@@ -358,7 +453,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       title: "Close the loop after a drop",
       audience: "Creator or manager",
       steps: [
-        "Open Campaigns for the entity.",
+        "Open Campaigns → **Past ledger** for the entity.",
         "Find the campaign row; log spend and revenue for the window.",
         "Rate outcome; Save & Train Brain.",
         "Verify takeaway appears under Brain → Memory.",
@@ -374,6 +469,11 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Usage & performance",
         description: "Aggregated metrics tied to entity and campaigns.",
+      },
+      {
+        name: "Date range",
+        description:
+          "Filter pills: Today, Last 7 Days, Last 30 Days (default when opening Meter), All Time. Changing range reloads telemetry for that window.",
       },
     ],
     sop: {
