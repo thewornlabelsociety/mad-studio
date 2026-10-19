@@ -1,3 +1,4 @@
+import { compareNewestArrival } from "@/lib/inventory/arrival-order"
 import { cookies, redirect } from "@/lib/next-compat"
 
 import {
@@ -66,7 +67,7 @@ export default async function InventoryPage({
       )
       .eq("entity_id", activeSummary.id)
       .order("created_at", { ascending: false })
-      .limit(200),
+      .limit(500),
     supabase
       .from("entities")
       .select("website_url, brand_identity")
@@ -74,7 +75,8 @@ export default async function InventoryPage({
       .maybeSingle(),
   ])
 
-  const items = (rows ?? []).map(mapMarketingEntityRow)
+  // Newest shop stock first, not the order things were imported.
+  const items = (rows ?? []).map(mapMarketingEntityRow).sort(compareNewestArrival)
   // This brand's own colours, type and logo (from Brand Brain).
   const visualPresets = resolveVisualPresets({
     brandName: activeSummary.name,

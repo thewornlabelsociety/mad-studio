@@ -3,6 +3,7 @@ import {
   mapMarketingEntityRow,
   type MarketingEntity,
 } from "@/lib/inventory/types"
+import { compareNewestArrival } from "@/lib/inventory/arrival-order"
 import { detectMediaKindFromUrl } from "@/lib/media/kind"
 import { extractSizeLabel } from "@/lib/marketing/story-presets"
 import { readTodayDeckDismissStatus } from "@/lib/today/today-deck-dismiss"
@@ -107,11 +108,13 @@ export async function fetchNewArrivalSuggestions(input: {
     .eq("entity_id", input.entityId)
     .eq("status", "unfeatured")
     .order("created_at", { ascending: false })
-    .limit(input.limit ?? 12)
+    .limit(500)
   if (error) throw new Error(error.message)
 
   return (data ?? [])
     .map((row) => mapMarketingEntityRow(row))
+    // Newest shop stock first, not the order things were imported.
+    .sort(compareNewestArrival)
     .filter((item) => {
       const dismissed = readTodayDeckDismissStatus(item.copy_draft ?? null)
       if (dismissed === "skipped" || dismissed === "archived") return false
@@ -128,6 +131,7 @@ export async function fetchNewArrivalSuggestions(input: {
       }
     })
     .filter((row) => row.media.length > 0)
+    .slice(0, input.limit ?? 12)
 }
 
 /** Mark an arrival as used (or not) so it leaves the suggestions list. */

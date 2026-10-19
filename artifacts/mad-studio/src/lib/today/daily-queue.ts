@@ -6,6 +6,7 @@ import {
   type MarketingEntity,
 } from "@/lib/inventory/types"
 import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
+import { compareNewestArrival } from "@/lib/inventory/arrival-order"
 import { buildTodayQueueView, type TodayQueueView } from "@/lib/today/queue"
 import {
   fetchDismissedMarketingEntityIds,
@@ -15,6 +16,9 @@ import {
 export type TodayDeckCard = TodayQueueView & {
   queueId: string
 }
+
+/** Today shows the newest drops to post, not the whole back catalogue. */
+const TODAY_DECK_SIZE = 24
 
 const MARKETING_SELECT =
   "id, entity_id, website_item_id, title, brand, price, description, images, status, metrics, scheduled_at, channels, copy_draft, published_media_ids, trackable_slug, published_at, created_at, updated_at"
@@ -139,7 +143,10 @@ export async function fetchPendingTodayDeck(input: {
     })
   }
 
+  // Newest shop stock first, not the order things were imported.
   return cards
+    .sort((a, b) => compareNewestArrival(a.item, b.item))
+    .slice(0, TODAY_DECK_SIZE)
 }
 
 async function fetchIntakeFallbackDeck(input: {
@@ -159,15 +166,17 @@ async function fetchIntakeFallbackDeck(input: {
     .eq("entity_id", input.entityId)
     .eq("status", "unfeatured")
     .order("created_at", { ascending: false })
-    .limit(24)
+    .limit(500)
 
   return (rows ?? [])
     .map(mapMarketingEntityRow)
+    .sort(compareNewestArrival)
     .filter((item) => !input.dismissedIds.has(item.id))
     .filter((item) => !isHiddenFromTodayDeck(item))
     .filter((item) =>
       isFudi ? !looksLikeFashionCatalogContamination(item) : true
     )
+    .slice(0, TODAY_DECK_SIZE)
     .map((item) => ({
       ...buildTodayQueueView({
         item,
