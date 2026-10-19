@@ -631,6 +631,27 @@ async function fetchJsonFeed(url: string): Promise<unknown> {
   }
 }
 
+/**
+ * Worn Label's full shop catalogue (`/api/public/items`), every page. New
+ * stock shows here before it gets a marketplace listing, so the listings
+ * feed alone misses the latest arrivals.
+ */
+async function fetchWornLabelCatalogue(origin: string): Promise<PulledArrival[]> {
+  const byId = new Map<string, PulledArrival>()
+  let totalPages = 1
+  for (let page = 1; page <= Math.min(totalPages, 30); page += 1) {
+    const json = await fetchJsonFeed(
+      `${origin}/api/public/items?pageSize=100&page=${page}`
+    )
+    const pages = Number(asRecord(json)?.totalPages)
+    if (Number.isFinite(pages) && pages > 0) totalPages = pages
+    for (const row of parseWornLabelItems(json)) {
+      if (!byId.has(row.website_item_id)) byId.set(row.website_item_id, row)
+    }
+  }
+  return [...byId.values()]
+}
+
 async function pullInstagramFeedArrivals(entityId: string): Promise<{
   arrivals: PulledArrival[]
   feedUrl: string
@@ -823,6 +844,30 @@ export async function pullNewArrivalsForEntity(input: {
     }
   }
 
+  // Worn Label: add catalogue items that don't have a marketplace listing yet
+  // (the newest arrivals). Listings win when both exist — they carry more
+  // detail. If the catalogue can't be read, keep what we have but skip the
+  // stale-item cleanup so earlier catalogue imports aren't removed.
+  let catalogueComplete = true
+  if (
+    intakeMode !== "food_feed" &&
+    /\/api\/public\/marketplace\/listings/i.test(usedFeed)
+  ) {
+    try {
+      const catalogue = await fetchWornLabelCatalogue(new URL(usedFeed).origin)
+      const known = new Set(arrivals.map((row) => row.website_item_id))
+      arrivals = [
+        ...arrivals,
+        ...catalogue.filter((row) => !known.has(row.website_item_id)),
+      ]
+    } catch (error) {
+      catalogueComplete = false
+      errors.push(
+        `catalogue: ${error instanceof Error ? error.message : "fetch failed"}`
+      )
+    }
+  }
+
   if (
     intakeMode === "food_feed" &&
     arrivals.length === 0 &&
@@ -921,7 +966,9 @@ export async function pullNewArrivalsForEntity(input: {
     []
 
   const shouldReconcileIntake =
-    !usedFeed.startsWith("demo://") && !usedFeed.startsWith("instagram://")
+    catalogueComplete &&
+    !usedFeed.startsWith("demo://") &&
+    !usedFeed.startsWith("instagram://")
   if (shouldReconcileIntake) {
     pruned = await pruneStaleWebsiteIntake({
       admin,

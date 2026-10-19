@@ -57,7 +57,7 @@ export function NewArrivalSuggestions({
     setLoading(true)
     setError(null)
     try {
-      setRows(await fetchNewArrivalSuggestions({ entityId, isFashion, limit: 12 }))
+      setRows(await fetchNewArrivalSuggestions({ entityId, isFashion, limit: 24 }))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't load new arrivals.")
     } finally {
@@ -68,6 +68,39 @@ export function NewArrivalSuggestions({
   useEffect(() => {
     void load()
   }, [load])
+
+  // Refresh checks the website for new stock first (Worn Label), then
+  // reloads the list.
+  const [pulling, setPulling] = useState(false)
+  async function refresh() {
+    if (isFashion) {
+      setPulling(true)
+      try {
+        const response = await fetch("/api/sync/pull-new-arrivals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entityId }),
+        })
+        const payload = (await response.json().catch(() => ({}))) as {
+          imported?: number
+          error?: string
+        }
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Couldn't check the website for new stock.")
+        }
+        toast.success(
+          payload.imported
+            ? `${payload.imported} new arrival${payload.imported === 1 ? "" : "s"} pulled from the website`
+            : "Up to date — no new arrivals on the website"
+        )
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Couldn't check the website.")
+      } finally {
+        setPulling(false)
+      }
+    }
+    await load()
+  }
 
   // Using an arrival takes it off this list for good (it stays in the media
   // library); Undo puts it back.
@@ -109,13 +142,13 @@ export function NewArrivalSuggestions({
         </div>
         <button
           type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          title="Refresh"
-          aria-label="Refresh new arrivals"
+          onClick={() => void refresh()}
+          disabled={loading || pulling}
+          title={isFashion ? "Check the website for new arrivals" : "Refresh"}
+          aria-label={isFashion ? "Check the website for new arrivals" : "Refresh new arrivals"}
           className="inline-flex size-8 shrink-0 items-center justify-center border-2 border-mad-black hover:bg-mad-lime disabled:opacity-50"
         >
-          {loading ? (
+          {loading || pulling ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
             <RefreshCw className="size-4" />
