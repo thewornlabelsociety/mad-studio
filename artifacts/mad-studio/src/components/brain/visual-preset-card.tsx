@@ -5,6 +5,7 @@ import { Loader2, Save } from "lucide-react"
 import { toast } from "sonner"
 
 import { saveVisualPresets } from "@/lib/actions"
+import { readApiJson } from "@/lib/api-json"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -245,10 +246,10 @@ function LogoField({
         method: "POST",
         body: form,
       })
-      const payload = (await response.json()) as {
+      const payload = await readApiJson<{
         logoUrl?: string
         error?: string
-      }
+      }>(response)
       if (!response.ok || !payload.logoUrl) {
         throw new Error(payload.error || "Logo upload failed.")
       }

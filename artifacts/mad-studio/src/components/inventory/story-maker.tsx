@@ -11,6 +11,7 @@ import {
   storyExportFilter,
 } from "@/components/marketing/story-canvas"
 import { ensureInventoryTrackableLink, patchDropWorkbenchDraft } from "@/lib/actions"
+import { readApiJson } from "@/lib/api-json"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import type { MarketingEntity } from "@/lib/inventory/types"
 import {
@@ -116,10 +117,10 @@ export function StoryMaker({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrl: photo, entityId, itemId: item.id }),
       })
-      const payload = (await response.json()) as {
+      const payload = await readApiJson<{
         transparentUrl?: string
         error?: string
-      }
+      }>(response)
       if (!response.ok || !payload.transparentUrl) {
         throw new Error(payload.error || "Background removal failed.")
       }
