@@ -32,9 +32,12 @@ export function packPayloadFor(
       ...base,
       title: pack.campaign_title,
       headline: pack.email_drop.subject_line,
-      caption: [pack.email_drop.preview_text, stripMarkdown(pack.email_drop.body_markdown)]
-        .filter(Boolean)
-        .join("\n\n"),
+      // composeCaption drops the preview line when the body already opens
+      // with it (formula packs use the hook for both).
+      caption: composeCaption(
+        pack.email_drop.preview_text,
+        stripMarkdown(pack.email_drop.body_markdown)
+      ),
     }
   }
   if (channel === "tiktok") {

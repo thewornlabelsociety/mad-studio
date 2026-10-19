@@ -75,7 +75,7 @@ export function StepCopyEditor({
   const captionBlock = (
     <div
       className={cn(
-        wizardCompact ? "flex min-h-0 flex-1 flex-col gap-2" : "space-y-2"
+        wizardCompact ? "flex min-w-0 flex-1 flex-col gap-2" : "space-y-2"
       )}
     >
       {!wizardCompact ? (
@@ -214,7 +214,7 @@ export function StepCopyEditor({
         <ul
           className={cn(
             "mt-2 space-y-1.5 overflow-y-auto",
-            wizardCompact && "max-h-[min(28vh,11rem)]"
+            wizardCompact && "max-h-[min(40vh,16rem)]"
           )}
         >
           {hookChips.slice(0, 6).map((hook) => {
@@ -305,19 +305,18 @@ export function StepCopyEditor({
           </div>
         </header>
 
+        {/* One scroll area; sections keep their natural height so they never
+            squeeze into (and draw over) each other on short screens. */}
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-5">
-          <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row md:gap-5">
+          <div className="flex shrink-0 flex-col gap-4 md:flex-row md:gap-5">
             {captionBlock}
             {hookBlock}
           </div>
           {tagsSlot ? (
             <div className="shrink-0 border-t border-neutral-200 pt-3">{tagsSlot}</div>
           ) : null}
+          {hookIdeas}
         </div>
-
-        {hookIdeas ? (
-          <div className="shrink-0 px-4 pb-4 md:px-5 md:pb-5">{hookIdeas}</div>
-        ) : null}
       </section>
     )
   }
