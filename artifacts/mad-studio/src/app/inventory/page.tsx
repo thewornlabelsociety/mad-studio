@@ -5,7 +5,7 @@ import {
   getActiveOrganizationId,
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { InventoryList } from "@/components/inventory/inventory-list"
 import { PullNewArrivalsButton } from "@/components/inventory/pull-new-arrivals-button"
 import {
@@ -73,15 +73,15 @@ export default async function InventoryPage({
     : false
 
   return (
-    <div className="flex min-h-svh flex-col bg-mad-white">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeSummary.id}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-      />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+    <StudioAppShell
+      className="bg-mad-white"
+      mainClassName="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6"
+      entities={entities}
+      activeEntityId={activeSummary.id}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+    >
         <header className="mb-6 flex flex-col gap-4 border-b-2 border-mad-black pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
@@ -102,7 +102,6 @@ export default async function InventoryPage({
           />
         </header>
         <InventoryList entityId={activeSummary.id} items={items} />
-      </main>
-    </div>
+    </StudioAppShell>
   )
 }

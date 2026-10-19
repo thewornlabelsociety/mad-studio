@@ -5,7 +5,7 @@ import {
   getActiveOrganizationId,
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { WornLabelPromoBuilder } from "@/components/social-creative/worn-label-promo-builder"
 import { resolveEntityType } from "@/lib/social-creative/resolve-entity-type"
 import { createClient } from "@/lib/supabase/client"
@@ -56,15 +56,14 @@ export default async function PromoPage({ searchParams }: PromoPageProps) {
     : false
 
   return (
-    <div className="flex min-h-svh flex-col bg-mad-white">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeSummary.id}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-      />
-      <main className="flex-1">
+    <StudioAppShell
+      className="bg-mad-white"
+      entities={entities}
+      activeEntityId={activeSummary.id}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+    >
         <div className="border-b-2 border-mad-black px-4 py-4">
           <h1 className="brand-typewriter text-2xl text-mad-black">
             Promo Builder
@@ -90,7 +89,6 @@ export default async function PromoPage({ searchParams }: PromoPageProps) {
             </p>
           </div>
         )}
-      </main>
-    </div>
+    </StudioAppShell>
   )
 }

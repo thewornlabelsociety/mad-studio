@@ -36,7 +36,7 @@ import {
 } from "@/components/marketing/multi-platform-simulator"
 import { CompactChannelRail } from "@/components/studio/compact-channel-rail"
 import { StepDock, type WorkbenchStepId } from "@/components/studio/step-stepper"
-import { StudioInnerStepper } from "@/components/studio/studio-inner-stepper"
+import { StudioCreateChrome } from "@/components/studio/studio-create-chrome"
 import { StudioSplitShell } from "@/components/studio/studio-split-shell"
 import { StudioStepSummary } from "@/components/studio/studio-step-summary"
 import {
@@ -319,6 +319,7 @@ export function InventoryItemDetail({
   const [captionVariantIndex, setCaptionVariantIndex] = useState(0)
   const [enhancingCaption, setEnhancingCaption] = useState(false)
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false)
+  const [previewDrawerOpen, setPreviewDrawerOpen] = useState(false)
   const [cutoutRequestId, setCutoutRequestId] = useState(0)
   const [contentPillar, setContentPillar] = useState("")
   const [hookBlueprintId, setHookBlueprintId] = useState<string | null>(null)
@@ -1032,7 +1033,7 @@ export function InventoryItemDetail({
     <div
       className={
         onWizardStep
-          ? "flex min-h-0 flex-1 flex-col overflow-x-hidden max-lg:overflow-y-auto lg:h-[calc(100vh-64px)] lg:overflow-hidden"
+          ? "flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden"
           : "space-y-3 pb-24"
       }
     >
@@ -1081,8 +1082,6 @@ export function InventoryItemDetail({
           </span>
         )}
       </div>
-
-      <StudioInnerStepper step={step} onStepChange={goToStep} />
 
       {step === WORKBENCH_STEP_CHANNELS ? (
         <div className="flex w-full flex-col gap-3 pb-2">
@@ -1181,9 +1180,21 @@ export function InventoryItemDetail({
         <>
           <StudioSplitShell
             className="min-h-0 flex-1"
-            showPreview={step !== WORKBENCH_STEP_MEDIA}
+            header={
+              <StudioCreateChrome
+                brandName={brandName}
+                step={step}
+                onStepChange={goToStep}
+              />
+            }
+            showInlinePreview
+            previewDrawer={{
+              open: previewDrawerOpen,
+              onOpenChange: setPreviewDrawerOpen,
+            }}
             channelRail={
               <CompactChannelRail
+                placement="below"
                 platform={simPlatform}
                 onPlatformChange={setSimPlatform}
               />
@@ -1210,12 +1221,18 @@ export function InventoryItemDetail({
                     mediaAssets.length === 0) ||
                   (step === WORKBENCH_STEP_COPY && !draft.caption.trim())
                 }
+                previewDrawerOpen={previewDrawerOpen}
+                hidePreviewToggleOnWide
+                onTogglePreviewDrawer={() =>
+                  setPreviewDrawerOpen((open) => !open)
+                }
               />
             }
             preview={
               <MultiPlatformSimulator
                 lockedViewport
                 compact
+                fluidViewport
                 content={{
                   brandName,
                   headline: draft.headline,
@@ -1259,17 +1276,9 @@ export function InventoryItemDetail({
               />
             }
             controls={
-              <div className="space-y-2">
-                {priorSummaryStep === WORKBENCH_STEP_MEDIA ? (
-                  <StudioStepSummary
-                    title="Media attached"
-                    summary={`${mediaAssets.length} asset${mediaAssets.length === 1 ? "" : "s"}`}
-                    previewUrl={selectedImageUrl}
-                    editLabel="✏ Change media"
-                    onEdit={() => setStep(WORKBENCH_STEP_MEDIA)}
-                  />
-                ) : null}
-                {priorSummaryStep === WORKBENCH_STEP_INTENT ? (
+              <div className="flex h-full min-h-0 flex-1 flex-col gap-2">
+                {priorSummaryStep === WORKBENCH_STEP_INTENT &&
+                step !== WORKBENCH_STEP_CANVAS ? (
                   <StudioStepSummary
                     title="Intent"
                     summary={intentStepSummary}
@@ -1283,6 +1292,7 @@ export function InventoryItemDetail({
                     onEdit={() => setStep(WORKBENCH_STEP_CANVAS)}
                   />
                 ) : null}
+                <div className="flex min-h-0 flex-1 flex-col">
                 {step === WORKBENCH_STEP_MEDIA ? (
                   <StepMedia
                     entityId={entityId}
@@ -1317,6 +1327,7 @@ export function InventoryItemDetail({
                 {step === WORKBENCH_STEP_COPY
                   ? renderDropCustomize("copy")
                   : null}
+                </div>
               </div>
             }
           />

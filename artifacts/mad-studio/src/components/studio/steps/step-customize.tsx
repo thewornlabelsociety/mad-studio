@@ -33,6 +33,8 @@ import type { PostIntentState } from "@/lib/inventory/post-intent"
 import { stripDuplicateHookFromCaption } from "@/lib/inventory/sop"
 
 import { AutoTextarea } from "@/components/studio/auto-textarea"
+import { StepCopyEditor } from "@/components/studio/steps/step-copy-editor"
+import { StudioStepPanel } from "@/components/studio/studio-step-panel"
 
 import { CanvasTextOverlayEditor } from "@/components/studio/canvas-text-overlay"
 import { OnScreenTextPanel } from "@/components/studio/on-screen-text-panel"
@@ -83,6 +85,9 @@ type HookChip = { id: string; label: string; hook: string }
 
 const DNA_SELECT_TRIGGER_CLASS =
   "h-9 w-full max-w-full min-w-0 overflow-hidden rounded-none border-2 border-mad-black text-xs shadow-none [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
+
+const INTENT_WIZARD_SELECT_CLASS =
+  "h-10 w-full max-w-full min-w-0 overflow-hidden rounded-none border-2 border-mad-black text-sm shadow-none [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
 
 const SELECT_CUSTOM = "__custom__"
 const SELECT_NONE = "__none__"
@@ -283,19 +288,20 @@ const PHASE_META: Record<
     subtitle: "",
   },
   intent: {
-    step: "Step 2 · Intent",
+    step: "II · Intent",
     title: "Audience & DNA",
     subtitle: STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_INTENT].hint,
   },
   canvas: {
-    step: "Step 3 · Canvas",
+    step: "III · Canvas",
     title: "On-image text",
     subtitle: STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_CANVAS].hint,
   },
   copy: {
-    step: "Step 4 · Copy",
-    title: "Hook & caption",
-    subtitle: STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_COPY].hint,
+    step: "IV · Copy",
+    title: "Post copy",
+    subtitle:
+      "Write the caption as it should publish; optional opening line for Story/Reels.",
   },
 }
 
@@ -385,9 +391,7 @@ export function StepCustomize({
 
 }: Props) {
 
-  const [assistField, setAssistField] = useState<"hook" | "caption" | null>(null)
-
-  const [hookVariations, setHookVariations] = useState<string[]>([])
+  const [assistField, setAssistField] = useState<"caption" | null>(null)
 
   const [captionVariations, setCaptionVariations] = useState<string[]>([])
 
@@ -605,44 +609,51 @@ export function StepCustomize({
 
 
 
-  async function runAssist(field: "hook" | "caption") {
-
-    setAssistField(field)
-
-    try {
-
-      const result = await requestFieldAssist({
-
-        entityId,
-
-        marketingEntityId,
-
-        field,
-
-        headline,
-
-        caption,
-
-        visualDescription,
-
-      })
-
-      if (field === "hook") setHookVariations(result.variations)
-
-      else setCaptionVariations(result.variations)
-
-      toast.success(`${result.variations.length} ${field} variations ready — tap to apply.`)
-
-    } catch (error) {
-
-      toast.error(error instanceof Error ? error.message : "AI assist failed.")
-
-    } finally {
-
-      setAssistField(null)
-
+  async function runCaptionAssist() {
+    if (!canAutoSuggestIntent) {
+      toast.message("Attach media on Step 1 (upload must finish) first.")
+      return
     }
-
+    setAssistField("caption")
+    try {
+      const vision = await resolveVisionForIntentMap()
+      const persona = personas.find((row) => row.id === personaId)
+      const hookBlueprint = bank.hook_styles.find(
+        (row) => row.id === hookBlueprintId
+      )
+      const cta = ctas.find((row) => row.id === ctaId)
+      const result = await requestFieldAssist({
+        entityId,
+        marketingEntityId,
+        field: "caption",
+        headline,
+        caption,
+        visualDescription: vision.visualDescription,
+        listingVibe: postIntent.listingVibe?.trim() || null,
+        wizard: {
+          listingVibe: postIntent.listingVibe?.trim() || null,
+          dropKind: postIntent.dropKind,
+          contentPillar: contentPillar?.trim() || null,
+          personaName: persona?.name ?? null,
+          hookBlueprintLabel: hookBlueprint?.label ?? null,
+          ctaLabel: cta?.label ?? null,
+          aestheticTags: vision.aestheticTags,
+          concreteFeatures: vision.concreteFeatures,
+          onCanvasHeadline: textOverlay.enabled
+            ? textOverlay.headline
+            : null,
+          onCanvasSubhead: textOverlay.enabled ? textOverlay.subhead : null,
+        },
+      })
+      setCaptionVariations(result.variations)
+      toast.success(
+        `${result.variations.length} caption option(s) from your media & intent — tap to apply.`
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "AI assist failed.")
+    } finally {
+      setAssistField(null)
+    }
   }
 
 
@@ -651,39 +662,45 @@ export function StepCustomize({
   const showIntent = phase === "all" || phase === "intent"
   const showCanvas = phase === "all" || phase === "canvas"
   const showCopy = phase === "all" || phase === "copy"
+  const isIntentWizard = phase === "intent"
+  const isCanvasWizard = phase === "canvas"
+  const isCopyWizard = phase === "copy"
+  const isFitViewportWizard = isIntentWizard
+  const isBareWizard = isCanvasWizard || isCopyWizard
+  const intentFieldLabel = isIntentWizard
+    ? "text-xs font-semibold tracking-wide text-neutral-600 uppercase"
+    : "font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase"
+  const intentSelectClass = isIntentWizard
+    ? INTENT_WIZARD_SELECT_CLASS
+    : DNA_SELECT_TRIGGER_CLASS
 
   return (
 
-    <section className="min-w-0 space-y-2 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
-
-      <div>
-
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-
-          {meta.step}
-
-        </p>
-
-        <h2 className="font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-
-          {meta.title}
-
-        </h2>
-
-        {meta.subtitle && phase === "all" ? (
-          <p className="mt-0.5 text-xs leading-snug text-neutral-600">{meta.subtitle}</p>
-        ) : null}
-
-      </div>
-
+    <StudioStepPanel
+      fill
+      scrollBody={!isFitViewportWizard}
+      compactHeader={isIntentWizard}
+      bare={isBareWizard}
+      kicker={isBareWizard ? undefined : meta.step}
+      title={isBareWizard ? undefined : meta.title}
+      description={
+        meta.subtitle && phase === "all" ? meta.subtitle : undefined
+      }
+      className={cn(
+        "min-w-0",
+        isIntentWizard && "p-4 md:p-5",
+        isBareWizard && "min-h-0 flex-1 p-3 md:p-4"
+      )}
+    >
       {showIntent ? (
-        <div className="space-y-1">
+        <div className={isIntentWizard ? "shrink-0" : "space-y-1"}>
           <button
             type="button"
             disabled={!canAutoSuggestIntent || intentMapBusy}
             onClick={() => void runIntentAutoSuggest()}
             className={cn(
-              "flex w-full items-center justify-center gap-2 border-2 border-mad-black px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm transition",
+              "flex w-full items-center justify-center gap-2 border-2 border-mad-black px-3 font-typewriter font-bold tracking-wide uppercase shadow-keycap-sm transition",
+              isIntentWizard ? "py-2.5 text-sm" : "py-2 text-[0.55rem]",
               canAutoSuggestIntent
                 ? "bg-mad-lime text-mad-black hover:bg-mad-black hover:text-mad-white disabled:opacity-60"
                 : "cursor-not-allowed bg-neutral-100 text-neutral-400"
@@ -698,11 +715,11 @@ export function StepCustomize({
               <>🧠 Auto-Suggest Intent from Media</>
             )}
           </button>
-          {!canAutoSuggestIntent ? (
+          {!isIntentWizard && !canAutoSuggestIntent ? (
             <p className="font-typewriter text-[0.45rem] text-neutral-500 normal-case">
               Attach media on Step 1 (upload must finish) to unlock auto-suggest.
             </p>
-          ) : !hasVisionCache ? (
+          ) : !isIntentWizard && !hasVisionCache ? (
             <p className="font-typewriter text-[0.45rem] text-neutral-500 normal-case">
               Step 1 vision not run yet — click above to inspect and map intent.
             </p>
@@ -715,38 +732,34 @@ export function StepCustomize({
 
 
       {showIntent && isFudi ? (
-
         <PostIntentEditor
-
+          wizardCompact={isIntentWizard}
+          className={isIntentWizard ? "mt-2.5 shrink-0" : undefined}
           isFudi={isFudi}
-
           vibeOptions={vibeOptions}
-
           value={postIntent}
-
           onChange={onPostIntentChange}
-
           aiSuggested={{
             dropType: aiSuggested.dropType,
             listingVibe: aiSuggested.listingVibe,
           }}
           onManualFieldChange={(field) => clearAiField(field)}
         />
-
       ) : null}
 
-
-
       {showIntent ? (
-      <div className="grid min-w-0 gap-2 sm:grid-cols-2 sm:[&>*]:min-w-0">
+      <div
+        className={cn(
+          "grid min-w-0 sm:[&>*]:min-w-0",
+          isIntentWizard
+            ? "mt-2.5 gap-2.5 sm:grid-cols-2 xl:grid-cols-4"
+            : "gap-2 sm:grid-cols-2"
+        )}
+      >
 
-        <label className="grid min-w-0 gap-1">
+        <label className="grid min-w-0 gap-1.5">
 
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-
-            Content pillar / vibe
-
-          </span>
+          <span className={intentFieldLabel}>Content pillar / vibe</span>
 
           <Select
             value={pillarSelectValue}
@@ -761,7 +774,10 @@ export function StepCustomize({
               onContentPillarChange?.(value)
             }}
           >
-            <IntentSelectTrigger aiSuggested={Boolean(aiSuggested.pillar)}>
+            <IntentSelectTrigger
+              className={intentSelectClass}
+              aiSuggested={Boolean(aiSuggested.pillar)}
+            >
               <SelectValue placeholder="Content pillar" />
             </IntentSelectTrigger>
             <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
@@ -782,20 +798,19 @@ export function StepCustomize({
                 onContentPillarChange?.(event.target.value)
               }}
               placeholder="Custom pillar / vibe…"
-              className="h-9 w-full border-2 border-mad-black bg-mad-white px-2 font-sans text-base outline-none focus:bg-mad-lime/20 md:text-sm"
+              className={cn(
+                "w-full border-2 border-mad-black bg-mad-white px-2 font-sans outline-none focus:bg-mad-lime/20",
+                isIntentWizard ? "h-10 text-sm" : "h-9 text-base md:text-sm"
+              )}
             />
           ) : null}
         </label>
 
 
 
-        <label className="grid min-w-0 gap-1">
+        <label className="grid min-w-0 gap-1.5">
 
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-
-            Audience persona
-
-          </span>
+          <span className={intentFieldLabel}>Audience persona</span>
 
           {personas.length === 0 ? (
             <p className="font-typewriter text-[0.55rem] text-neutral-500 normal-case">
@@ -809,7 +824,10 @@ export function StepCustomize({
                 onPersonaIdChange?.(value === SELECT_NONE ? "" : value)
               }}
             >
-              <IntentSelectTrigger aiSuggested={Boolean(aiSuggested.persona)}>
+              <IntentSelectTrigger
+                className={intentSelectClass}
+                aiSuggested={Boolean(aiSuggested.persona)}
+              >
                 <SelectValue placeholder="Persona" />
               </IntentSelectTrigger>
               <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
@@ -825,13 +843,9 @@ export function StepCustomize({
 
 
 
-        <label className="grid min-w-0 gap-1">
+        <label className="grid min-w-0 gap-1.5">
 
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-
-            Hook blueprint
-
-          </span>
+          <span className={intentFieldLabel}>Hook blueprint</span>
 
           {bank.hook_styles.length === 0 ? (
             <p className="font-typewriter text-[0.55rem] text-neutral-500 normal-case">
@@ -847,7 +861,10 @@ export function StepCustomize({
                 }
               }}
             >
-              <IntentSelectTrigger aiSuggested={Boolean(aiSuggested.hookBlueprint)}>
+              <IntentSelectTrigger
+                className={intentSelectClass}
+                aiSuggested={Boolean(aiSuggested.hookBlueprint)}
+              >
                 <SelectValue placeholder="Hook blueprint" />
               </IntentSelectTrigger>
               <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
@@ -863,13 +880,9 @@ export function StepCustomize({
 
 
 
-        <label className="grid min-w-0 gap-1">
+        <label className="grid min-w-0 gap-1.5">
 
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-
-            Call to action (CTA)
-
-          </span>
+          <span className={intentFieldLabel}>Call to action (CTA)</span>
 
           {ctas.length === 0 ? (
             <p className="font-typewriter text-[0.55rem] text-neutral-500 normal-case">
@@ -883,7 +896,10 @@ export function StepCustomize({
                 if (value !== SELECT_NONE) onCtaIdChange?.(value)
               }}
             >
-              <IntentSelectTrigger aiSuggested={Boolean(aiSuggested.cta)}>
+              <IntentSelectTrigger
+                className={intentSelectClass}
+                aiSuggested={Boolean(aiSuggested.cta)}
+              >
                 <SelectValue placeholder="Call to action" />
               </IntentSelectTrigger>
               <SelectContent position="popper" className={DNA_SELECT_CONTENT_CLASS}>
@@ -905,13 +921,12 @@ export function StepCustomize({
       {showCanvas && onTextOverlayChange ? (
 
         <CanvasTextOverlayEditor
-
+          wizardCompact={isCanvasWizard}
+          className={isCanvasWizard ? "min-h-0 flex-1" : undefined}
           value={textOverlay}
-
           onChange={onTextOverlayChange}
-
           isVideo={isVideoPreview}
-
+          destinationUrl={destinationUrl}
         />
 
       ) : null}
@@ -919,6 +934,34 @@ export function StepCustomize({
 
 
       {showCopy ? (
+      phase === "copy" ? (
+        <>
+          <StepCopyEditor
+            wizardCompact={isCopyWizard}
+            className={isCopyWizard ? "min-h-0 flex-1" : undefined}
+            headline={headline}
+            caption={caption}
+            onHeadlineChange={commitHeadline}
+            onCaptionChange={commitCaption}
+            hookChips={hookChips}
+            activeHookId={activeHookId}
+            onHookSelect={onHookSelect}
+            captionVariantLabel={captionVariantLabel}
+            onRotateCaption={onRotateCaption}
+            onEnhanceCaption={onEnhanceCaption}
+            enhancingCaption={enhancingCaption}
+            onAssistCaption={() => void runCaptionAssist()}
+            assistField={assistField}
+            captionVariations={captionVariations}
+            onPickCaptionVariation={(variant) => {
+              commitCaption(variant)
+              setCaptionVariations([])
+            }}
+            tagsSlot={tagsSlot}
+          />
+          {footerSlot}
+        </>
+      ) : (
       <>
       <div className="space-y-2 border-t-2 border-mad-black/15 pt-3">
 
@@ -1058,19 +1101,9 @@ export function StepCustomize({
 
         <label className="block space-y-1">
 
-          <span className="flex items-center gap-2 font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
 
-            Hook
-
-            <AiAssistButton
-
-              label="hook"
-
-              busy={assistField === "hook"}
-
-              onClick={() => void runAssist("hook")}
-
-            />
+            Opening line — pick a Brain hook above or type your own
 
           </span>
 
@@ -1088,34 +1121,6 @@ export function StepCustomize({
 
           />
 
-          {hookVariations.length > 0 ? (
-
-            <div className="flex flex-wrap gap-1 pt-1">
-
-              {hookVariations.map((variant) => (
-
-                <button
-
-                  key={variant}
-
-                  type="button"
-
-                  onClick={() => commitHeadline(variant)}
-
-                  className="max-w-full border-2 border-mad-black bg-mad-lime/30 px-2 py-1 text-left text-xs hover:bg-mad-lime"
-
-                >
-
-                  {variant}
-
-                </button>
-
-              ))}
-
-            </div>
-
-          ) : null}
-
         </label>
 
 
@@ -1132,7 +1137,7 @@ export function StepCustomize({
 
               busy={assistField === "caption"}
 
-              onClick={() => void runAssist("caption")}
+              onClick={() => void runCaptionAssist()}
 
             />
 
@@ -1233,9 +1238,10 @@ export function StepCustomize({
 
       {footerSlot}
       </>
+      )
       ) : null}
 
-    </section>
+    </StudioStepPanel>
 
   )
 

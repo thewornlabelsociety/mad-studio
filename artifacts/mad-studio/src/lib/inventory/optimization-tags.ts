@@ -30,6 +30,30 @@ function pushTag(out: string[], ...candidates: Array<string | null | undefined>)
   }
 }
 
+/** Entity Create / Studio spark posts (no inventory row yet). */
+export function buildStudioOptimizationTags(input: {
+  brandName: string
+  industry?: string | null
+  listingVibe?: string | null
+  titleHint?: string | null
+  aestheticSlugs?: string[]
+}): string[] {
+  const stub = {
+    website_item_id: "studio-spark",
+    title: input.titleHint?.trim() || input.brandName,
+    brand: input.brandName,
+    description: "",
+    vibe: input.listingVibe ?? null,
+    aesthetic_slugs: input.aestheticSlugs ?? [],
+  } as MarketingEntity
+  return buildOptimizationTags({
+    item: stub,
+    brandName: input.brandName,
+    industry: input.industry,
+    listingVibe: input.listingVibe,
+  })
+}
+
 /**
  * Search / discovery tags grounded in the listing — brand, vibe, garment, place.
  * Tuned for IG/TikTok search + SEO caption footers.

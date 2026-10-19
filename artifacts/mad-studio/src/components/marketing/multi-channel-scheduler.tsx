@@ -152,15 +152,19 @@ export function MultiChannelScheduler({
     <section
       className={cn(
         "border-2 border-mad-black bg-mad-white shadow-keycap-sm",
-        wizardLayout ? "space-y-2 p-2" : "space-y-3 p-3",
+        wizardLayout
+          ? "flex min-h-0 flex-1 flex-col gap-3 p-4 md:p-5"
+          : "space-y-3 p-3",
         className
       )}
     >
       {topBanner ? (
-        <div className={wizardLayout ? "pb-1" : "pb-2"}>{topBanner}</div>
+        <div className={cn(wizardLayout ? "shrink-0 pb-1" : "pb-2")}>
+          {topBanner}
+        </div>
       ) : null}
       {wizardLayout && topBanner ? (
-        <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-600 uppercase">
+        <p className="shrink-0 font-typewriter text-xs font-bold tracking-wide text-neutral-600 uppercase">
           {summary}
         </p>
       ) : (
@@ -174,13 +178,18 @@ export function MultiChannelScheduler({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1">
+      <div
+        className={cn(
+          "flex flex-wrap gap-1.5",
+          wizardLayout && "shrink-0"
+        )}
+      >
         <button
           type="button"
           onClick={toggleAll}
           disabled={locked}
           className={cn(
-            "border-2 border-mad-black px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase disabled:opacity-40",
+            "border-2 border-mad-black px-2.5 py-1.5 font-typewriter text-xs font-bold tracking-wide uppercase disabled:opacity-40",
             allSelected
               ? "bg-mad-lime text-mad-black"
               : "bg-mad-white text-mad-black hover:bg-mad-lime/50"
@@ -196,7 +205,7 @@ export function MultiChannelScheduler({
             disabled={locked}
             aria-pressed={slot.enabled}
             className={cn(
-              "inline-flex items-center gap-1 border-2 border-mad-black px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase disabled:opacity-40",
+              "inline-flex items-center gap-1.5 border-2 border-mad-black px-2.5 py-1.5 font-typewriter text-xs font-bold tracking-wide uppercase disabled:opacity-40",
               slot.enabled
                 ? "bg-mad-black text-mad-white"
                 : "bg-mad-white text-neutral-500 hover:bg-mad-lime/50 hover:text-mad-black"
@@ -204,12 +213,12 @@ export function MultiChannelScheduler({
           >
             <span
               className={cn(
-                "flex size-3 items-center justify-center border",
+                "flex size-3.5 items-center justify-center border",
                 slot.enabled ? "border-mad-lime bg-mad-lime" : "border-neutral-400"
               )}
             >
               {slot.enabled ? (
-                <Check className="size-2.5 text-mad-black" strokeWidth={3} />
+                <Check className="size-3 text-mad-black" strokeWidth={3} />
               ) : null}
             </span>
             {CHANNEL_META[slot.channel].label}
@@ -219,20 +228,23 @@ export function MultiChannelScheduler({
 
       <div
         className={cn(
-          "flex flex-wrap items-center gap-2 border border-dashed border-mad-black/40 bg-mad-lime/10 px-2",
-          wizardLayout ? "py-1" : "py-1.5"
+          "flex flex-wrap items-center gap-2 border border-dashed border-mad-black/40 bg-mad-lime/10 px-3",
+          wizardLayout ? "shrink-0 py-2.5" : "py-1.5"
         )}
       >
         <button
           type="button"
           onClick={() => onPlanChange(applyBrainTiming(plan))}
           disabled={locked || enabled.length === 0}
-          className="border-2 border-mad-black bg-mad-lime px-2.5 py-1 font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-black uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-lime disabled:opacity-40"
+          className={cn(
+            "border-2 border-mad-black bg-mad-lime font-typewriter font-bold tracking-wide text-mad-black uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-lime disabled:opacity-40",
+            wizardLayout ? "px-3 py-2 text-xs" : "px-2.5 py-1 text-[0.6rem]"
+          )}
         >
           ⚡ Apply Optimal Brain Timing
         </button>
         {wizardLayout ? (
-          <p className="min-w-0 flex-1 font-typewriter text-[0.5rem] text-neutral-600 normal-case">
+          <p className="min-w-0 flex-1 font-typewriter text-xs leading-relaxed text-neutral-600 normal-case">
             Staggers channels to Brain audience windows.
           </p>
         ) : (
@@ -251,10 +263,9 @@ export function MultiChannelScheduler({
       ) : (
         <ul
           className={cn(
-            "border border-mad-black/25",
             wizardLayout
-              ? "grid grid-cols-1 gap-px bg-mad-black/15 xl:grid-cols-2 2xl:grid-cols-3"
-              : "divide-y divide-mad-black/15"
+              ? "flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto border border-mad-black/25"
+              : "divide-y divide-mad-black/25 border border-mad-black/25"
           )}
         >
           {enabled.map((slot) => {
@@ -264,17 +275,27 @@ export function MultiChannelScheduler({
               <li
                 key={slot.channel}
                 className={cn(
-                  "grid bg-mad-white px-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center",
+                  "grid bg-mad-white sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center",
                   wizardLayout
-                    ? "gap-1.5 border border-mad-black/10 py-1.5"
-                    : "gap-2 py-2"
+                    ? "min-h-[3.25rem] flex-1 gap-2 border border-mad-black/10 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                    : "gap-2 px-2 py-2"
                 )}
               >
                 <div className="min-w-0">
-                  <p className="font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-black uppercase">
+                  <p
+                    className={cn(
+                      "font-typewriter font-bold tracking-wide text-mad-black uppercase",
+                      wizardLayout ? "text-sm" : "text-[0.6rem]"
+                    )}
+                  >
                     {CHANNEL_META[slot.channel].label}
                   </p>
-                  <p className="truncate font-typewriter text-[0.5rem] text-neutral-600 normal-case">
+                  <p
+                    className={cn(
+                      "truncate font-typewriter text-neutral-600 normal-case",
+                      wizardLayout ? "mt-0.5 text-xs" : "text-[0.5rem]"
+                    )}
+                  >
                     {slot.demographicTag}
                     <span
                       className={cn(
@@ -315,7 +336,12 @@ export function MultiChannelScheduler({
                   onChange={(event) => setTime(slot.channel, event.target.value)}
                   disabled={locked || slot.mode === "immediate"}
                   aria-label={`${CHANNEL_META[slot.channel].label} post time`}
-                  className="w-full border-2 border-mad-black bg-mad-white px-1.5 py-1 font-typewriter text-[0.6rem] text-mad-black focus:bg-mad-lime/20 disabled:border-mad-black/30 disabled:text-neutral-400 sm:w-[11.5rem]"
+                  className={cn(
+                    "w-full border-2 border-mad-black bg-mad-white font-typewriter text-mad-black focus:bg-mad-lime/20 disabled:border-mad-black/30 disabled:text-neutral-400",
+                    wizardLayout
+                      ? "px-2.5 py-2 text-sm sm:w-[13rem]"
+                      : "px-1.5 py-1 text-[0.6rem] sm:w-[11.5rem]"
+                  )}
                 />
 
                 <div
@@ -331,7 +357,10 @@ export function MultiChannelScheduler({
                       disabled={locked}
                       aria-pressed={slot.mode === mode}
                       className={cn(
-                        "flex-1 px-2 py-1 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase disabled:opacity-40",
+                        "flex-1 font-typewriter font-bold tracking-wide uppercase disabled:opacity-40",
+                        wizardLayout
+                          ? "px-3 py-2 text-xs"
+                          : "px-2 py-1 text-[0.5rem]",
                         slot.mode === mode
                           ? mode === "immediate"
                             ? "bg-mad-vermillion text-mad-white"

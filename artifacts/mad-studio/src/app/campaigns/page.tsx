@@ -8,7 +8,7 @@ import {
 } from "@/lib/actions"
 import { CampaignsWorkspace } from "@/components/campaigns/campaigns-workspace"
 import { CampaignsToast } from "@/components/campaigns/campaigns-toast"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
@@ -63,23 +63,23 @@ export default async function CampaignsPage({
     : false
 
   return (
-    <div className="flex min-h-svh flex-col bg-mad-white">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeEntity.id}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-        teamSlot={
-          isOrgAdmin && organizationId ? (
-            <TeamInviteModal
-              organizationId={organizationId}
-              entities={entities}
-            />
-          ) : null
-        }
-      />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+    <StudioAppShell
+      className="bg-mad-white"
+      mainClassName="mx-auto w-full max-w-6xl px-4 py-8"
+      entities={entities}
+      activeEntityId={activeEntity.id}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+      teamSlot={
+        isOrgAdmin && organizationId ? (
+          <TeamInviteModal
+            organizationId={organizationId}
+            entities={entities}
+          />
+        ) : null
+      }
+    >
         <Suspense fallback={null}>
           <CampaignsToast />
         </Suspense>
@@ -88,7 +88,6 @@ export default async function CampaignsPage({
           entityName={activeEntity.name}
           programId={params.programId ?? null}
         />
-      </main>
-    </div>
+    </StudioAppShell>
   )
 }

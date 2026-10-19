@@ -22,21 +22,18 @@ export function PageLoader({ load }: { load: () => Promise<ReactNode> }) {
     const bump = () => setRouteKey(currentRouteKey())
     window.addEventListener("popstate", bump)
     window.addEventListener("mad:refresh", bump)
+    // replaceState is deliberately not patched: pages use it to quietly record
+    // state in the URL (e.g. Studio's eid/pack_id), and reloading on it would
+    // remount the page and loop. Real path changes still reload via `pathname`.
     const pushState = history.pushState.bind(history)
-    const replaceState = history.replaceState.bind(history)
     history.pushState = (...args) => {
       pushState(...args)
-      bump()
-    }
-    history.replaceState = (...args) => {
-      replaceState(...args)
       bump()
     }
     return () => {
       window.removeEventListener("popstate", bump)
       window.removeEventListener("mad:refresh", bump)
       history.pushState = pushState
-      history.replaceState = replaceState
     }
   }, [])
 

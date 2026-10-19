@@ -6,7 +6,7 @@ import {
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
 import { listSocialConnections } from "@/lib/actions"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { OutboundWebhookCard } from "@/components/settings/outbound-webhook-card"
 import { SocialConnectionsPanel } from "@/components/settings/social-connections-panel"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
@@ -70,24 +70,23 @@ export default async function SocialSettingsPage({
     .maybeSingle()
 
   return (
-    <div className="flex min-h-svh flex-col bg-mad-white">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeEntity.id}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-        teamSlot={
-          isOrgAdmin && organizationId ? (
-            <TeamInviteModal
-              organizationId={organizationId}
-              entities={entities}
-            />
-          ) : null
-        }
-      />
-
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 py-6">
+    <StudioAppShell
+      className="bg-mad-white"
+      mainClassName="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6"
+      entities={entities}
+      activeEntityId={activeEntity.id}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+      teamSlot={
+        isOrgAdmin && organizationId ? (
+          <TeamInviteModal
+            organizationId={organizationId}
+            entities={entities}
+          />
+        ) : null
+      }
+    >
         <section className="border-b-2 border-mad-black pb-4">
           <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Settings · Social
@@ -120,7 +119,6 @@ export default async function SocialSettingsPage({
           brandName={activeEntity.name}
           initialConnections={connections}
         />
-      </main>
-    </div>
+    </StudioAppShell>
   )
 }

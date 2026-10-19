@@ -2,8 +2,13 @@
 
 import type { ReactNode } from "react"
 
-import { AnchoredPhoneShell } from "@/components/studio/anchored-phone-shell"
+import { StudioLivePreviewDrawer } from "@/components/studio/studio-live-preview-drawer"
 import { cn } from "@/lib/utils"
+
+export type StudioPreviewDrawerState = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
 
 type Props = {
   header?: ReactNode
@@ -11,76 +16,89 @@ type Props = {
   navigationDock?: ReactNode
   channelRail?: ReactNode
   preview: ReactNode
-  /** Media step and similar flows can omit the phone column entirely. */
+  showInlinePreview?: boolean
+  /** @deprecated Use showInlinePreview */
   showPreview?: boolean
+  previewDrawer?: StudioPreviewDrawerState
   lockControlsScroll?: boolean
   className?: string
 }
 
-/** Full-width desktop wizard: controls + channel rail + anchored phone. */
+/** Full-width two-column create: work pane + preview pane edge-to-edge. */
 export function StudioSplitShell({
   header,
   controls,
   navigationDock,
   channelRail,
   preview,
-  showPreview = true,
-  lockControlsScroll = false,
+  showInlinePreview,
+  showPreview = false,
+  previewDrawer,
   className,
 }: Props) {
+  const inlineAllowed = showInlinePreview ?? showPreview
+  const drawerOpen = previewDrawer?.open ?? false
+  const previewInDrawer = drawerOpen
+  /** Desktop: live column stays visible while editing. Drawer is mobile-only. */
+  const previewInline = inlineAllowed
+
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 w-full flex-col overflow-hidden px-2 py-1 sm:px-5 xl:px-8 2xl:px-10",
+        "relative flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden bg-neutral-100",
         className
       )}
     >
-      {header ? <div className="mb-1 shrink-0 min-w-0">{header}</div> : null}
+      {header ? <div className="w-full shrink-0">{header}</div> : null}
 
-      {showPreview ? (
-        <div className="flex shrink-0 flex-col items-center gap-2 pb-3 lg:hidden">
-          {channelRail}
-          <div className="w-full max-w-[min(100%,360px)]">
-            <AnchoredPhoneShell className="max-w-[360px]">
-              {preview}
-            </AnchoredPhoneShell>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-4 lg:grid-cols-12 lg:gap-6 xl:gap-8">
-        <div
-          className={cn(
-            "flex min-h-0 min-w-0 flex-col",
-            showPreview
-              ? "lg:col-span-8 xl:col-span-9 2xl:col-span-9"
-              : "lg:col-span-12"
-          )}
-        >
-          <div
-            className={cn(
-              "min-h-0 flex-1 overflow-x-hidden pr-0 lg:pr-3",
-              lockControlsScroll ? "overflow-hidden" : "overflow-y-auto"
-            )}
-          >
-            {controls}
+      <div
+        className={cn(
+          "grid min-h-0 w-full flex-1 grid-cols-1 overflow-hidden",
+          previewInline &&
+            "lg:grid-cols-[minmax(0,1fr)_minmax(300px,min(28rem,36vw))] xl:grid-cols-[minmax(0,1fr)_minmax(320px,min(30rem,34vw))]"
+        )}
+      >
+        <div className="flex min-h-0 min-w-0 w-full flex-col overflow-hidden bg-[#f4f3f0] lg:border-r lg:border-neutral-200/90">
+          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 py-2 sm:px-5 lg:px-5 xl:px-6">
+            <div className="flex h-full min-h-0 w-full flex-1 flex-col">
+              {controls}
+            </div>
           </div>
           {navigationDock ? (
-            <div className="mt-2 shrink-0 border-t border-mad-black/15 pt-2">
-              {navigationDock}
+            <div className="w-full shrink-0 border-t border-neutral-200/90 bg-white/90 px-4 py-2.5 backdrop-blur-sm sm:px-5 lg:px-5 xl:px-6">
+              <div className="w-full min-w-0">{navigationDock}</div>
             </div>
           ) : null}
         </div>
 
-        {showPreview ? (
-          <div className="hidden min-h-0 lg:col-span-4 lg:flex xl:col-span-3 2xl:col-span-3">
-            <div className="sticky top-12 flex max-h-[calc(100dvh-9.5rem)] w-full items-start justify-end gap-2 xl:gap-3">
-              {channelRail}
-              <AnchoredPhoneShell>{preview}</AnchoredPhoneShell>
+        {previewInline ? (
+          <div className="hidden min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-neutral-200/80 bg-neutral-50/90 lg:flex">
+            <div className="flex h-full min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 overflow-hidden px-2 py-2 lg:px-3">
+              <p className="shrink-0 text-[11px] font-medium tracking-wide text-neutral-500 uppercase">
+                Live preview
+              </p>
+              <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                {preview}
+              </div>
+              {channelRail ? (
+                <div className="flex w-full shrink-0 justify-center pb-1">
+                  {channelRail}
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
       </div>
+
+      {previewDrawer && drawerOpen ? (
+        <StudioLivePreviewDrawer
+          open
+          onClose={() => previewDrawer.onOpenChange(false)}
+          channelRail={channelRail}
+        >
+          {previewInDrawer ? preview : null}
+        </StudioLivePreviewDrawer>
+      ) : null}
     </div>
   )
 }

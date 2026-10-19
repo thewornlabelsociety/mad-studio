@@ -444,9 +444,7 @@ export function normalizeCanvasTextOverlay(
 
     shadow: (str("shadow", "hard") as CanvasTextShadow) || "hard",
 
-    highlight: (str("highlight", "black_pill") as CanvasTextHighlight) ||
-
-      "black_pill",
+    highlight: "none",
 
     animation,
 
@@ -929,14 +927,15 @@ export function canvasTextShadowClass(shadow: CanvasTextShadow): string {
 
 
 
+/** Wraps the whole text block — use on container, not each line. */
 export function canvasTextHighlightClass(highlight: CanvasTextHighlight): string {
   switch (highlight) {
     case "black_pill":
-      return "rounded-md bg-black/60 px-3 py-1"
+      return "w-fit max-w-full rounded-md bg-black/60 px-2 py-1"
     case "brand_pill":
-      return "rounded-sm bg-[#CCFF00] px-2 py-0.5 text-black"
+      return "w-fit max-w-full rounded-sm bg-[#CCFF00] px-2 py-0.5 text-black"
     default:
-      return "bg-transparent"
+      return ""
   }
 }
 

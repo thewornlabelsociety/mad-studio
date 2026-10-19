@@ -6,7 +6,7 @@ import {
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
 import { EntitySetupWizard } from "@/components/entities/entity-setup-wizard"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
@@ -46,23 +46,22 @@ export default async function NewEntityPage() {
   }
 
   return (
-    <div className="bg-background flex min-h-svh flex-col">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeEntityId}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-        teamSlot={
-          <TeamInviteModal
-            organizationId={organizationId}
-            entities={entities}
-          />
-        }
-      />
-      <main className="flex-1 px-4 py-10">
-        <EntitySetupWizard organizationId={organizationId} />
-      </main>
-    </div>
+    <StudioAppShell
+      className="bg-background"
+      mainClassName="px-4 py-10"
+      entities={entities}
+      activeEntityId={activeEntityId}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+      teamSlot={
+        <TeamInviteModal
+          organizationId={organizationId}
+          entities={entities}
+        />
+      }
+    >
+      <EntitySetupWizard organizationId={organizationId} />
+    </StudioAppShell>
   )
 }

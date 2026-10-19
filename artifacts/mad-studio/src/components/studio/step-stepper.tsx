@@ -164,6 +164,10 @@ type StepDockProps = {
   onConfirmArm?: () => void
   confirmArmBusy?: boolean
   confirmArmDisabled?: boolean
+  previewDrawerOpen?: boolean
+  onTogglePreviewDrawer?: () => void
+  /** Hide Preview toggle when inline live preview is shown (lg+). */
+  hidePreviewToggleOnWide?: boolean
   className?: string
 }
 
@@ -180,6 +184,9 @@ export function StepDock({
   onConfirmArm,
   confirmArmBusy = false,
   confirmArmDisabled = false,
+  previewDrawerOpen = false,
+  onTogglePreviewDrawer,
+  hidePreviewToggleOnWide = false,
   className,
 }: StepDockProps) {
   const primary =
@@ -187,42 +194,54 @@ export function StepDock({
     (step === WORKBENCH_STEP_CHANNELS ? "Confirm & publish" : "Continue")
 
   return (
-    <div
-      className={cn(
-        "sticky bottom-0 z-40 border-t border-mad-black/20 bg-mad-white/95 backdrop-blur-sm",
-        className
-      )}
-    >
-      <div className="flex w-full items-center justify-between gap-3 py-2">
-
-        <button
-          type="button"
-          onClick={() => {
-            onBack()
-            window.scrollTo({ top: 0, behavior: "smooth" })
-          }}
-          disabled={step <= WORKBENCH_STEP_MEDIA}
-          className="border border-mad-black/30 bg-mad-white px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase hover:border-mad-black hover:bg-mad-lime/40 disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          Back
-        </button>
+    <div className={cn("w-full", className)}>
+      <div className="flex w-full flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              onBack()
+              window.scrollTo({ top: 0, behavior: "smooth" })
+            }}
+            disabled={step <= WORKBENCH_STEP_MEDIA}
+            className="text-sm font-medium text-neutral-600 underline-offset-4 hover:text-mad-black hover:underline disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            Back
+          </button>
+          {onTogglePreviewDrawer ? (
+            <button
+              type="button"
+              onClick={onTogglePreviewDrawer}
+              className={cn(
+                "rounded-full border px-3.5 py-1.5 text-xs font-medium tracking-wide",
+                hidePreviewToggleOnWide && "lg:hidden",
+                previewDrawerOpen
+                  ? "border-mad-black bg-mad-black text-white"
+                  : "border-neutral-300 bg-white text-neutral-800 hover:border-neutral-500"
+              )}
+              aria-pressed={previewDrawerOpen}
+            >
+              {previewDrawerOpen ? "Preview open" : "Preview"}
+            </button>
+          ) : null}
+        </div>
         {showScheduleActions ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => onSaveDraft?.()}
               disabled={saveDraftBusy || confirmArmBusy}
-              className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime disabled:opacity-40"
+              className="rounded-sm border border-neutral-300 bg-white px-4 py-2.5 text-xs font-medium tracking-wide text-mad-black uppercase hover:bg-neutral-50 disabled:opacity-40"
             >
-              {saveDraftBusy ? "Saving…" : "💾 Save Draft"}
+              {saveDraftBusy ? "Saving…" : "Save draft"}
             </button>
             <button
               type="button"
               onClick={() => onConfirmArm?.()}
               disabled={confirmArmDisabled || confirmArmBusy || saveDraftBusy}
-              className="inline-flex min-w-[10rem] items-center justify-center border-2 border-mad-black bg-mad-black px-4 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
+              className="inline-flex min-w-[10rem] items-center justify-center rounded-sm bg-mad-black px-5 py-2.5 text-xs font-medium tracking-wide text-white uppercase hover:bg-neutral-800 disabled:opacity-40"
             >
-              {confirmArmBusy ? "Arming…" : "🚀 Confirm & Publish / Arm"}
+              {confirmArmBusy ? "Arming…" : "Confirm & publish"}
             </button>
           </div>
         ) : (
@@ -233,7 +252,7 @@ export function StepDock({
               window.scrollTo({ top: 0, behavior: "smooth" })
             }}
             disabled={nextDisabled || nextBusy}
-            className="inline-flex min-w-[8.5rem] items-center justify-center border-2 border-mad-black bg-mad-black px-4 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
+            className="inline-flex min-w-[9rem] items-center justify-center rounded-sm bg-mad-black px-6 py-2.5 text-xs font-medium tracking-[0.12em] text-white uppercase hover:bg-neutral-800 disabled:opacity-40"
           >
             {nextBusy ? "Working…" : primary}
           </button>

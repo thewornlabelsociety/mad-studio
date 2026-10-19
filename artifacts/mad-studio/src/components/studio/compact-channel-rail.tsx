@@ -13,6 +13,8 @@ const EXTRA_CHANNELS: SimulatorPlatform[] = ["tiktok", "email"]
 type Props = {
   platform: SimulatorPlatform
   onPlatformChange: (platform: SimulatorPlatform) => void
+  /** Vertical pill beside preview (legacy) vs row under the phone. */
+  placement?: "side" | "below"
   className?: string
 }
 
@@ -43,11 +45,11 @@ function ChannelButtons({
             aria-pressed={active}
             onClick={() => onPlatformChange(id)}
             className={cn(
-              "flex items-center justify-center border-2 border-mad-black transition",
-              layout === "vertical" ? "size-10" : "size-9 shrink-0",
+              "flex items-center justify-center rounded-full border transition",
+              layout === "vertical" ? "size-9" : "size-8 shrink-0",
               active
-                ? "bg-mad-black text-mad-white"
-                : "bg-mad-white text-mad-black hover:bg-mad-lime"
+                ? "border-mad-black bg-mad-black text-mad-white shadow-sm"
+                : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"
             )}
           >
             <PlatformChannelIcon platform={id} />
@@ -61,14 +63,33 @@ function ChannelButtons({
 export function CompactChannelRail({
   platform,
   onPlatformChange,
+  placement = "side",
   className,
 }: Props) {
+  if (placement === "below") {
+    return (
+      <nav
+        aria-label="Preview channel"
+        className={cn(
+          "flex w-full max-w-[min(100%,400px)] shrink-0 flex-row flex-wrap items-center justify-center gap-1.5 rounded-full border border-neutral-200/90 bg-white/90 p-2 shadow-sm",
+          className
+        )}
+      >
+        <ChannelButtons
+          platform={platform}
+          onPlatformChange={onPlatformChange}
+          layout="horizontal"
+        />
+      </nav>
+    )
+  }
+
   return (
     <>
       <nav
         aria-label="Preview channel"
         className={cn(
-          "hidden shrink-0 flex-col gap-1 border-2 border-mad-black bg-mad-white p-1.5 shadow-keycap-sm lg:flex",
+          "hidden shrink-0 flex-col gap-1.5 rounded-full border border-neutral-200/90 bg-white/90 p-2 shadow-sm lg:flex",
           className
         )}
       >
@@ -81,7 +102,7 @@ export function CompactChannelRail({
       <nav
         aria-label="Preview channel"
         className={cn(
-          "flex shrink-0 flex-row flex-wrap justify-center gap-1 border-2 border-mad-black bg-mad-white p-1 shadow-keycap-sm lg:hidden",
+          "flex shrink-0 flex-row flex-wrap justify-center gap-1.5 rounded-full border border-neutral-200/90 bg-white/90 p-2 shadow-sm lg:hidden",
           className
         )}
       >

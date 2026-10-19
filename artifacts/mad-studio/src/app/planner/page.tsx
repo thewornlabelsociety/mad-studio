@@ -5,7 +5,7 @@ import {
   getActiveOrganizationId,
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { PlannerWorkspace } from "@/components/planner/planner-workspace"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import { createClient } from "@/lib/supabase/client"
@@ -54,25 +54,24 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
     : false
 
   return (
-    <div className="flex min-h-svh flex-col bg-mad-white">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeEntity.id}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-        teamSlot={
-          isOrgAdmin && organizationId ? (
-            <TeamInviteModal
-              organizationId={organizationId}
-              entities={entities}
-            />
-          ) : null
-        }
-      />
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <PlannerWorkspace entityId={activeEntity.id} />
-      </main>
-    </div>
+    <StudioAppShell
+      className="bg-mad-white"
+      mainClassName="flex min-h-0 flex-col overflow-hidden"
+      entities={entities}
+      activeEntityId={activeEntity.id}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+      teamSlot={
+        isOrgAdmin && organizationId ? (
+          <TeamInviteModal
+            organizationId={organizationId}
+            entities={entities}
+          />
+        ) : null
+      }
+    >
+      <PlannerWorkspace entityId={activeEntity.id} />
+    </StudioAppShell>
   )
 }

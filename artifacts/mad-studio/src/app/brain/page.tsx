@@ -6,7 +6,7 @@ import {
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
 import { BrainLab } from "@/components/brain/brain-lab"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import type {
   BrainDocument,
@@ -107,30 +107,29 @@ export default async function BrainPage({ searchParams }: BrainPageProps) {
     }))
 
   return (
-    <div className="flex min-h-svh flex-col bg-mad-white">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={entity.id}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-        teamSlot={
-          isOrgAdmin && organizationId ? (
-            <TeamInviteModal
-              organizationId={organizationId}
-              entities={entities}
-            />
-          ) : null
-        }
+    <StudioAppShell
+      className="bg-mad-white"
+      mainClassName="mx-auto w-full max-w-6xl px-4 py-8"
+      entities={entities}
+      activeEntityId={entity.id}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+      teamSlot={
+        isOrgAdmin && organizationId ? (
+          <TeamInviteModal
+            organizationId={organizationId}
+            entities={entities}
+          />
+        ) : null
+      }
+    >
+      <BrainLab
+        entity={entity}
+        documents={(documents ?? []) as BrainDocument[]}
+        quotes={(quotes ?? []) as BrainQuote[]}
+        takeaways={takeaways}
       />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        <BrainLab
-          entity={entity}
-          documents={(documents ?? []) as BrainDocument[]}
-          quotes={(quotes ?? []) as BrainQuote[]}
-          takeaways={takeaways}
-        />
-      </main>
-    </div>
+    </StudioAppShell>
   )
 }

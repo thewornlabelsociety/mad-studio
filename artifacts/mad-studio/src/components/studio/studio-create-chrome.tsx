@@ -1,0 +1,109 @@
+"use client"
+
+import {
+  STUDIO_WIZARD_STEPS,
+  type WorkbenchFlowStep,
+} from "@/lib/studio/workbench-steps"
+import { studioWizardSopForStep } from "@/lib/studio/studio-wizard-sop"
+import { StudioWizardSopHover } from "@/components/studio/studio-wizard-sop-tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
+
+type Props = {
+  brandName: string
+  step: WorkbenchFlowStep
+  onStepChange?: (step: WorkbenchFlowStep) => void
+}
+
+export function StudioCreateChrome({
+  brandName,
+  step,
+  onStepChange,
+}: Props) {
+  const stepRow = STUDIO_WIZARD_STEPS.find((row) => row.id === step)
+  const stepIndex =
+    STUDIO_WIZARD_STEPS.findIndex((row) => row.id === step) + 1
+  const stepLabel = stepRow?.label ?? "Create"
+
+  return (
+    <TooltipProvider delayDuration={250}>
+      <div className="relative w-full shrink-0 border-b border-neutral-200 bg-white px-4 py-1.5 lg:px-6 lg:py-2">
+        <p
+          className="absolute right-4 top-2 font-serif text-sm tabular-nums text-neutral-400 lg:right-6"
+          aria-label={`Step ${stepIndex} of ${STUDIO_WIZARD_STEPS.length}`}
+        >
+          {String(stepIndex).padStart(2, "0")} /{" "}
+          {String(STUDIO_WIZARD_STEPS.length).padStart(2, "0")}
+        </p>
+
+        <div className="flex flex-col gap-2 pr-14 sm:flex-row sm:items-center sm:gap-4 lg:gap-6 lg:pr-16">
+          <div className="min-w-0 shrink-0 sm:max-w-[9rem] lg:max-w-[11rem]">
+            <p className="truncate text-[10px] font-medium tracking-[0.18em] text-neutral-500 uppercase">
+              {brandName}
+            </p>
+            <h1 className="brand-typewriter truncate text-lg leading-tight text-mad-black lg:text-xl">
+              {stepLabel}
+            </h1>
+          </div>
+
+          <nav
+            aria-label="Studio steps"
+            className="min-w-0 w-full flex-1 overflow-hidden"
+          >
+            <ol className="flex w-full items-center justify-between gap-0.5 sm:gap-1">
+              {STUDIO_WIZARD_STEPS.map((item, index) => {
+                const active = step === item.id
+                const complete = step > item.id
+                const itemSop = studioWizardSopForStep(item.id)
+                const tab = (
+                  <button
+                    type="button"
+                    disabled={!onStepChange}
+                    onClick={() => {
+                      onStepChange?.(item.id)
+                      window.scrollTo({ top: 0, behavior: "smooth" })
+                    }}
+                    className={cn(
+                      "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-0.5 py-1 transition-colors sm:px-1",
+                      !onStepChange && "cursor-default",
+                      active
+                        ? "text-mad-black"
+                        : "text-neutral-400 hover:text-neutral-700"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums sm:size-7 sm:text-[11px]",
+                        active
+                          ? "bg-mad-black text-white"
+                          : complete
+                            ? "bg-neutral-200 text-neutral-700"
+                            : "bg-neutral-100 text-neutral-400"
+                      )}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="hidden truncate text-[11px] font-medium lg:inline xl:text-xs">
+                      {item.label}
+                    </span>
+                  </button>
+                )
+                return (
+                  <li key={item.id} className="flex min-w-0 flex-1">
+                    {itemSop ? (
+                      <StudioWizardSopHover sop={itemSop} side="bottom">
+                        {tab}
+                      </StudioWizardSopHover>
+                    ) : (
+                      tab
+                    )}
+                  </li>
+                )
+              })}
+            </ol>
+          </nav>
+        </div>
+      </div>
+    </TooltipProvider>
+  )
+}

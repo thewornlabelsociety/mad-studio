@@ -22,7 +22,7 @@ import { IntentMatrix } from "@/components/studio/intent-matrix"
 import { PackResultsEditor } from "@/components/studio/pack-results-editor"
 import { CompactChannelRail } from "@/components/studio/compact-channel-rail"
 import { StepDock, type WorkbenchStepId } from "@/components/studio/step-stepper"
-import { StudioInnerStepper } from "@/components/studio/studio-inner-stepper"
+import { StudioCreateChrome } from "@/components/studio/studio-create-chrome"
 import { StudioSplitShell } from "@/components/studio/studio-split-shell"
 import { StudioStepSummary } from "@/components/studio/studio-step-summary"
 import {
@@ -57,6 +57,11 @@ import { StepCustomize } from "@/components/studio/steps/step-customize"
 import { StepMedia } from "@/components/studio/steps/step-media"
 import type { PostIntentState } from "@/lib/inventory/post-intent"
 import { stripDuplicateHookFromCaption } from "@/lib/inventory/sop"
+import { OptimizationTagsEditor } from "@/components/inventory/optimization-tags-editor"
+import {
+  buildStudioOptimizationTags,
+  mergeCaptionWithTags,
+} from "@/lib/inventory/optimization-tags"
 import type { MediaKind } from "@/lib/media/kind"
 import { Button } from "@/components/ui/button"
 import {
@@ -204,6 +209,7 @@ export function StudioWorkspace({
   const [redirectSlugSeed, setRedirectSlugSeed] = useState<string | null>(null)
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false)
+  const [previewDrawerOpen, setPreviewDrawerOpen] = useState(false)
   const [packEditorOpen, setPackEditorOpen] = useState(false)
   const [activeMediaId, setActiveMediaId] = useState<string | null>(null)
   const [attachedImageUrl, setAttachedImageUrl] = useState<string | null>(null)
@@ -229,6 +235,7 @@ export function StudioWorkspace({
   const [storyPreview, setStoryPreview] = useState(DEFAULT_STORY_PREVIEW)
   const [cutoutRequestId, setCutoutRequestId] = useState(0)
   const [workbenchHeadline, setWorkbenchHeadline] = useState("")
+  const [optimizationTags, setOptimizationTags] = useState<string[]>([])
   const [contentPillar, setContentPillar] = useState("")
   const [postIntent, setPostIntent] = useState<PostIntentState>({
     dropKind: null,
@@ -335,6 +342,25 @@ export function StudioWorkspace({
     activeEntity.industry,
     visualInspection,
   ])
+  const suggestedOptimizationTags = useMemo(
+    () =>
+      buildStudioOptimizationTags({
+        brandName: activeEntity.name,
+        industry: activeEntity.industry,
+        listingVibe: postIntent.listingVibe || null,
+        titleHint: workbenchHeadline || rawSpark.slice(0, 80),
+        aestheticSlugs: visualInspection?.aestheticTags ?? [],
+      }),
+    [
+      activeEntity.name,
+      activeEntity.industry,
+      postIntent.listingVibe,
+      workbenchHeadline,
+      rawSpark,
+      visualInspection?.aestheticTags,
+    ]
+  )
+
   const liveRedirectSlugSeed = useMemo(() => {
     if (!isFudi) return null
     return (
@@ -825,7 +851,7 @@ export function StudioWorkspace({
       campaignTitle: formulaSlots.item.trim() || undefined,
     })
 
-    setPack(nextPack)
+    setPack(withStudioTags(nextPack))
     setCampaignId(null)
     setRedirectSlugSeed(
       isFudi ? buildFudiRedirectSlugSeed(fudiTrack, spark) : null
@@ -834,6 +860,17 @@ export function StudioWorkspace({
     setRestoredAt(null)
     setWorkbenchStep(3)
     toast.success("Formula pack rendered — zero AI tokens.")
+  }
+
+  function withStudioTags(next: CampaignPack): CampaignPack {
+    if (optimizationTags.length === 0) return next
+    return {
+      ...next,
+      seo_caption: {
+        ...next.seo_caption,
+        search_optimized_tags: optimizationTags,
+      },
+    }
   }
 
   async function activateMultiplexer() {
@@ -892,7 +929,7 @@ export function StudioWorkspace({
         payload.redirectSlugSeed ??
         (isFudi ? buildFudiRedirectSlugSeed(fudiTrack, spark) : null)
 
-      setPack(payload.pack)
+      setPack(withStudioTags(payload.pack))
       setCampaignId(nextCampaignId)
       setRedirectSlugSeed(nextSlugSeed)
       if (payload.attachedImageUrl) {
@@ -1164,7 +1201,9 @@ export function StudioWorkspace({
   }, [clearStudioChrome])
 
   const simulatorContent = useMemo(() => {
-    if (pack && showStudio) {
+    const usePackInPreview =
+      Boolean(pack && showStudio && workbenchStep === WORKBENCH_STEP_CHANNELS)
+    if (usePackInPreview && pack) {
       return {
         brandName: activeEntity.name,
         headline:
@@ -1183,13 +1222,17 @@ export function StudioWorkspace({
         emailPreview: pack.email_drop.preview_text,
       }
     }
+    const captionBody = rawSpark.trim()
+    const headlineLine =
+      workbenchHeadline.trim() ||
+      captionBody.split(/\n/)[0]?.trim().slice(0, 120) ||
+      activeEntity.name
     return {
       brandName: activeEntity.name,
-      headline:
-        workbenchHeadline.trim().slice(0, 120) ||
-        rawSpark.trim().slice(0, 120) ||
-        activeEntity.name,
-      caption: rawSpark.trim() || "",
+      headline: headlineLine,
+      caption:
+        mergeCaptionWithTags(captionBody || headlineLine, optimizationTags) ||
+        headlineLine,
       imageUrl:
         studioMediaUrl && /^https?:\/\//i.test(studioMediaUrl)
           ? studioMediaUrl
@@ -1200,9 +1243,11 @@ export function StudioWorkspace({
     pack,
     rawSpark,
     workbenchHeadline,
+    optimizationTags,
     showStudio,
     simPlatform,
     studioMediaUrl,
+    workbenchStep,
   ])
 
   const mediaPreviewUrl =
@@ -1276,6 +1321,20 @@ export function StudioWorkspace({
         onCtaIdChange={setFormulaCtaId}
         textOverlay={textOverlay}
         onTextOverlayChange={setTextOverlay}
+        tagsSlot={
+          phase === "copy" ? (
+            <OptimizationTagsEditor
+              entityId={activeEntity.id}
+              tags={optimizationTags}
+              suggestedTags={suggestedOptimizationTags}
+              headline={workbenchHeadline}
+              caption={rawSpark}
+              listingVibe={postIntent.listingVibe || null}
+              visualDescription={visualInspection?.visualDescription ?? null}
+              onTagsChange={setOptimizationTags}
+            />
+          ) : null
+        }
         isVideoPreview={activeMedia?.type === "video"}
         visualDescription={visualInspection?.visualDescription ?? null}
         visualInspection={visualInspection}
@@ -1323,29 +1382,18 @@ export function StudioWorkspace({
             </div>
           ) : null
         }
-        footerSlot={
-          phase === "copy" ? (
-            <FormulaBankPanel
-              entity={activeEntity}
-              spark={rawSpark}
-              hookId={formulaHookId}
-              visualId={formulaVisualId}
-              ctaId={formulaCtaId}
-              onHookIdChange={setFormulaHookId}
-              onVisualIdChange={setFormulaVisualId}
-              onCtaIdChange={setFormulaCtaId}
-              slots={formulaSlots}
-              onSlotsChange={setFormulaSlots}
-            />
-          ) : null
-        }
+        footerSlot={null}
       />
     )
   }
 
   const studioHeader = (
     <>
-      <StudioInnerStepper step={workbenchStep} onStepChange={setWorkbenchStep} />
+      <StudioCreateChrome
+        brandName={activeEntity.name}
+        step={workbenchStep}
+        onStepChange={setWorkbenchStep}
+      />
       {systemError ? (
         <div
           className="mt-2 border-2 border-mad-black bg-mad-vermillion px-3 py-2 text-sm font-bold text-mad-white shadow-keycap"
@@ -1367,18 +1415,18 @@ export function StudioWorkspace({
           : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden max-lg:overflow-y-auto lg:overflow-hidden">
+    <div className="flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden">
       <StudioSplitShell
         className="min-h-0 flex-1"
-        showPreview={workbenchStep !== WORKBENCH_STEP_MEDIA}
-        lockControlsScroll={
-          workbenchStep === WORKBENCH_STEP_CHANNELS &&
-          showStudio &&
-          !packEditorOpen
-        }
+        showInlinePreview
+        previewDrawer={{
+          open: previewDrawerOpen,
+          onOpenChange: setPreviewDrawerOpen,
+        }}
         header={studioHeader}
         channelRail={
           <CompactChannelRail
+            placement="below"
             platform={simPlatform}
             onPlatformChange={setSimPlatform}
           />
@@ -1416,12 +1464,18 @@ export function StudioWorkspace({
             onConfirmArm={onArmPack}
             confirmArmBusy={arming}
             confirmArmDisabled={pending && !arming}
+            previewDrawerOpen={previewDrawerOpen}
+            hidePreviewToggleOnWide
+            onTogglePreviewDrawer={() =>
+              setPreviewDrawerOpen((open) => !open)
+            }
           />
         }
         preview={
           <MultiPlatformSimulator
             lockedViewport
             compact
+            fluidViewport
             content={simulatorContent}
             activeMedia={activeMedia}
             carouselMedia={mediaAssets}
@@ -1452,30 +1506,23 @@ export function StudioWorkspace({
           />
         }
         controls={
-          <div className="space-y-2">
-        {priorSummaryStep === WORKBENCH_STEP_MEDIA ? (
-          <StudioStepSummary
-            title="Media attached"
-            summary={mediaStepSummary}
-            previewUrl={mediaPreviewUrl}
-            editLabel="✏ Change media"
-            onEdit={() => setWorkbenchStep(WORKBENCH_STEP_MEDIA)}
-          />
-        ) : null}
-        {priorSummaryStep === WORKBENCH_STEP_INTENT ? (
-          <StudioStepSummary
-            title="Intent"
-            summary={intentStepSummary}
-            onEdit={() => setWorkbenchStep(WORKBENCH_STEP_INTENT)}
-          />
-        ) : null}
-        {priorSummaryStep === WORKBENCH_STEP_CANVAS ? (
-          <StudioStepSummary
-            title="Canvas"
-            summary={canvasStepSummary}
-            onEdit={() => setWorkbenchStep(WORKBENCH_STEP_CANVAS)}
-          />
-        ) : null}
+          <div className="flex h-full min-h-0 flex-1 flex-col gap-2">
+            {priorSummaryStep === WORKBENCH_STEP_INTENT &&
+            workbenchStep !== WORKBENCH_STEP_CANVAS ? (
+              <StudioStepSummary
+                title="Intent"
+                summary={intentStepSummary}
+                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_INTENT)}
+              />
+            ) : null}
+            {priorSummaryStep === WORKBENCH_STEP_CANVAS ? (
+              <StudioStepSummary
+                title="Canvas"
+                summary={canvasStepSummary}
+                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_CANVAS)}
+              />
+            ) : null}
+            <div className="flex min-h-0 flex-1 flex-col">
         {workbenchStep === WORKBENCH_STEP_MEDIA ? (
           <StepMedia
             entityId={activeEntity.id}
@@ -1513,13 +1560,25 @@ export function StudioWorkspace({
           : null}
 
         {workbenchStep === WORKBENCH_STEP_CHANNELS ? (
-          <div className="min-w-0 space-y-2">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
             {!showStudio ? (
-              <section className="border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <section className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto rounded-lg border border-neutral-200/80 bg-white p-5 shadow-sm md:p-6">
+                <FormulaBankPanel
+                  entity={activeEntity}
+                  spark={rawSpark}
+                  hookId={formulaHookId}
+                  visualId={formulaVisualId}
+                  ctaId={formulaCtaId}
+                  onHookIdChange={setFormulaHookId}
+                  onVisualIdChange={setFormulaVisualId}
+                  onCtaIdChange={setFormulaCtaId}
+                  slots={formulaSlots}
+                  onSlotsChange={setFormulaSlots}
+                />
+                <div className="grid gap-3 border-t border-neutral-100 pt-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                   <div>
-                    <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-                      Schedule · Generate pack
+                    <p className="text-[11px] font-medium tracking-[0.16em] text-mad-vermillion uppercase">
+                      Generate pack
                     </p>
                     <p className="mt-1 text-sm leading-relaxed text-neutral-600">
                       Formula render ($0) or full AI when you need a custom pass.
@@ -1558,6 +1617,7 @@ export function StudioWorkspace({
 
             {showStudio && pack && dispatchPlan ? (
               <MultiChannelScheduler
+                className="flex h-full min-h-0 flex-1 flex-col"
                 plan={dispatchPlan}
                 onPlanChange={setDispatchPlan}
                 onSaveDraft={() => runSave("draft")}
@@ -1567,9 +1627,9 @@ export function StudioWorkspace({
                 hideFooterActions
                 wizardLayout
                 topBanner={
-                  <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-b border-mad-black/15 pb-2">
+                  <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 border-b border-mad-black/15 pb-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+                      <p className="font-typewriter text-xs font-bold tracking-widest text-mad-vermillion uppercase">
                         Pack ready
                         {campaignId ? (
                           <span className="ml-2 font-mono font-normal text-neutral-500">
@@ -1577,16 +1637,16 @@ export function StudioWorkspace({
                           </span>
                         ) : null}
                       </p>
-                      <h2 className="line-clamp-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
+                      <h2 className="line-clamp-2 font-typewriter text-base font-bold leading-snug tracking-typewriter-tight text-mad-black uppercase md:text-lg">
                         {pack.campaign_title}
                       </h2>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setPackEditorOpen((open) => !open)}
                         className={cn(
-                          "inline-flex items-center gap-1 border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-widest uppercase",
+                          "inline-flex items-center gap-1 border-2 border-mad-black px-2.5 py-2 font-typewriter text-xs font-bold tracking-widest uppercase",
                           packEditorOpen
                             ? "bg-mad-lime text-mad-black"
                             : "bg-mad-white text-mad-black hover:bg-mad-lime/50"
@@ -1603,7 +1663,7 @@ export function StudioWorkspace({
                       <button
                         type="button"
                         onClick={startNewPack}
-                        className="border-2 border-mad-black bg-mad-white px-2 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime"
+                        className="border-2 border-mad-black bg-mad-white px-2.5 py-2 font-typewriter text-xs font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime"
                       >
                         Start New Pack
                       </button>
@@ -1611,7 +1671,7 @@ export function StudioWorkspace({
                         asChild
                         variant="ghost"
                         size="sm"
-                        className="h-auto rounded-none px-1 py-1.5 font-typewriter text-[0.65rem] uppercase"
+                        className="h-auto rounded-none px-1 py-2 font-typewriter text-xs uppercase"
                       >
                         <Link
                           href={`/campaigns?eid=${encodeURIComponent(activeEntity.id)}`}
@@ -1653,6 +1713,7 @@ export function StudioWorkspace({
             ) : null}
           </div>
         ) : null}
+            </div>
           </div>
         }
       />

@@ -1,10 +1,12 @@
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
-import { Download, Loader2 } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Download, FileText, Loader2, Smartphone } from "lucide-react"
 import { toast } from "sonner"
 
+import { PromoPlatformPreview } from "@/components/social-creative/promo-platform-preview"
 import { WornLabelPromoLayout } from "@/components/social-creative/worn-label-promo-layout"
+import { WornLabelPromoPrintLayout } from "@/components/social-creative/worn-label-promo-print-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,14 +17,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { exportPromoPdf } from "@/lib/social-creative/export-promo-pdf"
 import { exportPromoPng } from "@/lib/social-creative/export-promo-png"
-import { defaultWornLabelDotSpecialConfig } from "@/lib/social-creative/resolve-entity-type"
 import {
-  WORN_LABEL_TAG_COLORS,
-  WLS_PROMO_THEME,
-} from "@/lib/social-creative/worn-label-promo-theme"
+  PROMO_PREVIEW_CHANNELS,
+  promoChannelMeta,
+  type PromoPreviewChannel,
+} from "@/lib/social-creative/promo-preview-channels"
+import { defaultWornLabelDotSpecialConfig } from "@/lib/social-creative/resolve-entity-type"
+import { WORN_LABEL_TAG_COLORS } from "@/lib/social-creative/worn-label-promo-theme"
 import type {
-  AspectRatio,
   DateStyle,
   WornLabelCampaignConfig,
   WornLabelTagColorName,
@@ -42,27 +46,36 @@ const DATE_STYLE_OPTIONS: { id: DateStyle; label: string }[] = [
 
 const DATE_PRESETS = [
   { label: "This weekend", value: "⚡ THIS WEEKEND ONLY" },
-  { label: "Fri–Sun dates", value: "FRI 16 — SUN 18 OCT" },
+  { label: "This week only", value: "THIS WEEK ONLY" },
+  { label: "Today only", value: "TODAY ONLY" },
 ] as const
 
+type PreviewSurface = "social" | "print"
+
 type Props = {
-  initialAspectRatio?: AspectRatio
+  initialAspectRatio?: import("@/types/social-creative").AspectRatio
 }
 
 export function WornLabelPromoBuilder({
   initialAspectRatio = "9:16",
 }: Props) {
+  const [previewSurface, setPreviewSurface] = useState<PreviewSurface>("social")
+  const [channel, setChannel] = useState<PromoPreviewChannel>("instagram_story")
   const [config, setConfig] = useState<WornLabelCampaignConfig>(() =>
     defaultWornLabelDotSpecialConfig(initialAspectRatio)
   )
   const [exporting, setExporting] = useState(false)
-  const exportRef = useRef<HTMLDivElement>(null)
-  const previewWrapRef = useRef<HTMLDivElement>(null)
+  const socialExportRef = useRef<HTMLDivElement>(null)
+  const printExportRef = useRef<HTMLDivElement>(null)
 
-  const previewScale = useMemo(() => {
-    if (config.aspectRatio === "1:1") return 0.72
-    return 0.42
-  }, [config.aspectRatio])
+  const channelMeta = promoChannelMeta(channel)
+
+  useEffect(() => {
+    setConfig((prev) => {
+      if (prev.aspectRatio === channelMeta.aspectRatio) return prev
+      return { ...prev, aspectRatio: channelMeta.aspectRatio }
+    })
+  }, [channelMeta.aspectRatio])
 
   function patch(partial: Partial<WornLabelCampaignConfig>) {
     setConfig((prev) => ({ ...prev, ...partial }))
@@ -75,12 +88,8 @@ export function WornLabelPromoBuilder({
     })
   }
 
-  function setAspectRatio(aspectRatio: AspectRatio) {
-    patch({ aspectRatio })
-  }
-
-  const onExport = useCallback(async () => {
-    const node = exportRef.current
+  const onExportSocial = useCallback(async () => {
+    const node = socialExportRef.current
     if (!node) {
       toast.error("Preview not ready.")
       return
@@ -88,50 +97,116 @@ export function WornLabelPromoBuilder({
     setExporting(true)
     try {
       await exportPromoPng(node, config)
-      toast.success("High-res PNG downloaded (3× retina).")
+      toast.success(`${channelMeta.label} PNG downloaded (3× retina).`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Export failed.")
     } finally {
       setExporting(false)
     }
+  }, [config, channelMeta.label])
+
+  const onExportPrint = useCallback(async () => {
+    const node = printExportRef.current
+    if (!node) {
+      toast.error("Print layout not ready.")
+      return
+    }
+    setExporting(true)
+    try {
+      await exportPromoPdf(node, config)
+      toast.success("A4 print PDF downloaded.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "PDF export failed.")
+    } finally {
+      setExporting(false)
+    }
   }, [config])
+
+  const printPreviewScale = 0.52
 
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,340px)_1fr] lg:gap-8">
       <aside className="space-y-5 border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
         <div>
           <h2 className="font-typewriter text-xs font-bold tracking-wider uppercase">
-            Color dot special
+            Weekly color dot special
           </h2>
           <p className="mt-1 text-xs text-neutral-600">
-            Weekly tag promo — obsidian + champagne gold (isolated from listing
-            story themes).
+            Preview social channels, then switch to A4 print for boutique /
+            office posting.
           </p>
         </div>
 
         <div className="space-y-2">
           <Label className="font-typewriter text-[0.65rem] uppercase">
-            Aspect ratio
+            Preview mode
           </Label>
           <div className="flex gap-2">
-            {(["1:1", "9:16"] as const).map((ratio) => (
-              <Button
-                key={ratio}
-                type="button"
-                variant="outline"
-                className={cn(
-                  "flex-1 rounded-none border-2 font-typewriter text-xs uppercase",
-                  config.aspectRatio === ratio
-                    ? "border-mad-black bg-mad-black text-mad-white"
-                    : "border-mad-black bg-mad-white"
-                )}
-                onClick={() => setAspectRatio(ratio)}
-              >
-                {ratio}
-              </Button>
-            ))}
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "flex-1 gap-1.5 rounded-none border-2 font-typewriter text-[0.6rem] uppercase",
+                previewSurface === "social"
+                  ? "border-mad-black bg-mad-black text-mad-white"
+                  : "border-mad-black bg-mad-white"
+              )}
+              onClick={() => setPreviewSurface("social")}
+            >
+              <Smartphone className="size-3.5" />
+              Social
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "flex-1 gap-1.5 rounded-none border-2 font-typewriter text-[0.6rem] uppercase",
+                previewSurface === "print"
+                  ? "border-mad-black bg-mad-black text-mad-white"
+                  : "border-mad-black bg-mad-white"
+              )}
+              onClick={() => setPreviewSurface("print")}
+            >
+              <FileText className="size-3.5" />
+              A4 print
+            </Button>
           </div>
         </div>
+
+        {previewSurface === "social" ? (
+          <div className="space-y-2">
+            <Label className="font-typewriter text-[0.65rem] uppercase">
+              Channel
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              {PROMO_PREVIEW_CHANNELS.map((row) => (
+                <Button
+                  key={row.id}
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "h-auto min-h-9 rounded-none border-2 px-2 py-2 font-typewriter text-[0.55rem] leading-tight uppercase",
+                    channel === row.id
+                      ? "border-mad-black bg-mad-lime text-mad-black"
+                      : "border-neutral-300 bg-mad-white"
+                  )}
+                  onClick={() => setChannel(row.id)}
+                >
+                  {row.shortLabel}
+                  <span className="mt-0.5 block text-[0.5rem] font-normal normal-case text-neutral-600">
+                    {row.aspectRatio}
+                  </span>
+                </Button>
+              ))}
+            </div>
+            <p className="text-[0.6rem] text-neutral-500">{channelMeta.captionHint}</p>
+          </div>
+        ) : (
+          <p className="rounded border border-neutral-200 bg-neutral-50 p-2 text-[0.65rem] leading-relaxed text-neutral-600">
+            A4 portrait · white flyer · large color dot and bold black type for
+            boutique window / counter posting (not the dark social graphic).
+          </p>
+        )}
 
         <div className="space-y-2">
           <Label className="font-typewriter text-[0.65rem] uppercase">
@@ -243,37 +318,76 @@ export function WornLabelPromoBuilder({
           </Select>
         </div>
 
-        <Button
-          type="button"
-          className="w-full rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-xs uppercase hover:bg-neutral-800"
-          disabled={exporting}
-          onClick={() => void onExport()}
-        >
-          {exporting ? (
-            <Loader2 className="mr-2 size-4 animate-spin" />
-          ) : (
-            <Download className="mr-2 size-4" />
-          )}
-          Download high-res PNG
-        </Button>
+        {previewSurface === "social" ? (
+          <Button
+            type="button"
+            className="w-full rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-xs uppercase hover:bg-neutral-800"
+            disabled={exporting}
+            onClick={() => void onExportSocial()}
+          >
+            {exporting ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 size-4" />
+            )}
+            Download {channelMeta.shortLabel} PNG
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="w-full rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-xs uppercase hover:bg-neutral-800"
+            disabled={exporting}
+            onClick={() => void onExportPrint()}
+          >
+            {exporting ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <FileText className="mr-2 size-4" />
+            )}
+            Download A4 PDF
+          </Button>
+        )}
+
         <p className="text-center text-[0.65rem] text-neutral-500">
-          1080×{config.aspectRatio === "1:1" ? "1080" : "1920"} @ 3× capture
+          {previewSurface === "social"
+            ? `1080×${config.aspectRatio === "1:1" ? "1080" : "1920"} social asset`
+            : "210×297mm print sheet · white background"}
         </p>
       </aside>
 
       <div
-        ref={previewWrapRef}
-        className="flex min-h-[420px] items-start justify-center overflow-auto border-2 border-mad-black p-4"
-        style={{ background: WLS_PROMO_THEME.bg }}
+        className={cn(
+          "flex min-h-[480px] items-start justify-center overflow-auto border-2 border-mad-black p-6",
+          previewSurface === "print" ? "bg-neutral-100" : "bg-neutral-200"
+        )}
       >
-        <div
-          style={{
-            transform: `scale(${previewScale})`,
-            transformOrigin: "top center",
-          }}
-        >
-          <WornLabelPromoLayout ref={exportRef} config={config} />
-        </div>
+        {previewSurface === "social" ? (
+          <PromoPlatformPreview channel={channel} config={config}>
+            <WornLabelPromoLayout config={config} animate />
+          </PromoPlatformPreview>
+        ) : (
+          <div
+            className="shadow-keycap ring-1 ring-black/10"
+            style={{
+              transform: `scale(${printPreviewScale})`,
+              transformOrigin: "top center",
+            }}
+          >
+            <WornLabelPromoPrintLayout config={config} />
+          </div>
+        )}
+      </div>
+
+      <div
+        aria-hidden
+        className="pointer-events-none fixed -left-[10000px] top-0 opacity-0"
+      >
+        <WornLabelPromoLayout
+          ref={socialExportRef}
+          config={config}
+          animate={false}
+        />
+        <WornLabelPromoPrintLayout ref={printExportRef} config={config} />
       </div>
     </div>
   )

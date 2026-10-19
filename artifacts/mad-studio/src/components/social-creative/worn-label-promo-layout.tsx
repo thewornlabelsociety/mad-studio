@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils"
 type Props = {
   config: WornLabelCampaignConfig
   className?: string
+  /** Live preview motion; off for export/print embed */
+  animate?: boolean
 }
 
 function motionClass(motion: WornLabelCampaignConfig["motionStyle"]): string {
@@ -34,7 +36,7 @@ function motionClass(motion: WornLabelCampaignConfig["motionStyle"]): string {
 }
 
 export const WornLabelPromoLayout = forwardRef<HTMLDivElement, Props>(
-  function WornLabelPromoLayout({ config, className }, ref) {
+  function WornLabelPromoLayout({ config, className, animate = true }, ref) {
     const width = PROMO_EXPORT_WIDTH
     const height = promoExportHeight(config.aspectRatio)
     const isStory = config.aspectRatio === "9:16"
@@ -117,7 +119,7 @@ export const WornLabelPromoLayout = forwardRef<HTMLDivElement, Props>(
             <div
               className={cn(
                 "relative w-[88%] max-w-[320px] rounded-2xl px-4 py-4 text-center",
-                motionClass(config.motionStyle)
+                animate ? motionClass(config.motionStyle) : undefined
               )}
               style={{
                 background: `linear-gradient(145deg, ${WLS_PROMO_THEME.surface} 0%, #0c0c0e 100%)`,
@@ -132,27 +134,28 @@ export const WornLabelPromoLayout = forwardRef<HTMLDivElement, Props>(
                   background: `radial-gradient(circle at 50% 30%, ${glow}44 0%, transparent 70%)`,
                 }}
               />
-              <div className="relative flex flex-col items-center gap-2">
-                <div
-                  className="flex items-center gap-2 rounded-full px-2 py-1"
-                  style={{ background: "rgba(0,0,0,0.35)" }}
+              <div className="relative flex flex-col items-center gap-3">
+                <span
+                  className="shrink-0 rounded-full"
+                  style={{
+                    width: isStory ? 72 : 60,
+                    height: isStory ? 72 : 60,
+                    background: config.colorHex,
+                    boxShadow: tag.borderHighlight
+                      ? `0 0 0 3px rgba(255,255,255,0.45), 0 0 28px ${config.colorHex}cc`
+                      : `0 0 0 2px rgba(255,255,255,0.12), 0 0 32px ${config.colorHex}bb`,
+                  }}
+                  aria-hidden
+                />
+                <span
+                  className="font-typewriter font-bold tracking-[0.22em] uppercase"
+                  style={{
+                    color: WLS_PROMO_THEME.champagneGold,
+                    fontSize: isStory ? 7 : 6,
+                  }}
                 >
-                  <span
-                    className="size-3.5 shrink-0 rounded-full"
-                    style={{
-                      background: config.colorHex,
-                      boxShadow: tag.borderHighlight
-                        ? "0 0 0 2px rgba(255,255,255,0.35)"
-                        : `0 0 12px ${config.colorHex}aa`,
-                    }}
-                  />
-                  <span
-                    className="font-typewriter text-[0.5rem] font-bold tracking-[0.2em] uppercase"
-                    style={{ color: WLS_PROMO_THEME.champagneGold }}
-                  >
-                    {config.colorName} TAG
-                  </span>
-                </div>
+                  {config.colorName} TAG
+                </span>
                 <p
                   className="font-bold uppercase leading-none"
                   style={{

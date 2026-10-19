@@ -8,10 +8,18 @@ type DateBadgeProps = {
   label: string
   style: DateStyle
   compact?: boolean
+  /** Light page (A4 print) vs dark promo canvas */
+  variant?: "dark" | "light"
   className?: string
 }
 
-export function DateBadge({ label, style, compact = false, className }: DateBadgeProps) {
+export function DateBadge({
+  label,
+  style,
+  compact = false,
+  variant = "dark",
+  className,
+}: DateBadgeProps) {
   const text = label.trim()
   if (!text) return null
 
@@ -21,15 +29,18 @@ export function DateBadge({ label, style, compact = false, className }: DateBadg
     className
   )
 
+  const gold = WLS_PROMO_THEME.champagneGold
+  const onLight = variant === "light"
+
   switch (style) {
     case "gold_pill":
       return (
         <span
           className={cn(base, "rounded-full px-3 py-1.5")}
           style={{
-            background: WLS_PROMO_THEME.champagneGoldMuted,
-            color: WLS_PROMO_THEME.champagneGold,
-            border: `1px solid ${WLS_PROMO_THEME.champagneGold}`,
+            background: onLight ? "rgba(197, 168, 128, 0.15)" : WLS_PROMO_THEME.champagneGoldMuted,
+            color: onLight ? "#6B5A42" : gold,
+            border: `1px solid ${gold}`,
           }}
         >
           {text}
@@ -40,8 +51,8 @@ export function DateBadge({ label, style, compact = false, className }: DateBadg
         <span
           className={cn(base, "border-2 border-dashed px-3 py-1.5")}
           style={{
-            color: WLS_PROMO_THEME.champagneGold,
-            borderColor: WLS_PROMO_THEME.champagneGold,
+            color: onLight ? "#6B5A42" : gold,
+            borderColor: gold,
             transform: "rotate(-2deg)",
           }}
         >
@@ -54,8 +65,8 @@ export function DateBadge({ label, style, compact = false, className }: DateBadg
           <span
             className={cn(base, "relative z-10 px-4 py-1.5")}
             style={{
-              background: WLS_PROMO_THEME.champagneGold,
-              color: WLS_PROMO_THEME.bg,
+              background: gold,
+              color: onLight ? "#FFFFFF" : WLS_PROMO_THEME.bg,
             }}
           >
             {text}
@@ -75,7 +86,7 @@ export function DateBadge({ label, style, compact = false, className }: DateBadg
       return (
         <span
           className={cn(base, "tracking-[0.2em]")}
-          style={{ color: WLS_PROMO_THEME.champagneGold }}
+          style={{ color: onLight ? "#6B5A42" : gold }}
         >
           {text}
         </span>

@@ -28,6 +28,9 @@ const SELECT_CUSTOM = "__custom__"
 const INTENT_SELECT_TRIGGER =
   "h-9 w-full max-w-full min-w-0 overflow-hidden rounded-none border-2 border-mad-black text-xs shadow-none [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
 
+const INTENT_WIZARD_SELECT_TRIGGER =
+  "h-10 w-full max-w-full min-w-0 overflow-hidden rounded-none border-2 border-mad-black text-sm shadow-none [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
+
 function PostIntentTextField({
   value,
   onValueChange,
@@ -109,6 +112,8 @@ type Props = {
   className?: string
   aiSuggested?: Partial<Record<"dropType" | "listingVibe", boolean>>
   onManualFieldChange?: (field: "dropType" | "listingVibe") => void
+  /** Studio Intent step: tighter layout, larger controls, no helper blurb. */
+  wizardCompact?: boolean
 }
 
 function listingVibeMatchesOption(listingVibe: string, vibeOptions: string[]) {
@@ -130,6 +135,7 @@ export function PostIntentEditor({
   className,
   aiSuggested = {},
   onManualFieldChange,
+  wizardCompact = false,
 }: Props) {
   const [listingCustom, setListingCustom] = useState(
     () =>
@@ -170,26 +176,38 @@ export function PostIntentEditor({
     }
   }, [isFudi, value.channelHint, value.dropKind])
 
+  const selectTrigger = wizardCompact
+    ? INTENT_WIZARD_SELECT_TRIGGER
+    : INTENT_SELECT_TRIGGER
+  const labelClass = wizardCompact
+    ? "text-xs font-semibold tracking-wide text-neutral-600 uppercase"
+    : "font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase"
+
   return (
     <section
       className={cn(
-        "space-y-2 border-2 border-dashed border-mad-black/30 bg-mad-white/80 p-2",
+        "border-2 border-dashed border-mad-black/30 bg-mad-white/80 p-3",
+        wizardCompact
+          ? "grid gap-2.5 sm:grid-cols-2"
+          : "space-y-2 p-2",
         className
       )}
     >
-      <p className="font-typewriter text-[0.5rem] font-bold tracking-widest text-mad-vermillion uppercase">
-        Post intent
-      </p>
-      <p className="font-typewriter text-[0.5rem] leading-relaxed text-neutral-500 normal-case">
-        What this drop is about — saved with your draft. Channel targeting is
-        chosen on Schedule.
-      </p>
+      {!wizardCompact ? (
+        <>
+          <p className="font-typewriter text-[0.5rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            Post intent
+          </p>
+          <p className="font-typewriter text-[0.5rem] leading-relaxed text-neutral-500 normal-case">
+            What this drop is about — saved with your draft. Channel targeting is
+            chosen on Schedule.
+          </p>
+        </>
+      ) : null}
 
       {isFudi ? (
-        <label className="grid min-w-0 gap-1">
-          <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-            Drop type
-          </span>
+        <label className="grid min-w-0 gap-1.5">
+          <span className={labelClass}>Drop type</span>
           <Select
             value={dropSelectValue}
             onValueChange={(next) => {
@@ -209,7 +227,7 @@ export function PostIntentEditor({
           >
             <SelectTrigger
               className={cn(
-                INTENT_SELECT_TRIGGER,
+                selectTrigger,
                 aiSuggested.dropType && AI_SELECT_TINT
               )}
             >
@@ -244,10 +262,8 @@ export function PostIntentEditor({
         </label>
       ) : null}
 
-      <label className="grid min-w-0 gap-1">
-        <span className="font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase">
-          Listing vibe
-        </span>
+      <label className="grid min-w-0 gap-1.5">
+        <span className={labelClass}>Listing vibe</span>
         <Select
           value={vibeSelectValue}
           onValueChange={(next) => {
@@ -263,7 +279,7 @@ export function PostIntentEditor({
         >
           <SelectTrigger
             className={cn(
-              INTENT_SELECT_TRIGGER,
+              selectTrigger,
               aiSuggested.listingVibe && AI_SELECT_TINT
             )}
           >

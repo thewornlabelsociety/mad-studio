@@ -13,7 +13,7 @@ export function AnchoredPhoneShell({ children, className }: Props) {
   return (
     <div
       className={cn(
-        "flex w-full max-w-[272px] shrink-0 flex-col items-center justify-start",
+        "flex w-full max-w-[min(100%,340px)] shrink-0 flex-col items-center justify-start",
         className
       )}
     >

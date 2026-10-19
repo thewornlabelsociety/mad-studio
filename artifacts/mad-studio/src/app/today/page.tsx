@@ -5,7 +5,7 @@ import {
   getActiveOrganizationId,
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import {
   TodayCommandDashboard,
@@ -190,24 +190,22 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     : "Load Brand Brain to set seasonal focus."
 
   return (
-    <div className="flex min-h-svh flex-col bg-neutral-50">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeEntityId}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-        teamSlot={
-          isOrgAdmin && organizationId ? (
-            <TeamInviteModal
-              organizationId={organizationId}
-              entities={entities}
-            />
-          ) : null
-        }
-      />
-
-      <main className="mx-auto w-full max-w-6xl flex-1 md:px-4 md:py-8">
+    <StudioAppShell
+      entities={entities}
+      activeEntityId={activeEntityId}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+      mainClassName="mx-auto w-full max-w-6xl md:px-4 md:py-8"
+      teamSlot={
+        isOrgAdmin && organizationId ? (
+          <TeamInviteModal
+            organizationId={organizationId}
+            entities={entities}
+          />
+        ) : null
+      }
+    >
         <div className="md:hidden">
           <TodayActionDeck
             entityId={activeEntityId}
@@ -234,7 +232,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             failedDispatchCount={failedDispatchCount}
           />
         </div>
-      </main>
-    </div>
+    </StudioAppShell>
   )
 }

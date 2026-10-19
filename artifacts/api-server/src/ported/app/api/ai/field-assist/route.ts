@@ -13,6 +13,21 @@ import { createClient } from "@/lib/supabase/server"
 export const runtime = "nodejs"
 export const maxDuration = 30
 
+const wizardContextSchema = z
+  .object({
+    listingVibe: z.string().max(120).optional().nullable(),
+    dropKind: z.string().max(80).optional().nullable(),
+    contentPillar: z.string().max(120).optional().nullable(),
+    personaName: z.string().max(120).optional().nullable(),
+    hookBlueprintLabel: z.string().max(120).optional().nullable(),
+    ctaLabel: z.string().max(120).optional().nullable(),
+    aestheticTags: z.array(z.string().max(60)).max(12).optional(),
+    concreteFeatures: z.array(z.string().max(120)).max(12).optional(),
+    onCanvasHeadline: z.string().max(200).optional().nullable(),
+    onCanvasSubhead: z.string().max(200).optional().nullable(),
+  })
+  .optional()
+
 const bodySchema = z.object({
   entityId: z.string().uuid(),
   marketingEntityId: z.string().uuid().optional().nullable(),
@@ -22,6 +37,7 @@ const bodySchema = z.object({
   visualDescription: z.string().max(2000).optional().nullable(),
   listingVibe: z.string().max(120).optional().nullable(),
   existingTags: z.array(z.string().max(40)).max(20).optional(),
+  wizard: wizardContextSchema,
 })
 
 const copyResultSchema = z.object({
@@ -56,7 +72,18 @@ export async function POST(request: Request) {
       visualDescription,
       listingVibe,
       existingTags = [],
+      wizard,
     } = parsed.data
+
+    if (field === "hook") {
+      return HttpResponse.json(
+        {
+          error:
+            "Hook assist is disabled — pick an opening line from Brain hook ideas (built from media and Intent).",
+        },
+        { status: 400 }
+      )
+    }
 
     const { data: canEdit, error: accessError } = await supabase.rpc(
       "has_entity_access",
@@ -139,16 +166,39 @@ export async function POST(request: Request) {
       return HttpResponse.json({ tags })
     }
 
-    const current = field === "hook" ? headline : caption
+    const current = caption
+    const wiz = wizard ?? {}
+    const resolvedListingVibe = listingVibe ?? wiz.listingVibe ?? null
 
     const prompt = [
       `Brand: ${entity.name} (${entity.industry}).`,
-      `Generate 3 alternate ${field === "hook" ? "on-screen hooks (≤120 chars)" : "caption bodies"} for the same post.`,
-      "Keep tone on-brand; do not invent discounts or SKUs.",
-      "If writing caption: NEVER repeat the hook verbatim as the opening sentence.",
-      visualDescription ? `Visual: ${visualDescription}` : "",
-      `Current hook: ${headline}`,
-      `Current caption: ${caption}`,
+      "Generate 3 alternate Instagram/Facebook caption bodies for this exact post.",
+      "Ground copy in the visual inspection and wizard intent below — do not invent prices, SKUs, or offers.",
+      "NEVER repeat the opening line / hook verbatim as the first sentence of the caption.",
+      "Do not duplicate text burned on the image (on-canvas headline/subhead) unless rephrasing naturally in the caption body.",
+      visualDescription ? `Visual inspection: ${visualDescription}` : "",
+      wiz.aestheticTags?.length
+        ? `Aesthetic tags: ${wiz.aestheticTags.join(", ")}`
+        : "",
+      wiz.concreteFeatures?.length
+        ? `Concrete features in frame: ${wiz.concreteFeatures.join(", ")}`
+        : "",
+      wiz.dropKind ? `Drop type: ${wiz.dropKind}` : "",
+      resolvedListingVibe ? `Listing / vibe: ${resolvedListingVibe}` : "",
+      wiz.contentPillar ? `Content pillar: ${wiz.contentPillar}` : "",
+      wiz.personaName ? `Audience persona: ${wiz.personaName}` : "",
+      wiz.hookBlueprintLabel
+        ? `Hook blueprint (Intent): ${wiz.hookBlueprintLabel}`
+        : "",
+      wiz.ctaLabel ? `Conversion CTA (Intent): ${wiz.ctaLabel}` : "",
+      wiz.onCanvasHeadline?.trim()
+        ? `On-image headline (already on photo): ${wiz.onCanvasHeadline.trim()}`
+        : "",
+      wiz.onCanvasSubhead?.trim()
+        ? `On-image subhead: ${wiz.onCanvasSubhead.trim()}`
+        : "",
+      `Opening line / Story hook (operator field): ${headline || "(none yet)"}`,
+      `Current caption draft: ${caption || "(empty)"}`,
     ]
       .filter(Boolean)
       .join("\n")
@@ -183,11 +233,7 @@ export async function POST(request: Request) {
     const variations = object.variations
       .map((row) => scrubAgencyLeak(row.trim()))
       .filter(Boolean)
-      .map((row) =>
-        field === "caption"
-          ? repairFudiCaptionDoubling(headline, row, null)
-          : row
-      )
+      .map((row) => repairFudiCaptionDoubling(headline, row, null))
       .filter((row) => row.toLowerCase() !== current.trim().toLowerCase())
 
     if (variations.length === 0) {

@@ -6,7 +6,7 @@ import {
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
 import { HelpCenter } from "@/components/help/help-center"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
@@ -51,25 +51,24 @@ export default async function HelpPage({ searchParams }: HelpPageProps) {
     : ""
 
   return (
-    <div className="flex min-h-svh flex-col bg-mad-white">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeSummary?.id ?? null}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-        teamSlot={
-          isOrgAdmin && organizationId ? (
-            <TeamInviteModal
-              organizationId={organizationId}
-              entities={entities}
-            />
-          ) : null
-        }
-      />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
-        <HelpCenter entityQuery={entityQuery} />
-      </main>
-    </div>
+    <StudioAppShell
+      className="bg-mad-white"
+      mainClassName="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6"
+      entities={entities}
+      activeEntityId={activeSummary?.id ?? null}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+      teamSlot={
+        isOrgAdmin && organizationId ? (
+          <TeamInviteModal
+            organizationId={organizationId}
+            entities={entities}
+          />
+        ) : null
+      }
+    >
+      <HelpCenter entityQuery={entityQuery} />
+    </StudioAppShell>
   )
 }

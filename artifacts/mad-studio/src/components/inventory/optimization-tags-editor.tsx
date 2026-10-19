@@ -151,8 +151,8 @@ export function OptimizationTagsEditor({
   return (
     <div className={cn("space-y-1.5", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
-          Optimisation tags
+        <span className="text-xs font-semibold tracking-wide text-neutral-600 uppercase">
+          Hashtags · Meta & TikTok
         </span>
         <button
           type="button"
@@ -204,7 +204,7 @@ export function OptimizationTagsEditor({
               addCustomTag()
             }
           }}
-          placeholder="Add custom tag…"
+          placeholder="Custom hashtag (e.g. whangareieats)…"
           className="min-w-0 flex-1 border-2 border-mad-black bg-mad-white px-2 py-1 font-sans text-sm tracking-normal outline-none focus:bg-mad-lime/20"
         />
         <button

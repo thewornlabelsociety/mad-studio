@@ -41,15 +41,17 @@ export const STUDIO_WIZARD_STEP_SOP: Record<
   [WORKBENCH_STEP_CANVAS]: {
     hint: "Drag on-image text on the phone preview — caption and hooks are on Copy.",
     checklist: [
-      "Move headline/subhead with the lime drag bar; rotate and resize handles.",
-      "Highlight pill: None, translucent black, or brand lime.",
-      "Use Center frame / Lower third if needed — polls, links, and music go on your phone at post time.",
+      "Move headline/subhead by dragging the dashed box on preview; corner handles rotate and scale.",
+      "Font, color, shadow, alignment, size, and tilt — plain text (no pill). Drag the dashed box on preview.",
+      "Review **Add on your phone after publish** — link, music, poll, location, mentions, collab (native only).",
+      "Keep lower third clear on Story/Reels if you will paste a link sticker.",
     ],
   },
   [WORKBENCH_STEP_COPY]: {
-    hint: "Write hook + caption; rotate variants or use formula bank before Schedule.",
+    hint: "Brain hooks for opening line; Suggest with AI for caption (media + Intent).",
     checklist: [
-      "Hook is the first line; caption stays IG-ready below.",
+      "Tap an opening line from Brain (built from media + Intent) — no duplicate hook AI.",
+      "Caption: Suggest with AI uses vision, pillar, persona, CTA, and on-canvas text.",
       "Use ✨ assist or formula slots for $0 render packs.",
       "Confirm trackable destination / spark text before scheduling.",
     ],
@@ -117,3 +119,52 @@ export const TEAM_POSTING_TRACK_SOPS: TeamPostingTrackSop[] = [
 
 export const STUDIO_SOP_DRAWER_INTRO =
   "MAD Studio is your creative director — hooks, visuals, and trackable links. Native IG/TikTok stickers are always added on your phone."
+
+/** Shown on Canvas — features Meta/TikTok only allow in-app (not baked into export). */
+export type CanvasNativePostFeature = {
+  id: string
+  title: string
+  detail: string
+  platforms: string[]
+}
+
+export const CANVAS_NATIVE_POST_FEATURES: CanvasNativePostFeature[] = [
+  {
+    id: "link",
+    title: "Link sticker",
+    detail:
+      "Story / Reels / TikTok: tap Link, paste your trackable URL, label it (Order now, View menu).",
+    platforms: ["Story", "Reels", "TikTok"],
+  },
+  {
+    id: "music",
+    title: "Music & audio",
+    detail:
+      "Choose a trending sound in-app. On Schedule, use No audio (add in-app) before download if you want a clean slate.",
+    platforms: ["Reels", "TikTok", "Story"],
+  },
+  {
+    id: "poll",
+    title: "Poll · quiz · questions",
+    detail: "Engagement stickers live only on the platform — never in the exported PNG.",
+    platforms: ["Story", "Reels"],
+  },
+  {
+    id: "location",
+    title: "Location",
+    detail: "Place sticker or location field for local discovery (FÜDI drops, store events).",
+    platforms: ["Feed", "Story", "Reels"],
+  },
+  {
+    id: "mentions",
+    title: "Mentions & product tags",
+    detail: "@ partners, collaborators, and IG product tags where your catalog is connected.",
+    platforms: ["Feed", "Story"],
+  },
+  {
+    id: "collab",
+    title: "Collab · Add Yours",
+    detail: "Co-author invites and community prompts — attach when you publish from your phone.",
+    platforms: ["Feed", "Reels"],
+  },
+]

@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-10a"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-14j"
 
 export type HelpSop = {
   title: string
@@ -59,7 +59,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Navigation",
         description:
-          "Top header: logo, brand switcher, Today · Planner · Studio · Promo (Worn Label only) · Campaigns, Help, Account. Meter and Socials live under Account. Brain and Inventory open from Studio/Today or direct URLs.",
+          "Icon rail on the left (desktop): grouped Workflow, Brand, and Settings links — hover for labels, or expand with the panel toggle at the bottom. Top bar: active brand switcher, Team SOP drawer, Account. Main canvas is full-width white; detail drawers (e.g. post inspect) slide in on the right when a screen supports them. On mobile, use Menu for the same links.",
       },
     ],
     sop: {
@@ -67,7 +67,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       audience: "Creator or entity manager",
       steps: [
         "Sign in and select the correct brand in the top bar (check ?eid=).",
-        "Open Today — refresh intake if new drops are expected.",
+        "Open Inbox (Today) — refresh intake if new drops are expected.",
         "Pick an unfeatured item → open in Studio → generate pack → arm schedule or save draft.",
         "After publish, log spend/sales in Campaigns and save post-mortem takeaways to Brain Memory.",
       ],
@@ -182,7 +182,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       audience: "Creator or entity manager",
       prerequisites: ["Signed in", "Correct brand selected in the top bar", "API server running (port 8080) with Gemini configured"],
       steps: [
-        "Top bar → Planner (between Today and Studio).",
+        "Sidebar → Plan (multi-day campaign programs).",
         "Describe the event or launch in the Campaign Engine textarea (8+ characters).",
         "Pick duration: 3-Day, 5-Day, or 1-Week.",
         "Choose Autonomy: Suggest (packs only), Arm (auto-queue scheduled_posts), or Full auto (arm + cron dispatch).",
@@ -292,9 +292,19 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
           "Date label with presets (e.g. THIS WEEKEND ONLY) and styles: gold pill, stamp, ribbon, or minimal.",
       },
       {
+        name: "Social channel previews",
+        description:
+          "Social mode: phone mocks for Instagram Story (9:16), Instagram Feed and Facebook (1:1 square), and an email sales layout. Channel picker sets aspect ratio automatically.",
+      },
+      {
+        name: "A4 print sheet",
+        description:
+          "Print mode: white A4 portrait flyer — large tag-color dot, bold black typography (discount, date, headline, footer). No dark social background. Download A4 PDF (210×297mm).",
+      },
+      {
         name: "High-res PNG export",
         description:
-          "Download WLS-{COLOR}-TAG-{ratio}.png at 1080×1080 or 1080×1920 via 3× retina capture.",
+          "Per-channel Download PNG at 1080×1080 or 1080×1920 via 3× retina capture (clean asset, no phone chrome).",
       },
       {
         name: "FÜDI gate",
@@ -310,10 +320,10 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       ],
       steps: [
         "Header → Promo (or open /promo?eid=…).",
-        "Choose 1:1 or 9:16, select the tag color matching this week's in-store dots.",
-        "Enter discount text, headline, and date label (use presets if helpful).",
-        "Pick a date style, preview on the right, then Download high-res PNG.",
-        "Upload the PNG to Instagram/Facebook/TikTok or attach in Studio Schedule as needed.",
+        "Social preview: pick Story, IG Feed, Facebook, or Email and check the phone/email mock.",
+        "Select the tag color matching this week's in-store dots; enter discount, headline, and date.",
+        "Download channel PNG for social, or switch to A4 print for boutique PDF.",
+        "Post social files to Instagram/Facebook or paste email creative; print PDF for in-store.",
       ],
       tips: [
         "Promo visuals use #09090B / #C5A880 tokens; listing Story previews still use the emerald obsidian shop-by-vibe theme.",
@@ -325,12 +335,22 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
     title: "Campaign Studio (Multiplexer)",
     route: "/studio",
     summary:
-      "Five-step wizard: Media → Intent → Canvas → Copy → Schedule. On phone, preview + icon channel rail sit above controls; draft/SOP live in ☰ Menu.",
+      "Editorial Create layout: masthead + step rail, work column + **Live preview** column on desktop so Canvas and Copy update the phone while you edit.",
     features: [
+      {
+        name: "Editorial Create layout",
+        description:
+          "Full-width step bar (brand, numbered steps, progress). On large screens, the active step card is on the left and a **Live preview** phone column stays open on the right — edit canvas text or copy and see the mock update immediately (drag on-image text on Canvas in the preview).",
+      },
+      {
+        name: "Live preview drawer",
+        description:
+          "On phones and narrow viewports, bottom dock **Preview** opens the slide-over drawer (same mock + channel icons). Desktop uses the inline column instead — no modal overlay while you design.",
+      },
       {
         name: "Mobile Studio layout",
         description:
-          "Under 768px: compact header (logo mark, brand pill, ☰ Menu). Step tracker shows Step N of 5 with dot progress. Preview phone + icon channel rail appear from Intent onward; Media step is tray-only (no phone).",
+          "Under 1024px: single work column; **Preview** opens the drawer. Step tracker shows Step N of 5. Draft/SOP live in ☰ Menu.",
       },
       {
         name: "Intent step (Step 2)",
@@ -348,9 +368,14 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
           "Each Studio step shows a one-line SOP hint under the step tracker; hover a step tab (desktop) for the numbered checklist. Mobile uses the hint strip plus the ? icon for the full step list. Team SOP drawer still has the full two-track posting playbook.",
       },
       {
+        name: "Copy step",
+        description:
+          "Single card: caption beside optional opening line. **Suggest with AI** (caption only) runs vision + Intent + Canvas context — not for hooks. **Opening lines from Brain** are deterministic chips from media/intent (tap to apply). **Hashtags · Meta & TikTok** sits at the bottom of the card: suggested chips (brand, locality, vibe, vision tags), **AI suggest**, and a custom hashtag field (max 8). Tags append to the caption in the preview and are saved into the pack on Generate. TikTok preview shows still photos too (labelled *Photo preview*); TikTok API posting still needs a video. Formula bank is on Schedule.",
+      },
+      {
         name: "Formula bank ($0 render)",
         description:
-          "Copy step: pick hook, visual direction, and conversion CTA from entity presets; fill bracket slots (item, location, prices). Schedule step: Render formula pack builds the 5-piece pack locally with no Gemini tokens.",
+          "Schedule step (before generate): pick hook, visual direction, and CTA presets; fill bracket slots. **Render formula pack** builds the 5-piece pack locally with no Gemini tokens.",
       },
       {
         name: "AI pack (Gemini)",
@@ -369,7 +394,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "On-canvas text styler",
         description:
-          "Canvas step: draggable headline/subhead only — platforms reject baked poll, countdown, emoji decor, or fake link stickers in exported media. Style with font, color, shadow, Highlight pill (None, translucent black, or brand lime), align, size, and rotation. Quick presets: Center frame, Lower third, Reset size & tilt. Lime drag bar moves text; top-left rotates; bottom-right scales. Motion presets pause while you edit; Save/Arm bakes text into the PNG for dispatch. Native music, poll, and link stickers are added on your phone (Track 2 SOP).",
+          "Canvas step: three columns — on-image copy, position & scale (alignment, size, tilt), typography (font, color, shadow). Drag the tight dashed box on Live preview. Below that, **Add on your phone after publish** lists native-only features (link sticker, music, poll, location, mentions, collab) plus **Copy link for sticker** when a trackable URL is set. Plain baked text only — no fake stickers in export.",
       },
       {
         name: "CapCut bridge",

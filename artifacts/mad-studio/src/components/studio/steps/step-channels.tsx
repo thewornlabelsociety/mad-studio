@@ -1,6 +1,7 @@
 "use client"
 
 import { MultiChannelScheduler } from "@/components/marketing/multi-channel-scheduler"
+import { StudioStepPanel } from "@/components/studio/studio-step-panel"
 import type { SimulatorPlatform } from "@/components/marketing/multi-platform-simulator"
 import {
   CHANNEL_META,
@@ -69,18 +70,12 @@ export function StepChannels({
   }
 
   return (
-    <section className="space-y-3 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
-      <div>
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-          Step 4 · Channels
-        </p>
-        <h2 className="font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-          Preview & schedule
-        </h2>
-        <p className="mt-1 text-xs text-neutral-600">
-          Toggle channels — the phone preview switches to each native layout.
-        </p>
-      </div>
+    <StudioStepPanel
+      fill
+      kicker="V · Schedule"
+      title="Preview & schedule"
+      description="Toggle channels — the phone preview switches to each native layout."
+    >
 
       <div className="flex flex-wrap gap-1.5">
         {CHANNEL_BUTTONS.map(({ channel, platform, label }) => {
@@ -93,10 +88,10 @@ export function StepChannels({
               type="button"
               onClick={() => toggleChannel(channel, platform)}
               className={cn(
-                "border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase transition",
+                "rounded-full border px-3 py-1.5 text-[11px] font-medium tracking-wide uppercase transition",
                 enabled || active
-                  ? "bg-mad-black text-mad-white"
-                  : "bg-mad-white hover:bg-mad-lime"
+                  ? "border-mad-black bg-mad-black text-mad-white"
+                  : "border-neutral-200 bg-white hover:border-neutral-400"
               )}
             >
               {CHANNEL_META[channel].label}
@@ -118,10 +113,10 @@ export function StepChannels({
           hideFooterActions={hideFooterActions}
         />
       ) : (
-        <p className="border-2 border-mad-black px-3 py-6 text-center font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+        <p className="rounded-sm border border-dashed border-neutral-300 px-3 py-8 text-center text-sm text-neutral-500">
           Calculating Brain timing…
         </p>
       )}
-    </section>
+    </StudioStepPanel>
   )
 }

@@ -7,7 +7,7 @@ import {
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
 import { EntityMeteringDashboard } from "@/components/analytics/entity-metering-dashboard"
-import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import {
   extractSpokenHook,
@@ -157,33 +157,32 @@ export default async function AnalyticsPage({
   }
 
   return (
-    <div className="flex min-h-svh flex-col bg-mad-white">
-      <AppTopbar
-        entities={entities}
-        activeEntityId={activeEntity.id}
-        userEmail={user.email ?? null}
-        isOrgAdmin={isOrgAdmin}
-        organizationId={organizationId}
-        teamSlot={
-          isOrgAdmin && organizationId ? (
-            <TeamInviteModal
-              organizationId={organizationId}
-              entities={entities}
-            />
-          ) : null
-        }
-      />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        <Suspense fallback={null}>
-          <EntityMeteringDashboard
-            entityId={activeEntity.id}
-            entityName={activeEntity.name}
-            range={range}
-            rows={rows}
-            health={health}
+    <StudioAppShell
+      className="bg-mad-white"
+      mainClassName="mx-auto w-full max-w-6xl px-4 py-8"
+      entities={entities}
+      activeEntityId={activeEntity.id}
+      userEmail={user.email ?? null}
+      isOrgAdmin={isOrgAdmin}
+      organizationId={organizationId}
+      teamSlot={
+        isOrgAdmin && organizationId ? (
+          <TeamInviteModal
+            organizationId={organizationId}
+            entities={entities}
           />
-        </Suspense>
-      </main>
-    </div>
+        ) : null
+      }
+    >
+      <Suspense fallback={null}>
+        <EntityMeteringDashboard
+          entityId={activeEntity.id}
+          entityName={activeEntity.name}
+          range={range}
+          rows={rows}
+          health={health}
+        />
+      </Suspense>
+    </StudioAppShell>
   )
 }

@@ -11,8 +11,7 @@ import { FinishedRenderDropZone } from "@/components/studio/finished-render-drop
 import { PhotoRoomBridge } from "@/components/studio/photoroom-bridge"
 import type { MediaVisualInspection } from "@/lib/media/inspect-schema"
 import type { MediaKind } from "@/lib/media/kind"
-import { STUDIO_WIZARD_STEP_SOP } from "@/lib/studio/studio-wizard-sop"
-import { WORKBENCH_STEP_MEDIA } from "@/lib/studio/workbench-steps"
+import { StudioStepPanel } from "@/components/studio/studio-step-panel"
 import { cn } from "@/lib/utils"
 
 export type StepMediaBridgePayload = {
@@ -66,19 +65,12 @@ export function StepMedia({
   const isVideo = active?.type === "video"
 
   return (
-    <section className="space-y-3 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm">
-      <div>
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
-          Step 1 · Media
-        </p>
-        <h2 className="font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
-          Photos, reels & library
-        </h2>
-        <p className="sr-only">
-          {STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_MEDIA].hint}
-        </p>
-      </div>
-
+    <StudioStepPanel
+      fill
+      kicker="I · Media"
+      title="Photos, reels & library"
+      description="Attach stills or reels, pull from the brand library, or drop a finished render."
+    >
       <MediaTray
         entityId={entityId}
         inventoryItemId={marketingEntityId}
@@ -94,7 +86,7 @@ export function StepMedia({
         type="button"
         onClick={onOpenMediaLibrary}
         disabled={disabled}
-        className="border-2 border-mad-black bg-[#CCFF00] px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime disabled:opacity-50"
+        className="rounded-sm border border-neutral-300 bg-mad-black px-4 py-2.5 text-xs font-medium tracking-wide text-mad-white uppercase hover:bg-neutral-800 disabled:opacity-50"
       >
         📁 Open media library
       </button>
@@ -105,10 +97,10 @@ export function StepMedia({
           disabled={disabled || cutoutDisabled || cutoutBusy}
           onClick={() => onCutoutToggle?.()}
           className={cn(
-            "inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm",
+            "inline-flex h-10 w-full items-center justify-center gap-2 rounded-sm border border-neutral-300 text-xs font-medium tracking-wide uppercase",
             cutoutActive
-              ? "bg-mad-black text-mad-white"
-              : "bg-mad-white hover:bg-mad-lime",
+              ? "border-mad-black bg-mad-black text-mad-white"
+              : "bg-white hover:bg-neutral-50",
             cutoutDisabled && "opacity-40"
           )}
         >
@@ -148,7 +140,7 @@ export function StepMedia({
         marketingEntityId={marketingEntityId}
         onReady={onFinishedRender}
       />
-    </section>
+    </StudioStepPanel>
   )
 }
 

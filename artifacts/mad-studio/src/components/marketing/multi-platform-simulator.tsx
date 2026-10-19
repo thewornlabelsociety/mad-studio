@@ -215,6 +215,8 @@ type Props = {
   hidePlatformSwitcher?: boolean
   /** Fixed 360×700 preview — no layout jump between channels. */
   lockedViewport?: boolean
+  /** Scale locked compact preview to fill parent height (studio split column). */
+  fluidViewport?: boolean
   /** Controlled carousel slide (sync with Media Tray selection). */
   slideIndex?: number
   onSlideIndexChange?: (index: number) => void
@@ -321,6 +323,7 @@ export function MultiPlatformSimulator({
   metaChannelsOnly = false,
   hidePlatformSwitcher = false,
   lockedViewport = false,
+  fluidViewport = false,
   slideIndex: controlledSlideIndex,
   onSlideIndexChange,
   textOverlay: controlledTextOverlay = null,
@@ -404,14 +407,20 @@ export function MultiPlatformSimulator({
   const slides = useMemo((): SimulatorCarouselItem[] => {
     if (carouselMedia && carouselMedia.length > 0) {
       return carouselMedia
-        .map((row, index) => ({
-          id: row.id ?? `slide-${index}`,
-          url: (row.publicUrl || row.url || "").trim(),
-          type:
-            row.type ??
-            detectMediaKindFromUrl(row.publicUrl || row.url || ""),
-          publicUrl: row.publicUrl ?? null,
-        }))
+        .map((row, index) => {
+          const url = carouselItemUrl({
+            id: row.id ?? `slide-${index}`,
+            url: row.url,
+            publicUrl: row.publicUrl,
+            type: row.type,
+          })
+          return {
+            id: row.id ?? `slide-${index}`,
+            url,
+            type: row.type ?? detectMediaKindFromUrl(url),
+            publicUrl: row.publicUrl ?? null,
+          }
+        })
         .filter((row) => Boolean(row.url))
     }
     if (item?.images?.length) {
@@ -537,12 +546,13 @@ export function MultiPlatformSimulator({
 
   const resolvedMedia: ActiveMedia | null = (() => {
     if (activeSlide) {
+      const url = carouselItemUrl(activeSlide)
+      if (!url) return null
       const kind =
-        activeSlide.type === "video" ||
-        detectMediaKindFromUrl(activeSlide.url) === "video"
+        activeSlide.type === "video" || detectMediaKindFromUrl(url) === "video"
           ? "video"
           : "image"
-      return { url: activeSlide.url, type: kind }
+      return { url, type: kind }
     }
     if (activeMedia) {
       const kind =
@@ -647,9 +657,13 @@ export function MultiPlatformSimulator({
   const pillMeta =
     platformOptions.find((row) => row.id === platform) ?? platformOptions[0]
   // Compact shells sit in shrink-to-fit columns, so they need a fixed width.
+  const lockedShellFluid =
+    lockedViewport && compact && fluidViewport
   const shellMax = lockedViewport
     ? compact
-      ? "h-[532px] w-[272px] shrink-0"
+      ? lockedShellFluid
+        ? "h-[min(720px,calc(100svh-10rem))] w-auto max-w-full shrink-0 aspect-[272/532]"
+        : "h-[532px] w-[272px] shrink-0"
       : "h-[700px] w-[360px] shrink-0"
     : compact
     ? pillMeta.aspect === "email"
@@ -1105,7 +1119,10 @@ export function MultiPlatformSimulator({
       <div className="group relative">
         <div
           ref={captureRef}
-          className="relative overflow-hidden border-2 border-mad-black bg-[#0b0b0c] p-[9px] shadow-keycap"
+          className={cn(
+            "relative border-2 border-mad-black bg-[#0b0b0c] p-[9px] shadow-keycap",
+            canvasEditActive ? "overflow-visible" : "overflow-hidden"
+          )}
           style={{ borderRadius: 44 }}
         >
           <div className="pointer-events-none absolute top-[16px] left-1/2 z-30 h-[22px] w-[96px] -translate-x-1/2 rounded-full bg-black shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" />
@@ -1122,11 +1139,19 @@ export function MultiPlatformSimulator({
                 ? isFeedPreview
                   ? cn(
                       "w-full items-stretch justify-start",
-                      compact ? "h-[472px]" : "h-[622px]"
+                      lockedShellFluid
+                        ? "h-full min-h-0"
+                        : compact
+                          ? "h-[472px]"
+                          : "h-[622px]"
                     )
                   : cn(
                       "w-full items-center justify-center",
-                      compact ? "h-[472px]" : "h-[622px]"
+                      lockedShellFluid
+                        ? "h-full min-h-0"
+                        : compact
+                          ? "h-[472px]"
+                          : "h-[622px]"
                     )
                 : "min-h-[280px] w-full items-center justify-center"
             )}
@@ -1237,8 +1262,11 @@ export function MultiPlatformSimulator({
                   caption={
                     activeSlideText || content.caption || content.headline
                   }
-                  mediaUrl={mediaUrl}
+                  mediaUrl={
+                    isVideo ? mediaUrl : imageForCanvas || mediaUrl
+                  }
                   mediaType={isVideo ? "video" : "image"}
+                  mediaFit={isFudiEntity ? "cover" : "contain"}
                   remotionPreview={
                     isVideo ? videoRemotionPreview : imageRemotionPreview
                   }
@@ -1793,10 +1821,9 @@ export function MultiPlatformSimulator({
 
   return (
     <div className={cn("flex flex-col items-center gap-2", className)}>
+      {hidePlatformSwitcher ? null : (
       <div className="flex w-[280px] max-w-full flex-wrap justify-center gap-1">
-        {hidePlatformSwitcher
-          ? null
-          : platformOptions.map((option) => {
+        {platformOptions.map((option) => {
               const active = platform === option.id
               return (
                 <button
@@ -1820,6 +1847,7 @@ export function MultiPlatformSimulator({
               )
             })}
       </div>
+      )}
       {phoneShell}
     </div>
   )
@@ -2326,6 +2354,7 @@ function TikTokChrome({
   caption,
   mediaUrl,
   mediaType,
+  mediaFit = "cover",
   mediaOverlay = null,
   remotionPreview = null,
 }: {
@@ -2333,33 +2362,52 @@ function TikTokChrome({
   caption: string
   mediaUrl: string | null
   mediaType: "image" | "video"
+  mediaFit?: "cover" | "contain"
   mediaOverlay?: ReactNode
   remotionPreview?: RemotionCanvasProps | null
 }) {
+  const objectClass =
+    mediaFit === "contain" ? "object-contain" : "object-cover"
   return (
-    <div className="relative aspect-[9/16] w-full overflow-hidden bg-neutral-950">
+    <div className="relative aspect-[9/16] h-full w-full overflow-hidden bg-neutral-950">
       {mediaUrl && remotionPreview ? (
         <div className="absolute inset-0">
           <RemotionCanvas {...remotionPreview} />
           {mediaOverlay}
         </div>
       ) : mediaUrl && mediaType === "video" ? (
-        <VideoFill src={mediaUrl} mediaOverlay={mediaOverlay} />
+        <VideoFill
+          src={mediaUrl}
+          fit={mediaFit}
+          mediaOverlay={mediaOverlay}
+        />
       ) : mediaUrl ? (
-        <div className="absolute inset-0">
+        <div
+          className="absolute inset-0"
+          style={
+            mediaFit === "contain"
+              ? { backgroundColor: "#0b0b0c" }
+              : undefined
+          }
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={mediaUrl}
             alt=""
-            className="absolute inset-0 size-full object-cover"
+            className={cn("absolute inset-0 size-full", objectClass)}
           />
           {mediaOverlay}
         </div>
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-950" />
       )}
-      {mediaType === "image" ? (
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+      {mediaType === "image" && mediaUrl ? (
+        <div className="pointer-events-none absolute top-3 left-3 z-20 rounded-full border border-white/30 bg-black/55 px-2 py-0.5 text-[0.6rem] font-medium text-white/95">
+          Photo preview · add motion in TikTok
+        </div>
+      ) : null}
+      {mediaUrl ? (
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
       ) : null}
 
       <div className="absolute top-1/3 right-3 z-10 flex flex-col items-center gap-4 text-white">

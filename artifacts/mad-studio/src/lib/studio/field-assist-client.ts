@@ -2,6 +2,19 @@ export type FieldAssistField = "hook" | "caption" | "tags"
 
 import { readJsonBody } from "@/lib/http/safe-json"
 
+export type FieldAssistWizardContext = {
+  listingVibe?: string | null
+  dropKind?: string | null
+  contentPillar?: string | null
+  personaName?: string | null
+  hookBlueprintLabel?: string | null
+  ctaLabel?: string | null
+  aestheticTags?: string[]
+  concreteFeatures?: string[]
+  onCanvasHeadline?: string | null
+  onCanvasSubhead?: string | null
+}
+
 export async function requestFieldAssist(input: {
   entityId: string
   marketingEntityId?: string | null
@@ -11,6 +24,7 @@ export async function requestFieldAssist(input: {
   visualDescription?: string | null
   listingVibe?: string | null
   existingTags?: string[]
+  wizard?: FieldAssistWizardContext
 }): Promise<{ variations: string[]; tags: string[] }> {
   const response = await fetch("/api/ai/field-assist", {
     method: "POST",

@@ -11,6 +11,7 @@ import {
 import { Loader2 } from "lucide-react"
 
 import { AppTopbar } from "@/components/layout/app-topbar"
+import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { DraftActivePill } from "@/components/studio/draft-active-pill"
 import {
   DropdownMenuItem,
@@ -96,7 +97,7 @@ type StudioChromeTopbarProps = {
   teamSlot?: React.ReactNode
 }
 
-export function StudioChromeTopbar(props: StudioChromeTopbarProps) {
+function useStudioChromeTopbarSlots() {
   const chrome = useContext(StudioChromeContext)
   const draftActive = chrome?.draftActive ?? false
   const rehydrating = chrome?.rehydrating ?? false
@@ -138,11 +139,43 @@ export function StudioChromeTopbar(props: StudioChromeTopbarProps) {
     )
   }
 
+  return { centerSlot, mobileMenuSlot }
+}
+
+/** @deprecated Use StudioChromeShell */
+export function StudioChromeTopbar(props: StudioChromeTopbarProps) {
+  const { centerSlot, mobileMenuSlot } = useStudioChromeTopbarSlots()
   return (
     <AppTopbar
       {...props}
       centerSlot={centerSlot}
       mobileMenuSlot={mobileMenuSlot}
     />
+  )
+}
+
+type StudioChromeShellProps = StudioChromeTopbarProps & {
+  children: ReactNode
+  mainClassName?: string
+  className?: string
+}
+
+export function StudioChromeShell({
+  children,
+  mainClassName,
+  className,
+  ...topbarProps
+}: StudioChromeShellProps) {
+  const { centerSlot, mobileMenuSlot } = useStudioChromeTopbarSlots()
+  return (
+    <StudioAppShell
+      {...topbarProps}
+      className={className}
+      mainClassName={mainClassName}
+      centerSlot={centerSlot}
+      mobileMenuSlot={mobileMenuSlot}
+    >
+      {children}
+    </StudioAppShell>
   )
 }

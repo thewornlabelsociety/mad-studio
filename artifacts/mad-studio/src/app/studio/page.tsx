@@ -10,7 +10,7 @@ import {
 import { InventoryItemDetail } from "@/components/inventory/inventory-item-detail"
 import {
   StudioChromeProvider,
-  StudioChromeTopbar,
+  StudioChromeShell,
 } from "@/components/studio/studio-chrome-context"
 import { StudioWorkspace } from "@/components/studio/studio-workspace"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
@@ -155,24 +155,23 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
 
   return (
     <StudioChromeProvider>
-      <div className="flex min-h-svh flex-col bg-mad-white">
-        <StudioChromeTopbar
-          entities={entities}
-          activeEntityId={activeSummary?.id ?? null}
-          userEmail={user.email ?? null}
-          isOrgAdmin={isOrgAdmin}
-          organizationId={organizationId}
-          teamSlot={
-            isOrgAdmin && organizationId ? (
-              <TeamInviteModal
-                organizationId={organizationId}
-                entities={entities}
-              />
-            ) : null
-          }
-        />
-
-        <main className="flex min-h-0 w-full max-w-none flex-1 flex-col overflow-x-hidden max-lg:overflow-y-auto lg:overflow-hidden">
+      <StudioChromeShell
+        className="bg-[#f7f5f2]"
+        mainClassName="flex min-h-0 w-full max-w-none flex-col overflow-x-hidden bg-[#f7f5f2] max-lg:overflow-y-auto lg:overflow-hidden"
+        entities={entities}
+        activeEntityId={activeSummary?.id ?? null}
+        userEmail={user.email ?? null}
+        isOrgAdmin={isOrgAdmin}
+        organizationId={organizationId}
+        teamSlot={
+          isOrgAdmin && organizationId ? (
+            <TeamInviteModal
+              organizationId={organizationId}
+              entities={entities}
+            />
+          ) : null
+        }
+      >
         {params.error && !dropItem ? (
           <p
             className="border-2 border-mad-black bg-mad-vermillion px-3 py-2 text-sm font-bold text-mad-white"
@@ -211,6 +210,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
             </form>
           </section>
         ) : dropItem && activeSummary && activeEntity ? (
+          <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
           <InventoryItemDetail
             item={dropItem}
             brandName={activeSummary.name}
@@ -222,6 +222,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
             occupiedSlots={occupiedSlots}
             initialStep={params.step}
           />
+          </div>
         ) : activeEntity ? (
           <Suspense
             fallback={
@@ -230,6 +231,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
               </p>
             }
           >
+            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
             <StudioWorkspace
               key={`${activeEntity.id}-${params.fresh ?? ""}`}
               entities={entities}
@@ -237,14 +239,14 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
               initialStep={params.step}
               startFresh={params.fresh === "1"}
             />
+            </div>
           </Suspense>
         ) : (
           <p className="border-2 border-mad-black bg-mad-vermillion px-4 py-3 text-sm font-bold text-mad-white">
             MULTI-BRAND ISOLATION ACTIVE. Could not load brand DNA.
           </p>
         )}
-        </main>
-      </div>
+      </StudioChromeShell>
     </StudioChromeProvider>
   )
 }
