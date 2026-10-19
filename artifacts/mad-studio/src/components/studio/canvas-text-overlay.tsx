@@ -319,7 +319,7 @@ function DraggableDecor({
 
   return (
     <div
-      className="absolute inline-block w-fit max-w-[92%] touch-none select-none overflow-visible"
+      className="absolute inline-block w-max max-w-[92%] touch-none select-none overflow-visible"
       style={{
         left: `${x}%`,
         top: `${y}%`,

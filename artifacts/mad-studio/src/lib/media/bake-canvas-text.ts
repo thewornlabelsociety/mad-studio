@@ -55,7 +55,35 @@ async function ensureCanvasFontLoaded(
   }
 }
 
-/** Draw one text layer (headline or subhead) at its own place and style. */
+/** Break text into lines no wider than maxWidth (keeps typed line breaks). */
+function wrapLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const out: string[] = []
+  for (const paragraph of text.split("\n")) {
+    const words = paragraph.split(/\s+/).filter(Boolean)
+    if (words.length === 0) {
+      out.push("")
+      continue
+    }
+    let line = words[0]
+    for (const word of words.slice(1)) {
+      const next = `${line} ${word}`
+      if (ctx.measureText(next).width <= maxWidth) {
+        line = next
+      } else {
+        out.push(line)
+        line = word
+      }
+    }
+    out.push(line)
+  }
+  return out
+}
+
+/** Draw one text box (headline, subhead or a tag) at its own place and style. */
 function drawTextLayer(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -68,7 +96,8 @@ function drawTextLayer(
   const fontDef = resolveCanvasTextFont(layer.fontId)
   const weight = fontDef.canvasWeight ?? 700
   const fontStyle = fontDef.canvasStyle ?? "normal"
-  const lines = layer.text.split("\n")
+  const padX = layer.bgColor ? fontSize * CANVAS_TEXT_BG_PAD_X : 0
+  const padY = layer.bgColor ? fontSize * CANVAS_TEXT_BG_PAD_Y : 0
 
   ctx.save()
   ctx.translate((layer.positionX / 100) * width, (layer.positionY / 100) * height)
@@ -76,46 +105,52 @@ function drawTextLayer(
   ctx.font = `${fontStyle} ${weight} ${fontSize}px ${canvasFontStack(layer.fontId)}`
   ctx.fillStyle = layer.color || "#FFFFFF"
   ctx.textBaseline = "middle"
+
+  // Wrap where the preview wraps: a box can be at most 92% of the image wide.
+  const lines = wrapLines(ctx, layer.text, width * 0.92 - padX * 2)
+  const blockWidth = Math.max(...lines.map((line) => ctx.measureText(line).width))
+  const blockHeight = lines.length * lineHeight
+
+  // Like the preview, the box is centred on its point; alignment only moves
+  // lines within the box.
   ctx.textAlign =
     overlay.textAlign === "left"
       ? "left"
       : overlay.textAlign === "right"
         ? "right"
         : "center"
+  const lineX =
+    overlay.textAlign === "left"
+      ? -blockWidth / 2
+      : overlay.textAlign === "right"
+        ? blockWidth / 2
+        : 0
 
-  const blockHeight = lines.length * lineHeight
   // Solid block behind the text, matching the preview's padding.
   if (layer.bgColor) {
-    const maxWidth = Math.max(...lines.map((line) => ctx.measureText(line).width))
-    const padX = fontSize * CANVAS_TEXT_BG_PAD_X
-    const padY = fontSize * CANVAS_TEXT_BG_PAD_Y
-    const left =
-      ctx.textAlign === "left"
-        ? 0
-        : ctx.textAlign === "right"
-          ? -maxWidth
-          : -maxWidth / 2
     ctx.fillStyle = layer.bgColor
     ctx.fillRect(
-      left - padX,
+      -blockWidth / 2 - padX,
       -blockHeight / 2 - padY,
-      maxWidth + padX * 2,
+      blockWidth + padX * 2,
       blockHeight + padY * 2
     )
     ctx.fillStyle = layer.color || "#FFFFFF"
   }
 
+  // Preview shadows are sized for a ~320px phone; scale them to the image.
+  const shadowScale = width / 320
   let y = -blockHeight / 2 + lineHeight / 2
   for (const line of lines) {
     // No shadow on a solid block (matches the preview).
     if (!layer.bgColor && (overlay.shadow === "hard" || overlay.shadow === "soft")) {
       ctx.shadowColor =
         overlay.shadow === "hard" ? "rgba(0,0,0,0.95)" : "rgba(0,0,0,0.45)"
-      ctx.shadowBlur = overlay.shadow === "hard" ? 0 : 8
-      ctx.shadowOffsetX = overlay.shadow === "hard" ? 3 : 0
-      ctx.shadowOffsetY = overlay.shadow === "hard" ? 3 : 2
+      ctx.shadowBlur = overlay.shadow === "hard" ? 0 : 8 * shadowScale
+      ctx.shadowOffsetX = overlay.shadow === "hard" ? 3 * shadowScale : 0
+      ctx.shadowOffsetY = (overlay.shadow === "hard" ? 3 : 2) * shadowScale
     }
-    ctx.fillText(line, 0, y)
+    ctx.fillText(line, lineX, y)
     ctx.shadowColor = "transparent"
     ctx.shadowBlur = 0
     ctx.shadowOffsetX = 0
@@ -221,5 +256,48 @@ export async function bakeCanvasTextOnImage(input: {
   if (!payload.transparentUrl) {
     throw new Error("Upload did not return a public URL.")
   }
+  return payload.transparentUrl
+}
+
+/**
+ * A 1080×1920 Story: the (already baked) image fitted whole on a solid colour,
+ * edge to edge — what the Story preview shows when the backdrop is on.
+ */
+export async function bakeStoryFrame(input: {
+  entityId: string
+  sourceUrl: string
+  color: string
+}): Promise<string> {
+  const bitmap = await createImageBitmap(
+    await loadImageBlob(input.sourceUrl, input.entityId)
+  )
+  const canvas = document.createElement("canvas")
+  canvas.width = 1080
+  canvas.height = 1920
+  const ctx = canvas.getContext("2d")
+  if (!ctx) throw new Error("Canvas unavailable.")
+  ctx.fillStyle = input.color || "#FFFFFF"
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  const fit = Math.min(canvas.width / bitmap.width, canvas.height / bitmap.height)
+  const w = bitmap.width * fit
+  const h = bitmap.height * fit
+  ctx.drawImage(bitmap, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h)
+
+  const outBlob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (value) => (value ? resolve(value) : reject(new Error("Export failed."))),
+      "image/png"
+    )
+  })
+  const form = new FormData()
+  form.append("file", outBlob, "story-frame.png")
+  form.append("entityId", input.entityId)
+  const uploadRes = await fetch("/api/media/upload-cutout", {
+    method: "POST",
+    body: form,
+  })
+  if (!uploadRes.ok) throw new Error("Could not upload the Story image.")
+  const payload = (await uploadRes.json()) as { transparentUrl?: string }
+  if (!payload.transparentUrl) throw new Error("Upload did not return a public URL.")
   return payload.transparentUrl
 }

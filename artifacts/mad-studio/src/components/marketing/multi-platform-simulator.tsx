@@ -56,6 +56,7 @@ import {
   CanvasTextOverlayLayer,
 } from "@/components/studio/canvas-text-overlay"
 import {
+  canvasBackdropOn,
   canvasOverlayHasDecor,
   DEFAULT_CANVAS_TEXT_OVERLAY,
   type CanvasTextOverlayState,
@@ -1216,6 +1217,11 @@ export function MultiPlatformSimulator({
                       <StoryMediaStage
                         imageUrl={imageForCanvas}
                         canvasColor={canvasColor}
+                        backdropColor={
+                          canvasBackdropOn(textOverlay)
+                            ? textOverlay.backdropColor
+                            : null
+                        }
                         mediaFit={isFudiEntity ? "cover" : "contain"}
                         remotionPreview={imageRemotionPreview}
                         mediaOverlay={canvasOverlayOnMedia}
@@ -2017,9 +2023,12 @@ function StoryMediaStage({
   mediaOverlay = null,
   remotionPreview = null,
   allowCanvasOverflow = false,
+  backdropColor = null,
 }: {
   imageUrl: string
   canvasColor: string
+  /** Canvas backdrop is on: the Story is posted full-bleed in this colour. */
+  backdropColor?: string | null
   storyCanvas: ReactNode
   useStoryCanvas: boolean
   mediaFit?: "cover" | "contain"
@@ -2066,33 +2075,105 @@ function StoryMediaStage({
     )
   }
 
+  // With a backdrop the Story is baked full-bleed in that colour, edge to
+  // edge, so the preview shows exactly that. Otherwise Instagram fills the
+  // space around the photo itself (the blur here is preview-only).
   return (
     <div
       className={cn("relative size-full", overflowClass)}
-      style={{ backgroundColor: canvasColor }}
+      style={{ backgroundColor: backdropColor ?? canvasColor }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      {backdropColor ? null : (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={imageUrl}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-xl"
+        />
+      )}
+      <FittedImage
         src={imageUrl}
-        alt=""
-        aria-hidden
-        className="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-xl"
-      />
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div
+        padded={!backdropColor}
+        imageClassName={backdropColor ? undefined : "shadow-lg"}
+      >
+        {mediaOverlay}
+      </FittedImage>
+    </div>
+  )
+}
+
+/**
+ * A photo shown whole ("contain") in a box sized exactly to the photo, so
+ * Canvas text, logo and backdrop sit on the photo itself — the same
+ * rectangle the baked image uses.
+ */
+function FittedImage({
+  src,
+  padded = false,
+  imageClassName,
+  children = null,
+}: {
+  src: string
+  padded?: boolean
+  imageClassName?: string
+  children?: ReactNode
+}) {
+  const areaRef = useRef<HTMLDivElement>(null)
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
+  const [area, setArea] = useState<{ w: number; h: number } | null>(null)
+
+  useEffect(() => {
+    setNatural(null)
+  }, [src])
+
+  useEffect(() => {
+    const node = areaRef.current
+    if (!node) return
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setArea({ w: width, h: height })
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  const fit =
+    natural && area && natural.w > 0 && natural.h > 0
+      ? Math.min(area.w / natural.w, area.h / natural.h)
+      : null
+
+  return (
+    <div
+      ref={areaRef}
+      className={cn(
+        "absolute inset-0 flex items-center justify-center",
+        padded && "p-4"
+      )}
+    >
+      <div
+        className="relative shrink-0"
+        style={
+          fit
+            ? { width: natural!.w * fit, height: natural!.h * fit }
+            : { width: "100%", height: "100%" }
+        }
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          onLoad={(event) => {
+            const img = event.currentTarget
+            setNatural({ w: img.naturalWidth, h: img.naturalHeight })
+          }}
           className={cn(
-            "relative max-h-full max-w-full",
-            allowCanvasOverflow && "overflow-visible"
+            "absolute inset-0 size-full",
+            fit ? "object-fill" : "object-contain",
+            imageClassName
           )}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt=""
-            className="max-h-full max-w-full object-contain shadow-lg"
-          />
-          {mediaOverlay}
-        </div>
+        />
+        {children}
       </div>
     </div>
   )
@@ -2270,7 +2351,7 @@ function FeedMediaStage({
               transform: `translateX(-${(slideIndex / Math.max(slideCount, 1)) * 100}%)`,
             }}
           >
-            {slides.map((slide) => {
+            {slides.map((slide, index) => {
               const kind =
                 slide.type === "video" ||
                 detectMediaKindFromUrl(slide.url) === "video"
@@ -2293,17 +2374,27 @@ function FeedMediaStage({
                         includeOverlays: remotionIncludeOverlays,
                       })}
                     />
+                  ) : mediaFit === "contain" ? (
+                    <FittedImage src={slide.url}>
+                      {index === slideIndex ? (
+                        <div
+                          className={cn(
+                            "absolute inset-0 z-20",
+                            canvasOverlayInteractive
+                              ? "pointer-events-auto"
+                              : "pointer-events-none"
+                          )}
+                        >
+                          {canvasOverlay}
+                        </div>
+                      ) : null}
+                    </FittedImage>
                   ) : (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={slide.url}
                       alt=""
-                      className={cn(
-                        "absolute inset-0 size-full",
-                        mediaFit === "contain"
-                          ? "object-contain"
-                          : "object-cover"
-                      )}
+                      className="absolute inset-0 size-full object-cover"
                     />
                   )}
                 </div>
@@ -2318,14 +2409,20 @@ function FeedMediaStage({
           </div>
         ) : null}
 
-        <div
-          className={cn(
-            "absolute inset-0 z-20",
-            canvasOverlayInteractive ? "pointer-events-auto" : "pointer-events-none"
-          )}
-        >
-          {canvasOverlay}
-        </div>
+        {/* Contain mode draws the overlay on the photo itself (above). */}
+        {mediaFit === "contain" &&
+        slides[slideIndex] &&
+        slides[slideIndex].type !== "video" &&
+        detectMediaKindFromUrl(slides[slideIndex].url) !== "video" ? null : (
+          <div
+            className={cn(
+              "absolute inset-0 z-20",
+              canvasOverlayInteractive ? "pointer-events-auto" : "pointer-events-none"
+            )}
+          >
+            {canvasOverlay}
+          </div>
+        )}
 
         {showCarousel ? (
           <>

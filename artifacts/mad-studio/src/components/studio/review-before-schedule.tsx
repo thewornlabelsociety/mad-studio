@@ -15,8 +15,11 @@ import {
 } from "@/components/ui/dialog"
 import type { CampaignPack } from "@/lib/campaigns/pack-schema"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
-import { bakeCanvasTextOnImage } from "@/lib/media/bake-canvas-text"
-import { canvasTextOnly } from "@/lib/studio/canvas-text-types"
+import {
+  bakeCanvasTextOnImage,
+  bakeStoryFrame,
+} from "@/lib/media/bake-canvas-text"
+import { canvasBackdropOn, canvasTextOnly } from "@/lib/studio/canvas-text-types"
 import { buildBasicStoryModel } from "@/lib/marketing/story-presets"
 import {
   CHANNEL_META,
@@ -222,6 +225,14 @@ export function ReviewBeforeSchedule({
           overlay: textOverlay,
         })
         let story = feed
+        if (!renderStoryCard && canvasBackdropOn(textOverlay)) {
+          // Backdrop on: post the Story full-bleed in that colour, as previewed.
+          story = await bakeStoryFrame({
+            entityId,
+            sourceUrl: feed,
+            color: textOverlay.backdropColor,
+          })
+        }
         if (renderStoryCard) {
           // Let the offscreen card's images finish loading before capture.
           await new Promise((resolve) => setTimeout(resolve, 400))
