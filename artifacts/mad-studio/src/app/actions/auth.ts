@@ -30,7 +30,7 @@ function loginRedirect(opts: {
   confirmed?: boolean
 }) {
   const params = new URLSearchParams()
-  const next = isSafeRedirect(opts.redirectTo) ? opts.redirectTo : "/studio"
+  const next = isSafeRedirect(opts.redirectTo) ? opts.redirectTo : "/today"
   params.set("redirect", next)
   if (opts.error) params.set("error", opts.error)
   if (opts.message) params.set("message", opts.message)
@@ -42,7 +42,7 @@ function loginRedirect(opts: {
 export async function signInWithPassword(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "").trim()
   const password = String(formData.get("password") ?? "")
-  const redirectTo = String(formData.get("redirect") ?? "/studio")
+  const redirectTo = String(formData.get("redirect") ?? "/today")
 
   if (!email || !password) {
     loginRedirect({
@@ -63,15 +63,15 @@ export async function signInWithPassword(formData: FormData): Promise<void> {
     })
   }
 
-  redirect(isSafeRedirect(redirectTo) ? redirectTo : "/studio")
+  redirect(isSafeRedirect(redirectTo) ? redirectTo : "/today")
 }
 
 export async function signUpWithPassword(formData: FormData): Promise<void> {
   const fullName = String(formData.get("full_name") ?? "").trim()
   const email = String(formData.get("email") ?? "").trim()
   const password = String(formData.get("password") ?? "")
-  const redirectTo = String(formData.get("redirect") ?? "/studio")
-  const next = isSafeRedirect(redirectTo) ? redirectTo : "/studio"
+  const redirectTo = String(formData.get("redirect") ?? "/today")
+  const next = isSafeRedirect(redirectTo) ? redirectTo : "/today"
 
   if (!fullName || !email || !password) {
     loginRedirect({

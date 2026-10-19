@@ -3,11 +3,9 @@ import {
   BarChart3,
   Brain,
   CalendarDays,
-  CircleDot,
   CircleHelp,
   FolderOpen,
-  Inbox,
-  Megaphone,
+  ListChecks,
   Share2,
   Sparkles,
 } from "lucide-react"
@@ -18,111 +16,125 @@ import type { AccessibleEntity } from "@/lib/types"
 export type StudioNavItem = {
   id: string
   href: string
-  match: string
+  /** Path prefix(es) that mark this item active. */
+  match: string | string[]
   label: string
   description: string
   icon: LucideIcon
-  section: "workflow" | "brand" | "settings"
+  /** `main` = the four daily destinations; `settings` = set-up-once pages. */
+  section: "main" | "settings"
 }
 
-export function buildStudioNavItems(input: {
-  entityQuery: string
-  activeEntity: AccessibleEntity | null
-}): StudioNavItem[] {
-  const { entityQuery, activeEntity } = input
-  const studioHref = entityQuery
-    ? `/studio${entityQuery}&step=2`
-    : "/studio?step=2"
+export type CalendarView = {
+  id: string
+  href: string
+  match: string
+  label: string
+  description: string
+}
 
-  const showPromo =
+function showPromoFor(activeEntity: AccessibleEntity | null): boolean {
+  return (
     resolveEntityType({
       name: activeEntity?.name,
       industry: activeEntity?.industry,
       entityId: activeEntity?.id,
     }) === "WORN_LABEL"
+  )
+}
 
-  const workflow: StudioNavItem[] = [
-    {
-      id: "inbox",
-      href: `/today${entityQuery}`,
-      match: "/today",
-      label: "Inbox",
-      description: "New from feed & queue",
-      icon: Inbox,
-      section: "workflow",
-    },
-    {
-      id: "create",
-      href: studioHref,
-      match: "/studio",
-      label: "Create",
-      description: "Posts & captions",
-      icon: Sparkles,
-      section: "workflow",
-    },
+/** Plan, Campaigns and Promo are views of one Calendar destination. */
+export function buildCalendarViews(input: {
+  entityQuery: string
+  activeEntity: AccessibleEntity | null
+}): CalendarView[] {
+  const { entityQuery, activeEntity } = input
+  const views: CalendarView[] = [
     {
       id: "plan",
       href: `/planner${entityQuery}`,
       match: "/planner",
       label: "Plan",
-      description: "Multi-day campaigns",
-      icon: CalendarDays,
-      section: "workflow",
+      description: "Week & month calendar",
     },
     {
       id: "campaigns",
       href: `/campaigns${entityQuery}`,
       match: "/campaigns",
       label: "Campaigns",
-      description: "Storyboard & ledger",
-      icon: Megaphone,
-      section: "workflow",
+      description: "Queue, storyboard & results",
     },
   ]
-
-  if (showPromo) {
-    workflow.splice(2, 0, {
+  if (showPromoFor(activeEntity)) {
+    views.push({
       id: "promo",
       href: `/promo${entityQuery}`,
       match: "/promo",
       label: "Promo",
       description: "Weekly tag specials",
-      icon: CircleDot,
-      section: "workflow",
     })
   }
+  return views
+}
 
-  const brand: StudioNavItem[] = [
+export function buildStudioNavItems(input: {
+  entityQuery: string
+  activeEntity: AccessibleEntity | null
+}): StudioNavItem[] {
+  const { entityQuery } = input
+  const studioHref = entityQuery
+    ? `/studio${entityQuery}&step=2`
+    : "/studio?step=2"
+
+  const main: StudioNavItem[] = [
     {
-      id: "brain",
-      href: `/brain${entityQuery}`,
-      match: "/brain",
-      label: "Brain",
-      description: "Voice & memory",
-      icon: Brain,
-      section: "brand",
+      id: "today",
+      href: `/today${entityQuery}`,
+      match: "/today",
+      label: "Today",
+      description: "Your daily checklist",
+      icon: ListChecks,
+      section: "main",
+    },
+    {
+      id: "create",
+      href: studioHref,
+      match: "/studio",
+      label: "Create",
+      description: "Make a post",
+      icon: Sparkles,
+      section: "main",
+    },
+    {
+      id: "calendar",
+      href: `/planner${entityQuery}`,
+      match: buildCalendarViews(input).map((view) => view.match),
+      label: "Calendar",
+      description: "Plan, campaigns & promos",
+      icon: CalendarDays,
+      section: "main",
     },
     {
       id: "library",
       href: `/inventory${entityQuery}`,
       match: "/inventory",
       label: "Library",
-      description: "All intake items",
+      description: "Products & media",
       icon: FolderOpen,
-      section: "brand",
-    },
-    {
-      id: "help",
-      href: `/help${entityQuery}`,
-      match: "/help",
-      label: "Help",
-      description: "Features & SOPs",
-      icon: CircleHelp,
-      section: "brand",
+      section: "main",
     },
   ]
 
   const settings: StudioNavItem[] = [
+    {
+      id: "brain",
+      href: `/brain${entityQuery}`,
+      match: "/brain",
+      label: "Brand Brain",
+      description: "Voice & memory",
+      icon: Brain,
+      section: "settings",
+    },
     {
       id: "socials",
       href: `/settings/social${entityQuery}`,
@@ -141,11 +153,26 @@ export function buildStudioNavItems(input: {
       icon: BarChart3,
       section: "settings",
     },
+    {
+      id: "help",
+      href: `/help${entityQuery}`,
+      match: "/help",
+      label: "Help",
+      description: "Features & SOPs",
+      icon: CircleHelp,
+      section: "settings",
+    },
   ]
 
-  return [...workflow, ...brand, ...settings]
+  return [...main, ...settings]
 }
 
-export function isStudioNavActive(pathname: string, match: string): boolean {
-  return pathname === match || pathname.startsWith(`${match}/`)
+export function isStudioNavActive(
+  pathname: string,
+  match: string | string[]
+): boolean {
+  const prefixes = Array.isArray(match) ? match : [match]
+  return prefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  )
 }

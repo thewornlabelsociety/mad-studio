@@ -20,6 +20,7 @@ import {
 import { readDispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
 import { TodayActionDeck } from "@/components/today/action-deck"
+import { TodayChecklist } from "@/components/today/today-checklist"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
 
@@ -196,7 +197,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       userEmail={user.email ?? null}
       isOrgAdmin={isOrgAdmin}
       organizationId={organizationId}
-      mainClassName="mx-auto w-full max-w-6xl md:px-4 md:py-8"
+      mainClassName="mx-auto w-full max-w-6xl md:px-4"
       teamSlot={
         isOrgAdmin && organizationId ? (
           <TeamInviteModal
@@ -206,7 +207,16 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         ) : null
       }
     >
-        <div className="md:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
+          <TodayChecklist
+            entityId={activeEntityId}
+            failedCount={failedDispatchCount}
+            scheduledCount={armedRows.length}
+            newDropsCount={deck.length}
+            newDropsHref="#todays-deck"
+            className="mx-3 mt-3"
+          />
+          <div id="todays-deck" className="scroll-mt-4">
           <TodayActionDeck
             entityId={activeEntityId}
             entityName={activeEntity.name}
@@ -215,8 +225,9 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             liveDateLabel={formatAgendaLiveDate()}
             initialDeck={deck}
           />
+          </div>
         </div>
-        <div className="hidden px-4 py-8 md:block">
+        <div className="hidden min-h-0 flex-1 overflow-y-auto px-4 py-8 md:block">
           <TodayCommandDashboard
             entityId={activeEntityId}
             entityName={activeEntity.name}

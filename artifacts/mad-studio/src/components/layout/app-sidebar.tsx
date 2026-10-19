@@ -2,10 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "wouter"
-import { PanelLeft } from "lucide-react"
+import { PanelLeft, Settings } from "lucide-react"
 
 import { MadFavicon } from "@/components/brand/mad-logo"
-import { Separator } from "@/components/ui/separator"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Tooltip,
   TooltipContent,
@@ -97,6 +103,72 @@ function NavSection({
   )
 }
 
+/** Set-up-once pages live behind one button so the sidebar stays at four. */
+function SettingsMenu({
+  items,
+  pathname,
+  expanded,
+}: {
+  items: StudioNavItem[]
+  pathname: string
+  expanded: boolean
+}) {
+  const active = items.some((item) => isStudioNavActive(pathname, item.match))
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "flex items-center gap-3 rounded-lg transition-colors",
+            expanded ? "px-3 py-2 text-sm" : "size-10 justify-center",
+            active
+              ? "bg-mad-black text-mad-white shadow-sm"
+              : "text-neutral-600 hover:bg-neutral-200/80 hover:text-mad-black"
+          )}
+          aria-label="Settings"
+        >
+          <Settings className="size-[1.15rem] shrink-0" aria-hidden />
+          {expanded ? (
+            <span className="truncate font-medium">Settings</span>
+          ) : null}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side="right"
+        align="end"
+        className="min-w-[13rem] rounded-none border-2 border-mad-black shadow-keycap"
+      >
+        <DropdownMenuLabel className="font-typewriter text-[0.55rem] tracking-widest uppercase">
+          Set up once
+        </DropdownMenuLabel>
+        {items.map((item) => {
+          const Icon = item.icon
+          return (
+            <DropdownMenuItem key={item.id} asChild className="rounded-none">
+              <Link
+                href={item.href}
+                className={cn(
+                  "flex items-start gap-2",
+                  isStudioNavActive(pathname, item.match) && "font-bold"
+                )}
+              >
+                <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span className="flex flex-col">
+                  <span>{item.label}</span>
+                  <span className="text-xs text-neutral-500">
+                    {item.description}
+                  </span>
+                </span>
+              </Link>
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function AppSidebar({ entities, activeEntityId, className }: Props) {
   const pathname = usePathname()
   const [expanded, setExpanded] = useState(false)
@@ -135,8 +207,7 @@ export function AppSidebar({ entities, activeEntityId, className }: Props) {
     [entityQuery, activeEntity]
   )
 
-  const workflow = items.filter((item) => item.section === "workflow")
-  const brand = items.filter((item) => item.section === "brand")
+  const main = items.filter((item) => item.section === "main")
   const settings = items.filter((item) => item.section === "settings")
 
   const homeHref = `/today${entityQuery}`
@@ -170,12 +241,13 @@ export function AppSidebar({ entities, activeEntityId, className }: Props) {
           className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 pb-2"
           aria-label="Studio"
         >
-          <NavSection items={workflow} pathname={pathname} expanded={expanded} />
-          <Separator className="bg-neutral-300/70" />
-          <NavSection items={brand} pathname={pathname} expanded={expanded} />
+          <NavSection items={main} pathname={pathname} expanded={expanded} />
           <div className="min-h-2 flex-1" aria-hidden />
-          <Separator className="bg-neutral-300/70" />
-          <NavSection items={settings} pathname={pathname} expanded={expanded} />
+          <SettingsMenu
+            items={settings}
+            pathname={pathname}
+            expanded={expanded}
+          />
         </nav>
 
         <div

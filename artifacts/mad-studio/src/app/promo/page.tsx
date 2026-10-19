@@ -5,6 +5,7 @@ import {
   getActiveOrganizationId,
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
+import { CalendarTabs } from "@/components/layout/calendar-tabs"
 import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { WornLabelPromoBuilder } from "@/components/social-creative/worn-label-promo-builder"
 import { resolveEntityType } from "@/lib/social-creative/resolve-entity-type"
@@ -64,6 +65,7 @@ export default async function PromoPage({ searchParams }: PromoPageProps) {
       isOrgAdmin={isOrgAdmin}
       organizationId={organizationId}
     >
+        <CalendarTabs activeEntity={activeSummary} />
         <div className="border-b-2 border-mad-black px-4 py-4">
           <h1 className="brand-typewriter text-2xl text-mad-black">
             Promo Builder

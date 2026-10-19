@@ -141,7 +141,7 @@ export function AppTopbar({
 
   const navItems = useStudioNavLinks(entities, activeEntityId)
 
-  function isActive(match: string) {
+  function isActive(match: string | string[]) {
     return isStudioNavActive(pathname, match)
   }
 
@@ -280,7 +280,7 @@ function MobileNav({
   triggerLabel = "Menu",
 }: {
   navItems: StudioNavItem[]
-  isActive: (match: string) => boolean
+  isActive: (match: string | string[]) => boolean
   userEmail: string | null
   isOrgAdmin: boolean
   organizationId: string | null
@@ -312,16 +312,37 @@ function MobileNav({
             <DropdownMenuSeparator className="bg-mad-black" />
           </>
         ) : null}
-        {navItems.map((item) => (
-          <DropdownMenuItem key={item.id} asChild className="rounded-none">
-            <Link
-              href={item.href}
-              className={cn(isActive(item.match) && "font-bold")}
-            >
-              {item.label}
-            </Link>
-          </DropdownMenuItem>
-        ))}
+        {navItems
+          .filter((item) => item.section === "main")
+          .map((item) => (
+            <DropdownMenuItem key={item.id} asChild className="rounded-none">
+              <Link
+                href={item.href}
+                className={cn(isActive(item.match) && "font-bold")}
+              >
+                {item.label}
+              </Link>
+            </DropdownMenuItem>
+          ))}
+        <DropdownMenuSeparator className="bg-mad-black" />
+        <DropdownMenuLabel className="font-typewriter text-[0.55rem] tracking-widest uppercase text-neutral-500">
+          Settings
+        </DropdownMenuLabel>
+        {navItems
+          .filter((item) => item.section === "settings")
+          .map((item) => (
+            <DropdownMenuItem key={item.id} asChild className="rounded-none">
+              <Link
+                href={item.href}
+                className={cn(
+                  "text-neutral-600",
+                  isActive(item.match) && "font-bold text-mad-black"
+                )}
+              >
+                {item.label}
+              </Link>
+            </DropdownMenuItem>
+          ))}
         <DropdownMenuSeparator className="bg-mad-black" />
         <DropdownMenuItem
           className="rounded-none font-typewriter text-[0.65rem] font-bold uppercase"

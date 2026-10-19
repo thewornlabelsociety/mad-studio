@@ -9,8 +9,8 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const primaryHref = user ? "/studio" : "/login"
-  const signInHref = user ? "/studio" : "/login"
+  const primaryHref = user ? "/today" : "/login"
+  const signInHref = user ? "/today" : "/login"
 
   return (
     <div className="flex min-h-svh flex-1 flex-col bg-mad-white">
@@ -28,7 +28,7 @@ export default async function HomePage() {
               href={primaryHref}
               className="border-2 border-mad-black bg-mad-black px-4 py-2.5 font-typewriter text-xs font-bold tracking-widest text-mad-white uppercase transition-colors hover:bg-neutral-800"
             >
-              Enter Studio →
+              Open Today →
             </Link>
           </div>
         </div>

@@ -8,6 +8,7 @@ import {
 } from "@/lib/actions"
 import { CampaignsWorkspace } from "@/components/campaigns/campaigns-workspace"
 import { CampaignsToast } from "@/components/campaigns/campaigns-toast"
+import { CalendarTabs } from "@/components/layout/calendar-tabs"
 import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import { createClient } from "@/lib/supabase/client"
@@ -80,6 +81,10 @@ export default async function CampaignsPage({
         ) : null
       }
     >
+        <CalendarTabs
+          activeEntity={activeEntity}
+          className="mb-6 rounded-md border"
+        />
         <Suspense fallback={null}>
           <CampaignsToast />
         </Suspense>

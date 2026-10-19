@@ -5,6 +5,7 @@ import {
   getActiveOrganizationId,
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
+import { CalendarTabs } from "@/components/layout/calendar-tabs"
 import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { PlannerWorkspace } from "@/components/planner/planner-workspace"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
@@ -71,6 +72,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
         ) : null
       }
     >
+      <CalendarTabs activeEntity={activeEntity} />
       <PlannerWorkspace entityId={activeEntity.id} />
     </StudioAppShell>
   )

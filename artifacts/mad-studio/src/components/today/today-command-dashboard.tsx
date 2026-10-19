@@ -6,6 +6,7 @@ import { Link } from "wouter"
 import { PullNewArrivalsButton } from "@/components/inventory/pull-new-arrivals-button"
 import { BrainEmblemLink } from "@/components/brand/brain-emblem"
 import { IntakeActionCard } from "@/components/today/intake-action-card"
+import { TodayChecklist } from "@/components/today/today-checklist"
 import { FudiFeedCarouselDialog } from "@/components/today/fudi-feed-carousel-dialog"
 import { IntakePreviewDialog } from "@/components/today/intake-preview-dialog"
 import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
@@ -78,180 +79,78 @@ export function TodayCommandDashboard({
 
   return (
     <div className="space-y-8">
-      <header className="border-b-2 border-mad-black pb-5">
+      <header className="space-y-4">
         <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 space-y-2">
+          <div className="min-w-0 space-y-1">
             <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              {liveDateLabel} // Daily Agenda
+              {liveDateLabel}
             </p>
             <h1 className="font-typewriter text-2xl font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-3xl">
-              Today&apos;s Command Hub // {entityName}
+              Today // {entityName}
             </h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
-              Autonomous marketing radar: incoming drops, scheduled dispatches,
-              and brand priorities.
-            </p>
           </div>
-          <BrainEmblemLink entityId={entityId} size={96} />
+          <BrainEmblemLink entityId={entityId} size={72} />
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-            <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
-              Intake Radar
-            </p>
-            <p className="mt-2 font-typewriter text-3xl font-bold text-mad-black">
-              {unfeaturedCount}
-            </p>
-            <p className="mt-1 text-xs text-neutral-600">New unfeatured drops</p>
-            <div className="mt-3">
-              <PullNewArrivalsButton
-                entityId={entityId}
-                intakeMode={intakeMode}
-                variant="agenda"
-              />
-            </div>
-          </div>
+        <TodayChecklist
+          entityId={entityId}
+          failedCount={failedDispatchCount}
+          scheduledCount={armedCount}
+          newDropsCount={queue.length}
+        />
 
-          <div className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-            <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
-              Armed Today
-            </p>
-            <p className="mt-2 font-typewriter text-3xl font-bold text-mad-black">
-              {armedCount}
-            </p>
-            <p className="mt-1 text-xs text-neutral-600">
-              Posts scheduled to dispatch today
-            </p>
-          </div>
+        <p className="border-l-4 border-mad-lime pl-3 text-sm text-neutral-700">
+          <span className="font-typewriter text-[0.6rem] font-bold tracking-widest text-neutral-500 uppercase">
+            This week&apos;s focus ·{" "}
+          </span>
+          {brainDirective}
+        </p>
 
-          <div className="border-2 border-mad-black bg-[#CCFF00]/30 p-4 shadow-keycap-sm">
-            <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-600 uppercase">
-              Current Brain Directive
-            </p>
-            <p className="mt-2 text-sm font-medium leading-snug text-mad-black">
-              {brainDirective}
-            </p>
-          </div>
-
-          <div
-            className={cn(
-              "border-2 border-mad-black p-4 shadow-keycap-sm",
-              dispatchCronHealth?.stale !== false
-                ? "bg-mad-vermillion/15"
-                : "bg-mad-white"
-            )}
-          >
-            <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
-              Dispatch cron
-            </p>
-            <p className="mt-2 font-typewriter text-sm font-bold text-mad-black">
-              {dispatchCronHealth?.stale === false ? "Healthy" : "Stale / unknown"}
-            </p>
-            <p className="mt-1 text-xs text-neutral-600">
-              Last tick:{" "}
-              {dispatchCronHealth?.lastRunAt
-                ? formatTime(dispatchCronHealth.lastRunAt)
-                : "Never"}
-              {dispatchCronHealth?.lastStatus
-                ? ` · ${dispatchCronHealth.lastStatus}`
-                : ""}
-            </p>
-            {dispatchCronHealth?.stale !== false ? (
-              <Link
-                href={`/campaigns?eid=${encodeURIComponent(entityId)}`}
-                className="mt-2 inline-block font-typewriter text-[0.55rem] font-bold uppercase underline"
-              >
-                Check queue →
-              </Link>
-            ) : null}
-            {failedDispatchCount > 0 ? (
-              <p className="mt-2 font-typewriter text-[0.55rem] font-bold uppercase text-mad-vermillion">
-                {failedDispatchCount} dead-letter post
-                {failedDispatchCount === 1 ? "" : "s"} — open Campaigns ledger
-              </p>
-            ) : null}
-          </div>
-        </div>
+        {dispatchCronHealth?.stale !== false ? (
+          <p className="border-2 border-mad-vermillion bg-mad-vermillion/10 px-3 py-2 text-xs text-mad-black">
+            <strong>Auto-posting may be paused.</strong> The scheduler last ran{" "}
+            {dispatchCronHealth?.lastRunAt
+              ? `at ${formatTime(dispatchCronHealth.lastRunAt)}`
+              : "never"}
+            {dispatchCronHealth?.lastStatus
+              ? ` (${dispatchCronHealth.lastStatus})`
+              : ""}
+            .{" "}
+            <Link
+              href={`/campaigns?eid=${encodeURIComponent(entityId)}`}
+              className="font-bold underline"
+            >
+              Check the queue
+            </Link>
+          </p>
+        ) : null}
       </header>
 
-      <section className="space-y-4">
+      <section
+        id="going-out"
+        className="scroll-mt-4 space-y-4 border-t-2 border-mad-black/15 pt-6"
+      >
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              Priority action slate
+              Posts automatically
             </p>
             <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
-              Incoming intake queue
-            </h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={`/studio?eid=${encodeURIComponent(entityId)}&step=2&fresh=1`}
-              className="inline-flex h-10 items-center justify-center gap-1 border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
-            >
-              Create custom content
-            </Link>
-          {isFudi && queue.length >= 2 ? (
-            <button
-              type="button"
-              onClick={() => setCarouselOpen(true)}
-              className="border-2 border-mad-black bg-[#CCFF00] px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
-            >
-              Build feed carousel
-            </button>
-          ) : null}
-          </div>
-        </div>
-
-        {queue.length === 0 ? (
-          <div className="border-2 border-dashed border-mad-black/40 bg-mad-white px-6 py-12 text-center shadow-keycap-sm">
-            <p className="font-typewriter text-sm font-bold tracking-typewriter-tight uppercase">
-              Intake clear
-            </p>
-            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
-              No unfeatured drops in radar. Refresh the feed or open Studio for a
-              scratch campaign.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {queue.map((view) => (
-              <IntakeActionCard
-                key={view.item.id}
-                view={view}
-                entityId={entityId}
-                onSkip={(id) =>
-                  setQueue((prev) => prev.filter((row) => row.item.id !== id))
-                }
-                onPreview={(row) => setPreview(row)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-4 border-t-2 border-mad-black/15 pt-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              Armed for dispatch today
-            </p>
-            <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
-              {formatAgendaLiveDate().split(",")[0]} schedule
+              Going out {formatAgendaLiveDate().split(",")[0].toLowerCase()}
             </h2>
           </div>
           <Link
             href={`/campaigns?eid=${encodeURIComponent(entityId)}`}
             className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
           >
-            [ Manage on Campaigns → ]
+            Edit in Calendar →
           </Link>
         </div>
 
         {armedRows.length === 0 ? (
-          <p className="font-typewriter text-xs tracking-wider text-neutral-500 uppercase">
-            Nothing armed for today — craft in Studio and schedule channels.
+          <p className="text-sm text-neutral-500">
+            Nothing scheduled today. Make a post in Create and pick a time on
+            the last step.
           </p>
         ) : (
           <ul className="space-y-2">
@@ -277,11 +176,80 @@ export function TodayCommandDashboard({
                       : "bg-neutral-100"
                   )}
                 >
-                  [ 🟢 ARMED ]
+                  Scheduled
                 </span>
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section
+        id="new-drops"
+        className="scroll-mt-4 space-y-4 border-t-2 border-mad-black/15 pt-6"
+      >
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+              Post from your phone
+            </p>
+            <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
+              New drops ({queue.length})
+            </h2>
+            <p className="mt-1 text-xs text-neutral-600">
+              {unfeaturedCount} item{unfeaturedCount === 1 ? "" : "s"} in your
+              library {unfeaturedCount === 1 ? "hasn't" : "haven't"} been
+              posted yet.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <PullNewArrivalsButton
+              entityId={entityId}
+              intakeMode={intakeMode}
+              variant="agenda"
+            />
+            <Link
+              href={`/studio?eid=${encodeURIComponent(entityId)}&step=2&fresh=1`}
+              className="inline-flex h-10 items-center justify-center gap-1 border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
+            >
+              Make a different post
+            </Link>
+          {isFudi && queue.length >= 2 ? (
+            <button
+              type="button"
+              onClick={() => setCarouselOpen(true)}
+              className="border-2 border-mad-black bg-[#CCFF00] px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
+            >
+              Build feed carousel
+            </button>
+          ) : null}
+          </div>
+        </div>
+
+        {queue.length === 0 ? (
+          <div className="border-2 border-dashed border-mad-black/40 bg-mad-white px-6 py-12 text-center shadow-keycap-sm">
+            <p className="font-typewriter text-sm font-bold tracking-typewriter-tight uppercase">
+              All caught up
+            </p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
+              No new drops waiting. Pull new arrivals if you&apos;ve added stock,
+              or make a post from scratch.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {queue.map((view) => (
+              <IntakeActionCard
+                key={view.item.id}
+                view={view}
+                entityId={entityId}
+                onSkip={(id) =>
+                  setQueue((prev) => prev.filter((row) => row.item.id !== id))
+                }
+                onPreview={(row) => setPreview(row)}
+              />
+            ))}
+          </div>
         )}
       </section>
 

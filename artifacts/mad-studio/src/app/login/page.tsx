@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       ? params.redirect
       : params.token && /^[a-zA-Z0-9_-]+$/.test(params.token)
         ? `/invite/${params.token}`
-        : "/studio"
+        : "/today"
 
   const initialMode = params.mode === "signup" ? "signup" : "signin"
 
