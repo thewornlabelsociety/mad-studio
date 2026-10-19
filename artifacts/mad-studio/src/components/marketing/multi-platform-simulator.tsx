@@ -652,7 +652,9 @@ export function MultiPlatformSimulator({
   const shellMax = lockedViewport
     ? compact
       ? lockedShellFluid
-        ? "h-[min(720px,calc(100svh-10rem))] w-auto max-w-full shrink-0 aspect-[272/532]"
+        ? // Size from the space the column actually has, not the window height,
+          // so the phone never runs under the channel buttons below it.
+          "h-full max-h-[720px] w-auto max-w-full shrink-0 aspect-[272/532]"
         : "h-[532px] w-[272px] shrink-0"
       : "h-[700px] w-[360px] shrink-0"
     : compact
@@ -1107,11 +1109,12 @@ export function MultiPlatformSimulator({
         shellMax
       )}
     >
-      <div className="group relative">
+      <div className={cn("group relative", lockedShellFluid && "h-full")}>
         <div
           ref={captureRef}
           className={cn(
             "relative border-2 border-mad-black bg-[#0b0b0c] p-[9px] shadow-keycap",
+            lockedShellFluid && "flex h-full flex-col",
             canvasEditActive ? "overflow-visible" : "overflow-hidden"
           )}
           style={{ borderRadius: 44 }}
@@ -1286,7 +1289,10 @@ export function MultiPlatformSimulator({
         </div>
       </div>
 
-      {feedCarousel && !(textOverlay.enabled && textOverlay.headline.trim()) ? (
+      {/* Per-slide captions aren't posted; Studio's compact preview hides them. */}
+      {feedCarousel &&
+      !compact &&
+      !(textOverlay.enabled && textOverlay.headline.trim()) ? (
         <div className="mt-2 space-y-1 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
           <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
             Slide caption · {safeSlideIndex + 1}/{slides.length}
@@ -1812,7 +1818,13 @@ export function MultiPlatformSimulator({
   }
 
   return (
-    <div className={cn("flex flex-col items-center gap-2", className)}>
+    <div
+      className={cn(
+        "flex flex-col items-center gap-2",
+        lockedShellFluid && "h-full min-h-0",
+        className
+      )}
+    >
       {hidePlatformSwitcher ? null : (
       <div className="flex w-[280px] max-w-full flex-wrap justify-center gap-1">
         {platformOptions.map((option) => {
@@ -2079,10 +2091,8 @@ function FeedChrome({
 
   return (
     <div className="flex w-full flex-col bg-white">
-      <p className="shrink-0 border-b border-neutral-200 bg-neutral-50 px-3 py-1 font-typewriter text-[0.48rem] font-bold tracking-widest text-neutral-500 uppercase">
-        MAD Studio · channel mock (not live {network})
-      </p>
-      <div className="flex shrink-0 items-center gap-2.5 border-b border-neutral-100 px-3 py-2">
+      {/* Top padding keeps the profile row clear of the phone's notch. */}
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-neutral-100 px-3 pt-9 pb-2">
         <span className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-[0.65rem] font-bold text-white">
           {brandName.slice(0, 1).toUpperCase()}
         </span>

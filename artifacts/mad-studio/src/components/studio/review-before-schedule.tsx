@@ -25,6 +25,7 @@ import {
 } from "@/lib/scheduling/brain-timing"
 import { packPayloadFor } from "@/lib/scheduling/pack-payload"
 import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
+import { unfilledFormulaSlots } from "@/lib/studio/formula-bank"
 import type { CanvasTextOverlayState } from "@/lib/studio/canvas-text-types"
 import {
   imageAspectRatio,
@@ -115,6 +116,12 @@ function problemsFor(input: {
 
   if (slot.mode === "scheduled" && Date.parse(slot.scheduledAt) < Date.now()) {
     blocking.push("This time has passed — pick a new time on the Schedule step.")
+  }
+  const gaps = unfilledFormulaSlots(caption)
+  if (gaps.length) {
+    blocking.push(
+      `Fill in ${gaps.join(", ")} in the formula fields (or Fine-tune) before posting.`
+    )
   }
   if (channel === "tiktok" && input.mediaUrl) {
     const tiktok = tikTokMediaGuardError(input.mediaUrl)

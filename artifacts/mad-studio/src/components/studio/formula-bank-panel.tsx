@@ -94,10 +94,10 @@ export function FormulaBankPanel({
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3 [&>*]:min-w-0">
         <Field label="Hook style">
           <Select value={hookId ?? ""} onValueChange={onHookIdChange}>
-            <SelectTrigger className="rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase">
+            <SelectTrigger className="w-full min-w-0 rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase [&>span]:truncate">
               <SelectValue placeholder="Hook" />
             </SelectTrigger>
             <SelectContent>
@@ -111,7 +111,7 @@ export function FormulaBankPanel({
         </Field>
         <Field label="Visual direction">
           <Select value={visualId ?? ""} onValueChange={onVisualIdChange}>
-            <SelectTrigger className="rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase">
+            <SelectTrigger className="w-full min-w-0 rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase [&>span]:truncate">
               <SelectValue placeholder="Visual" />
             </SelectTrigger>
             <SelectContent>
@@ -125,7 +125,7 @@ export function FormulaBankPanel({
         </Field>
         <Field label="Conversion CTA">
           <Select value={ctaId ?? ""} onValueChange={onCtaIdChange}>
-            <SelectTrigger className="rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase">
+            <SelectTrigger className="w-full min-w-0 rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase [&>span]:truncate">
               <SelectValue placeholder="CTA" />
             </SelectTrigger>
             <SelectContent>

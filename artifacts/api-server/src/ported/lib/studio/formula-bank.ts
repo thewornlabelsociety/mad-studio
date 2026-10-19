@@ -193,17 +193,27 @@ export function fillFormulaTemplate(
   })
 }
 
+/**
+ * Starting slot values. Prices, item and interest start empty on purpose: an
+ * unfilled slot stays as "[Price A]" so the review screen blocks it, instead
+ * of a made-up price going out on a real post.
+ */
 export function defaultSlotsFromSpark(spark: string): FormulaRenderSlots {
   const trimmed = spark.trim()
   return {
-    item: trimmed.slice(0, 80) || "this drop",
-    priceA: "$99",
-    priceB: "$49",
+    item: trimmed.slice(0, 80),
+    priceA: "",
+    priceB: "",
     location: "Whangārei",
     painfulAction: "paying full retail",
     cityArea: "Whangārei",
-    interest: "great food",
+    interest: "",
   }
+}
+
+/** Unfilled "[Slot]" placeholders left in post copy. */
+export function unfilledFormulaSlots(text: string): string[] {
+  return [...new Set(text.match(/\[[A-Z][A-Za-z ]{0,30}\]/g) ?? [])]
 }
 
 export function buildCampaignPackFromFormula(input: {
@@ -216,17 +226,17 @@ export function buildCampaignPackFromFormula(input: {
 }): CampaignPack {
   const spokenHook = fillFormulaTemplate(input.hook.template, input.slots)
   const onScreen = spokenHook
-    .replace(/[^\w\s]/g, " ")
+    // Keep prices and percentages ("$49", "30%") readable on screen.
+    .replace(/[^\w\s$%]/g, " ")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 5)
     .join(" ")
     .toUpperCase()
 
+  // The visual cue is a filming note for the video script, not post copy.
   const captionBody = [
     spokenHook,
-    "",
-    input.visual.cue,
     "",
     input.cta.action_text,
     input.spark.trim() ? `\n${input.spark.trim()}` : "",
@@ -286,12 +296,20 @@ export function buildCampaignPackFromFormula(input: {
     },
     seo_caption: {
       caption_body: captionBody.slice(0, 2200),
+      // One word per tag (hashtags can't have spaces); brand-neutral extras.
       search_optimized_tags: [
-        input.slots.item,
-        input.slots.cityArea,
-        "local",
-        "menu",
-        "drop",
+        ...new Set(
+          [input.slots.item, input.slots.cityArea, "local", "newin"]
+            .map((tag) =>
+              tag
+                .toLowerCase()
+                .replace(/^(this|the|our|a|an)\s+/, "")
+                .normalize("NFD")
+                .replace(/[̀-ͯ]/g, "")
+                .replace(/[^a-z0-9]/g, "")
+            )
+            .filter((tag) => tag.length >= 2)
+        ),
       ].slice(0, 8),
     },
     email_drop: {

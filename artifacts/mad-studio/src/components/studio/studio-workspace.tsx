@@ -1597,7 +1597,14 @@ export function StudioWorkspace({
           : null}
 
         {workbenchStep === WORKBENCH_STEP_CHANNELS ? (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          // With Fine-tune open, the channel list and editor stack and scroll
+          // together instead of being squeezed into one fixed-height column.
+          <div
+            className={cn(
+              "flex min-h-0 min-w-0 flex-1 flex-col gap-3",
+              packEditorOpen && "overflow-y-auto"
+            )}
+          >
             {!showStudio ? (
               <section className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto rounded-lg border border-neutral-200/80 bg-white p-5 shadow-sm md:p-6">
                 <FormulaBankPanel
@@ -1654,7 +1661,11 @@ export function StudioWorkspace({
 
             {showStudio && pack && dispatchPlan ? (
               <MultiChannelScheduler
-                className="flex h-full min-h-0 flex-1 flex-col"
+                className={
+                  packEditorOpen
+                    ? "flex-none"
+                    : "flex h-full min-h-0 flex-1 flex-col"
+                }
                 plan={dispatchPlan}
                 onPlanChange={setDispatchPlan}
                 onSaveDraft={() => runSave("draft")}
@@ -1689,7 +1700,7 @@ export function StudioWorkspace({
                             : "bg-mad-white text-mad-black hover:bg-mad-lime/50"
                         )}
                       >
-                        Fine-tune
+                        Edit words
                         <ChevronDown
                           className={cn(
                             "size-3.5 transition-transform",

@@ -302,6 +302,154 @@ export function PackResultsEditor({
     toast.success("Track redirect copied.")
   }
 
+  if (hidePreview) {
+    // Studio: one form, each field labelled with where it actually posts.
+    // (Instagram Story posts the image only, so it has no text to edit.)
+    const field = (
+      label: string,
+      hint: string,
+      value: string,
+      onChange: (value: string) => void,
+      rows: number
+    ) => (
+      <label className="grid gap-1">
+        <span className="text-xs font-semibold text-mad-black">
+          {label}
+          <span className="ml-1.5 font-normal text-neutral-500">{hint}</span>
+        </span>
+        <AutoTextarea
+          value={value}
+          onValueChange={(next) => onChange(next)}
+          onCommit={commitEdit}
+          rows={rows}
+          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm leading-relaxed focus:border-mad-black focus:outline-none"
+        />
+      </label>
+    )
+
+    return (
+      <section className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-mad-black">
+              Edit the words
+            </h3>
+            <p className="text-xs text-neutral-500">
+              Saves automatically. Review & schedule shows the final result.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <SaveStatusPill status={saveStatus} compact />
+            <button
+              type="button"
+              onClick={runUndo}
+              disabled={!history.canUndo}
+              title="Undo (Ctrl/Cmd+Z)"
+              className="inline-flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium disabled:opacity-40"
+            >
+              <Undo2 className="size-3.5" />
+              Undo
+            </button>
+            <button
+              type="button"
+              onClick={runRedo}
+              disabled={!history.canRedo}
+              title="Redo (Ctrl/Cmd+Shift+Z)"
+              className="inline-flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium disabled:opacity-40"
+            >
+              <Redo2 className="size-3.5" />
+              Redo
+            </button>
+          </div>
+        </header>
+
+        <div className="grid gap-4">
+          {field(
+            "Caption",
+            "Instagram Feed & Facebook",
+            pack.seo_caption.caption_body,
+            (value) =>
+              patchPack((current) => ({
+                ...current,
+                seo_caption: { ...current.seo_caption, caption_body: value },
+              })),
+            5
+          )}
+          {field(
+            "Hashtags",
+            "space-separated, no #",
+            pack.seo_caption.search_optimized_tags.join(" "),
+            (value) =>
+              patchPack((current) => ({
+                ...current,
+                seo_caption: {
+                  ...current.seo_caption,
+                  search_optimized_tags: value
+                    .split(/\s+/)
+                    .map((tag) => tag.replace(/^#/, "").trim())
+                    .filter(Boolean),
+                },
+              })),
+            2
+          )}
+          {field(
+            "Opening line",
+            "starts the TikTok caption",
+            pack.algorithmic_signals.spoken_hook,
+            (value) =>
+              patchPack((current) => ({
+                ...current,
+                algorithmic_signals: {
+                  ...current.algorithmic_signals,
+                  spoken_hook: value,
+                },
+              })),
+            2
+          )}
+          <div className="grid gap-3 border-t border-neutral-100 pt-4">
+            {field(
+              "Email subject",
+              "VIP email",
+              pack.email_drop.subject_line,
+              (value) =>
+                patchPack((current) => ({
+                  ...current,
+                  email_drop: { ...current.email_drop, subject_line: value },
+                })),
+              1
+            )}
+            {field(
+              "Email preview line",
+              "shown in the inbox",
+              pack.email_drop.preview_text,
+              (value) =>
+                patchPack((current) => ({
+                  ...current,
+                  email_drop: { ...current.email_drop, preview_text: value },
+                })),
+              1
+            )}
+            {field(
+              "Email body",
+              "VIP email",
+              pack.email_drop.body_markdown,
+              (value) =>
+                patchPack((current) => ({
+                  ...current,
+                  email_drop: { ...current.email_drop, body_markdown: value },
+                })),
+              4
+            )}
+          </div>
+          <p className="text-xs text-neutral-500">
+            Instagram Story posts the image only — Instagram doesn&apos;t show
+            a caption on Stories.
+          </p>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
