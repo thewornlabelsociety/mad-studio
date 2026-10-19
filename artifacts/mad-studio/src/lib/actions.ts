@@ -38,6 +38,7 @@ export const claimFirstOrgAdmin = async (...args: any[]) => {
 }
 export const saveEntityDna = (...args: any[]) => action("saveEntityDna", ...args)
 export const saveVisualPresets = (...args: any[]) => action("saveVisualPresets", ...args)
+export const saveCanvasLayouts = (...args: any[]) => action("saveCanvasLayouts", ...args)
 export const commitScrapedDna = (...args: any[]) => action("commitScrapedDna", ...args)
 export const resyncDnaFromWebsite = (...args: any[]) => action("resyncDnaFromWebsite", ...args)
 export const uploadEntityDocument = (...args: any[]) => action("uploadEntityDocument", ...args)

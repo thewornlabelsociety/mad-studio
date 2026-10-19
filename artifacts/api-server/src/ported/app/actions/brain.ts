@@ -10,12 +10,15 @@ import { extractDnaFromWebsite } from "@/lib/entities/extract-dna"
 import {
   audienceSegmentSchema,
   brandIdentitySchema,
+  canvasLayoutSchema,
   entityDnaSchema,
+  type SavedCanvasLayout,
   type AudienceSegment,
   type BrandIdentity,
   type LogoCorner,
   type EntityDna,
 } from "@/lib/entities/dna-schema"
+import { z } from "zod"
 import type { Json } from "@/lib/database.types"
 import { createClient } from "@/lib/supabase/server"
 
@@ -61,6 +64,61 @@ function revalidateBrain(entityId: string) {
   revalidatePath(`/studio?eid=${entityId}`)
 }
 
+/** Saved Canvas layouts already on the brand (kept when other settings save). */
+async function currentCanvasLayouts(
+  supabase: { from: (table: "entities") => any },
+  entityId: string
+): Promise<SavedCanvasLayout[] | undefined> {
+  const { data } = await supabase
+    .from("entities")
+    .select("brand_identity")
+    .eq("id", entityId)
+    .maybeSingle()
+  const identity = data?.brand_identity as { canvas_layouts?: unknown } | null
+  const parsed = z.array(canvasLayoutSchema).safeParse(identity?.canvas_layouts)
+  return parsed.success ? parsed.data : undefined
+}
+
+/** Replace this brand's saved Canvas layouts. */
+export async function saveCanvasLayouts(input: {
+  entityId: string
+  layouts: SavedCanvasLayout[]
+}): Promise<ActionResult<{ layouts: SavedCanvasLayout[] }>> {
+  const layouts = z.array(canvasLayoutSchema).max(40).safeParse(input.layouts)
+  if (!layouts.success) {
+    return { ok: false, error: "Those layouts couldn't be saved." }
+  }
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error) {
+    return { ok: false, error: auth.error }
+  }
+  const { data: row, error: readError } = await auth.supabase
+    .from("entities")
+    .select("brand_identity")
+    .eq("id", input.entityId)
+    .single()
+  if (readError || !row) {
+    return { ok: false, error: readError?.message ?? "Entity not found." }
+  }
+  const current =
+    row.brand_identity &&
+    typeof row.brand_identity === "object" &&
+    !Array.isArray(row.brand_identity)
+      ? (row.brand_identity as Record<string, unknown>)
+      : {}
+  const { error } = await auth.supabase
+    .from("entities")
+    .update({
+      brand_identity: { ...current, canvas_layouts: layouts.data } as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.entityId)
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+  return { ok: true, data: { layouts: layouts.data } }
+}
+
 export async function saveEntityDna(input: {
   entityId: string
   brandIdentity: BrandIdentity
@@ -87,10 +145,14 @@ export async function saveEntityDna(input: {
     return { ok: false, error: auth.error }
   }
 
+  const layouts = await currentCanvasLayouts(auth.supabase, input.entityId)
   const { error } = await auth.supabase
     .from("entities")
     .update({
-      brand_identity: identity.data as unknown as Json,
+      brand_identity: {
+        ...identity.data,
+        canvas_layouts: identity.data.canvas_layouts ?? layouts,
+      } as unknown as Json,
       audience_segments: audiences as unknown as Json,
       ...(input.industry ? { industry: input.industry } : {}),
       ...(input.businessModel ? { business_model: input.businessModel } : {}),
@@ -155,6 +217,9 @@ export async function saveVisualPresets(input: {
     visual_presets: input.visualPresets,
     // Keep the saved hook/visual formulas; leaving this out wiped them.
     formula_bank: current.formula_bank,
+    canvas_layouts: Array.isArray(current.canvas_layouts)
+      ? current.canvas_layouts
+      : undefined,
   })
 
   if (!parsed.success) {
@@ -195,13 +260,17 @@ export async function commitScrapedDna(input: {
   }
 
   const dna = parsed.data
+  const layouts = await currentCanvasLayouts(auth.supabase, input.entityId)
   const { error } = await auth.supabase
     .from("entities")
     .update({
       ...(input.websiteUrl ? { website_url: input.websiteUrl } : {}),
       industry: dna.industry,
       business_model: dna.business_model,
-      brand_identity: dna.brand_identity as unknown as Json,
+      brand_identity: {
+        ...dna.brand_identity,
+        canvas_layouts: layouts,
+      } as unknown as Json,
       audience_segments: dna.audience_segments as unknown as Json,
       value_propositions: dna.value_propositions as unknown as Json,
       conversion_goals: dna.conversion_goals as unknown as Json,
@@ -250,13 +319,17 @@ export async function resyncDnaFromWebsite(
       url: entity.website_url,
     })
 
+    const layouts = await currentCanvasLayouts(auth.supabase, entityId)
     const { error: updateError } = await auth.supabase
       .from("entities")
       .update({
         website_url: sourceUrl,
         industry: dna.industry,
         business_model: dna.business_model,
-        brand_identity: dna.brand_identity as unknown as Json,
+        brand_identity: {
+          ...dna.brand_identity,
+          canvas_layouts: layouts,
+        } as unknown as Json,
         audience_segments: dna.audience_segments as unknown as Json,
         value_propositions: dna.value_propositions as unknown as Json,
         conversion_goals: dna.conversion_goals as unknown as Json,

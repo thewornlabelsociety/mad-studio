@@ -24,6 +24,7 @@ const actions: Record<string, (...args: any[]) => Promise<unknown>> = {
   claimFirstOrgAdmin: auth.claimFirstOrgAdmin,
   saveEntityDna: brain.saveEntityDna,
   saveVisualPresets: brain.saveVisualPresets,
+  saveCanvasLayouts: brain.saveCanvasLayouts,
   commitScrapedDna: brain.commitScrapedDna,
   resyncDnaFromWebsite: brain.resyncDnaFromWebsite,
   uploadEntityDocument: brain.uploadEntityDocument,

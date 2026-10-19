@@ -16,6 +16,8 @@ type Props = {
   navigationDock?: ReactNode
   channelRail?: ReactNode
   preview: ReactNode
+  /** Small actions shown beside the "Live preview" label (e.g. save layout). */
+  previewActions?: ReactNode
   showInlinePreview?: boolean
   /** @deprecated Use showInlinePreview */
   showPreview?: boolean
@@ -31,6 +33,7 @@ export function StudioSplitShell({
   navigationDock,
   channelRail,
   preview,
+  previewActions = null,
   showInlinePreview,
   showPreview = false,
   previewDrawer,
@@ -74,9 +77,12 @@ export function StudioSplitShell({
         {previewInline ? (
           <div className="hidden min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-neutral-200/80 bg-neutral-50/90 lg:flex">
             <div className="flex h-full min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 overflow-hidden px-2 py-2 lg:px-3">
-              <p className="shrink-0 text-[11px] font-medium tracking-wide text-neutral-500 uppercase">
-                Live preview
-              </p>
+              <div className="flex w-full shrink-0 items-center justify-center gap-2">
+                <p className="text-[11px] font-medium tracking-wide text-neutral-500 uppercase">
+                  Live preview
+                </p>
+                {previewActions}
+              </div>
               <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                 {preview}
               </div>

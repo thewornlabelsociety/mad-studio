@@ -131,6 +131,16 @@ import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
 import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import type { CanvasItemFacts } from "@/components/studio/canvas-text-overlay"
 import { requestCutout } from "@/lib/media/request-cutout"
+import { CanvasLayoutsBar } from "@/components/studio/canvas-layouts-bar"
+import { CanvasLayoutSaveButton } from "@/components/studio/canvas-layout-save-button"
+import {
+  applyLayoutToOverlay,
+  defaultLayoutOverlay,
+  layoutFromOverlay,
+  layoutWantsBackdrop,
+  type SavedCanvasLayout,
+} from "@/lib/studio/canvas-layouts"
+import { saveCanvasLayouts } from "@/lib/actions"
 import { NewArrivalSuggestions } from "@/components/studio/new-arrival-suggestions"
 import {
   fetchItemFacts,
@@ -260,8 +270,21 @@ export function StudioWorkspace({
   const [slideOverlays, setSlideOverlays] = useState<
     Record<string, CanvasTextOverlayState>
   >({})
+  // Saved Canvas layouts for this brand; the default one starts every post.
+  const [canvasLayouts, setCanvasLayouts] = useState<SavedCanvasLayout[]>(
+    () => activeEntity.brand_identity.canvas_layouts ?? []
+  )
+  const [layoutsBusy, setLayoutsBusy] = useState(false)
+  const defaultLayout = useMemo(
+    () => defaultLayoutOverlay(canvasLayouts),
+    [canvasLayouts]
+  )
   const [lastOverlayStyle, setLastOverlayStyle] =
     useState<CanvasTextOverlayState>(() => {
+      const fromDefault = defaultLayoutOverlay(
+        activeEntity.brand_identity.canvas_layouts ?? []
+      )
+      if (fromDefault) return fromDefault
       const brandFontId = resolveVisualPresets({
         brandName: activeEntity.name,
         industry: activeEntity.industry,
@@ -285,8 +308,9 @@ export function StudioWorkspace({
     const item = slideFacts[key]
     return {
       ...lastOverlayStyle,
-      headline: "",
-      subhead: "",
+      // A default layout's starter wording carries onto new slides.
+      headline: defaultLayout?.headline ?? "",
+      subhead: defaultLayout?.subhead ?? "",
       tagBrand: item?.brand ?? "",
       tagSize: item?.size ?? "",
       tagPrice: item?.price ?? "",
@@ -624,7 +648,14 @@ export function StudioWorkspace({
 
   // Cutouts live on each slide, so cutting out one photo never touches another.
   const [cutoutBusy, setCutoutBusy] = useState(false)
-  async function cutoutSlides(scope: "slide" | "all", on: boolean) {
+  async function cutoutSlides(
+    scope: "slide" | "all",
+    on: boolean,
+    lookOverride?: Pick<
+      CanvasTextOverlayState,
+      "backdropColor" | "subjectScale" | "subjectOffsetY"
+    >
+  ) {
     const photos = mediaAssets.filter((row) => row.type !== "video")
     const targets =
       scope === "all"
@@ -646,7 +677,7 @@ export function StudioWorkspace({
       return
     }
     // "All" uses this slide's colour and sizing everywhere.
-    const look = {
+    const look = lookOverride ?? {
       backdropColor: textOverlay.backdropColor,
       subjectScale: textOverlay.subjectScale,
       subjectOffsetY: textOverlay.subjectOffsetY,
@@ -679,6 +710,105 @@ export function StudioWorkspace({
       toast.error(`Couldn't cut out ${failed} photo${failed === 1 ? "" : "s"}.`)
     } else if (scope === "all") {
       toast.success(`Cut out ${targets.length} photos`)
+    }
+  }
+
+  async function persistLayouts(
+    next: SavedCanvasLayout[],
+    previous: SavedCanvasLayout[],
+    success?: string
+  ) {
+    setCanvasLayouts(next)
+    setLayoutsBusy(true)
+    try {
+      const result = (await saveCanvasLayouts({
+        entityId: activeEntity.id,
+        layouts: next,
+      })) as { ok?: boolean; error?: string }
+      if (!result?.ok) throw new Error(result?.error ?? "Couldn't save layouts.")
+      if (success) toast.success(success)
+    } catch (error) {
+      setCanvasLayouts(previous)
+      toast.error(error instanceof Error ? error.message : "Couldn't save layouts.")
+    } finally {
+      setLayoutsBusy(false)
+    }
+  }
+
+  function saveLayout(name: string, makeDefault: boolean) {
+    const layout: SavedCanvasLayout = {
+      id: crypto.randomUUID(),
+      name,
+      isDefault: makeDefault,
+      overlay: layoutFromOverlay(textOverlay),
+      createdAt: new Date().toISOString(),
+    }
+    const others = makeDefault
+      ? canvasLayouts.map((row) => ({ ...row, isDefault: false }))
+      : canvasLayouts
+    void persistLayouts(
+      [...others, layout],
+      canvasLayouts,
+      `Saved "${name}"${makeDefault ? " — new posts will start with it" : ""}`
+    )
+  }
+
+  function setDefaultLayout(layoutId: string | null) {
+    void persistLayouts(
+      canvasLayouts.map((row) => ({ ...row, isDefault: row.id === layoutId })),
+      canvasLayouts,
+      layoutId ? "New posts will start with this layout" : "No default layout"
+    )
+  }
+
+  function deleteLayout(layoutId: string) {
+    const removed = canvasLayouts.find((row) => row.id === layoutId)
+    void persistLayouts(
+      canvasLayouts.filter((row) => row.id !== layoutId),
+      canvasLayouts,
+      removed ? `Deleted "${removed.name}"` : undefined
+    )
+  }
+
+  function applyLayout(layoutId: string, scope: "slide" | "all") {
+    const layout = canvasLayouts.find((row) => row.id === layoutId)
+    if (!layout) return
+    const photos = mediaAssets.filter((row) => row.type !== "video")
+    const ids =
+      scope === "all" && photos.length > 0
+        ? photos.map((row) => row.id)
+        : [overlayKey]
+    const brandLogo = brandVisualPresets.logo_url ?? ""
+    setSlideOverlays((all) => {
+      const next = { ...all }
+      for (const id of ids) {
+        const slide = all[id] ?? freshOverlayFor(id)
+        const applied = applyLayoutToOverlay({
+          layout,
+          slide: { ...slide, logoUrl: brandLogo || slide.logoUrl },
+        })
+        // Backdrop needs this photo's own cutout; that's made below.
+        next[id] = {
+          ...applied,
+          backdropEnabled: applied.backdropEnabled && Boolean(slide.cutoutUrl),
+        }
+      }
+      return next
+    })
+    setLastOverlayStyle(normalizeCanvasTextOverlay(layout.overlay))
+    toast.success(
+      `"${layout.name}" applied to ${ids.length === 1 ? "this slide" : `all ${ids.length} slides`}`
+    )
+    if (layoutWantsBackdrop(layout)) {
+      const look = normalizeCanvasTextOverlay(layout.overlay)
+      // Let the new layouts land, then cut out the photos that need it.
+      setTimeout(() => {
+        void cutoutSlides(scope === "all" ? "all" : "slide", true, {
+          backdropColor: look.backdropColor,
+          subjectScale: look.subjectScale,
+          subjectOffsetY: look.subjectOffsetY,
+        })
+      }, 0)
     }
   }
 
@@ -1660,7 +1790,17 @@ export function StudioWorkspace({
         }
         footerSlot={null}
         canvasSlot={
-          phase === "canvas" && imageAssets.length >= 2 ? (
+          phase === "canvas" ? (
+            <div className="space-y-3">
+            <CanvasLayoutsBar
+              layouts={canvasLayouts}
+              photoCount={imageAssets.length}
+              busy={layoutsBusy || cutoutBusy}
+              onApply={applyLayout}
+              onSetDefault={setDefaultLayout}
+              onDelete={deleteLayout}
+            />
+            {imageAssets.length >= 2 ? (
             <CanvasSlidePicker
               slides={imageAssets.map((asset) => {
                 const overlay =
@@ -1679,6 +1819,8 @@ export function StudioWorkspace({
                 if (asset) onSelectStudioMedia(asset)
               }}
             />
+            ) : null}
+            </div>
           ) : null
         }
       />
@@ -1717,6 +1859,15 @@ export function StudioWorkspace({
       <StudioSplitShell
         className="min-h-0 flex-1"
         showInlinePreview
+        previewActions={
+          workbenchStep === WORKBENCH_STEP_CANVAS ? (
+            <CanvasLayoutSaveButton
+              busy={layoutsBusy}
+              suggestedName={`Layout ${canvasLayouts.length + 1}`}
+              onSave={saveLayout}
+            />
+          ) : null
+        }
         previewDrawer={{
           open: previewDrawerOpen,
           onOpenChange: setPreviewDrawerOpen,

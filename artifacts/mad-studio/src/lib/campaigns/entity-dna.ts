@@ -4,6 +4,7 @@ import { mergeIndustryDnaDefaults } from "@/lib/brands/industry-templates"
 import {
   audienceSegmentSchema,
   brandIdentitySchema,
+  canvasLayoutSchema,
 } from "@/lib/entities/dna-schema"
 import type { Json } from "@/lib/database.types"
 import {
@@ -71,6 +72,12 @@ export function parseStudioEntity(row: {
         : legacyTagline,
     visual_presets: identityRaw.visual_presets,
     formula_bank: identityRaw.formula_bank,
+    // Saved Canvas layouts; a bad entry is dropped rather than breaking the brand.
+    canvas_layouts: Array.isArray(identityRaw.canvas_layouts)
+      ? identityRaw.canvas_layouts.filter(
+          (row) => canvasLayoutSchema.safeParse(row).success
+        )
+      : undefined,
   })
 
   const segmentsRaw = Array.isArray(row.audience_segments)
@@ -112,7 +119,11 @@ export function parseStudioEntity(row: {
     industry: synced.industry,
     organization_id: row.organization_id,
     website_url: row.website_url,
-    brand_identity: synced.brand_identity,
+    // Industry defaults rebuild the identity; keep the saved Canvas layouts.
+    brand_identity: {
+      ...synced.brand_identity,
+      canvas_layouts: baseIdentity.canvas_layouts,
+    },
     audience_segments: segments,
     value_propositions: synced.value_propositions,
     conversion_goals: conversionGoals,

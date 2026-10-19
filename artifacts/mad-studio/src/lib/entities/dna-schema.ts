@@ -50,6 +50,17 @@ export const visualPresetsSchema = z.object({
 
 export type LogoCorner = NonNullable<VisualPresets["logo_corner"]>
 
+/** A saved Canvas layout: on-image styling and placement, reused per post. */
+export const canvasLayoutSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  isDefault: z.boolean().optional(),
+  overlay: z.record(z.string(), z.unknown()),
+  createdAt: z.string().optional(),
+})
+
+export type SavedCanvasLayout = z.infer<typeof canvasLayoutSchema>
+
 export type VisualPresets = z.infer<typeof visualPresetsSchema>
 
 export const brandIdentitySchema = z.object({
@@ -78,6 +89,8 @@ export const brandIdentitySchema = z.object({
     .describe(
       "Scraped brand colors + font tokens for Story/Carousel rendering"
     ),
+  /** Saved Canvas layouts — set in Studio, never by website scraping. */
+  canvas_layouts: z.array(canvasLayoutSchema).optional(),
   formula_bank: z
     .object({
       hook_styles: z.array(
