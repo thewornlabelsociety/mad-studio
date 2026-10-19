@@ -32,7 +32,7 @@ function parseDataUrl(dataUrl: string): {
   }
 }
 
-async function uploadBufferToEntityAssets(input: {
+export async function uploadBufferToEntityAssets(input: {
   entityId: string
   buffer: Buffer
   contentType: string

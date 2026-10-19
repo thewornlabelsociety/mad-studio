@@ -11,7 +11,10 @@ import {
   type ArmDispatchResult,
 } from "@/lib/scheduling/arm-queue"
 import type { ChannelSlot, SchedulerChannel } from "@/lib/scheduling/brain-timing"
-import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
+import {
+  isTikTokVideoUrl,
+  tikTokMediaGuardError,
+} from "@/lib/social/tiktok-media-guard"
 import { packPayloadFor } from "@/lib/scheduling/pack-payload"
 import { createClient } from "@/lib/supabase/server"
 
@@ -65,7 +68,7 @@ export async function armCampaignMultiChannelDispatch(input: {
    * rendered), from the review screen. Channels left out use `mediaUrl`.
    */
   mediaByChannel?: Partial<Record<SchedulerChannel, string>> | null
-  /** 2–10 slides posted as one carousel on Instagram feed and Facebook. */
+  /** 2–10 slides posted as one carousel on Instagram feed, Facebook and TikTok. */
   carouselUrls?: string[] | null
   /** 2–10 slides posted as consecutive Instagram Story frames (tray order). */
   storyUrls?: string[] | null
@@ -123,16 +126,23 @@ export async function armCampaignMultiChannelDispatch(input: {
       error: "Every photo must be a public https URL — finish uploading first.",
     }
   }
+  // TikTok photo mode is photos only; a tray with a video posts the selected video.
+  const tiktokTakesCarousel = !carouselUrls.some(isTikTokVideoUrl)
   const carouselFor = (channel: SchedulerChannel) =>
     carouselUrls.length >= 2 &&
-    (channel === "instagram_feed" || channel === "facebook")
+    (channel === "instagram_feed" ||
+      channel === "facebook" ||
+      (channel === "tiktok" && tiktokTakesCarousel))
       ? carouselUrls
       : null
   const storyFor = (channel: SchedulerChannel) =>
     storyUrls.length >= 2 && channel === "instagram_story" ? storyUrls : null
 
   if (slots.some((slot) => slot.channel === "tiktok")) {
-    const tiktokMediaError = tikTokMediaGuardError(mediaFor("tiktok"))
+    const tiktokMediaError = tikTokMediaGuardError(
+      mediaFor("tiktok"),
+      carouselFor("tiktok")
+    )
     if (tiktokMediaError) {
       return { ok: false, error: tiktokMediaError }
     }
