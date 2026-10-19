@@ -42,6 +42,10 @@ export const visualPresetsSchema = z.object({
   logo_corner: z
     .enum(["top_left", "top_right", "bottom_left", "bottom_right"])
     .optional(),
+  /** Brand colours offered for on-image text and story backgrounds. */
+  palette: z.array(z.string()).max(12).optional(),
+  /** Default on-image headline font (a CANVAS_TEXT_FONTS id). */
+  heading_font_id: z.string().optional(),
 })
 
 export type LogoCorner = NonNullable<VisualPresets["logo_corner"]>

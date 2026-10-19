@@ -77,6 +77,7 @@ import {
   WORKBENCH_STEP_COPY,
   WORKBENCH_STEP_INTENT,
 } from "@/lib/studio/workbench-steps"
+import { brandSwatches, resolveVisualPresets } from "@/lib/brands/visual-presets"
 import { cn } from "@/lib/utils"
 
 
@@ -666,7 +667,14 @@ export function StepCustomize({
   const isCanvasWizard = phase === "canvas"
   const isCopyWizard = phase === "copy"
   const isFitViewportWizard = isIntentWizard
-  const isBareWizard = isCanvasWizard || isCopyWizard
+  // Copy renders its own card; Canvas gets the same step header as Intent.
+  const isBareWizard = isCopyWizard
+  // This brand's colours and headline font (Brand Brain → Visual presets).
+  const brandPresets = resolveVisualPresets({
+    brandName: entity.name,
+    industry: entity.industry,
+    brandIdentity: entity.brand_identity,
+  })
   const intentFieldLabel = isIntentWizard
     ? "text-xs font-semibold tracking-wide text-neutral-600 uppercase"
     : "font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase"
@@ -679,7 +687,7 @@ export function StepCustomize({
     <StudioStepPanel
       fill
       scrollBody={!isFitViewportWizard}
-      compactHeader={isIntentWizard}
+      compactHeader={isIntentWizard || isCanvasWizard}
       bare={isBareWizard}
       kicker={isBareWizard ? undefined : meta.step}
       title={isBareWizard ? undefined : meta.title}
@@ -688,7 +696,7 @@ export function StepCustomize({
       }
       className={cn(
         "min-w-0",
-        isIntentWizard && "p-4 md:p-5",
+        (isIntentWizard || isCanvasWizard) && "p-4 md:p-5",
         isBareWizard && "min-h-0 flex-1 p-3 md:p-4"
       )}
     >
@@ -927,6 +935,8 @@ export function StepCustomize({
           onChange={onTextOverlayChange}
           isVideo={isVideoPreview}
           destinationUrl={destinationUrl}
+          swatches={brandSwatches(brandPresets)}
+          brandFontId={brandPresets.heading_font_id ?? null}
         />
 
       ) : null}

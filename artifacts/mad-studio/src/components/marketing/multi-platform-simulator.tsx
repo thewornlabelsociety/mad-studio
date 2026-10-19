@@ -38,12 +38,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { resolveVisualPresets } from "@/lib/brands/visual-presets"
+import { brandSwatches, resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import {
   buildBasicStoryModel,
   buildStoryCanvasModel,
-  CANVAS_BG_PRESETS,
   type StoryStylePreset,
 } from "@/lib/marketing/story-presets"
 import type { MarketingEntity } from "@/lib/inventory/types"
@@ -604,6 +603,16 @@ export function MultiPlatformSimulator({
           : null,
       }),
     [content.brandName, industry, visualPresets]
+  )
+  // Story backgrounds come from this brand's palette (Brand Brain presets).
+  const backgroundOptions = useMemo(
+    () =>
+      brandSwatches(resolvedPresets).map((swatch) => ({
+        id: `brand_${swatch.hex.slice(1)}`,
+        label: swatch.label,
+        hex: swatch.hex,
+      })),
+    [resolvedPresets]
   )
 
   const imageForCanvas =
@@ -1418,7 +1427,7 @@ export function MultiPlatformSimulator({
                 colorInputRef.current?.click()
                 return
               }
-              const preset = CANVAS_BG_PRESETS.find((row) => row.id === value)
+              const preset = backgroundOptions.find((row) => row.id === value)
               if (!preset) return
               patchPreview({
                 bgPresetId: preset.id,
@@ -1435,12 +1444,16 @@ export function MultiPlatformSimulator({
               <SelectValue placeholder="Canvas" />
             </SelectTrigger>
             <SelectContent className="rounded-none border-2 border-mad-black">
-              {CANVAS_BG_PRESETS.slice(0, 4).map((preset) => (
+              {backgroundOptions.map((preset) => (
                 <SelectItem
                   key={preset.id}
                   value={preset.id}
                   className="font-typewriter text-[0.65rem] uppercase"
                 >
+                  <span
+                    className="mr-1.5 inline-block size-3 border border-mad-black align-middle"
+                    style={{ background: preset.hex }}
+                  />
                   {preset.label}
                 </SelectItem>
               ))}
@@ -1663,7 +1676,7 @@ export function MultiPlatformSimulator({
               colorInputRef.current?.click()
               return
             }
-            const preset = CANVAS_BG_PRESETS.find((row) => row.id === value)
+            const preset = backgroundOptions.find((row) => row.id === value)
             if (!preset) return
             patchPreview({
               bgPresetId: preset.id,
@@ -1680,12 +1693,16 @@ export function MultiPlatformSimulator({
             <SelectValue placeholder="Canvas" />
           </SelectTrigger>
           <SelectContent className="rounded-none border-2 border-mad-black">
-            {CANVAS_BG_PRESETS.slice(0, 4).map((preset) => (
+            {backgroundOptions.map((preset) => (
               <SelectItem
                 key={preset.id}
                 value={preset.id}
                 className="font-typewriter text-[0.65rem] uppercase"
               >
+                <span
+                  className="mr-1.5 inline-block size-3 border border-mad-black align-middle"
+                  style={{ background: preset.hex }}
+                />
                 {preset.label}
               </SelectItem>
             ))}

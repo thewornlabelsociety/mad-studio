@@ -52,6 +52,49 @@ export function visualPresetsFromTheme(theme: BrandColorTheme): VisualPresets {
   }
 }
 
+/**
+ * Starting brand palette and headline font per brand profile, used until the
+ * brand saves its own in Brand Brain → Visual presets.
+ */
+const BRAND_DEFAULTS: Record<
+  string,
+  { palette: string[]; headingFontId: string }
+> = {
+  // Gold, beige, black, white — quiet luxury.
+  worn_label: {
+    palette: ["#C5A46D", "#E8DCC4", "#111111", "#FFFFFF"],
+    headingFontId: "editorial_serif",
+  },
+  fudi: {
+    palette: ["#CCFF00", "#FF007F", "#0A0A0A", "#FFFFFF"],
+    headingFontId: "impact_bold",
+  },
+  generic: {
+    palette: ["#111111", "#FFFFFF", "#F5F5F5", "#6B6B6B"],
+    headingFontId: "inter_clean",
+  },
+}
+
+export type BrandSwatch = { hex: string; label: string }
+
+/** The brand's colours for on-image text and story backgrounds (deduped). */
+export function brandSwatches(presets: VisualPresets): BrandSwatch[] {
+  const seen = new Set<string>()
+  const out: BrandSwatch[] = []
+  for (const raw of [
+    ...(presets.palette ?? []),
+    presets.text_color,
+    presets.canvas_color,
+    presets.accent_color,
+  ]) {
+    const hex = normalizeHexColor(raw, "")
+    if (!hex || seen.has(hex)) continue
+    seen.add(hex)
+    out.push({ hex, label: hex })
+  }
+  return out.slice(0, 10)
+}
+
 export function resolveVisualPresets(input: {
   brandName?: string | null
   industry?: string | null
@@ -61,12 +104,23 @@ export function resolveVisualPresets(input: {
     name: input.brandName,
     industry: input.industry,
   })
-  const fallback = visualPresetsFromTheme(profile.theme)
+  const defaults = BRAND_DEFAULTS[profile.id] ?? BRAND_DEFAULTS.generic
+  const fallback: VisualPresets = {
+    ...visualPresetsFromTheme(profile.theme),
+    palette: defaults.palette,
+    heading_font_id: defaults.headingFontId,
+  }
   const raw = input.brandIdentity?.visual_presets
   const parsed = visualPresetsSchema.safeParse(raw)
   if (!parsed.success) return fallback
 
+  const savedPalette = (parsed.data.palette ?? [])
+    .map((hex) => normalizeHexColor(hex, ""))
+    .filter(Boolean)
+
   return {
+    palette: savedPalette.length ? savedPalette : defaults.palette,
+    heading_font_id: parsed.data.heading_font_id || defaults.headingFontId,
     canvas_color: normalizeHexColor(
       parsed.data.canvas_color,
       fallback.canvas_color

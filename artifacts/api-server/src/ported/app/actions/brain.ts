@@ -115,6 +115,8 @@ export async function saveVisualPresets(input: {
     font_family: string
     logo_url?: string
     logo_corner?: LogoCorner
+    palette?: string[]
+    heading_font_id?: string
   }
 }): Promise<ActionResult<{ brandIdentity: BrandIdentity }>> {
   const auth = await assertCanEdit(input.entityId)

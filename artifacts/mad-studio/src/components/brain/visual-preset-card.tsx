@@ -18,6 +18,7 @@ import {
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { StudioEntityDna } from "@/lib/campaigns/entity-dna"
 import type { LogoCorner, VisualPresets } from "@/lib/entities/dna-schema"
+import { CANVAS_TEXT_FONTS } from "@/lib/studio/canvas-text-types"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -25,19 +26,6 @@ type Props = {
   className?: string
 }
 
-/** MAD studio palette first, then brand-friendly neutrals. */
-const SWATCH_PRESETS = [
-  "#0A0A0A",
-  "#CCFF00",
-  "#FF007F",
-  "#000000",
-  "#FFFFFF",
-  "#121211",
-  "#0F3B2E",
-  "#EDECE8",
-  "#FF3B00",
-  "#241C18",
-]
 
 export function VisualPresetCard({ entity, className }: Props) {
   const [pending, startTransition] = useTransition()
@@ -47,6 +35,13 @@ export function VisualPresetCard({ entity, className }: Props) {
     brandIdentity: entity.brand_identity,
   })
   const [draft, setDraft] = useState<VisualPresets>(resolved)
+  const rowSwatches = [
+    ...new Set(
+      [...(draft.palette ?? []), "#000000", "#FFFFFF"].map((hex) =>
+        hex.toUpperCase()
+      )
+    ),
+  ]
 
   useEffect(() => {
     setDraft(
@@ -151,6 +146,7 @@ export function VisualPresetCard({ entity, className }: Props) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <ColorSwatchField
+          swatches={rowSwatches}
           label="Canvas"
           value={draft.canvas_color}
           onChange={(value) =>
@@ -158,6 +154,7 @@ export function VisualPresetCard({ entity, className }: Props) {
           }
         />
         <ColorSwatchField
+          swatches={rowSwatches}
           label="Accent"
           value={draft.accent_color}
           onChange={(value) =>
@@ -165,6 +162,7 @@ export function VisualPresetCard({ entity, className }: Props) {
           }
         />
         <ColorSwatchField
+          swatches={rowSwatches}
           label="Text"
           value={draft.text_color}
           onChange={(value) =>
@@ -205,6 +203,19 @@ export function VisualPresetCard({ entity, className }: Props) {
         </div>
       </div>
 
+      <BrandPaletteField
+        palette={draft.palette ?? []}
+        onChange={(palette) => setDraft((current) => ({ ...current, palette }))}
+      />
+
+      <HeadlineFontField
+        value={draft.heading_font_id ?? CANVAS_TEXT_FONTS[0].id}
+        sample={entity.name}
+        onChange={(heading_font_id) =>
+          setDraft((current) => ({ ...current, heading_font_id }))
+        }
+      />
+
       <LogoField
         entityId={entity.id}
         logoUrl={draft.logo_url ?? null}
@@ -212,6 +223,118 @@ export function VisualPresetCard({ entity, className }: Props) {
         onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
       />
     </section>
+  )
+}
+
+/** This brand's colours — offered for on-image text and story backgrounds. */
+function BrandPaletteField({
+  palette,
+  onChange,
+}: {
+  palette: string[]
+  onChange: (palette: string[]) => void
+}) {
+  const [adding, setAdding] = useState("#C5A46D")
+
+  function add(hex: string) {
+    const value = hex.toUpperCase()
+    if (palette.some((row) => row.toUpperCase() === value)) return
+    onChange([...palette, value].slice(0, 12))
+  }
+
+  return (
+    <div className="grid gap-2 border-t border-neutral-200 pt-4">
+      <div>
+        <Label className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+          Brand palette
+        </Label>
+        <p className="mt-1 text-xs text-neutral-600">
+          The colours Studio offers for on-image text and story backgrounds.
+          Click a colour to remove it.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {palette.map((hex) => (
+          <button
+            key={hex}
+            type="button"
+            onClick={() => onChange(palette.filter((row) => row !== hex))}
+            className="group relative size-9 border-2 border-mad-black"
+            style={{ background: hex }}
+            title={`${hex} — click to remove`}
+            aria-label={`Remove ${hex} from the brand palette`}
+          >
+            <span className="absolute inset-0 hidden items-center justify-center bg-black/40 text-xs font-bold text-white group-hover:flex">
+              ×
+            </span>
+          </button>
+        ))}
+        <div className="flex h-9 items-stretch border-2 border-dashed border-mad-black">
+          <label className="relative flex w-9 cursor-pointer items-center justify-center hover:bg-mad-lime/30">
+            <span
+              className="size-5 border border-mad-black"
+              style={{ background: adding }}
+              aria-hidden
+            />
+            <input
+              type="color"
+              value={adding}
+              onChange={(event) => setAdding(event.target.value)}
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
+              aria-label="Pick a colour to add to the brand palette"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => add(adding)}
+            className="border-l-2 border-dashed border-mad-black px-2 font-typewriter text-[0.6rem] font-bold uppercase hover:bg-mad-lime/30"
+          >
+            Add {adding.toUpperCase()}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Default font for on-image headlines in Canvas. */
+function HeadlineFontField({
+  value,
+  sample,
+  onChange,
+}: {
+  value: string
+  sample: string
+  onChange: (fontId: string) => void
+}) {
+  const active =
+    CANVAS_TEXT_FONTS.find((font) => font.id === value) ?? CANVAS_TEXT_FONTS[0]
+  return (
+    <div className="grid gap-3 border-t border-neutral-200 pt-4 sm:grid-cols-[minmax(0,14rem)_1fr] sm:items-center">
+      <div className="grid gap-1.5">
+        <Label className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+          Headline font
+        </Label>
+        <Select value={active.id} onValueChange={onChange}>
+          <SelectTrigger className="rounded-none border-2 border-mad-black">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="rounded-none border-2 border-mad-black">
+            {CANVAS_TEXT_FONTS.map((font) => (
+              <SelectItem key={font.id} value={font.id}>
+                <span style={font.style}>{font.label}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <p
+        className={cn("truncate text-2xl text-mad-black", active.className)}
+        style={active.style}
+      >
+        {sample}
+      </p>
+    </div>
   )
 }
 
@@ -337,10 +460,12 @@ function LogoField({
 }
 
 function ColorSwatchField({
+  swatches,
   label,
   value,
   onChange,
 }: {
+  swatches: string[]
   label: string
   value: string
   onChange: (value: string) => void
@@ -358,7 +483,7 @@ function ColorSwatchField({
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {SWATCH_PRESETS.map((swatch) => {
+        {swatches.map((swatch) => {
           const active = swatch.toUpperCase() === normalized.toUpperCase()
           return (
             <button

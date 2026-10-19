@@ -51,6 +51,7 @@ import {
   MultiPlatformSimulator,
 } from "@/components/marketing/multi-platform-simulator"
 import {
+  CANVAS_TEXT_FONTS,
   DEFAULT_CANVAS_TEXT_OVERLAY,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
@@ -232,9 +233,20 @@ export function StudioWorkspace({
   const [workbenchStep, setWorkbenchStep] = useState<WorkbenchStepId>(() =>
     parseWorkbenchStepParam(initialStep)
   )
-  const [textOverlay, setTextOverlay] = useState<CanvasTextOverlayState>(
-    DEFAULT_CANVAS_TEXT_OVERLAY
-  )
+  // New posts start in this brand's headline font (Brand Brain presets).
+  const [textOverlay, setTextOverlay] = useState<CanvasTextOverlayState>(() => {
+    const brandFontId = resolveVisualPresets({
+      brandName: activeEntity.name,
+      industry: activeEntity.industry,
+      brandIdentity: activeEntity.brand_identity,
+    }).heading_font_id
+    return CANVAS_TEXT_FONTS.some((font) => font.id === brandFontId)
+      ? {
+          ...DEFAULT_CANVAS_TEXT_OVERLAY,
+          fontId: brandFontId as CanvasTextOverlayState["fontId"],
+        }
+      : DEFAULT_CANVAS_TEXT_OVERLAY
+  })
   const [simPlatform, setSimPlatform] = useState<
     import("@/components/marketing/multi-platform-simulator").SimulatorPlatform
   >("ig_story")

@@ -35,6 +35,13 @@ import {
   CANVAS_NATIVE_POST_FEATURES,
   TEAM_POSTING_TRACK_SOPS,
 } from "@/lib/studio/studio-wizard-sop"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 export const CANVAS_MEDIA_FRAME_ATTR = "data-canvas-media-frame"
@@ -458,10 +465,10 @@ function CanvasNativePostPanel({
   }
 
   return (
-    <div className="border-t border-neutral-200 pt-5 lg:col-span-3">
+    <div className="border-t-2 border-mad-black/10 pt-5 lg:col-span-3">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <h3 className="text-sm font-semibold tracking-wide text-neutral-900 uppercase">
+          <h3 className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Add on your phone after publish
           </h3>
           <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
@@ -486,9 +493,11 @@ function CanvasNativePostPanel({
         {CANVAS_NATIVE_POST_FEATURES.map((feature) => (
           <li
             key={feature.id}
-            className="border border-neutral-200 bg-neutral-50/80 p-3 md:p-4"
+            className="border-2 border-mad-black bg-mad-white p-3 md:p-4"
           >
-            <p className="text-sm font-semibold text-neutral-900">{feature.title}</p>
+            <p className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase">
+              {feature.title}
+            </p>
             <p className="mt-1 text-sm leading-relaxed text-neutral-600">
               {feature.detail}
             </p>
@@ -510,6 +519,10 @@ type EditorProps = {
   /** Studio Canvas step — larger type, two-column layout, tips collapsed. */
   wizardCompact?: boolean
   destinationUrl?: string | null
+  /** This brand's colours (Brand Brain palette); falls back to MAD swatches. */
+  swatches?: ReadonlyArray<{ hex: string; label: string }>
+  /** This brand's headline font, listed first. */
+  brandFontId?: string | null
 }
 
 export function CanvasTextOverlayEditor({
@@ -519,7 +532,15 @@ export function CanvasTextOverlayEditor({
   className,
   wizardCompact = false,
   destinationUrl = null,
+  swatches = CANVAS_BRAND_SWATCHES,
+  brandFontId = null,
 }: EditorProps) {
+  const fontOptions = brandFontId
+    ? [
+        ...CANVAS_TEXT_FONTS.filter((font) => font.id === brandFontId),
+        ...CANVAS_TEXT_FONTS.filter((font) => font.id !== brandFontId),
+      ]
+    : CANVAS_TEXT_FONTS
   useEffect(() => {
     if (value.highlight === "none" && value.animation === "none") return
     onChange(
@@ -553,21 +574,23 @@ export function CanvasTextOverlayEditor({
     )
   }
 
+  // Wizard styles match the Intent step: typewriter labels, 2px black frames.
   const labelClass = wizardCompact
-    ? "text-xs font-semibold tracking-wide text-neutral-600 uppercase"
+    ? "font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase"
     : "font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase"
   const inputClass = wizardCompact
-    ? "h-11 w-full border-2 border-mad-black px-3 py-2 text-base outline-none focus:bg-mad-lime/20"
+    ? "h-10 w-full border-2 border-mad-black bg-mad-white px-3 text-sm outline-none placeholder:text-neutral-400 focus:bg-mad-lime/20"
     : "w-full border-2 border-mad-black px-2 py-1 text-base outline-none focus:bg-mad-lime/20 md:text-xs"
   const sectionTitleClass = wizardCompact
-    ? "text-xs font-semibold tracking-[0.14em] text-neutral-800 uppercase"
+    ? "border-b-2 border-mad-black/10 pb-1.5 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase"
     : labelClass
   const btnClass = wizardCompact
-    ? "border-2 border-mad-black px-3 py-2 text-xs font-semibold uppercase"
+    ? "border-2 border-mad-black px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase"
     : "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.4rem] font-bold uppercase"
   const selectClass = wizardCompact
-    ? "h-10 w-full border-2 border-mad-black bg-mad-white px-2 text-sm"
-    : "h-8 w-full border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.55rem] uppercase"
+    ? "h-10 w-full min-w-0 rounded-none border-2 border-mad-black bg-mad-white text-sm shadow-none"
+    : "h-8 w-full min-w-0 rounded-none border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.55rem] uppercase shadow-none"
+  const rangeClass = "w-full cursor-pointer accent-mad-black"
 
   const tipsCopy = (
     <>
@@ -593,8 +616,8 @@ export function CanvasTextOverlayEditor({
       {wizardCompact ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <details className="min-w-0 flex-1 text-sm leading-relaxed text-neutral-600">
-            <summary className="cursor-pointer font-medium text-neutral-800">
-              Tips — drag, scale, and bake on export
+            <summary className="cursor-pointer font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase">
+              Tips — drag, scale & bake on export
             </summary>
             <p className="mt-2 max-w-2xl">{tipsCopy}</p>
           </details>
@@ -675,7 +698,7 @@ export function CanvasTextOverlayEditor({
               onChange={(event) =>
                 patch({ headline: event.target.value, enabled: true })
               }
-              placeholder="e.g. Friday flatbread drop"
+              placeholder="e.g. New in this week"
               className={inputClass}
             />
           </label>
@@ -741,7 +764,7 @@ export function CanvasTextOverlayEditor({
                   ),
                 })
               }
-              className="w-full"
+              className={rangeClass}
             />
           </label>
           <label className="grid gap-2">
@@ -761,7 +784,7 @@ export function CanvasTextOverlayEditor({
                   ),
                 })
               }
-              className="w-full"
+              className={rangeClass}
             />
           </label>
         </div>
@@ -772,27 +795,32 @@ export function CanvasTextOverlayEditor({
           ) : null}
           <label className="grid gap-1.5">
             <span className={labelClass}>Font</span>
-            <select
+            <Select
               value={value.fontId}
-              onChange={(event) =>
-                patch({ fontId: event.target.value as CanvasTextFontId })
-              }
-              className={selectClass}
+              onValueChange={(next) => patch({ fontId: next as CanvasTextFontId })}
             >
-              {CANVAS_TEXT_FONTS.map((font) => (
-                <option key={font.id} value={font.id}>
-                  {font.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className={selectClass}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-none border-2 border-mad-black">
+                {fontOptions.map((font) => (
+                  <SelectItem key={font.id} value={font.id}>
+                    <span style={font.style}>{font.label}</span>
+                    {font.id === brandFontId ? (
+                      <span className="ml-1.5 text-xs text-neutral-500">· brand</span>
+                    ) : null}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
 
           <div className="space-y-2">
             <span className={labelClass}>Color</span>
             <div className="flex flex-wrap gap-2.5">
-              {CANVAS_BRAND_SWATCHES.map((swatch) => (
+              {swatches.map((swatch) => (
                 <button
-                  key={swatch.id}
+                  key={swatch.hex}
                   type="button"
                   title={swatch.label}
                   onClick={() => patch({ color: swatch.hex })}
@@ -805,34 +833,51 @@ export function CanvasTextOverlayEditor({
                   style={{ background: swatch.hex }}
                 />
               ))}
-              <input
-                type="color"
-                value={value.color}
-                onChange={(event) =>
-                  patch({ color: event.target.value.toUpperCase() })
-                }
+              <label
+                title="Pick any colour"
                 className={cn(
-                  wizardCompact ? "size-9" : "size-6",
-                  "border-2 border-mad-black bg-transparent"
+                  "relative flex cursor-pointer items-center gap-1.5 border-2 border-dashed border-mad-black px-2 hover:bg-mad-lime/30",
+                  wizardCompact ? "h-9" : "h-6"
                 )}
-                aria-label="Custom text color"
-              />
+              >
+                <span
+                  aria-hidden
+                  className="size-4 border border-mad-black"
+                  style={{ background: value.color }}
+                />
+                {wizardCompact ? (
+                  <span className="font-typewriter text-[0.55rem] font-bold uppercase">
+                    Custom
+                  </span>
+                ) : null}
+                <input
+                  type="color"
+                  value={value.color}
+                  onChange={(event) =>
+                    patch({ color: event.target.value.toUpperCase() })
+                  }
+                  className="absolute inset-0 size-full cursor-pointer opacity-0"
+                  aria-label="Custom text colour"
+                />
+              </label>
             </div>
           </div>
 
           <label className="grid gap-1.5">
             <span className={labelClass}>Shadow</span>
-            <select
+            <Select
               value={value.shadow}
-              onChange={(event) =>
-                patch({ shadow: event.target.value as CanvasTextShadow })
-              }
-              className={selectClass}
+              onValueChange={(next) => patch({ shadow: next as CanvasTextShadow })}
             >
-              <option value="none">None</option>
-              <option value="soft">Soft blur</option>
-              <option value="hard">Hard drop</option>
-            </select>
+              <SelectTrigger className={selectClass}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-none border-2 border-mad-black">
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="soft">Soft blur</SelectItem>
+                <SelectItem value="hard">Hard drop</SelectItem>
+              </SelectContent>
+            </Select>
           </label>
         </div>
 
