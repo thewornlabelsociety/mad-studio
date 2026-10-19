@@ -1117,6 +1117,8 @@ export function MultiPlatformSimulator({
       interactive={canvasEditActive}
       onOverlayChange={onTextOverlayChange ?? setTextOverlay}
       renderCanvasText={!remotionDefersOverlays}
+      // The Story card brings its own cutout and logo.
+      textOnly={platform === "ig_story" && useStoryCanvasForIg}
     />
   )
 

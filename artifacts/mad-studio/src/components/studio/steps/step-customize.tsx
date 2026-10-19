@@ -146,6 +146,11 @@ export type CustomizeWizardPhase = "intent" | "canvas" | "copy" | "all"
 type Props = {
   /** The item being posted — fills the tags line on the Canvas step. */
   itemFacts?: CanvasItemFacts | null
+  /** Photo on the slide being edited (for the Canvas cutout backdrop). */
+  canvasSourceUrl?: string | null
+  onCutout?: (scope: "slide" | "all", on: boolean) => void | Promise<void>
+  cutoutBusy?: boolean
+  photoCount?: number
 
   phase?: CustomizeWizardPhase
 
@@ -317,6 +322,10 @@ const PHASE_META: Record<
 
 export function StepCustomize({
   itemFacts = null,
+  canvasSourceUrl = null,
+  onCutout,
+  cutoutBusy = false,
+  photoCount = 1,
 
   phase = "all",
 
@@ -958,6 +967,12 @@ export function StepCustomize({
           swatches={brandSwatches(brandPresets)}
           brandFontId={brandPresets.heading_font_id ?? null}
           itemFacts={itemFacts}
+          logoUrl={brandPresets.logo_url ?? null}
+          sourceUrl={canvasSourceUrl}
+          onCutout={onCutout}
+          cutoutBusy={cutoutBusy}
+          photoCount={photoCount}
+          entityId={entityId}
         />
         </>
 

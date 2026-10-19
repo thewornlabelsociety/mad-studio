@@ -16,6 +16,7 @@ import {
 import type { CampaignPack } from "@/lib/campaigns/pack-schema"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { bakeCanvasTextOnImage } from "@/lib/media/bake-canvas-text"
+import { canvasTextOnly } from "@/lib/studio/canvas-text-types"
 import { buildBasicStoryModel } from "@/lib/marketing/story-presets"
 import {
   CHANNEL_META,
@@ -239,7 +240,8 @@ export function ReviewBeforeSchedule({
           story = await bakeCanvasTextOnImage({
             entityId,
             sourceUrl: await renderStoryCardToUrl(node, entityId),
-            overlay: textOverlay,
+            // The card has its own cutout and logo; only the text goes on top.
+            overlay: canvasTextOnly(textOverlay),
           })
         }
         // Each slide gets its own Canvas text baked in.

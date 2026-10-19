@@ -215,6 +215,27 @@ export type CanvasTextOverlayState = {
   tagVibeY: number
   tagRotationDeg: number
   tagBgColor: string
+  /** Per-tag overrides of the shared tag style (set by clicking a tag). */
+  tagStyles: Partial<Record<CanvasTagId, Partial<CanvasLayerStyle>>>
+
+  /** Brand logo on the image: centre point and width (% of the frame). */
+  logoEnabled: boolean
+  logoUrl: string
+  logoX: number
+  logoY: number
+  logoScale: number
+
+  /**
+   * Backdrop: the item cut out and placed on a solid colour instead of the
+   * original photo. cutoutUrl is the background-removed PNG.
+   */
+  backdropEnabled: boolean
+  backdropColor: string
+  cutoutUrl: string
+  /** Photo the cutout was made from — redo it if the slide's photo changes. */
+  cutoutSourceUrl: string
+  subjectScale: number
+  subjectOffsetY: number
 
   textAlign: CanvasTextAlign
 
@@ -322,6 +343,20 @@ export const DEFAULT_CANVAS_TEXT_OVERLAY: CanvasTextOverlayState = {
   tagVibeY: 44,
   tagRotationDeg: 0,
   tagBgColor: "#111111",
+  tagStyles: {},
+
+  logoEnabled: false,
+  logoUrl: "",
+  logoX: 85,
+  logoY: 8,
+  logoScale: 18,
+
+  backdropEnabled: false,
+  backdropColor: "#F2EDE4",
+  cutoutUrl: "",
+  cutoutSourceUrl: "",
+  subjectScale: 0.9,
+  subjectOffsetY: 0,
 
   textAlign: "center",
 
@@ -386,9 +421,31 @@ export function canvasOverlayHasDecor(overlay: CanvasTextOverlayState): boolean 
     Boolean(
       overlay.headline.trim() ||
         overlay.subhead.trim() ||
-        canvasTagItems(overlay).length > 0
+        canvasTagItems(overlay).length > 0 ||
+        canvasLogoOn(overlay) ||
+        canvasBackdropOn(overlay)
     )
   )
+}
+
+export function canvasLogoOn(overlay: CanvasTextOverlayState): boolean {
+  return Boolean(overlay.logoEnabled && overlay.logoUrl)
+}
+
+export function canvasBackdropOn(overlay: CanvasTextOverlayState): boolean {
+  return Boolean(overlay.backdropEnabled && overlay.cutoutUrl)
+}
+
+/** Text only (headline, subhead, tags) — for the Story card, which has its own logo and cutout. */
+export function canvasTextOnly(
+  overlay: CanvasTextOverlayState
+): CanvasTextOverlayState {
+  return { ...overlay, logoEnabled: false, backdropEnabled: false }
+}
+
+function clampNumber(raw: unknown, min: number, max: number, fallback: number): number {
+  const n = typeof raw === "number" ? raw : Number(raw)
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
 }
 
 /** Poll, countdown, emoji, and link-pill overlays are no longer supported on export. */
@@ -612,6 +669,20 @@ export function normalizeCanvasTextOverlay(
     tagVibeY: num("tagVibeY", DEFAULT_CANVAS_TEXT_OVERLAY.tagVibeY),
     tagRotationDeg: degreesOf("tagRotationDeg", 0),
     tagBgColor: str("tagBgColor", DEFAULT_CANVAS_TEXT_OVERLAY.tagBgColor),
+    tagStyles: normalizeTagStyles(row.tagStyles),
+
+    logoEnabled: row.logoEnabled === true,
+    logoUrl: str("logoUrl", ""),
+    logoX: num("logoX", DEFAULT_CANVAS_TEXT_OVERLAY.logoX),
+    logoY: num("logoY", DEFAULT_CANVAS_TEXT_OVERLAY.logoY),
+    logoScale: clampNumber(row.logoScale, 6, 60, DEFAULT_CANVAS_TEXT_OVERLAY.logoScale),
+
+    backdropEnabled: row.backdropEnabled === true,
+    backdropColor: str("backdropColor", DEFAULT_CANVAS_TEXT_OVERLAY.backdropColor),
+    cutoutUrl: str("cutoutUrl", ""),
+    cutoutSourceUrl: str("cutoutSourceUrl", ""),
+    subjectScale: clampNumber(row.subjectScale, 0.3, 1.8, DEFAULT_CANVAS_TEXT_OVERLAY.subjectScale),
+    subjectOffsetY: clampNumber(row.subjectOffsetY, -45, 45, 0),
 
     textAlign:
 
@@ -1133,7 +1204,7 @@ export function canvasTextAnimationClass(
 
 
 
-export type CanvasTextLayerId = "headline" | "subhead" | "tags"
+export type CanvasTextLayerId = "headline" | "subhead"
 
 /** "$180" from "180"; anything else ("$180", "NZ$180") is kept as typed. */
 function priceLabel(raw: string): string {
@@ -1150,15 +1221,148 @@ function sizeLabel(raw: string): string {
 
 /** The item-fact tags, each drawn as its own box. */
 export const CANVAS_TAGS = [
-  { id: "tag_new", show: "tagShowNew", text: "tagNewLabel", x: "tagNewX", y: "tagNewY" },
-  { id: "tag_brand", show: "tagShowBrand", text: "tagBrand", x: "tagBrandX", y: "tagBrandY" },
-  { id: "tag_size", show: "tagShowSize", text: "tagSize", x: "tagSizeX", y: "tagSizeY" },
-  { id: "tag_price", show: "tagShowPrice", text: "tagPrice", x: "tagPriceX", y: "tagPriceY" },
-  { id: "tag_vibe", show: "tagShowVibe", text: "tagVibe", x: "tagVibeX", y: "tagVibeY" },
+  { id: "tag_new", show: "tagShowNew", text: "tagNewLabel", x: "tagNewX", y: "tagNewY", label: "New" },
+  { id: "tag_brand", show: "tagShowBrand", text: "tagBrand", x: "tagBrandX", y: "tagBrandY", label: "Brand" },
+  { id: "tag_size", show: "tagShowSize", text: "tagSize", x: "tagSizeX", y: "tagSizeY", label: "Size" },
+  { id: "tag_price", show: "tagShowPrice", text: "tagPrice", x: "tagPriceX", y: "tagPriceY", label: "Price" },
+  { id: "tag_vibe", show: "tagShowVibe", text: "tagVibe", x: "tagVibeX", y: "tagVibeY", label: "Vibe" },
 ] as const
 
 export type CanvasTagId = (typeof CANVAS_TAGS)[number]["id"]
 export type CanvasTagPositionKey = (typeof CANVAS_TAGS)[number]["x" | "y"]
+
+/** Any box of text on the image that can be clicked and styled. */
+export type CanvasStyleTarget = CanvasTextLayerId | CanvasTagId
+
+/** Anything on the image that can be selected (text boxes and the logo). */
+export type CanvasSelectable = CanvasStyleTarget | "logo"
+
+export type CanvasLayerStyle = {
+  fontId: CanvasTextFontId
+  color: string
+  fontScale: number
+  rotationDeg: number
+  /** Block colour behind the text; "" for none. */
+  bgColor: string
+}
+
+export function isCanvasTagId(value: string): value is CanvasTagId {
+  return CANVAS_TAGS.some((tag) => tag.id === value)
+}
+
+export function canvasSelectableLabel(target: CanvasSelectable): string {
+  if (target === "headline") return "Headline"
+  if (target === "subhead") return "Subhead"
+  if (target === "logo") return "Logo"
+  return CANVAS_TAGS.find((tag) => tag.id === target)?.label ?? "Tag"
+}
+
+/** Position fields for each movable thing on the image. */
+export function canvasPositionKeys(target: CanvasSelectable): {
+  x: keyof CanvasTextOverlayState & string
+  y: keyof CanvasTextOverlayState & string
+} {
+  if (target === "headline") return { x: "positionX", y: "positionY" }
+  if (target === "subhead") return { x: "subPositionX", y: "subPositionY" }
+  if (target === "logo") return { x: "logoX", y: "logoY" }
+  const tag = CANVAS_TAGS.find((row) => row.id === target)!
+  return { x: tag.x, y: tag.y }
+}
+
+/** The style a box is drawn with (a tag's own style over the shared tag style). */
+export function readLayerStyle(
+  overlay: CanvasTextOverlayState,
+  target: CanvasStyleTarget
+): CanvasLayerStyle {
+  if (target === "headline") {
+    return {
+      fontId: overlay.fontId,
+      color: overlay.color,
+      fontScale: overlay.fontScale,
+      rotationDeg: overlay.rotationDeg,
+      bgColor: overlay.bgColor ?? "",
+    }
+  }
+  if (target === "subhead") {
+    return {
+      fontId: overlay.subFontId ?? overlay.fontId,
+      color: overlay.subColor ?? overlay.color,
+      fontScale: overlay.subFontScale ?? overlay.fontScale,
+      rotationDeg: overlay.subRotationDeg ?? overlay.rotationDeg,
+      bgColor: overlay.subBgColor ?? "",
+    }
+  }
+  const own = overlay.tagStyles?.[target] ?? {}
+  return {
+    fontId: own.fontId ?? overlay.tagFontId ?? overlay.fontId,
+    color: own.color ?? overlay.tagColor ?? "#FFFFFF",
+    fontScale: own.fontScale ?? overlay.tagFontScale ?? 0.5,
+    rotationDeg: own.rotationDeg ?? overlay.tagRotationDeg ?? 0,
+    bgColor: own.bgColor ?? overlay.tagBgColor ?? "",
+  }
+}
+
+/** The overlay fields to change so one box gets the new style. */
+export function layerStylePatch(
+  overlay: CanvasTextOverlayState,
+  target: CanvasStyleTarget,
+  style: Partial<CanvasLayerStyle>
+): Partial<CanvasTextOverlayState> {
+  if (target === "headline") return { ...style }
+  if (target === "subhead") {
+    const patch: Partial<CanvasTextOverlayState> = {}
+    if (style.fontId !== undefined) patch.subFontId = style.fontId
+    if (style.color !== undefined) patch.subColor = style.color
+    if (style.fontScale !== undefined) patch.subFontScale = style.fontScale
+    if (style.rotationDeg !== undefined) patch.subRotationDeg = style.rotationDeg
+    if (style.bgColor !== undefined) patch.subBgColor = style.bgColor
+    return patch
+  }
+  return {
+    tagStyles: {
+      ...(overlay.tagStyles ?? {}),
+      [target]: { ...(overlay.tagStyles?.[target] ?? {}), ...style },
+    },
+  }
+}
+
+/** Give every tag the same style as this one. */
+export function matchAllTagsPatch(
+  overlay: CanvasTextOverlayState,
+  from: CanvasTagId
+): Partial<CanvasTextOverlayState> {
+  const style = readLayerStyle(overlay, from)
+  return {
+    tagFontId: style.fontId,
+    tagColor: style.color,
+    tagFontScale: style.fontScale,
+    tagRotationDeg: style.rotationDeg,
+    tagBgColor: style.bgColor,
+    tagStyles: {},
+  }
+}
+
+function normalizeTagStyles(raw: unknown): CanvasTextOverlayState["tagStyles"] {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {}
+  const out: CanvasTextOverlayState["tagStyles"] = {}
+  for (const tag of CANVAS_TAGS) {
+    const row = (raw as Record<string, unknown>)[tag.id]
+    if (!row || typeof row !== "object" || Array.isArray(row)) continue
+    const r = row as Record<string, unknown>
+    const style: Partial<CanvasLayerStyle> = {}
+    if (typeof r.fontId === "string" && isCanvasTextFontId(r.fontId)) style.fontId = r.fontId
+    if (typeof r.color === "string") style.color = r.color
+    if (typeof r.bgColor === "string") style.bgColor = r.bgColor
+    if (typeof r.fontScale === "number" && Number.isFinite(r.fontScale)) {
+      style.fontScale = Math.min(2.5, Math.max(0.3, r.fontScale))
+    }
+    if (typeof r.rotationDeg === "number" && Number.isFinite(r.rotationDeg)) {
+      style.rotationDeg = Math.min(180, Math.max(-180, r.rotationDeg))
+    }
+    out[tag.id] = style
+  }
+  return out
+}
 
 /** Ticked tags with their display text (sizes and prices tidied). */
 export function canvasTagItems(
@@ -1178,22 +1382,16 @@ export function canvasTagItems(
   })
 }
 
-/** One line of on-image text with its own style and placement. */
-export type CanvasTextLayer = {
-  id: Exclude<CanvasTextLayerId, "tags"> | CanvasTagId
+/** One box of on-image text with its own style and placement. */
+export type CanvasTextLayer = CanvasLayerStyle & {
+  id: CanvasStyleTarget
   text: string
-  fontId: CanvasTextFontId
-  color: string
-  fontScale: number
   positionX: number
   positionY: number
-  rotationDeg: number
-  /** Block colour behind the text; "" for none. */
-  bgColor: string
 }
 
 /**
- * The headline and subhead as separate layers (empty ones left out). Both the
+ * Every text box (headline, subhead, each tag), empty ones left out. Both the
  * preview and the baked image draw from this, so they always match.
  */
 export function canvasTextLayers(
@@ -1206,13 +1404,9 @@ export function canvasTextLayers(
     layers.push({
       id: "headline",
       text: headline,
-      fontId: overlay.fontId,
-      color: overlay.color,
-      fontScale: overlay.fontScale,
       positionX: overlay.positionX,
       positionY: overlay.positionY,
-      rotationDeg: overlay.rotationDeg,
-      bgColor: overlay.bgColor ?? "",
+      ...readLayerStyle(overlay, "headline"),
     })
   }
   const subhead = overlay.subhead.trim()
@@ -1220,62 +1414,22 @@ export function canvasTextLayers(
     layers.push({
       id: "subhead",
       text: subhead,
-      fontId: overlay.subFontId ?? overlay.fontId,
-      color: overlay.subColor ?? overlay.color,
-      fontScale: overlay.subFontScale ?? overlay.fontScale,
       positionX: overlay.subPositionX ?? overlay.positionX,
       positionY: overlay.subPositionY ?? Math.min(96, overlay.positionY + 8),
-      rotationDeg: overlay.subRotationDeg ?? overlay.rotationDeg,
-      bgColor: overlay.subBgColor ?? "",
+      ...readLayerStyle(overlay, "subhead"),
     })
   }
-  // Tags share one style but each sits in its own box.
   for (const tag of canvasTagItems(overlay)) {
     layers.push({
       id: tag.id,
       text: tag.text,
-      fontId: overlay.tagFontId ?? overlay.fontId,
-      color: overlay.tagColor ?? "#FFFFFF",
-      fontScale: overlay.tagFontScale ?? 0.5,
       positionX: tag.x,
       positionY: tag.y,
-      rotationDeg: overlay.tagRotationDeg ?? 0,
-      bgColor: overlay.tagBgColor ?? "",
+      ...readLayerStyle(overlay, tag.id),
     })
   }
   return layers
 }
-
-/** Field names each layer's controls write to. */
-export const CANVAS_TEXT_LAYER_FIELDS = {
-  headline: {
-    fontId: "fontId",
-    color: "color",
-    fontScale: "fontScale",
-    positionX: "positionX",
-    positionY: "positionY",
-    rotationDeg: "rotationDeg",
-    bgColor: "bgColor",
-  },
-  subhead: {
-    fontId: "subFontId",
-    color: "subColor",
-    fontScale: "subFontScale",
-    positionX: "subPositionX",
-    positionY: "subPositionY",
-    rotationDeg: "subRotationDeg",
-    bgColor: "subBgColor",
-  },
-  tags: {
-    fontId: "tagFontId",
-    color: "tagColor",
-    fontScale: "tagFontScale",
-    positionX: "tagNewX",
-    positionY: "tagNewY",
-    rotationDeg: "tagRotationDeg",
-    bgColor: "tagBgColor",
-  },
-} as const
 
 /** Padding around text on a background block, as a share of font size. */
 export const CANVAS_TEXT_BG_PAD_X = 0.35

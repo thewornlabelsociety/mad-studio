@@ -53,7 +53,9 @@ import {
 } from "@/components/marketing/multi-platform-simulator"
 import {
   CANVAS_TEXT_FONTS,
+  canvasBackdropOn,
   canvasOverlayHasDecor,
+  normalizeCanvasTextOverlay,
   DEFAULT_CANVAS_TEXT_OVERLAY,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
@@ -128,9 +130,11 @@ import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
 import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import type { CanvasItemFacts } from "@/components/studio/canvas-text-overlay"
+import { requestCutout } from "@/lib/media/request-cutout"
 import { NewArrivalSuggestions } from "@/components/studio/new-arrival-suggestions"
 import {
   fetchItemFacts,
+  SUGGESTED_FORMAT_LABELS,
   type NewArrivalSuggestion,
 } from "@/lib/studio/new-arrival-suggestions"
 import {
@@ -271,12 +275,33 @@ export function StudioWorkspace({
           }
         : DEFAULT_CANVAS_TEXT_OVERLAY
     })
+  // Which item each slide shows (from a suggestion or the library) — fills
+  // that slide's Brand / Size / Price / Vibe tags on the Canvas step.
+  const [slideFacts, setSlideFacts] = useState<Record<string, CanvasItemFacts>>({})
   const overlayKey = activeMediaId ?? "_no_media"
-  const textOverlay: CanvasTextOverlayState = slideOverlays[overlayKey] ?? {
-    ...lastOverlayStyle,
-    headline: "",
-    subhead: "",
+  // A new slide takes the last style, not the last photo's words, tag values
+  // or cutout — those belong to that slide's own item.
+  const freshOverlayFor = (key: string): CanvasTextOverlayState => {
+    const item = slideFacts[key]
+    return {
+      ...lastOverlayStyle,
+      headline: "",
+      subhead: "",
+      tagBrand: item?.brand ?? "",
+      tagSize: item?.size ?? "",
+      tagPrice: item?.price ?? "",
+      tagVibe: item?.vibe ?? "",
+      backdropEnabled: false,
+      cutoutUrl: "",
+      cutoutSourceUrl: "",
+    }
   }
+  const textOverlay: CanvasTextOverlayState =
+    slideOverlays[overlayKey] ?? freshOverlayFor(overlayKey)
+  const isMultiPhoto =
+    mediaAssets.filter((row) => row.type !== "video").length >= 2
+  const slideOverlaysRef = useRef(slideOverlays)
+  slideOverlaysRef.current = slideOverlays
   const setTextOverlay = useCallback(
     (next: CanvasTextOverlayState) => {
       setSlideOverlays((current) => ({ ...current, [overlayKey]: next }))
@@ -536,13 +561,9 @@ export function StudioWorkspace({
     setCutoutRequestId((value) => value + 1)
   }
 
-  // The item being posted (from a suggestion or the library) — fills the
-  // Brand / Size / Price / Vibe tags on the Canvas step.
-  const [postItem, setPostItem] = useState<{
-    id: string
-    facts: CanvasItemFacts
-  } | null>(null)
   const isFashionBrand = brandProfileId === "worn_label"
+  const mediaAssetsRef = useRef(mediaAssets)
+  mediaAssetsRef.current = mediaAssets
 
   function applyNewArrival(suggestion: NewArrivalSuggestion) {
     const all: MediaAsset[] = suggestion.media.map((row, index) => ({
@@ -561,22 +582,123 @@ export function StudioWorkspace({
           : firstPhoto
             ? [firstPhoto]
             : []
-    if (chosen.length === 0) return
-    onMediaAssetsChange(chosen)
-    setActiveMediaId(chosen[0].id)
-    setSimPlatform(suggestion.format === "story" ? "ig_story" : "ig_feed")
-    setPostItem({ id: suggestion.item.id, facts: suggestion.facts })
+    if (chosen.length === 0) return null
+    // Photos add on to what's already in the tray, building a carousel
+    // (a video still starts a fresh Reel).
+    const existing = mediaAssetsRef.current
+    const append =
+      existing.length > 0 &&
+      chosen[0].type !== "video" &&
+      existing.every((row) => row.type !== "video")
+    const fresh = chosen.filter(
+      (row) => !existing.some((have) => have.url === row.url)
+    )
+    const next = append ? [...existing, ...fresh].slice(0, 10) : chosen
+    const added = next.filter((row) => !append || fresh.includes(row))
+    onMediaAssetsChange(next)
+    setActiveMediaId(added[0]?.id ?? next[0].id)
+    setSimPlatform(
+      next.length >= 2
+        ? "ig_feed"
+        : suggestion.format === "story"
+          ? "ig_story"
+          : "ig_feed"
+    )
+    setSlideFacts((current) => ({
+      ...(append ? current : {}),
+      ...Object.fromEntries(added.map((row) => [row.id, suggestion.facts])),
+    }))
+    const addedIds = new Set(added.map((row) => row.id))
+    return {
+      title:
+        next.length >= 2
+          ? `Added to carousel — ${next.length} photos`
+          : `${SUGGESTED_FORMAT_LABELS[suggestion.format]} set up for ${suggestion.item.title}`,
+      undo: () => {
+        const remaining = mediaAssetsRef.current.filter((row) => !addedIds.has(row.id))
+        onMediaAssetsChange(remaining)
+        setActiveMediaId(remaining[0]?.id ?? null)
+      },
+    }
+  }
+
+  // Cutouts live on each slide, so cutting out one photo never touches another.
+  const [cutoutBusy, setCutoutBusy] = useState(false)
+  async function cutoutSlides(scope: "slide" | "all", on: boolean) {
+    const photos = mediaAssets.filter((row) => row.type !== "video")
+    const targets =
+      scope === "all"
+        ? photos
+        : photos.filter((row) => row.id === (activeMediaId ?? photos[0]?.id))
+    if (targets.length === 0) {
+      toast.error("Add a photo first.")
+      return
+    }
+    const current = (id: string) =>
+      slideOverlaysRef.current[id] ?? freshOverlayFor(id)
+    const writeSlide = (id: string, patch: Partial<CanvasTextOverlayState>) =>
+      setSlideOverlays((all) => ({
+        ...all,
+        [id]: normalizeCanvasTextOverlay({ ...(all[id] ?? freshOverlayFor(id)), ...patch }),
+      }))
+    if (!on) {
+      targets.forEach((row) => writeSlide(row.id, { backdropEnabled: false }))
+      return
+    }
+    // "All" uses this slide's colour and sizing everywhere.
+    const look = {
+      backdropColor: textOverlay.backdropColor,
+      subjectScale: textOverlay.subjectScale,
+      subjectOffsetY: textOverlay.subjectOffsetY,
+    }
+    setCutoutBusy(true)
+    let failed = 0
+    await Promise.all(
+      targets.map(async (row) => {
+        const src = row.publicUrl || row.url
+        const existing = current(row.id)
+        try {
+          const cutoutUrl =
+            existing.cutoutUrl && existing.cutoutSourceUrl === src
+              ? existing.cutoutUrl
+              : await requestCutout({ imageUrl: src, entityId: activeEntity.id })
+          writeSlide(row.id, {
+            ...(scope === "all" ? look : null),
+            enabled: true,
+            backdropEnabled: true,
+            cutoutUrl,
+            cutoutSourceUrl: src,
+          })
+        } catch {
+          failed += 1
+        }
+      })
+    )
+    setCutoutBusy(false)
+    if (failed > 0) {
+      toast.error(`Couldn't cut out ${failed} photo${failed === 1 ? "" : "s"}.`)
+    } else if (scope === "all") {
+      toast.success(`Cut out ${targets.length} photos`)
+    }
   }
 
   function mountMediaLibraryCarousel(items: MediaLibraryItem[]) {
-    const sourceId = items[0]?.marketingEntityId ?? null
-    if (sourceId && items.every((item) => item.marketingEntityId === sourceId)) {
-      void fetchItemFacts(sourceId, isFashionBrand).then((facts) =>
-        setPostItem(facts ? { id: sourceId, facts } : null)
+    // Each slide's tags come from the item that photo belongs to.
+    setSlideFacts({})
+    const itemIds = [...new Set(items.map((item) => item.marketingEntityId))]
+    void Promise.all(
+      itemIds.map(async (id) => [id, await fetchItemFacts(id, isFashionBrand)] as const)
+    ).then((rows) => {
+      const byItem = new Map(rows)
+      setSlideFacts(
+        Object.fromEntries(
+          items.flatMap((item, index) => {
+            const facts = byItem.get(item.marketingEntityId)
+            return facts ? [[`lib-${item.id}-${index}`, facts]] : []
+          })
+        )
       )
-    } else {
-      setPostItem(null)
-    }
+    })
     const assets: MediaAsset[] = items.map((item, index) => ({
       id: `lib-${item.id}-${index}`,
       url: item.url,
@@ -1419,7 +1541,21 @@ export function StudioWorkspace({
     return (
       <StepCustomize
         phase={phase}
-        itemFacts={postItem?.facts ?? null}
+        itemFacts={
+          (activeMediaId ? slideFacts[activeMediaId] : undefined) ??
+          (mediaAssets[0] ? slideFacts[mediaAssets[0].id] : undefined) ??
+          null
+        }
+        onCutout={cutoutSlides}
+        cutoutBusy={cutoutBusy}
+        photoCount={mediaAssets.filter((row) => row.type !== "video").length}
+        canvasSourceUrl={(() => {
+          const active =
+            mediaAssets.find((row) => row.id === activeMediaId) ?? mediaAssets[0]
+          return active?.type === "video"
+            ? null
+            : active?.publicUrl || active?.url || attachedImageUrl || null
+        })()}
         entity={activeEntity}
         entityId={activeEntity.id}
         isFudi={isFudi}
@@ -1693,7 +1829,6 @@ export function StudioWorkspace({
                 entityId={activeEntity.id}
                 isFashion={isFashionBrand}
                 onUse={applyNewArrival}
-                activeItemId={postItem?.id ?? null}
                 disabled={multiplexing || pending || rehydrating}
               />
             }
@@ -1713,10 +1848,21 @@ export function StudioWorkspace({
             onOpenMediaLibrary={() => setMediaLibraryOpen(true)}
             disabled={multiplexing || pending || rehydrating}
             visualDescription={visualInspection?.visualDescription ?? null}
-            cutoutActive={storyPreview.cutoutMode === "transparent"}
-            cutoutBusy={false}
-            onCutoutToggle={onCutoutToggle}
-            storyCard={{
+            cutoutActive={
+              isMultiPhoto
+                ? canvasBackdropOn(textOverlay)
+                : storyPreview.cutoutMode === "transparent"
+            }
+            cutoutBusy={cutoutBusy}
+            onCutoutToggle={
+              isMultiPhoto
+                ? () => void cutoutSlides("slide", !canvasBackdropOn(textOverlay))
+                : onCutoutToggle
+            }
+            onCutoutAll={
+              isMultiPhoto ? () => void cutoutSlides("all", true) : undefined
+            }
+            storyCard={isMultiPhoto ? null : {
               swatches: brandSwatches(brandVisualPresets),
               background:
                 storyPreview.canvasColor || brandVisualPresets.canvas_color,

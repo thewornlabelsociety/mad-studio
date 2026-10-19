@@ -5,25 +5,38 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type RefObject,
 } from "react"
-import { RotateCw } from "lucide-react"
+import { ImageIcon, Layers, Loader2, RotateCw, SquareDashed } from "lucide-react"
+import { requestCutout } from "@/lib/media/request-cutout"
+import { toast } from "sonner"
 
 import {
   CANVAS_BRAND_SWATCHES,
   CANVAS_TEXT_FONTS,
+  canvasBackdropOn,
+  canvasLogoOn,
   canvasOverlayHasDecor,
+  canvasPositionKeys,
+  canvasSelectableLabel,
   canvasTextLayers,
-  CANVAS_TEXT_LAYER_FIELDS,
+  canvasTextOnly,
   CANVAS_TEXT_BG_PAD_X,
   CANVAS_TEXT_BG_PAD_Y,
-  type CanvasTextLayerId,
   CANVAS_TAGS,
   canvasTagItems,
-  type CanvasTagPositionKey,
+  isCanvasTagId,
+  layerStylePatch,
+  matchAllTagsPatch,
+  readLayerStyle,
+  type CanvasLayerStyle,
+  type CanvasSelectable,
+  type CanvasStyleTarget,
+  type CanvasTextLayer,
   clearCanvasTextOverlay,
   normalizeCanvasTextOverlay,
   canvasTextShadowClass,
@@ -89,13 +102,19 @@ function useOverlayRef(overlay: CanvasTextOverlayState) {
   return ref
 }
 
+type NumericOverlayKey = {
+  [K in keyof CanvasTextOverlayState]: CanvasTextOverlayState[K] extends number
+    ? K
+    : never
+}[keyof CanvasTextOverlayState]
+
 function useCanvasDrag(
   interactive: boolean,
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
   overlayRef: MutableRefObject<CanvasTextOverlayState>,
   keys: {
-    x: "positionX" | "stickerX" | "subPositionX" | CanvasTagPositionKey
-    y: "positionY" | "stickerY" | "subPositionY" | CanvasTagPositionKey
+    x: NumericOverlayKey
+    y: NumericOverlayKey
     min?: number
     max?: number
   }
@@ -142,37 +161,46 @@ function useCanvasDrag(
   return { onPointerDown }
 }
 
-function useCanvasFontScaleResize(
+/** Corner handle: text boxes change font size, the logo changes width. */
+function useCanvasResize(
   interactive: boolean,
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
   overlayRef: MutableRefObject<CanvasTextOverlayState>,
-  scaleKey: "fontScale" | "subFontScale" | "tagFontScale" = "fontScale"
+  target: CanvasSelectable
 ) {
-  const resizeRef = useRef<{ startY: number; originScale: number } | null>(null)
+  const resizeRef = useRef<{ startY: number; origin: number } | null>(null)
 
   const onResizePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {
       if (!interactive || !onChange) return
       const host = mediaFrameElement(event.currentTarget)
       if (!host) return
+      const current = overlayRef.current
       resizeRef.current = {
         startY: event.clientY,
-        originScale: clampCanvasTextFontScale(overlayRef.current[scaleKey]),
+        origin:
+          target === "logo"
+            ? current.logoScale
+            : clampCanvasTextFontScale(readLayerStyle(current, target).fontScale),
       }
       attachWindowPointerSession(event, (ev) => {
         if (!resizeRef.current || !onChange) return
         const rect = host.getBoundingClientRect()
         if (rect.height < 1) return
         const dy = (ev.clientY - resizeRef.current.startY) / rect.height
-        const nextScale = clampCanvasTextFontScale(
-          resizeRef.current.originScale + dy * 2.4
-        )
-        onChange({ ...overlayRef.current, [scaleKey]: nextScale })
+        const now = overlayRef.current
+        if (target === "logo") {
+          const logoScale = Math.min(60, Math.max(6, resizeRef.current.origin + dy * 60))
+          onChange({ ...now, logoScale })
+          return
+        }
+        const fontScale = clampCanvasTextFontScale(resizeRef.current.origin + dy * 2.4)
+        onChange({ ...now, ...layerStylePatch(now, target, { fontScale }) })
       }, () => {
         resizeRef.current = null
       })
     },
-    [interactive, onChange, overlayRef, scaleKey]
+    [interactive, onChange, overlayRef, target]
   )
 
   return { onResizePointerDown }
@@ -183,7 +211,7 @@ function useCanvasTextRotation(
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
   overlayRef: MutableRefObject<CanvasTextOverlayState>,
   boxRef: RefObject<HTMLDivElement | null>,
-  rotationKey: "rotationDeg" | "subRotationDeg" | "tagRotationDeg" = "rotationDeg"
+  target: CanvasStyleTarget
 ) {
   const rotateRef = useRef<{
     centerX: number
@@ -207,7 +235,9 @@ function useCanvasTextRotation(
         centerX,
         centerY,
         startAngle,
-        originDeg: clampCanvasTextRotationDeg(overlayRef.current[rotationKey]),
+        originDeg: clampCanvasTextRotationDeg(
+          readLayerStyle(overlayRef.current, target).rotationDeg
+        ),
       }
       attachWindowPointerSession(event, (ev) => {
         if (!rotateRef.current || !onChange) return
@@ -215,19 +245,45 @@ function useCanvasTextRotation(
           rotateRef.current
         const angle =
           (Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI
-        const delta = angle - sa
+        const now = overlayRef.current
         onChange({
-          ...overlayRef.current,
-          [rotationKey]: clampCanvasTextRotationDeg(originDeg + delta),
+          ...now,
+          ...layerStylePatch(now, target, {
+            rotationDeg: clampCanvasTextRotationDeg(originDeg + angle - sa),
+          }),
         })
       }, () => {
         rotateRef.current = null
       })
     },
-    [interactive, onChange, overlayRef, boxRef, rotationKey]
+    [interactive, onChange, overlayRef, boxRef, target]
   )
 
   return { onRotatePointerDown }
+}
+
+// Which box on the image is being styled. Shared by the preview (click a box)
+// and the editor (its controls follow the selection).
+let canvasSelected: CanvasSelectable = "headline"
+const selectionListeners = new Set<() => void>()
+
+export function selectCanvasItem(next: CanvasSelectable) {
+  if (next === canvasSelected) return
+  canvasSelected = next
+  selectionListeners.forEach((listener) => listener())
+}
+
+export function useCanvasSelection(): CanvasSelectable {
+  return useSyncExternalStore(
+    (listener) => {
+      selectionListeners.add(listener)
+      return () => {
+        selectionListeners.delete(listener)
+      }
+    },
+    () => canvasSelected,
+    () => canvasSelected
+  )
 }
 
 function DraggableDecor({
@@ -242,6 +298,7 @@ function DraggableDecor({
   onResizePointerDown,
   onRotatePointerDown,
   boxRef,
+  label,
 }: {
   interactive: boolean
   x: number
@@ -254,6 +311,7 @@ function DraggableDecor({
   onResizePointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void
   onRotatePointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void
   boxRef?: RefObject<HTMLDivElement | null>
+  label?: string
 }) {
   const handlesOn = interactive && showDragHandles
   const localBoxRef = useRef<HTMLDivElement>(null)
@@ -272,12 +330,15 @@ function DraggableDecor({
         ref={textBoxRef}
         role={interactive ? "button" : undefined}
         tabIndex={interactive ? 0 : undefined}
+        aria-label={interactive && label ? `Select ${label}` : undefined}
+        aria-pressed={interactive ? handlesOn : undefined}
+        title={interactive && label && !handlesOn ? `Click to style ${label}` : undefined}
         onPointerDown={interactive ? onPointerDown : undefined}
         className={cn(
           "relative inline-block w-max max-w-full overflow-visible align-top",
           handlesOn &&
             "pointer-events-auto cursor-grab border-2 border-dashed border-mad-lime active:cursor-grabbing",
-          interactive && !handlesOn && "pointer-events-auto cursor-grab active:cursor-grabbing",
+          interactive && !handlesOn && "pointer-events-auto cursor-pointer",
           interactive &&
             !handlesOn &&
             "ring-2 ring-transparent hover:ring-mad-vermillion/80 hover:ring-offset-1 hover:ring-offset-black/20"
@@ -292,7 +353,7 @@ function DraggableDecor({
             {onRotatePointerDown ? (
               <button
                 type="button"
-                aria-label="Rotate on-screen text"
+                aria-label="Rotate"
                 onPointerDown={onRotatePointerDown}
                 className="absolute top-0 left-0 z-30 flex size-4 -translate-x-1/2 -translate-y-1/2 cursor-grab items-center justify-center border-2 border-mad-black bg-mad-white text-mad-black shadow-keycap-sm touch-none active:cursor-grabbing"
               >
@@ -302,7 +363,7 @@ function DraggableDecor({
             {onResizePointerDown ? (
               <button
                 type="button"
-                aria-label="Resize on-screen text"
+                aria-label="Resize"
                 onPointerDown={onResizePointerDown}
                 className="absolute bottom-0 right-0 z-30 size-4 translate-x-1/2 translate-y-1/2 cursor-nwse-resize border-2 border-mad-vermillion bg-mad-lime shadow-keycap-sm touch-none"
               />
@@ -320,6 +381,132 @@ function DraggableDecor({
   )
 }
 
+type BoxProps = {
+  overlay: CanvasTextOverlayState
+  overlayRef: MutableRefObject<CanvasTextOverlayState>
+  interactive: boolean
+  onOverlayChange?: (next: CanvasTextOverlayState) => void
+  selected: boolean
+  frameWidthPx: number
+}
+
+/** One text box on the image: click to select it, drag, resize and tilt. */
+function CanvasTextBox({
+  layer,
+  overlay,
+  overlayRef,
+  interactive,
+  onOverlayChange,
+  selected,
+  frameWidthPx,
+}: BoxProps & { layer: CanvasTextLayer }) {
+  const boxRef = useRef<HTMLDivElement>(null)
+  const keys = canvasPositionKeys(layer.id)
+  const drag = useCanvasDrag(interactive, onOverlayChange, overlayRef, {
+    x: keys.x as NumericOverlayKey,
+    y: keys.y as NumericOverlayKey,
+  })
+  const resize = useCanvasResize(interactive, onOverlayChange, overlayRef, layer.id)
+  const rotate = useCanvasTextRotation(
+    interactive,
+    onOverlayChange,
+    overlayRef,
+    boxRef,
+    layer.id
+  )
+  const font =
+    CANVAS_TEXT_FONTS.find((row) => row.id === layer.fontId) ??
+    CANVAS_TEXT_FONTS[0]
+  const fontSizePx =
+    frameWidthPx > 0 ? canvasTextFontSizePx(frameWidthPx, layer.fontScale) : null
+  const lineHeightPx =
+    fontSizePx != null ? canvasTextLineHeightPx(fontSizePx) : null
+
+  return (
+    <DraggableDecor
+      interactive={interactive}
+      x={layer.positionX}
+      y={layer.positionY}
+      rotationDeg={layer.rotationDeg}
+      showDragHandles={selected}
+      label={canvasSelectableLabel(layer.id)}
+      boxRef={boxRef}
+      onPointerDown={(event) => {
+        selectCanvasItem(layer.id)
+        drag.onPointerDown(event)
+      }}
+      onResizePointerDown={resize.onResizePointerDown}
+      onRotatePointerDown={rotate.onRotatePointerDown}
+    >
+      <span
+        className={cn(
+          "block w-max max-w-full whitespace-pre-wrap",
+          overlay.textAlign === "left" && "text-left",
+          overlay.textAlign === "center" && "text-center",
+          overlay.textAlign === "right" && "text-right",
+          font.className,
+          // No text shadow on a solid block — it just blurs the edges.
+          !layer.bgColor && canvasTextShadowClass(overlay.shadow)
+        )}
+        style={{
+          ...font.style,
+          color: layer.color,
+          fontSize: fontSizePx ?? undefined,
+          ...(layer.bgColor
+            ? {
+                backgroundColor: layer.bgColor,
+                padding: `${CANVAS_TEXT_BG_PAD_Y}em ${CANVAS_TEXT_BG_PAD_X}em`,
+              }
+            : null),
+          // Pixels — a bare number would be read as a multiplier.
+          lineHeight: lineHeightPx != null ? `${lineHeightPx}px` : undefined,
+        }}
+      >
+        {layer.text}
+      </span>
+    </DraggableDecor>
+  )
+}
+
+/** The brand logo on the image: click to select, drag, resize from the corner. */
+function CanvasLogoBox({
+  overlay,
+  overlayRef,
+  interactive,
+  onOverlayChange,
+  selected,
+  frameWidthPx,
+}: BoxProps) {
+  const drag = useCanvasDrag(interactive, onOverlayChange, overlayRef, {
+    x: "logoX",
+    y: "logoY",
+  })
+  const resize = useCanvasResize(interactive, onOverlayChange, overlayRef, "logo")
+  const widthPx = frameWidthPx > 0 ? (frameWidthPx * overlay.logoScale) / 100 : 48
+  return (
+    <DraggableDecor
+      interactive={interactive}
+      x={overlay.logoX}
+      y={overlay.logoY}
+      showDragHandles={selected}
+      label="Logo"
+      onPointerDown={(event) => {
+        selectCanvasItem("logo")
+        drag.onPointerDown(event)
+      }}
+      onResizePointerDown={resize.onResizePointerDown}
+    >
+      <img
+        src={overlay.logoUrl}
+        alt=""
+        draggable={false}
+        className="block h-auto max-w-none"
+        style={{ width: widthPx }}
+      />
+    </DraggableDecor>
+  )
+}
+
 type LayerProps = {
   overlay: CanvasTextOverlayState
   isVideo?: boolean
@@ -328,23 +515,29 @@ type LayerProps = {
   onOverlayChange?: (next: CanvasTextOverlayState) => void
   /** When false, text is rendered by Remotion preview (handles only). */
   renderCanvasText?: boolean
+  /** Text boxes only — no backdrop or logo (Story card, video). */
+  textOnly?: boolean
 }
 
 export function CanvasTextOverlayLayer({
-  overlay,
+  overlay: rawOverlay,
+  isVideo = false,
   className,
   interactive = false,
   onOverlayChange,
   renderCanvasText = true,
+  textOnly = false,
 }: LayerProps) {
+  const overlay =
+    textOnly || isVideo ? canvasTextOnly(rawOverlay) : rawOverlay
   const frameRef = useRef<HTMLDivElement>(null)
-  const textBoxRef = useRef<HTMLDivElement>(null)
-  const overlayRef = useOverlayRef(overlay)
+  const overlayRef = useOverlayRef(rawOverlay)
   const [frameWidthPx, setFrameWidthPx] = useState(0)
   const hasDecor = canvasOverlayHasDecor(overlay)
+  const selected = useCanvasSelection()
 
-  // The frame only mounts once there's text, so measure again when it appears;
-  // without a width the text falls back to a fixed size and Size does nothing.
+  // The frame only mounts once there's something to show, so measure again
+  // when it appears; without a width the text falls back to a fixed size.
   useEffect(() => {
     const node = frameRef.current
     if (!node) return
@@ -358,64 +551,15 @@ export function CanvasTextOverlayLayer({
     return () => observer.disconnect()
   }, [hasDecor])
 
-  const subBoxRef = useRef<HTMLDivElement>(null)
-  const textDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, {
-    x: "positionX",
-    y: "positionY",
-  })
-  const textResize = useCanvasFontScaleResize(
-    interactive,
-    onOverlayChange,
-    overlayRef
-  )
-  const textRotate = useCanvasTextRotation(
-    interactive,
-    onOverlayChange,
-    overlayRef,
-    textBoxRef
-  )
-  // The subhead moves, scales and tilts on its own.
-  const subDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, {
-    x: "subPositionX",
-    y: "subPositionY",
-  })
-  const subResize = useCanvasFontScaleResize(
-    interactive,
-    onOverlayChange,
-    overlayRef,
-    "subFontScale"
-  )
-  const subRotate = useCanvasTextRotation(
-    interactive,
-    onOverlayChange,
-    overlayRef,
-    subBoxRef,
-    "subRotationDeg"
-  )
-  // Each tag box (New, Brand, Size, Price, Vibe) moves on its own; they
-  // share one size, and tilt comes from the Tags slider.
-  const tagResize = useCanvasFontScaleResize(
-    interactive,
-    onOverlayChange,
-    overlayRef,
-    "tagFontScale"
-  )
-  const tagNewDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagNewX", y: "tagNewY" })
-  const tagBrandDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagBrandX", y: "tagBrandY" })
-  const tagSizeDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagSizeX", y: "tagSizeY" })
-  const tagPriceDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagPriceX", y: "tagPriceY" })
-  const tagVibeDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagVibeX", y: "tagVibeY" })
   if (!hasDecor) return null
 
   const layers = renderCanvasText ? canvasTextLayers(overlay) : []
-  const handlesFor = {
-    headline: { boxRef: textBoxRef, ...textDrag, ...textResize, ...textRotate },
-    subhead: { boxRef: subBoxRef, ...subDrag, ...subResize, ...subRotate },
-    tag_new: { ...tagNewDrag, ...tagResize },
-    tag_brand: { ...tagBrandDrag, ...tagResize },
-    tag_size: { ...tagSizeDrag, ...tagResize },
-    tag_price: { ...tagPriceDrag, ...tagResize },
-    tag_vibe: { ...tagVibeDrag, ...tagResize },
+  const boxProps = {
+    overlay,
+    overlayRef,
+    interactive,
+    onOverlayChange,
+    frameWidthPx,
   }
 
   return (
@@ -429,55 +573,37 @@ export function CanvasTextOverlayLayer({
       )}
       aria-hidden={!interactive}
     >
-      {layers.map((layer) => {
-        const font =
-          CANVAS_TEXT_FONTS.find((row) => row.id === layer.fontId) ??
-          CANVAS_TEXT_FONTS[0]
-        const fontSizePx =
-          frameWidthPx > 0
-            ? canvasTextFontSizePx(frameWidthPx, layer.fontScale)
-            : null
-        const lineHeightPx =
-          fontSizePx != null ? canvasTextLineHeightPx(fontSizePx) : null
-        return (
-          <DraggableDecor
-            key={layer.id}
-            interactive={interactive}
-            x={layer.positionX}
-            y={layer.positionY}
-            rotationDeg={layer.rotationDeg}
-            showDragHandles
-            {...handlesFor[layer.id]}
-          >
-            <span
-              className={cn(
-                "block w-max max-w-full whitespace-pre-wrap",
-                overlay.textAlign === "left" && "text-left",
-                overlay.textAlign === "center" && "text-center",
-                overlay.textAlign === "right" && "text-right",
-                font.className,
-                !layer.bgColor && canvasTextShadowClass(overlay.shadow)
-              )}
-              style={{
-                ...font.style,
-                color: layer.color,
-                fontSize: fontSizePx ?? undefined,
-                ...(layer.bgColor
-                  ? {
-                      backgroundColor: layer.bgColor,
-                      padding: `${CANVAS_TEXT_BG_PAD_Y}em ${CANVAS_TEXT_BG_PAD_X}em`,
-                    }
-                  : null),
-                // Pixels — a bare number would be read as a multiplier.
-                lineHeight:
-                  lineHeightPx != null ? `${lineHeightPx}px` : undefined,
-              }}
-            >
-              {layer.text}
-            </span>
-          </DraggableDecor>
-        )
-      })}
+      {canvasBackdropOn(overlay) ? (
+        <div
+          aria-hidden
+          className="absolute inset-0 overflow-hidden"
+          style={{ background: overlay.backdropColor }}
+        >
+          <img
+            src={overlay.cutoutUrl}
+            alt=""
+            draggable={false}
+            className="absolute left-1/2 object-contain"
+            style={{
+              width: `${overlay.subjectScale * 100}%`,
+              height: `${overlay.subjectScale * 100}%`,
+              top: `${50 + overlay.subjectOffsetY}%`,
+              transform: "translate(-50%, -50%)",
+            }}
+          />
+        </div>
+      ) : null}
+      {canvasLogoOn(overlay) ? (
+        <CanvasLogoBox {...boxProps} selected={selected === "logo"} />
+      ) : null}
+      {layers.map((layer) => (
+        <CanvasTextBox
+          key={layer.id}
+          layer={layer}
+          {...boxProps}
+          selected={selected === layer.id}
+        />
+      ))}
     </div>
   )
 }
@@ -567,6 +693,19 @@ type EditorProps = {
   brandFontId?: string | null
   /** Facts about the item being posted, used to fill the tags line. */
   itemFacts?: CanvasItemFacts | null
+  /** Brand logo (Brand Brain); enables the Logo option. */
+  logoUrl?: string | null
+  /** Photo on this slide — what the Backdrop cutout is made from. */
+  sourceUrl?: string | null
+  entityId?: string | null
+  /**
+   * Cut out this slide or every photo in the carousel. When given, the
+   * workspace owns cutouts so each slide keeps its own.
+   */
+  onCutout?: (scope: "slide" | "all", on: boolean) => void | Promise<void>
+  cutoutBusy?: boolean
+  /** Photos in the post — shows "Cut out all" when there's more than one. */
+  photoCount?: number
 }
 
 export type CanvasItemFacts = {
@@ -576,12 +715,6 @@ export type CanvasItemFacts = {
   vibe?: string | null
   /** Wording for the "new" pill, e.g. "New consignment" or "New on the menu". */
   newLabel?: string | null
-}
-
-const LAYER_LABELS: Record<CanvasTextLayerId, string> = {
-  headline: "Headline",
-  subhead: "Subhead",
-  tags: "Tags",
 }
 
 const TAG_ROWS = [
@@ -602,6 +735,12 @@ export function CanvasTextOverlayEditor({
   swatches = CANVAS_BRAND_SWATCHES,
   brandFontId = null,
   itemFacts = null,
+  logoUrl = null,
+  sourceUrl = null,
+  entityId = null,
+  onCutout,
+  cutoutBusy: externalCutoutBusy = false,
+  photoCount = 1,
 }: EditorProps) {
   const fontOptions = brandFontId
     ? [
@@ -644,13 +783,66 @@ export function CanvasTextOverlayEditor({
 
   // Wizard styles match the Intent step: typewriter labels, 2px black frames.
   // Which line the size / tilt / font / colour controls edit.
-  const [layer, setLayer] = useState<CanvasTextLayerId>("headline")
-  const fields = CANVAS_TEXT_LAYER_FIELDS[layer]
-  const layerFontId = value[fields.fontId]
-  const layerColor = value[fields.color]
-  const layerBg = value[fields.bgColor] ?? ""
-  const layerScale = clampCanvasTextFontScale(value[fields.fontScale])
-  const layerRotation = clampCanvasTextRotationDeg(value[fields.rotationDeg])
+  const selected = useCanvasSelection()
+  const shownTags = canvasTagItems(value)
+  // The logo has no text style; text controls then edit the headline.
+  const layer: CanvasStyleTarget =
+    selected === "logo" ||
+    (isCanvasTagId(selected) && !shownTags.some((t) => t.id === selected))
+      ? "headline"
+      : selected
+  const setLayer = selectCanvasItem
+  const style = readLayerStyle(value, layer)
+  const layerFontId = style.fontId
+  const layerColor = style.color
+  const layerBg = style.bgColor
+  const layerScale = clampCanvasTextFontScale(style.fontScale)
+  const layerRotation = clampCanvasTextRotationDeg(style.rotationDeg)
+  function patchStyle(next: Partial<CanvasLayerStyle>) {
+    patch(layerStylePatch(value, layer, next))
+  }
+  const selectableTabs: CanvasSelectable[] = [
+    "headline",
+    "subhead",
+    ...shownTags.map((t) => t.id),
+    ...(canvasLogoOn(value) ? (["logo"] as const) : []),
+  ]
+  const [localCutoutBusy, setCutoutBusy] = useState(false)
+  const cutoutBusy = localCutoutBusy || externalCutoutBusy
+
+  async function makeBackdrop(on: boolean) {
+    if (onCutout) {
+      await onCutout("slide", on)
+      return
+    }
+    if (!on) {
+      patch({ backdropEnabled: false })
+      return
+    }
+    // Reuse the cutout if it was made from this same photo.
+    if (value.cutoutUrl && value.cutoutSourceUrl === sourceUrl) {
+      patch({ backdropEnabled: true, enabled: true })
+      return
+    }
+    if (!sourceUrl || !entityId) {
+      toast.error("Add a photo first.")
+      return
+    }
+    setCutoutBusy(true)
+    try {
+      const cutoutUrl = await requestCutout({ imageUrl: sourceUrl, entityId })
+      patch({
+        backdropEnabled: true,
+        enabled: true,
+        cutoutUrl,
+        cutoutSourceUrl: sourceUrl,
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't cut out the item.")
+    } finally {
+      setCutoutBusy(false)
+    }
+  }
 
   const labelClass = wizardCompact
     ? "font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase"
@@ -789,7 +981,7 @@ export function CanvasTextOverlayEditor({
                           }
                         : null),
                     })
-                    if (checked) setLayer("tags")
+                    if (checked) setLayer(tag.id)
                   }}
                   className="size-4 cursor-pointer accent-mad-black"
                 />
@@ -805,7 +997,9 @@ export function CanvasTextOverlayEditor({
                     enabled: true,
                   })
                 }
-                onFocus={() => setLayer("tags")}
+                onFocus={() =>
+                  setLayer(CANVAS_TAGS.find((t) => t.show === row.show)!.id)
+                }
                 placeholder={itemFacts?.[row.fact] || row.placeholder}
                 aria-label={`${row.label} on image`}
                 className={cn(inputClass, "min-w-0 flex-1", wizardCompact && "h-9", !on && "opacity-60")}
@@ -814,6 +1008,146 @@ export function CanvasTextOverlayEditor({
           )
         })}
       </fieldset>
+
+      <section className={cn("grid gap-4", wizardCompact && "lg:grid-cols-2")}>
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-mad-black">
+            <input
+              type="checkbox"
+              checked={value.logoEnabled}
+              disabled={!logoUrl}
+              onChange={(event) => {
+                patch({
+                  logoEnabled: event.target.checked,
+                  logoUrl: logoUrl ?? "",
+                  ...(event.target.checked ? { enabled: true } : null),
+                })
+                if (event.target.checked) setLayer("logo")
+              }}
+              className="size-4 cursor-pointer accent-mad-black"
+            />
+            <ImageIcon className="size-4" aria-hidden />
+            Logo
+          </label>
+          {!logoUrl ? (
+            <p className="text-xs text-neutral-500">
+              Upload a logo in Brand Brain → Visual presets to use it here.
+            </p>
+          ) : value.logoEnabled ? (
+            <label className="grid gap-1">
+              <span className={labelClass}>Logo size ({Math.round(value.logoScale)}%)</span>
+              <input
+                type="range"
+                min={6}
+                max={60}
+                step={1}
+                value={value.logoScale}
+                onChange={(event) => patch({ logoScale: Number(event.target.value) })}
+                className={rangeClass}
+              />
+            </label>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-mad-black">
+            <input
+              type="checkbox"
+              checked={value.backdropEnabled}
+              disabled={cutoutBusy || isVideo}
+              onChange={(event) => void makeBackdrop(event.target.checked)}
+              className="size-4 cursor-pointer accent-mad-black"
+            />
+            {cutoutBusy ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <SquareDashed className="size-4" aria-hidden />
+            )}
+            {cutoutBusy ? "Cutting out…" : "Cut out item on a colour"}
+          </label>
+          {onCutout && photoCount > 1 ? (
+            <button
+              type="button"
+              disabled={cutoutBusy}
+              onClick={() => void onCutout("all", true)}
+              className={cn(btnClass, "inline-flex items-center gap-1.5 bg-mad-white hover:bg-mad-lime disabled:opacity-40")}
+            >
+              <Layers className="size-3.5" aria-hidden />
+              Cut out all {photoCount} photos
+            </button>
+          ) : null}
+          {value.backdropEnabled ? (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {swatches.map((swatch) => (
+                  <button
+                    key={swatch.hex}
+                    type="button"
+                    title={`${swatch.label} background`}
+                    aria-label={`Background ${swatch.label}`}
+                    onClick={() => patch({ backdropColor: swatch.hex })}
+                    className={cn(
+                      "size-8 border-2 border-mad-black",
+                      value.backdropColor.toLowerCase() === swatch.hex.toLowerCase() &&
+                        "ring-2 ring-mad-vermillion ring-offset-1"
+                    )}
+                    style={{ background: swatch.hex }}
+                  />
+                ))}
+                <label
+                  title="Pick any background colour"
+                  className="relative flex h-8 cursor-pointer items-center gap-1.5 border-2 border-dashed border-mad-black px-2 hover:bg-mad-lime/30"
+                >
+                  <span
+                    aria-hidden
+                    className="size-4 border border-mad-black"
+                    style={{ background: value.backdropColor }}
+                  />
+                  <span className="font-typewriter text-[0.55rem] font-bold uppercase">
+                    Custom
+                  </span>
+                  <input
+                    type="color"
+                    value={value.backdropColor}
+                    onChange={(event) =>
+                      patch({ backdropColor: event.target.value.toUpperCase() })
+                    }
+                    className="absolute inset-0 size-full cursor-pointer opacity-0"
+                    aria-label="Custom backdrop colour"
+                  />
+                </label>
+              </div>
+              <label className="grid gap-1">
+                <span className={labelClass}>
+                  Item size ({Math.round(value.subjectScale * 100)}%)
+                </span>
+                <input
+                  type="range"
+                  min={0.3}
+                  max={1.8}
+                  step={0.05}
+                  value={value.subjectScale}
+                  onChange={(event) => patch({ subjectScale: Number(event.target.value) })}
+                  className={rangeClass}
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className={labelClass}>Item position</span>
+                <input
+                  type="range"
+                  min={-45}
+                  max={45}
+                  step={1}
+                  value={value.subjectOffsetY}
+                  onChange={(event) => patch({ subjectOffsetY: Number(event.target.value) })}
+                  className={rangeClass}
+                  aria-label="Move the item up or down"
+                />
+              </label>
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       <div
         className={cn(
@@ -860,25 +1194,25 @@ export function CanvasTextOverlayEditor({
           ) : null}
           {wizardCompact ? (
             <div
-              className="grid grid-cols-3 border-2 border-mad-black"
+              className="flex flex-wrap gap-1"
               role="tablist"
-              aria-label="Which line to style"
+              aria-label="Which box to style — or click it on the image"
             >
-              {(["headline", "subhead", "tags"] as const).map((id) => (
+              {selectableTabs.map((id) => (
                 <button
                   key={id}
                   type="button"
                   role="tab"
-                  aria-selected={layer === id}
+                  aria-selected={selected === id}
                   onClick={() => setLayer(id)}
                   className={cn(
-                    "px-2 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase",
-                    layer === id
+                    "border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase",
+                    selected === id
                       ? "bg-mad-black text-mad-white"
                       : "bg-mad-white text-mad-black hover:bg-mad-lime"
                   )}
                 >
-                  {LAYER_LABELS[id]}
+                  {canvasSelectableLabel(id)}
                 </button>
               ))}
             </div>
@@ -921,10 +1255,8 @@ export function CanvasTextOverlayEditor({
               step={0.05}
               value={layerScale}
               onChange={(event) =>
-                patch({
-                  [fields.fontScale]: clampCanvasTextFontScale(
-                    Number(event.target.value)
-                  ),
+                patchStyle({
+                  fontScale: clampCanvasTextFontScale(Number(event.target.value)),
                 })
               }
               className={rangeClass}
@@ -941,10 +1273,8 @@ export function CanvasTextOverlayEditor({
               step={1}
               value={layerRotation}
               onChange={(event) =>
-                patch({
-                  [fields.rotationDeg]: clampCanvasTextRotationDeg(
-                    Number(event.target.value)
-                  ),
+                patchStyle({
+                  rotationDeg: clampCanvasTextRotationDeg(Number(event.target.value)),
                 })
               }
               className={rangeClass}
@@ -955,15 +1285,24 @@ export function CanvasTextOverlayEditor({
         <div className={cn(wizardCompact ? "space-y-4" : "space-y-3")}>
           {wizardCompact ? (
             <p className={sectionTitleClass}>
-              Typography · {LAYER_LABELS[layer]}
+              Typography · {canvasSelectableLabel(layer)}
             </p>
+          ) : null}
+          {isCanvasTagId(layer) && shownTags.length > 1 ? (
+            <button
+              type="button"
+              onClick={() => patch(matchAllTagsPatch(value, layer))}
+              className={cn(btnClass, "bg-mad-white hover:bg-mad-lime")}
+            >
+              Use this style on all tags
+            </button>
           ) : null}
           <label className="grid gap-1.5">
             <span className={labelClass}>Font</span>
             <Select
               value={layerFontId}
               onValueChange={(next) =>
-                patch({ [fields.fontId]: next as CanvasTextFontId })
+                patchStyle({ fontId: next as CanvasTextFontId })
               }
             >
               <SelectTrigger className={selectClass}>
@@ -990,7 +1329,7 @@ export function CanvasTextOverlayEditor({
                   key={swatch.hex}
                   type="button"
                   title={swatch.label}
-                  onClick={() => patch({ [fields.color]: swatch.hex })}
+                  onClick={() => patchStyle({ color: swatch.hex })}
                   className={cn(
                     wizardCompact ? "size-9" : "size-6",
                     "border-2 border-mad-black",
@@ -1021,7 +1360,7 @@ export function CanvasTextOverlayEditor({
                   type="color"
                   value={layerColor}
                   onChange={(event) =>
-                    patch({ [fields.color]: event.target.value.toUpperCase() })
+                    patchStyle({ color: event.target.value.toUpperCase() })
                   }
                   className="absolute inset-0 size-full cursor-pointer opacity-0"
                   aria-label="Custom text colour"
@@ -1035,7 +1374,7 @@ export function CanvasTextOverlayEditor({
             <div className="flex flex-wrap gap-2.5">
               <button
                 type="button"
-                onClick={() => patch({ [fields.bgColor]: "" })}
+                onClick={() => patchStyle({ bgColor: "" })}
                 className={cn(
                   "flex items-center border-2 border-mad-black px-2 font-typewriter text-[0.55rem] font-bold uppercase",
                   wizardCompact ? "h-9" : "h-6",
@@ -1051,7 +1390,7 @@ export function CanvasTextOverlayEditor({
                   key={swatch.hex}
                   type="button"
                   title={`${swatch.label} background`}
-                  onClick={() => patch({ [fields.bgColor]: swatch.hex })}
+                  onClick={() => patchStyle({ bgColor: swatch.hex })}
                   className={cn(
                     wizardCompact ? "size-9" : "size-6",
                     "border-2 border-mad-black",
@@ -1082,7 +1421,7 @@ export function CanvasTextOverlayEditor({
                   type="color"
                   value={layerBg || "#000000"}
                   onChange={(event) =>
-                    patch({ [fields.bgColor]: event.target.value.toUpperCase() })
+                    patchStyle({ bgColor: event.target.value.toUpperCase() })
                   }
                   className="absolute inset-0 size-full cursor-pointer opacity-0"
                   aria-label="Custom text background colour"

@@ -1,6 +1,6 @@
 "use client"
 
-import { FolderOpen, Loader2, SquareDashed } from "lucide-react"
+import { FolderOpen, Layers, Loader2, SquareDashed } from "lucide-react"
 
 import {
   MediaTray,
@@ -53,6 +53,8 @@ type Props = {
     offsetY: number
     onOffsetYChange: (offsetY: number) => void
   } | null
+  /** Cut out every photo in the carousel (2+ photos). */
+  onCutoutAll?: () => void
   /** Suggested new arrivals, shown under the tools. */
   suggestionsSlot?: React.ReactNode
 }
@@ -76,6 +78,7 @@ export function StepMedia({
   cutoutDisabled = false,
   storyCard = null,
   suggestionsSlot = null,
+  onCutoutAll,
 }: Props) {
   const active = assets.find((row) => row.id === activeId) ?? assets[0] ?? null
   const isVideo = active?.type === "video"
@@ -140,6 +143,15 @@ export function StepMedia({
                   <SquareDashed className="size-5" />
                 )
               }
+            />
+          ) : null}
+          {onCutoutAll ? (
+            <ToolIconButton
+              label="Cut out all photos"
+              hint="Removes the background on every photo in the carousel."
+              disabled={disabled || cutoutDisabled || cutoutBusy}
+              onClick={onCutoutAll}
+              icon={<Layers className="size-5" />}
             />
           ) : null}
           <span aria-hidden className="mx-1 h-7 w-px bg-neutral-300" />

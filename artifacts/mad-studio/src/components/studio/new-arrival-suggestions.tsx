@@ -30,7 +30,10 @@ const FORMAT_ICONS: Record<SuggestedFormat, typeof Film> = {
 type Props = {
   entityId: string
   isFashion: boolean
-  onUse: (suggestion: NewArrivalSuggestion) => void
+  /** Loads the arrival; returns what to say and how to take it back out. */
+  onUse: (
+    suggestion: NewArrivalSuggestion
+  ) => { title: string; undo: () => void } | null
   /** Item currently loaded in the tray, highlighted. */
   activeItemId?: string | null
   disabled?: boolean
@@ -69,14 +72,16 @@ export function NewArrivalSuggestions({
   // Using an arrival takes it off this list for good (it stays in the media
   // library); Undo puts it back.
   function use(row: NewArrivalSuggestion) {
-    onUse(row)
+    const result = onUse(row)
+    if (!result) return
     setRows((current) => current.filter((r) => r.item.id !== row.item.id))
     void setArrivalUsed({ entityId, itemId: row.item.id, used: true })
-    toast.success(`${SUGGESTED_FORMAT_LABELS[row.format]} set up for ${row.item.title}`, {
+    toast.success(result.title, {
       description: "Removed from suggestions — still in your media library.",
       action: {
         label: "Undo",
         onClick: () => {
+          result.undo()
           setRows((current) =>
             current.some((r) => r.item.id === row.item.id)
               ? current

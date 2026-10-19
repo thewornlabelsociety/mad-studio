@@ -1,4 +1,6 @@
 import {
+  canvasBackdropOn,
+  canvasLogoOn,
   canvasOverlayHasDecor,
   canvasTextLayers,
   CANVAS_TEXT_BG_PAD_X,
@@ -105,7 +107,8 @@ function drawTextLayer(
 
   let y = -blockHeight / 2 + lineHeight / 2
   for (const line of lines) {
-    if (overlay.shadow === "hard" || overlay.shadow === "soft") {
+    // No shadow on a solid block (matches the preview).
+    if (!layer.bgColor && (overlay.shadow === "hard" || overlay.shadow === "soft")) {
       ctx.shadowColor =
         overlay.shadow === "hard" ? "rgba(0,0,0,0.95)" : "rgba(0,0,0,0.45)"
       ctx.shadowBlur = overlay.shadow === "hard" ? 0 : 8
@@ -143,8 +146,46 @@ export async function bakeCanvasTextOnImage(input: {
   canvas.height = bitmap.height
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("Canvas unavailable.")
+  const W = canvas.width
+  const H = canvas.height
+  const overlay = input.overlay
 
-  ctx.drawImage(bitmap, 0, 0)
+  if (canvasBackdropOn(overlay)) {
+    // Item cut out on a solid colour, sized and placed like the preview.
+    ctx.fillStyle = overlay.backdropColor || "#FFFFFF"
+    ctx.fillRect(0, 0, W, H)
+    const cutout = await createImageBitmap(
+      await loadImageBlob(overlay.cutoutUrl, input.entityId)
+    )
+    const boxW = W * overlay.subjectScale
+    const boxH = H * overlay.subjectScale
+    const fit = Math.min(boxW / cutout.width, boxH / cutout.height)
+    const dw = cutout.width * fit
+    const dh = cutout.height * fit
+    const cy = H / 2 + (overlay.subjectOffsetY / 100) * H
+    ctx.drawImage(cutout, W / 2 - dw / 2, cy - dh / 2, dw, dh)
+  } else {
+    ctx.drawImage(bitmap, 0, 0)
+  }
+
+  if (canvasLogoOn(overlay)) {
+    try {
+      const logo = await createImageBitmap(
+        await loadImageBlob(overlay.logoUrl, input.entityId)
+      )
+      const lw = (overlay.logoScale / 100) * W
+      const lh = (logo.height / logo.width) * lw
+      ctx.drawImage(
+        logo,
+        (overlay.logoX / 100) * W - lw / 2,
+        (overlay.logoY / 100) * H - lh / 2,
+        lw,
+        lh
+      )
+    } catch {
+      // A missing logo shouldn't block the post.
+    }
+  }
   // Headline and subhead are separate layers, each with its own style.
   for (const layer of canvasTextLayers(input.overlay)) {
     await ensureCanvasFontLoaded(
