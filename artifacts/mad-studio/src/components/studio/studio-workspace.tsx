@@ -8,7 +8,6 @@ import { toast } from "sonner"
 
 import {
   dispatchCampaignPack,
-  getLatestStudioDraft,
   getStudioPack,
   saveCampaign,
   type StudioPackSnapshot,
@@ -126,6 +125,8 @@ import { cn } from "@/lib/utils"
 import type { AccessibleEntity } from "@/lib/types"
 
 const RAW_SPARK_MAX = 500
+
+const LOCAL_RESUME_WINDOW_MS = 6 * 60 * 60 * 1000
 
 type StudioWorkspaceProps = {
   entities: AccessibleEntity[]
@@ -502,6 +503,7 @@ export function StudioWorkspace({
       objective: string
       personaName: string | null
       fudiTrack?: FudiAudienceTrack | null
+      savedAt?: string | null
     }) => {
       writeActiveMultiplexerBuffer({
         packId: input.packId,
@@ -513,7 +515,7 @@ export function StudioWorkspace({
         objective: input.objective,
         personaName: input.personaName,
         fudiTrack: input.fudiTrack ?? null,
-        savedAt: new Date().toISOString(),
+        savedAt: input.savedAt || new Date().toISOString(),
       })
     },
     [activeEntity.id]
@@ -581,6 +583,9 @@ export function StudioWorkspace({
         objective: snapshot.context.objective || snapshot.targetGoal,
         personaName: personaName ?? null,
         fudiTrack: snapshot.context.fudi_track,
+        // Keep the pack's real last-edit time so reopening an old draft
+        // doesn't make it look freshly worked on.
+        savedAt: snapshot.updatedAt || snapshot.createdAt,
       })
 
       if (options?.syncUrl !== false) {
@@ -611,8 +616,21 @@ export function StudioWorkspace({
       setRehydrating(true)
       setSystemError(null)
 
+      if (startFresh) {
+        setRehydrating(false)
+        return
+      }
+
       const packIdFromUrl = searchParams.get("pack_id")?.trim() || null
-      const local = readActiveMultiplexerBuffer(activeEntity.id)
+      // Only resume this browser's in-progress pack if it was touched recently.
+      // Older work is opened deliberately via a pack_id link (Campaigns / Planner),
+      // so the Media step starts clean instead of reloading a stale draft.
+      const bufferedLocal = readActiveMultiplexerBuffer(activeEntity.id)
+      const local =
+        bufferedLocal &&
+        Date.now() - Date.parse(bufferedLocal.savedAt) < LOCAL_RESUME_WINDOW_MS
+          ? bufferedLocal
+          : null
 
       try {
         if (packIdFromUrl) {
@@ -625,64 +643,6 @@ export function StudioWorkspace({
             applySnapshot(result.snapshot, { markRestored: true })
             return
           }
-        }
-
-        const latest = await getLatestStudioDraft({
-          entityId: activeEntity.id,
-        })
-        if (cancelled || hydrateToken.current !== token) return
-
-        if (latest.ok && latest.snapshot) {
-          const preferLocal =
-            local &&
-            local.packId === latest.snapshot.campaignId &&
-            local.savedAt > latest.snapshot.updatedAt
-
-          if (preferLocal) {
-            skipIntentObjectiveSync.current = true
-            setPack(local.pack)
-            setCampaignId(local.packId)
-            syncMediaFromUrl(local.mediaUrl)
-            if (local.fudiTrack) setFudiTrack(local.fudiTrack)
-            setIntent(local.intent)
-            const localTrackChips = local.fudiTrack
-              ? resolveFudiTrackPresets(local.fudiTrack).intentChips
-              : studioPresets.intentChips
-            const matchedLocalChip = localTrackChips.find(
-              (chip) => chip.intent === local.intent
-            )
-            setIntentChipId(
-              matchedLocalChip?.id ?? localTrackChips[0]?.id ?? ""
-            )
-            const localObjectives = local.fudiTrack
-              ? resolveFudiTrackPresets(local.fudiTrack).objectives
-              : studioPresets.objectives
-            setObjective(
-              localObjectives.includes(local.objective)
-                ? local.objective
-                : localObjectives[0] ?? local.objective
-            )
-            setRawSpark(local.eventDescription)
-            if (local.fudiTrack) {
-              setRedirectSlugSeed(
-                buildFudiRedirectSlugSeed(
-                  local.fudiTrack,
-                  local.eventDescription
-                )
-              )
-            }
-            const matched = personas.find(
-              (persona) => persona.name === local.personaName
-            )
-            setPersonaId(matched?.id ?? personas[0]?.id ?? "")
-            setEditorSession((value) => value + 1)
-            setRestoredAt(local.savedAt)
-            syncPackUrl(local.packId)
-            return
-          }
-
-          applySnapshot(latest.snapshot, { markRestored: true })
-          return
         }
 
         if (local) {
@@ -1179,22 +1139,29 @@ export function StudioWorkspace({
   }, [workbenchStep])
 
   const studioChrome = useStudioChromeOptional()
+  // Depend on the stable callbacks, not the whole context value: the value
+  // changes every time chrome state changes, which re-ran these effects
+  // (clear -> set -> clear ...) in an endless render loop.
+  const setStudioChrome = studioChrome?.setChrome
+  const clearStudioChrome = studioChrome?.clearChrome
   const startNewPackRef = useRef(startNewPack)
   startNewPackRef.current = startNewPack
+  const onStartFreshChrome = useCallback(() => startNewPackRef.current(), [])
+  const draftActiveChrome = Boolean(restoredAt && pack)
 
   useEffect(() => {
-    if (!studioChrome) return
-    studioChrome.setChrome({
-      draftActive: Boolean(restoredAt && pack),
+    if (!setStudioChrome) return
+    setStudioChrome({
+      draftActive: draftActiveChrome,
       rehydrating,
-      onStartFresh: () => startNewPackRef.current(),
+      onStartFresh: onStartFreshChrome,
     })
-  }, [studioChrome, restoredAt, pack, rehydrating])
+  }, [setStudioChrome, draftActiveChrome, rehydrating, onStartFreshChrome])
 
   useEffect(() => {
-    if (!studioChrome) return
-    return () => studioChrome.clearChrome()
-  }, [studioChrome])
+    if (!clearStudioChrome) return
+    return () => clearStudioChrome()
+  }, [clearStudioChrome])
 
   const simulatorContent = useMemo(() => {
     if (pack && showStudio) {

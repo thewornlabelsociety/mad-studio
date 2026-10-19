@@ -41,11 +41,22 @@ export function StudioChromeProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(defaultChrome)
 
   const setChrome = useCallback((patch: Partial<StudioChromeState>) => {
-    setState((current) => ({ ...current, ...patch }))
+    setState((current) => {
+      const changed = (Object.keys(patch) as (keyof StudioChromeState)[]).some(
+        (key) => patch[key] !== current[key]
+      )
+      return changed ? { ...current, ...patch } : current
+    })
   }, [])
 
   const clearChrome = useCallback(() => {
-    setState(defaultChrome)
+    setState((current) =>
+      current.draftActive === defaultChrome.draftActive &&
+      current.rehydrating === defaultChrome.rehydrating &&
+      current.onStartFresh === defaultChrome.onStartFresh
+        ? current
+        : defaultChrome
+    )
   }, [])
 
   const value = useMemo(
