@@ -18,11 +18,12 @@ import {
   disarmCampaignQueue,
 } from "@/lib/actions"
 import { MultiChannelScheduler } from "@/components/marketing/multi-channel-scheduler"
+import { CanvasSlidePicker } from "@/components/studio/canvas-slide-picker"
 import {
   ReviewBeforeSchedule,
   type MediaByChannel,
 } from "@/components/studio/review-before-schedule"
-import { resolveVisualPresets } from "@/lib/brands/visual-presets"
+import { brandSwatches, resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { SchedulerChannel } from "@/lib/scheduling/brain-timing"
 import { IntentMatrix } from "@/components/studio/intent-matrix"
 import { PackResultsEditor } from "@/components/studio/pack-results-editor"
@@ -52,6 +53,7 @@ import {
 } from "@/components/marketing/multi-platform-simulator"
 import {
   CANVAS_TEXT_FONTS,
+  canvasOverlayHasDecor,
   DEFAULT_CANVAS_TEXT_OVERLAY,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
@@ -100,7 +102,7 @@ import {
   type ChannelSlot,
 } from "@/lib/scheduling/brain-timing"
 import {
-  AUDIENCE_TONE_META,
+  audienceToneCue,
   type AudienceTone,
 } from "@/lib/studio/audience-tone"
 import { resolveForecastingTagForPersona } from "@/lib/brain/audience-segment-display"
@@ -203,7 +205,16 @@ export function StudioWorkspace({
     [studioPresets.intentChips]
   )
   const [objective, setObjective] = useState(objectives[0] ?? "")
-  const toneGoalSuffix = AUDIENCE_TONE_META[audienceTone].promptCue
+  const brandProfileId = resolveIndustryProfile({
+    name: activeEntity.name,
+    industry: activeEntity.industry,
+  }).id
+  const toneGoalSuffix = audienceToneCue(audienceTone, brandProfileId)
+  const brandVisualPresets = resolveVisualPresets({
+    brandName: activeEntity.name,
+    industry: activeEntity.industry,
+    brandIdentity: activeEntity.brand_identity,
+  })
   const [personaId, setPersonaId] = useState(personas[0]?.id ?? "")
   const [rawSpark, setRawSpark] = useState("")
   const [formulaHookId, setFormulaHookId] = useState<string | null>(null)
@@ -233,20 +244,44 @@ export function StudioWorkspace({
   const [workbenchStep, setWorkbenchStep] = useState<WorkbenchStepId>(() =>
     parseWorkbenchStepParam(initialStep)
   )
+  // On-image text is per photo, keyed by tray asset id, so each carousel
+  // slide carries its own words. New slides inherit the last-edited style.
   // New posts start in this brand's headline font (Brand Brain presets).
-  const [textOverlay, setTextOverlay] = useState<CanvasTextOverlayState>(() => {
-    const brandFontId = resolveVisualPresets({
-      brandName: activeEntity.name,
-      industry: activeEntity.industry,
-      brandIdentity: activeEntity.brand_identity,
-    }).heading_font_id
-    return CANVAS_TEXT_FONTS.some((font) => font.id === brandFontId)
-      ? {
-          ...DEFAULT_CANVAS_TEXT_OVERLAY,
-          fontId: brandFontId as CanvasTextOverlayState["fontId"],
-        }
-      : DEFAULT_CANVAS_TEXT_OVERLAY
-  })
+  const [slideOverlays, setSlideOverlays] = useState<
+    Record<string, CanvasTextOverlayState>
+  >({})
+  const [lastOverlayStyle, setLastOverlayStyle] =
+    useState<CanvasTextOverlayState>(() => {
+      const brandFontId = resolveVisualPresets({
+        brandName: activeEntity.name,
+        industry: activeEntity.industry,
+        brandIdentity: activeEntity.brand_identity,
+      }).heading_font_id
+      return CANVAS_TEXT_FONTS.some((font) => font.id === brandFontId)
+        ? {
+            ...DEFAULT_CANVAS_TEXT_OVERLAY,
+            fontId: brandFontId as CanvasTextOverlayState["fontId"],
+            subFontId: brandFontId as CanvasTextOverlayState["fontId"],
+          }
+        : DEFAULT_CANVAS_TEXT_OVERLAY
+    })
+  const overlayKey = activeMediaId ?? "_no_media"
+  const textOverlay: CanvasTextOverlayState = slideOverlays[overlayKey] ?? {
+    ...lastOverlayStyle,
+    headline: "",
+    subhead: "",
+  }
+  const setTextOverlay = useCallback(
+    (next: CanvasTextOverlayState) => {
+      setSlideOverlays((current) => ({ ...current, [overlayKey]: next }))
+      setLastOverlayStyle(next)
+    },
+    [overlayKey]
+  )
+  const imageAssets = mediaAssets.filter((asset) => asset.type === "image")
+  /** The text saved for one tray photo, if any. */
+  const overlayForAsset = (assetId: string): CanvasTextOverlayState | null =>
+    slideOverlays[assetId] ?? null
   const [simPlatform, setSimPlatform] = useState<
     import("@/components/marketing/multi-platform-simulator").SimulatorPlatform
   >("ig_story")
@@ -489,6 +524,9 @@ export function StudioWorkspace({
       }))
       return
     }
+    // The cutout is used on the Instagram Story card, so show that preview
+    // (a carousel switches the preview to Feed, which used to grey this out).
+    setSimPlatform("ig_story")
     setCutoutRequestId((value) => value + 1)
   }
 
@@ -847,8 +885,8 @@ export function StudioWorkspace({
       setSystemError("RAW SPARK TOO SHORT. Add a one-line event for slot fill.")
       return
     }
-    const bank = resolveFormulaBank(activeEntity.brand_identity)
-    const ctas = resolveConversionActions(activeEntity.conversion_goals)
+    const bank = resolveFormulaBank(activeEntity.brand_identity, brandProfileId)
+    const ctas = resolveConversionActions(activeEntity.conversion_goals, brandProfileId)
     const hook =
       bank.hook_styles.find((h) => h.id === formulaHookId) ??
       bank.hook_styles[0]
@@ -867,7 +905,11 @@ export function StudioWorkspace({
       cta,
       slots: formulaSlots,
       spark,
-      campaignTitle: formulaSlots.item.trim() || undefined,
+      campaignTitle:
+        [formulaSlots.brand, formulaSlots.item]
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .join(" ") || undefined,
     })
 
     setPack(withStudioTags(nextPack))
@@ -1166,6 +1208,7 @@ export function StudioWorkspace({
 
   function startNewPack() {
     clearActiveMultiplexerBuffer(activeEntity.id)
+    setSlideOverlays({})
     setPack(null)
     setCampaignId(null)
     syncMediaFromUrl(null)
@@ -1404,6 +1447,7 @@ export function StudioWorkspace({
           !isFudi ? (
             <div className="space-y-3">
               <IntentMatrix
+                brandProfileId={brandProfileId}
                 audienceTone={audienceTone}
                 onAudienceToneChange={setAudienceTone}
                 intentChips={consumerIntentChips}
@@ -1432,6 +1476,28 @@ export function StudioWorkspace({
           ) : null
         }
         footerSlot={null}
+        canvasSlot={
+          phase === "canvas" && imageAssets.length >= 2 ? (
+            <CanvasSlidePicker
+              slides={imageAssets.map((asset) => {
+                const overlay =
+                  asset.id === activeMediaId
+                    ? textOverlay
+                    : overlayForAsset(asset.id)
+                return {
+                  id: asset.id,
+                  url: asset.publicUrl || asset.url,
+                  hasText: overlay ? canvasOverlayHasDecor(overlay) : false,
+                }
+              })}
+              activeId={activeMediaId}
+              onSelect={(id) => {
+                const asset = imageAssets.find((row) => row.id === id)
+                if (asset) onSelectStudioMedia(asset)
+              }}
+            />
+          ) : null
+        }
       />
     )
   }
@@ -1488,13 +1554,13 @@ export function StudioWorkspace({
             nextBusy={multiplexing || (pending && !arming)}
             nextLabel={
               workbenchStep === WORKBENCH_STEP_MEDIA
-                ? "Continue to Intent ──▶"
+                ? "Continue to Intent"
                 : workbenchStep === WORKBENCH_STEP_INTENT
-                  ? "Continue to Canvas ──▶"
+                  ? "Continue to Canvas"
                   : workbenchStep === WORKBENCH_STEP_CANVAS
-                    ? "Continue to Copy ──▶"
+                    ? "Continue to Copy"
                     : workbenchStep === WORKBENCH_STEP_COPY
-                      ? "Continue to Schedule ──▶"
+                      ? "Continue to Schedule"
                       : workbenchStep === WORKBENCH_STEP_CHANNELS && !showStudio
                         ? "Generate pack"
                         : undefined
@@ -1594,7 +1660,23 @@ export function StudioWorkspace({
             cutoutActive={storyPreview.cutoutMode === "transparent"}
             cutoutBusy={false}
             onCutoutToggle={onCutoutToggle}
-            cutoutDisabled={simPlatform !== "ig_story"}
+            storyCard={{
+              swatches: brandSwatches(brandVisualPresets),
+              background:
+                storyPreview.canvasColor || brandVisualPresets.canvas_color,
+              onBackgroundChange: (hex) =>
+                setStoryPreview((current) => ({
+                  ...current,
+                  canvasColor: hex,
+                  bgPresetId: "custom",
+                })),
+              scale: storyPreview.subjectScale ?? 1,
+              onScaleChange: (subjectScale) =>
+                setStoryPreview((current) => ({ ...current, subjectScale })),
+              offsetY: storyPreview.subjectOffsetY ?? 0,
+              onOffsetYChange: (subjectOffsetY) =>
+                setStoryPreview((current) => ({ ...current, subjectOffsetY })),
+            }}
           />
         ) : null}
 
@@ -1797,13 +1879,18 @@ export function StudioWorkspace({
             brandIdentity: activeEntity.brand_identity,
           })}
           slugSeed={liveRedirectSlugSeed}
-          carouselPhotoUrls={mediaAssets
-            .filter((asset) => asset.type === "image")
-            // Match how the selected photo's URL is chosen (apiImageUrl).
-            .map((asset) =>
-              /^https?:\/\//i.test(asset.url) ? asset.url : asset.publicUrl
-            )
-            .filter((url): url is string => Boolean(url && /^https?:\/\//i.test(url)))}
+          carouselSlides={imageAssets
+            .map((asset) => ({
+              // Match how the selected photo's URL is chosen (apiImageUrl).
+              url: /^https?:\/\//i.test(asset.url)
+                ? asset.url
+                : (asset.publicUrl ?? ""),
+              overlay:
+                asset.id === activeMediaId
+                  ? textOverlay
+                  : overlayForAsset(asset.id),
+            }))
+            .filter((slide) => /^https?:\/\//i.test(slide.url))}
           onDropChannel={dropChannel}
           onConfirm={(mediaByChannel, carouselUrls) =>
             onArmPack(mediaByChannel, carouselUrls)

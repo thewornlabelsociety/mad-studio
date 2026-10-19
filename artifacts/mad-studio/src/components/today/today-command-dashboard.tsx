@@ -13,12 +13,12 @@ import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
 import type { TodayQueueView } from "@/lib/today/queue"
 import {
   formatAgendaLiveDate,
-  platformEmoji,
   platformLabel,
 } from "@/lib/today/agenda"
 import { resolveInventoryIntakeMode } from "@/lib/inventory/entity-intake"
 import type { DispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { cn } from "@/lib/utils"
+import { PlatformIcon } from "@/components/ui/app-icons"
 
 export type ArmedTodayRow = {
   id: string
@@ -162,8 +162,9 @@ export function TodayCommandDashboard({
                 <span className="font-mono text-sm tabular-nums text-neutral-600">
                   {formatTime(row.scheduledTime)}
                 </span>
-                <span className="font-typewriter text-sm">
-                  {platformEmoji(row.platform)} {platformLabel(row.platform)}
+                <span className="inline-flex items-center gap-1.5 font-typewriter text-sm">
+                  <PlatformIcon platform={row.platform} className="size-4" />
+                  {platformLabel(row.platform)}
                 </span>
                 <span className="min-w-0 flex-1 truncate font-typewriter text-xs font-bold tracking-wide uppercase">
                   {row.title}

@@ -12,17 +12,15 @@ export type FudiDropKind =
   | "event"
   | "pantry"
 
-export const FUDI_DROP_BADGES: Record<
-  FudiDropKind,
-  { label: string; emoji: string }
-> = {
-  foodie_post: { emoji: "🍜", label: "FOODIE POST" },
-  eatery_spotlight: { emoji: "🏪", label: "EATERY SPOTLIGHT" },
-  platform_promo: { emoji: "📱", label: "FÜDI PROMO" },
-  dish_drop: { emoji: "🍕", label: "DISH DROP" },
-  live_deal: { emoji: "🏷️", label: "LIVE DEAL" },
-  event: { emoji: "🎟️", label: "EVENT" },
-  pantry: { emoji: "🍯", label: "MARKETPLACE" },
+/** Labels only — the UI draws each kind's Lucide icon (DropKindIcon). */
+export const FUDI_DROP_BADGES: Record<FudiDropKind, { label: string }> = {
+  foodie_post: { label: "FOODIE POST" },
+  eatery_spotlight: { label: "EATERY SPOTLIGHT" },
+  platform_promo: { label: "FÜDI PROMO" },
+  dish_drop: { label: "DISH DROP" },
+  live_deal: { label: "LIVE DEAL" },
+  event: { label: "EVENT" },
+  pantry: { label: "MARKETPLACE" },
 }
 
 export function formatAgendaLiveDate(date: Date = new Date()): string {
@@ -185,16 +183,4 @@ export function platformLabel(platform: string): string {
   }
 }
 
-export function platformEmoji(platform: string): string {
-  switch (platform) {
-    case "instagram_story":
-    case "instagram_feed":
-      return "📸"
-    case "tiktok":
-      return "🎵"
-    case "facebook":
-      return "📘"
-    default:
-      return "📡"
-  }
-}
+

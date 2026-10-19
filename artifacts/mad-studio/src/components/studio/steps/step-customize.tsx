@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react"
 
-import { Loader2, RotateCcw, Sparkles } from "lucide-react"
+import { Brain, Loader2, RotateCcw, Sparkles } from "lucide-react"
 
 import { toast } from "sonner"
 
@@ -57,7 +57,11 @@ import type { StudioEntityDna } from "@/lib/campaigns/entity-dna"
 
 import { personasFromAudienceSegments } from "@/lib/campaigns/multiplexer"
 
-import { resolveFormulaBank } from "@/lib/studio/formula-bank"
+import {
+  resolveConversionActions,
+  resolveFormulaBank,
+} from "@/lib/studio/formula-bank"
+import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 
 import { requestFieldAssist } from "@/lib/studio/field-assist-client"
 
@@ -118,9 +122,7 @@ function IntentSelectTrigger({
     >
       {children}
       {aiSuggested ? (
-        <span className="shrink-0 text-xs leading-none" aria-hidden>
-          ✨
-        </span>
+        <Sparkles className="size-3.5 shrink-0" aria-label="Suggested by AI" />
       ) : null}
     </SelectTrigger>
   )
@@ -173,6 +175,8 @@ type Props = {
   tagsSlot?: ReactNode
 
   topSlot?: ReactNode
+  /** Above the Canvas editor — e.g. which carousel slide is being edited. */
+  canvasSlot?: ReactNode
 
   footerSlot?: ReactNode
 
@@ -341,6 +345,7 @@ export function StepCustomize({
   tagsSlot,
 
   topSlot,
+  canvasSlot = null,
 
   footerSlot,
 
@@ -412,7 +417,10 @@ export function StepCustomize({
 
   const personas = personasFromAudienceSegments(entity.audience_segments)
 
-  const bank = resolveFormulaBank(entity.brand_identity)
+  const bank = resolveFormulaBank(
+    entity.brand_identity,
+    resolveIndustryProfile({ name: entity.name, industry: entity.industry }).id
+  )
 
   const pillars =
 
@@ -422,7 +430,11 @@ export function StepCustomize({
 
       : ["Brand story", "Product drop", "Community"]
 
-  const ctas = entity.conversion_goals
+  // Same list as the Schedule formula panel (they share the chosen CTA).
+  const ctas = resolveConversionActions(
+    entity.conversion_goals,
+    resolveIndustryProfile({ name: entity.name, industry: entity.industry }).id
+  )
 
   const pillarOptions = useMemo(() => [...pillars], [pillars])
   const [pillarCustom, setPillarCustom] = useState(
@@ -667,8 +679,8 @@ export function StepCustomize({
   const isCanvasWizard = phase === "canvas"
   const isCopyWizard = phase === "copy"
   const isFitViewportWizard = isIntentWizard
-  // Copy renders its own card; Canvas gets the same step header as Intent.
-  const isBareWizard = isCopyWizard
+  // Every wizard step shows the same "N · Step" header.
+  const isStepWizard = isIntentWizard || isCanvasWizard || isCopyWizard
   // This brand's colours and headline font (Brand Brain → Visual presets).
   const brandPresets = resolveVisualPresets({
     brandName: entity.name,
@@ -687,17 +699,15 @@ export function StepCustomize({
     <StudioStepPanel
       fill
       scrollBody={!isFitViewportWizard}
-      compactHeader={isIntentWizard || isCanvasWizard}
-      bare={isBareWizard}
-      kicker={isBareWizard ? undefined : meta.step}
-      title={isBareWizard ? undefined : meta.title}
+      compactHeader={isStepWizard}
+      kicker={meta.step}
+      title={meta.title}
       description={
         meta.subtitle && phase === "all" ? meta.subtitle : undefined
       }
       className={cn(
         "min-w-0",
-        (isIntentWizard || isCanvasWizard) && "p-4 md:p-5",
-        isBareWizard && "min-h-0 flex-1 p-3 md:p-4"
+        isStepWizard && "p-4 md:p-5"
       )}
     >
       {showIntent ? (
@@ -720,7 +730,10 @@ export function StepCustomize({
                 Analyzing media…
               </>
             ) : (
-              <>🧠 Auto-Suggest Intent from Media</>
+              <>
+                <Brain className="size-4" aria-hidden />
+                Auto-Suggest Intent from Media
+              </>
             )}
           </button>
           {!isIntentWizard && !canAutoSuggestIntent ? (
@@ -927,7 +940,8 @@ export function StepCustomize({
 
 
       {showCanvas && onTextOverlayChange ? (
-
+        <>
+        {canvasSlot}
         <CanvasTextOverlayEditor
           wizardCompact={isCanvasWizard}
           className={isCanvasWizard ? "min-h-0 flex-1" : undefined}
@@ -938,6 +952,7 @@ export function StepCustomize({
           swatches={brandSwatches(brandPresets)}
           brandFontId={brandPresets.heading_font_id ?? null}
         />
+        </>
 
       ) : null}
 

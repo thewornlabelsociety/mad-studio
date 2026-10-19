@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Clapperboard, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
+import { ToolIconButton } from "@/components/studio/tool-icon-button"
 import { cn } from "@/lib/utils"
 
 export type CapCutBridgePayload = {
@@ -21,9 +22,11 @@ export type CapCutBridgePayload = {
 type Props = {
   payload: CapCutBridgePayload
   className?: string
+  /** Square icon button with a hover label (Studio tool row). */
+  iconOnly?: boolean
 }
 
-export function CapCutBridge({ payload, className }: Props) {
+export function CapCutBridge({ payload, className, iconOnly = false }: Props) {
   const [busy, setBusy] = useState(false)
 
   async function copyCapCutBundle() {
@@ -51,6 +54,25 @@ export function CapCutBridge({ payload, className }: Props) {
     } finally {
       setBusy(false)
     }
+  }
+
+  if (iconOnly) {
+    return (
+      <ToolIconButton
+        label="Edit reel in CapCut"
+        hint="Copies your hook and caption, then opens CapCut."
+        disabled={busy}
+        onClick={() => void copyCapCutBundle()}
+        className={className}
+        icon={
+          busy ? (
+            <Loader2 className="size-5 animate-spin" />
+          ) : (
+            <Clapperboard className="size-5" />
+          )
+        }
+      />
+    )
   }
 
   return (

@@ -1,12 +1,13 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { Download, Loader2 } from "lucide-react"
+import { Download, Loader2, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import { appendInventoryImage } from "@/lib/actions"
 import { createClient } from "@/lib/supabase/client"
 import type { MediaKind } from "@/lib/media/kind"
+import { ToolIconButton } from "@/components/studio/tool-icon-button"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -14,6 +15,8 @@ type Props = {
   marketingEntityId?: string | null
   onReady: (publicUrl: string, kind: MediaKind) => void
   className?: string
+  /** Square icon button (click or drop a file on it) for the tool row. */
+  iconOnly?: boolean
 }
 
 async function uploadEntityAsset(entityId: string, file: File): Promise<string> {
@@ -47,6 +50,7 @@ export function FinishedRenderDropZone({
   marketingEntityId = null,
   onReady,
   className,
+  iconOnly = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -77,6 +81,53 @@ export function FinishedRenderDropZone({
       setBusy(false)
       setDragOver(false)
     }
+  }
+
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="video/mp4,video/quicktime,image/png,image/jpeg,.mp4,.mov,.png,.jpg,.jpeg"
+      className="sr-only"
+      onChange={(event) => {
+        const file = event.target.files?.[0]
+        if (file) void ingestFile(file)
+        event.target.value = ""
+      }}
+    />
+  )
+
+  if (iconOnly) {
+    return (
+      <>
+        {fileInput}
+        <ToolIconButton
+          label="Upload finished render"
+          hint="Click or drop an MP4, MOV, PNG or JPG — it replaces the selected media."
+          disabled={busy}
+          active={dragOver}
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(event) => {
+            event.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(event) => {
+            event.preventDefault()
+            const file = event.dataTransfer.files?.[0]
+            if (file) void ingestFile(file)
+          }}
+          className={className}
+          icon={
+            busy ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Upload className="size-5" />
+            )
+          }
+        />
+      </>
+    )
   }
 
   return (

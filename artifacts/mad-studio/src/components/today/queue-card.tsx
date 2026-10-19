@@ -1,10 +1,11 @@
 "use client"
 
 import { Link } from "wouter"
-import { Zap } from "lucide-react"
+import { Play, Zap } from "lucide-react"
 
 import type { TodayQueueView } from "@/lib/today/queue"
 import { cn } from "@/lib/utils"
+import { IntakeBadgeIcon, PlatformIcon } from "@/components/ui/app-icons"
 
 type Props = {
   view: TodayQueueView
@@ -43,7 +44,8 @@ export function QueueCard({ view, entityId, brandName }: Props) {
         )}
         {view.isVideo ? (
           <span className="absolute bottom-1.5 left-1.5 border border-mad-black bg-mad-black px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold text-mad-white">
-            ▶ Reel
+            <Play className="mr-1 inline size-2.5 fill-current align-[-1px]" aria-hidden />
+            Reel
           </span>
         ) : null}
       </div>
@@ -61,11 +63,19 @@ export function QueueCard({ view, entityId, brandName }: Props) {
                 : "bg-mad-lime text-mad-black"
             )}
           >
-            {view.channel === "tiktok" ? "🎵 TikTok" : "📸 IG Story"}
+            <PlatformIcon
+              platform={view.channel === "tiktok" ? "tiktok" : "instagram_story"}
+              className="mr-1 inline size-3 align-[-2px]"
+            />
+            {view.channel === "tiktok" ? "TikTok" : "IG Story"}
           </span>
           {view.intakeBadge ? (
             <span className="border border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
-              [ {view.intakeBadge.emoji} {view.intakeBadge.label} ]
+              <IntakeBadgeIcon
+                kind={view.intakeBadge.kind}
+                className="mr-1 inline size-3 align-[-2px]"
+              />
+              {view.intakeBadge.label}
             </span>
           ) : null}
           {view.fudiTrackLabel ? (

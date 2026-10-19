@@ -1,6 +1,7 @@
 "use client"
 
 import { forwardRef } from "react"
+import { Link2 } from "lucide-react"
 
 import {
   conciseProductLabel,
@@ -28,6 +29,13 @@ type StoryCanvasProps = {
   visualPresets?: VisualPresets | null
   /** Stamp the brand's own logo (from Brand Brain) in its chosen corner. */
   showLogo?: boolean
+  /** Brand / product lines on the card (off when there's no Library item). */
+  showCopy?: boolean
+  /** Dashed "add link sticker on phone" guide (never exported). */
+  showStickerGuide?: boolean
+  /** Item size (1 = fit) and vertical nudge (% of its area) on the Cutout card. */
+  subjectScale?: number
+  subjectOffsetY?: number
   className?: string
 }
 
@@ -42,6 +50,10 @@ export const StoryCanvas = forwardRef<HTMLDivElement, StoryCanvasProps>(
       cutoutMode,
       visualPresets = null,
       showLogo = false,
+      showCopy = true,
+      showStickerGuide = true,
+      subjectScale = 1,
+      subjectOffsetY = 0,
       className,
     },
     ref
@@ -85,6 +97,10 @@ export const StoryCanvas = forwardRef<HTMLDivElement, StoryCanvasProps>(
             cutoutMode={resolvedCutout}
             canvasColor={canvasColor}
             visualPresets={visualPresets}
+            showCopy={showCopy}
+            showStickerGuide={showStickerGuide}
+            subjectScale={subjectScale}
+            subjectOffsetY={subjectOffsetY}
           />
         ) : null}
         {stylePreset === "full_page" ? (
@@ -148,7 +164,7 @@ function LinkStickerGuide({ label, color }: { label: string; color: string }) {
       className="inline-flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[0.6rem] font-semibold tracking-wide uppercase"
       style={{ borderColor: `${color}99`, color }}
     >
-      <span aria-hidden>🔗</span>
+      <Link2 className="size-3" aria-hidden />
       {label} · add on phone
     </div>
   )
@@ -326,11 +342,19 @@ function MoodyNoir({
   cutoutMode,
   canvasColor,
   visualPresets,
+  showCopy = true,
+  showStickerGuide = true,
+  subjectScale = 1,
+  subjectOffsetY = 0,
 }: {
   model: StoryCanvasModel
   cutoutMode: CutoutMode
   canvasColor?: string | null
   visualPresets?: VisualPresets | null
+  showCopy?: boolean
+  showStickerGuide?: boolean
+  subjectScale?: number
+  subjectOffsetY?: number
 }) {
   const { canvas, text, accent } = resolveTheme(
     "moody_noir",
@@ -340,10 +364,18 @@ function MoodyNoir({
 
   return (
     <div
-      className="absolute inset-0 flex flex-col px-5 pt-16 pb-20"
+      // Proportional insets keep clear of Instagram's top bar and reply bar
+      // at any card size, leaving most of the height for the item.
+      className="absolute inset-0 flex flex-col px-[7%] pt-[18%] pb-[16%]"
       style={{ background: canvas, color: text }}
     >
-      <div className="mt-5 min-h-0 flex-1">
+      <div
+        className="mt-2 min-h-0 flex-1"
+        style={{
+          transform: `translateY(${subjectOffsetY}%) scale(${subjectScale})`,
+          transformOrigin: "center center",
+        }}
+      >
         <ProductImage
           src={model.imageUrl}
           alt={model.title}
@@ -352,19 +384,23 @@ function MoodyNoir({
         />
       </div>
 
-      <StoryCopyBlock
-        model={model}
-        visualPresets={visualPresets}
-        accent={accent}
-        className="mt-3"
-      />
-
-      <div className="mt-4 flex justify-center">
-        <LinkStickerGuide
-          label={model.stickerLabel || "Shop the look"}
-          color={text}
+      {showCopy ? (
+        <StoryCopyBlock
+          model={model}
+          visualPresets={visualPresets}
+          accent={accent}
+          className="mt-3"
         />
-      </div>
+      ) : null}
+
+      {showStickerGuide ? (
+        <div className="mt-4 flex justify-center">
+          <LinkStickerGuide
+            label={model.stickerLabel || "Shop the look"}
+            color={text}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }

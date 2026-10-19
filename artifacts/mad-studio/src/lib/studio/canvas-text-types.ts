@@ -174,6 +174,17 @@ export type CanvasTextOverlayState = {
 
   rotationDeg: number
 
+  /** Subhead is its own layer: font, colour, size, position and tilt. */
+  subFontId: CanvasTextFontId
+  subColor: string
+  subFontScale: number
+  subPositionX: number
+  subPositionY: number
+  subRotationDeg: number
+  /** Solid block behind each line (hex); "" means no background. */
+  bgColor: string
+  subBgColor: string
+
   textAlign: CanvasTextAlign
 
   stickerEnabled: boolean
@@ -245,6 +256,15 @@ export const DEFAULT_CANVAS_TEXT_OVERLAY: CanvasTextOverlayState = {
   fontScale: 1,
 
   rotationDeg: 0,
+
+  subFontId: "impact_bold",
+  subColor: "#FFFFFF",
+  subFontScale: 0.6,
+  subPositionX: 50,
+  subPositionY: 80,
+  subRotationDeg: 0,
+  bgColor: "",
+  subBgColor: "",
 
   textAlign: "center",
 
@@ -430,6 +450,28 @@ export function normalizeCanvasTextOverlay(
 
     : "none"
 
+  // Older saved text has no subhead layer: it inherits the headline's look,
+  // sits just below it, and starts a little smaller.
+  const headFontId: CanvasTextFontId = isCanvasTextFontId(rawFont)
+    ? rawFont
+    : "impact_bold"
+  const rawSubFont = str("subFontId", headFontId)
+  const scaleOf = (key: string, fallback: number) => {
+    const raw = row[key]
+    const n = typeof raw === "number" ? raw : Number(raw)
+    return Number.isFinite(n) ? Math.min(2.5, Math.max(0.5, n)) : fallback
+  }
+  const degreesOf = (key: string, fallback: number) => {
+    const raw = row[key]
+    const n = typeof raw === "number" ? raw : Number(raw)
+    if (!Number.isFinite(n)) return fallback
+    let deg = n % 360
+    if (deg > 180) deg -= 360
+    if (deg < -180) deg += 360
+    return deg
+  }
+  const headPositionY = num("positionY", DEFAULT_CANVAS_TEXT_OVERLAY.positionY)
+
   const base: CanvasTextOverlayState = {
 
     enabled: Boolean(row.enabled),
@@ -468,6 +510,18 @@ export function normalizeCanvasTextOverlay(
       if (deg < -180) deg += 360
       return deg
     })(),
+
+    subFontId: isCanvasTextFontId(rawSubFont) ? rawSubFont : headFontId,
+    subColor: str("subColor", str("color", "#FFFFFF")),
+    subFontScale: scaleOf("subFontScale", DEFAULT_CANVAS_TEXT_OVERLAY.subFontScale),
+    subPositionX: num(
+      "subPositionX",
+      num("positionX", DEFAULT_CANVAS_TEXT_OVERLAY.positionX)
+    ),
+    subPositionY: num("subPositionY", Math.min(96, headPositionY + 8)),
+    subRotationDeg: degreesOf("subRotationDeg", degreesOf("rotationDeg", 0)),
+    bgColor: str("bgColor", ""),
+    subBgColor: str("subBgColor", ""),
 
     textAlign:
 
@@ -988,3 +1042,85 @@ export function canvasTextAnimationClass(
 }
 
 
+
+export type CanvasTextLayerId = "headline" | "subhead"
+
+/** One line of on-image text with its own style and placement. */
+export type CanvasTextLayer = {
+  id: CanvasTextLayerId
+  text: string
+  fontId: CanvasTextFontId
+  color: string
+  fontScale: number
+  positionX: number
+  positionY: number
+  rotationDeg: number
+  /** Block colour behind the text; "" for none. */
+  bgColor: string
+}
+
+/**
+ * The headline and subhead as separate layers (empty ones left out). Both the
+ * preview and the baked image draw from this, so they always match.
+ */
+export function canvasTextLayers(
+  overlay: CanvasTextOverlayState
+): CanvasTextLayer[] {
+  if (!overlay.enabled) return []
+  const layers: CanvasTextLayer[] = []
+  const headline = overlay.headline.trim()
+  if (headline) {
+    layers.push({
+      id: "headline",
+      text: headline,
+      fontId: overlay.fontId,
+      color: overlay.color,
+      fontScale: overlay.fontScale,
+      positionX: overlay.positionX,
+      positionY: overlay.positionY,
+      rotationDeg: overlay.rotationDeg,
+      bgColor: overlay.bgColor ?? "",
+    })
+  }
+  const subhead = overlay.subhead.trim()
+  if (subhead) {
+    layers.push({
+      id: "subhead",
+      text: subhead,
+      fontId: overlay.subFontId ?? overlay.fontId,
+      color: overlay.subColor ?? overlay.color,
+      fontScale: overlay.subFontScale ?? overlay.fontScale,
+      positionX: overlay.subPositionX ?? overlay.positionX,
+      positionY: overlay.subPositionY ?? Math.min(96, overlay.positionY + 8),
+      rotationDeg: overlay.subRotationDeg ?? overlay.rotationDeg,
+      bgColor: overlay.subBgColor ?? "",
+    })
+  }
+  return layers
+}
+
+/** Field names each layer's controls write to. */
+export const CANVAS_TEXT_LAYER_FIELDS = {
+  headline: {
+    fontId: "fontId",
+    color: "color",
+    fontScale: "fontScale",
+    positionX: "positionX",
+    positionY: "positionY",
+    rotationDeg: "rotationDeg",
+    bgColor: "bgColor",
+  },
+  subhead: {
+    fontId: "subFontId",
+    color: "subColor",
+    fontScale: "subFontScale",
+    positionX: "subPositionX",
+    positionY: "subPositionY",
+    rotationDeg: "subRotationDeg",
+    bgColor: "subBgColor",
+  },
+} as const
+
+/** Padding around text on a background block, as a share of font size. */
+export const CANVAS_TEXT_BG_PAD_X = 0.35
+export const CANVAS_TEXT_BG_PAD_Y = 0.12

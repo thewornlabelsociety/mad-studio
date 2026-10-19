@@ -19,8 +19,8 @@ type Props = {
 const TAB_OPTIONS: CampaignsWorkspaceTab[] = ["storyboard", "ledger"]
 
 const TAB_LABEL_DISPLAY: Record<CampaignsWorkspaceTab, string> = {
-  storyboard: "📅 CAMPAIGN STORYBOARD",
-  ledger: "📊 PAST LEDGER",
+  storyboard: "CAMPAIGN STORYBOARD",
+  ledger: "PAST LEDGER",
 }
 
 function parseTabParam(value: string | null): CampaignsWorkspaceTab | null {

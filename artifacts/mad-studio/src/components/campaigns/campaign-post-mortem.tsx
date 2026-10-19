@@ -163,7 +163,8 @@ export function CampaignPostMortem({
 
       <div className="space-y-2 border-2 border-mad-black bg-mad-lime/15 p-3 shadow-keycap-sm">
         <p className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
-          🏆 Mark as Winner
+          <Trophy className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+          Mark as winner
         </p>
         <p className="text-xs text-neutral-700">
           Captures the hook blueprint and audience segment, then stores your

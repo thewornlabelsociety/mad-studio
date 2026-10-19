@@ -52,7 +52,7 @@ export const STUDIO_WIZARD_STEP_SOP: Record<
     checklist: [
       "Tap an opening line from Brain (built from media + Intent) — no duplicate hook AI.",
       "Caption: Suggest with AI uses vision, pillar, persona, CTA, and on-canvas text.",
-      "Use ✨ assist or formula slots for $0 render packs.",
+      "Use AI assist or formula slots for $0 render packs.",
       "Confirm trackable destination / spark text before scheduling.",
     ],
   },

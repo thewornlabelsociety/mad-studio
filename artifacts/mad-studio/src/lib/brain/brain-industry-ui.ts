@@ -42,20 +42,20 @@ export function brandDirectorChips(
     return [
       {
         id: "angles",
-        label: "🍕 What should our next 3 foodie drop angles be?",
+        label: "What should our next 3 foodie drop angles be?",
         prompt: "What should our next 3 foodie drop angles be?",
       },
       {
         id: "tone",
         label:
-          "🎯 Critique our casual tone and suggest 3 high-converting hooks",
+          "Critique our casual tone and suggest 3 high-converting hooks",
         prompt:
           "Critique our casual tone and suggest 3 high-converting hooks.",
       },
       {
         id: "pitch",
         label:
-          "🍻 How do we pitch midweek dining to local students & workers?",
+          "How do we pitch midweek dining to local students & workers?",
         prompt:
           "How do we pitch midweek dining to local students and workers?",
       },
@@ -66,18 +66,18 @@ export function brandDirectorChips(
     return [
       {
         id: "angles",
-        label: "👗 What should our next 3 curation angles be?",
+        label: "What should our next 3 curation angles be?",
         prompt: "What should our next 3 curation angles be?",
       },
       {
         id: "tone",
-        label: "🎯 Critique our editorial tone and suggest 3 new hooks",
+        label: "Critique our editorial tone and suggest 3 new hooks",
         prompt: "Critique our editorial tone and suggest 3 new hooks.",
       },
       {
         id: "pitch",
         label:
-          "🛍️ How would we pitch archival luxury to a first-time consignor?",
+          "How would we pitch archival luxury to a first-time consignor?",
         prompt:
           "How would we pitch archival luxury to a skeptical first-time consignor?",
       },
@@ -87,17 +87,17 @@ export function brandDirectorChips(
   return [
     {
       id: "angles",
-      label: "💡 What should our next 3 content angles be?",
+      label: "What should our next 3 content angles be?",
       prompt: "What should our next 3 content angles be?",
     },
     {
       id: "tone",
-      label: "🎯 Critique our current tone and suggest 3 new hooks",
+      label: "Critique our current tone and suggest 3 new hooks",
       prompt: "Critique our current tone and suggest 3 new hooks.",
     },
     {
       id: "pitch",
-      label: "📣 How would we pitch our offer to a skeptical first-time buyer?",
+      label: "How would we pitch our offer to a skeptical first-time buyer?",
       prompt: "How would we pitch our offer to a skeptical first-time buyer?",
     },
   ]

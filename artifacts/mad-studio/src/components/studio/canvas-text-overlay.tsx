@@ -16,6 +16,11 @@ import {
   CANVAS_BRAND_SWATCHES,
   CANVAS_TEXT_FONTS,
   canvasOverlayHasDecor,
+  canvasTextLayers,
+  CANVAS_TEXT_LAYER_FIELDS,
+  CANVAS_TEXT_BG_PAD_X,
+  CANVAS_TEXT_BG_PAD_Y,
+  type CanvasTextLayerId,
   clearCanvasTextOverlay,
   normalizeCanvasTextOverlay,
   canvasTextShadowClass,
@@ -86,8 +91,8 @@ function useCanvasDrag(
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
   overlayRef: MutableRefObject<CanvasTextOverlayState>,
   keys: {
-    x: "positionX" | "stickerX"
-    y: "positionY" | "stickerY"
+    x: "positionX" | "stickerX" | "subPositionX"
+    y: "positionY" | "stickerY" | "subPositionY"
     min?: number
     max?: number
   }
@@ -137,7 +142,8 @@ function useCanvasDrag(
 function useCanvasFontScaleResize(
   interactive: boolean,
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
-  overlayRef: MutableRefObject<CanvasTextOverlayState>
+  overlayRef: MutableRefObject<CanvasTextOverlayState>,
+  scaleKey: "fontScale" | "subFontScale" = "fontScale"
 ) {
   const resizeRef = useRef<{ startY: number; originScale: number } | null>(null)
 
@@ -148,7 +154,7 @@ function useCanvasFontScaleResize(
       if (!host) return
       resizeRef.current = {
         startY: event.clientY,
-        originScale: resolveCanvasTextFontScale(overlayRef.current),
+        originScale: clampCanvasTextFontScale(overlayRef.current[scaleKey]),
       }
       attachWindowPointerSession(event, (ev) => {
         if (!resizeRef.current || !onChange) return
@@ -158,12 +164,12 @@ function useCanvasFontScaleResize(
         const nextScale = clampCanvasTextFontScale(
           resizeRef.current.originScale + dy * 2.4
         )
-        onChange({ ...overlayRef.current, fontScale: nextScale })
+        onChange({ ...overlayRef.current, [scaleKey]: nextScale })
       }, () => {
         resizeRef.current = null
       })
     },
-    [interactive, onChange, overlayRef]
+    [interactive, onChange, overlayRef, scaleKey]
   )
 
   return { onResizePointerDown }
@@ -173,7 +179,8 @@ function useCanvasTextRotation(
   interactive: boolean,
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
   overlayRef: MutableRefObject<CanvasTextOverlayState>,
-  boxRef: RefObject<HTMLDivElement | null>
+  boxRef: RefObject<HTMLDivElement | null>,
+  rotationKey: "rotationDeg" | "subRotationDeg" = "rotationDeg"
 ) {
   const rotateRef = useRef<{
     centerX: number
@@ -197,7 +204,7 @@ function useCanvasTextRotation(
         centerX,
         centerY,
         startAngle,
-        originDeg: resolveCanvasTextRotationDeg(overlayRef.current),
+        originDeg: clampCanvasTextRotationDeg(overlayRef.current[rotationKey]),
       }
       attachWindowPointerSession(event, (ev) => {
         if (!rotateRef.current || !onChange) return
@@ -208,13 +215,13 @@ function useCanvasTextRotation(
         const delta = angle - sa
         onChange({
           ...overlayRef.current,
-          rotationDeg: clampCanvasTextRotationDeg(originDeg + delta),
+          [rotationKey]: clampCanvasTextRotationDeg(originDeg + delta),
         })
       }, () => {
         rotateRef.current = null
       })
     },
-    [interactive, onChange, overlayRef, boxRef]
+    [interactive, onChange, overlayRef, boxRef, rotationKey]
   )
 
   return { onRotatePointerDown }
@@ -331,7 +338,10 @@ export function CanvasTextOverlayLayer({
   const textBoxRef = useRef<HTMLDivElement>(null)
   const overlayRef = useOverlayRef(overlay)
   const [frameWidthPx, setFrameWidthPx] = useState(0)
+  const hasDecor = canvasOverlayHasDecor(overlay)
 
+  // The frame only mounts once there's text, so measure again when it appears;
+  // without a width the text falls back to a fixed size and Size does nothing.
   useEffect(() => {
     const node = frameRef.current
     if (!node) return
@@ -343,8 +353,9 @@ export function CanvasTextOverlayLayer({
     const observer = new ResizeObserver(measure)
     observer.observe(node)
     return () => observer.disconnect()
-  }, [])
+  }, [hasDecor])
 
+  const subBoxRef = useRef<HTMLDivElement>(null)
   const textDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, {
     x: "positionX",
     y: "positionY",
@@ -360,28 +371,32 @@ export function CanvasTextOverlayLayer({
     overlayRef,
     textBoxRef
   )
-  if (!canvasOverlayHasDecor(overlay)) return null
+  // The subhead moves, scales and tilts on its own.
+  const subDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, {
+    x: "subPositionX",
+    y: "subPositionY",
+  })
+  const subResize = useCanvasFontScaleResize(
+    interactive,
+    onOverlayChange,
+    overlayRef,
+    "subFontScale"
+  )
+  const subRotate = useCanvasTextRotation(
+    interactive,
+    onOverlayChange,
+    overlayRef,
+    subBoxRef,
+    "subRotationDeg"
+  )
+  if (!hasDecor) return null
 
-  const font =
-    CANVAS_TEXT_FONTS.find((row) => row.id === overlay.fontId) ??
-    CANVAS_TEXT_FONTS[0]
-  const lines = [overlay.headline.trim(), overlay.subhead.trim()].filter(Boolean)
-  const showText = renderCanvasText && overlay.enabled && lines.length > 0
-  const motionClass = ""
+  const layers = renderCanvasText ? canvasTextLayers(overlay) : []
+  const handlesFor = {
+    headline: { boxRef: textBoxRef, ...textDrag, ...textResize, ...textRotate },
+    subhead: { boxRef: subBoxRef, ...subDrag, ...subResize, ...subRotate },
+  }
 
-  const alignClass =
-    overlay.textAlign === "left"
-      ? "text-left items-start"
-      : overlay.textAlign === "right"
-        ? "text-right items-end"
-        : "text-center items-center"
-
-  const fontSizePx =
-    frameWidthPx > 0
-      ? canvasTextFontSizePx(frameWidthPx, resolveCanvasTextFontScale(overlay))
-      : null
-  const lineHeightPx =
-    fontSizePx != null ? canvasTextLineHeightPx(fontSizePx) : undefined
   return (
     <div
       ref={frameRef}
@@ -393,49 +408,55 @@ export function CanvasTextOverlayLayer({
       )}
       aria-hidden={!interactive}
     >
-      {showText ? (
-        <DraggableDecor
-          interactive={interactive}
-          x={overlay.positionX}
-          y={overlay.positionY}
-          rotationDeg={resolveCanvasTextRotationDeg(overlay)}
-          showDragHandles
-          boxRef={textBoxRef}
-          {...textDrag}
-          {...textResize}
-          {...textRotate}
-        >
-          <div
-            className={cn(
-              "flex w-max max-w-full shrink-0 flex-col",
-              alignClass,
-              motionClass
-            )}
-            style={{ gap: fontSizePx != null ? fontSizePx * 0.12 : 3 }}
+      {layers.map((layer) => {
+        const font =
+          CANVAS_TEXT_FONTS.find((row) => row.id === layer.fontId) ??
+          CANVAS_TEXT_FONTS[0]
+        const fontSizePx =
+          frameWidthPx > 0
+            ? canvasTextFontSizePx(frameWidthPx, layer.fontScale)
+            : null
+        const lineHeightPx =
+          fontSizePx != null ? canvasTextLineHeightPx(fontSizePx) : null
+        return (
+          <DraggableDecor
+            key={layer.id}
+            interactive={interactive}
+            x={layer.positionX}
+            y={layer.positionY}
+            rotationDeg={layer.rotationDeg}
+            showDragHandles
+            {...handlesFor[layer.id]}
           >
-            {lines.map((line, index) => (
-              <span
-                key={`${line}-${index}`}
-                className={cn(
-                  "block w-max max-w-full whitespace-pre-wrap",
-                  overlay.textAlign === "center" && "mx-auto",
-                  overlay.textAlign === "right" && "ml-auto",
-                  font.className,
-                  canvasTextShadowClass(overlay.shadow)
-                )}
-                style={{
-                  ...font.style,
-                  color: overlay.color,
-                  fontSize: fontSizePx ?? undefined,
-                  lineHeight: lineHeightPx,
-                }}
-              >
-                {line}
-              </span>
-            ))}
-          </div>
-        </DraggableDecor>
-      ) : null}
+            <span
+              className={cn(
+                "block w-max max-w-full whitespace-pre-wrap",
+                overlay.textAlign === "left" && "text-left",
+                overlay.textAlign === "center" && "text-center",
+                overlay.textAlign === "right" && "text-right",
+                font.className,
+                canvasTextShadowClass(overlay.shadow)
+              )}
+              style={{
+                ...font.style,
+                color: layer.color,
+                fontSize: fontSizePx ?? undefined,
+                ...(layer.bgColor
+                  ? {
+                      backgroundColor: layer.bgColor,
+                      padding: `${CANVAS_TEXT_BG_PAD_Y}em ${CANVAS_TEXT_BG_PAD_X}em`,
+                    }
+                  : null),
+                // Pixels — a bare number would be read as a multiplier.
+                lineHeight:
+                  lineHeightPx != null ? `${lineHeightPx}px` : undefined,
+              }}
+            >
+              {layer.text}
+            </span>
+          </DraggableDecor>
+        )
+      })}
     </div>
   )
 }
@@ -575,6 +596,15 @@ export function CanvasTextOverlayEditor({
   }
 
   // Wizard styles match the Intent step: typewriter labels, 2px black frames.
+  // Which line the size / tilt / font / colour controls edit.
+  const [layer, setLayer] = useState<CanvasTextLayerId>("headline")
+  const fields = CANVAS_TEXT_LAYER_FIELDS[layer]
+  const layerFontId = value[fields.fontId]
+  const layerColor = value[fields.color]
+  const layerBg = value[fields.bgColor] ?? ""
+  const layerScale = clampCanvasTextFontScale(value[fields.fontScale])
+  const layerRotation = clampCanvasTextRotationDeg(value[fields.rotationDeg])
+
   const labelClass = wizardCompact
     ? "font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase"
     : "font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase"
@@ -699,6 +729,7 @@ export function CanvasTextOverlayEditor({
                 patch({ headline: event.target.value, enabled: true })
               }
               placeholder="e.g. New in this week"
+              onFocus={() => setLayer("headline")}
               className={inputClass}
             />
           </label>
@@ -710,6 +741,7 @@ export function CanvasTextOverlayEditor({
               onChange={(event) =>
                 patch({ subhead: event.target.value, enabled: true })
               }
+              onFocus={() => setLayer("subhead")}
               placeholder="Supporting line under headline"
               className={inputClass}
             />
@@ -719,6 +751,31 @@ export function CanvasTextOverlayEditor({
         <div className={cn(wizardCompact ? "space-y-4" : "space-y-3")}>
           {wizardCompact ? (
             <p className={sectionTitleClass}>Position & scale</p>
+          ) : null}
+          {wizardCompact ? (
+            <div
+              className="grid grid-cols-2 border-2 border-mad-black"
+              role="tablist"
+              aria-label="Which line to style"
+            >
+              {(["headline", "subhead"] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={layer === id}
+                  onClick={() => setLayer(id)}
+                  className={cn(
+                    "px-2 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase",
+                    layer === id
+                      ? "bg-mad-black text-mad-white"
+                      : "bg-mad-white text-mad-black hover:bg-mad-lime"
+                  )}
+                >
+                  {id === "headline" ? "Headline" : "Subhead"}
+                </button>
+              ))}
+            </div>
           ) : null}
           <div className="space-y-2">
             <span className={labelClass}>Alignment</span>
@@ -749,17 +806,17 @@ export function CanvasTextOverlayEditor({
           </div>
           <label className="grid gap-2">
             <span className={labelClass}>
-              Size ({Math.round(resolveCanvasTextFontScale(value) * 100)}%)
+              Size ({Math.round(layerScale * 100)}%)
             </span>
             <input
               type="range"
               min={0.5}
               max={2.5}
               step={0.05}
-              value={resolveCanvasTextFontScale(value)}
+              value={layerScale}
               onChange={(event) =>
                 patch({
-                  fontScale: clampCanvasTextFontScale(
+                  [fields.fontScale]: clampCanvasTextFontScale(
                     Number(event.target.value)
                   ),
                 })
@@ -769,17 +826,17 @@ export function CanvasTextOverlayEditor({
           </label>
           <label className="grid gap-2">
             <span className={labelClass}>
-              Tilt ({Math.round(resolveCanvasTextRotationDeg(value))}°)
+              Tilt ({Math.round(layerRotation)}°)
             </span>
             <input
               type="range"
               min={-180}
               max={180}
               step={1}
-              value={resolveCanvasTextRotationDeg(value)}
+              value={layerRotation}
               onChange={(event) =>
                 patch({
-                  rotationDeg: clampCanvasTextRotationDeg(
+                  [fields.rotationDeg]: clampCanvasTextRotationDeg(
                     Number(event.target.value)
                   ),
                 })
@@ -791,13 +848,17 @@ export function CanvasTextOverlayEditor({
 
         <div className={cn(wizardCompact ? "space-y-4" : "space-y-3")}>
           {wizardCompact ? (
-            <p className={sectionTitleClass}>Typography</p>
+            <p className={sectionTitleClass}>
+              Typography · {layer === "headline" ? "Headline" : "Subhead"}
+            </p>
           ) : null}
           <label className="grid gap-1.5">
             <span className={labelClass}>Font</span>
             <Select
-              value={value.fontId}
-              onValueChange={(next) => patch({ fontId: next as CanvasTextFontId })}
+              value={layerFontId}
+              onValueChange={(next) =>
+                patch({ [fields.fontId]: next as CanvasTextFontId })
+              }
             >
               <SelectTrigger className={selectClass}>
                 <SelectValue />
@@ -823,11 +884,11 @@ export function CanvasTextOverlayEditor({
                   key={swatch.hex}
                   type="button"
                   title={swatch.label}
-                  onClick={() => patch({ color: swatch.hex })}
+                  onClick={() => patch({ [fields.color]: swatch.hex })}
                   className={cn(
                     wizardCompact ? "size-9" : "size-6",
                     "border-2 border-mad-black",
-                    value.color.toLowerCase() === swatch.hex.toLowerCase() &&
+                    layerColor.toLowerCase() === swatch.hex.toLowerCase() &&
                       "ring-2 ring-mad-vermillion ring-offset-1"
                   )}
                   style={{ background: swatch.hex }}
@@ -843,7 +904,7 @@ export function CanvasTextOverlayEditor({
                 <span
                   aria-hidden
                   className="size-4 border border-mad-black"
-                  style={{ background: value.color }}
+                  style={{ background: layerColor }}
                 />
                 {wizardCompact ? (
                   <span className="font-typewriter text-[0.55rem] font-bold uppercase">
@@ -852,12 +913,73 @@ export function CanvasTextOverlayEditor({
                 ) : null}
                 <input
                   type="color"
-                  value={value.color}
+                  value={layerColor}
                   onChange={(event) =>
-                    patch({ color: event.target.value.toUpperCase() })
+                    patch({ [fields.color]: event.target.value.toUpperCase() })
                   }
                   className="absolute inset-0 size-full cursor-pointer opacity-0"
                   aria-label="Custom text colour"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <span className={labelClass}>Background</span>
+            <div className="flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={() => patch({ [fields.bgColor]: "" })}
+                className={cn(
+                  "flex items-center border-2 border-mad-black px-2 font-typewriter text-[0.55rem] font-bold uppercase",
+                  wizardCompact ? "h-9" : "h-6",
+                  !layerBg
+                    ? "bg-mad-black text-mad-white"
+                    : "bg-mad-white hover:bg-mad-lime"
+                )}
+              >
+                None
+              </button>
+              {swatches.map((swatch) => (
+                <button
+                  key={swatch.hex}
+                  type="button"
+                  title={`${swatch.label} background`}
+                  onClick={() => patch({ [fields.bgColor]: swatch.hex })}
+                  className={cn(
+                    wizardCompact ? "size-9" : "size-6",
+                    "border-2 border-mad-black",
+                    layerBg.toLowerCase() === swatch.hex.toLowerCase() &&
+                      "ring-2 ring-mad-vermillion ring-offset-1"
+                  )}
+                  style={{ background: swatch.hex }}
+                />
+              ))}
+              <label
+                title="Pick any background colour"
+                className={cn(
+                  "relative flex cursor-pointer items-center gap-1.5 border-2 border-dashed border-mad-black px-2 hover:bg-mad-lime/30",
+                  wizardCompact ? "h-9" : "h-6"
+                )}
+              >
+                <span
+                  aria-hidden
+                  className="size-4 border border-mad-black"
+                  style={{ background: layerBg || "transparent" }}
+                />
+                {wizardCompact ? (
+                  <span className="font-typewriter text-[0.55rem] font-bold uppercase">
+                    Custom
+                  </span>
+                ) : null}
+                <input
+                  type="color"
+                  value={layerBg || "#000000"}
+                  onChange={(event) =>
+                    patch({ [fields.bgColor]: event.target.value.toUpperCase() })
+                  }
+                  className="absolute inset-0 size-full cursor-pointer opacity-0"
+                  aria-label="Custom text background colour"
                 />
               </label>
             </div>

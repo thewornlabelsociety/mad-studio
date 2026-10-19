@@ -1,5 +1,7 @@
 "use client"
 
+import { Sparkles } from "lucide-react"
+
 import {
   useEffect,
   useRef,
@@ -22,6 +24,7 @@ import {
 } from "@/lib/inventory/post-intent"
 import type { FudiDropKind } from "@/lib/today/agenda"
 import { cn } from "@/lib/utils"
+import { DropKindIcon } from "@/components/ui/app-icons"
 
 const SELECT_CUSTOM = "__custom__"
 
@@ -233,9 +236,7 @@ export function PostIntentEditor({
             >
               <SelectValue placeholder="Drop type" />
               {aiSuggested.dropType ? (
-                <span className="shrink-0 text-xs" aria-hidden>
-                  ✨
-                </span>
+                <Sparkles className="size-3.5 shrink-0" aria-label="Suggested by AI" />
               ) : null}
             </SelectTrigger>
             <SelectContent
@@ -244,7 +245,10 @@ export function PostIntentEditor({
             >
               {FUDI_DROP_KIND_OPTIONS.map((option) => (
                 <SelectItem key={option.id} value={option.id}>
-                  {option.emoji} {option.label}
+                  <span className="inline-flex items-center gap-1.5">
+                    <DropKindIcon kind={option.id} className="size-3.5" />
+                    {option.label}
+                  </span>
                 </SelectItem>
               ))}
               <SelectItem value={SELECT_CUSTOM}>Custom…</SelectItem>
@@ -285,9 +289,7 @@ export function PostIntentEditor({
           >
             <SelectValue placeholder="Listing vibe" />
             {aiSuggested.listingVibe ? (
-              <span className="shrink-0 text-xs" aria-hidden>
-                ✨
-              </span>
+              <Sparkles className="size-3.5 shrink-0" aria-label="Suggested by AI" />
             ) : null}
           </SelectTrigger>
           <SelectContent

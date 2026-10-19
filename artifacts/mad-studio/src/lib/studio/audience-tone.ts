@@ -19,8 +19,7 @@ export const AUDIENCE_TONE_META: Record<
   curated_millennial: {
     label: "Curated Millennial (28–42)",
     short: "Curated",
-    promptCue:
-      "Editorial tone, culinary and aesthetic appreciation, clean consumer copy.",
+    promptCue: "Editorial tone, aesthetic appreciation, clean consumer copy.",
   },
   local_community: {
     label: "Local Community (40+)",
@@ -28,6 +27,30 @@ export const AUDIENCE_TONE_META: Record<
     promptCue:
       "Warm, community-oriented, clear times and details, Facebook-friendly.",
   },
+}
+
+/** Brand-specific wording for a tone (shown on Intent and sent to the AI). */
+const TONE_CUE_BY_PROFILE: Partial<
+  Record<string, Partial<Record<AudienceTone, string>>>
+> = {
+  worn_label: {
+    curated_millennial:
+      "Editorial tone, appreciation for fabric, fit and provenance, clean consumer copy.",
+  },
+  fudi: {
+    curated_millennial:
+      "Editorial tone, culinary and aesthetic appreciation, clean consumer copy.",
+  },
+}
+
+export function audienceToneCue(
+  tone: AudienceTone,
+  profileId?: string | null
+): string {
+  return (
+    (profileId && TONE_CUE_BY_PROFILE[profileId]?.[tone]) ||
+    AUDIENCE_TONE_META[tone].promptCue
+  )
 }
 
 export function isAudienceTone(value: unknown): value is AudienceTone {

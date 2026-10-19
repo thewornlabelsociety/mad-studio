@@ -168,12 +168,15 @@ export type StoryPreviewState = {
   bgPresetId: string
   cutoutMode: CutoutMode
   cutoutImageUrl: string | null
+  /** Cutout card: item size (0.5–1.8) and vertical nudge (−40…40 %). */
+  subjectScale?: number
+  subjectOffsetY?: number
 }
 
 export const DEFAULT_STORY_PREVIEW: StoryPreviewState = {
   stylePreset: "moody_noir",
-  canvasColor: "#121211",
-  bgPresetId: "moody_obsidian",
+  canvasColor: "",
+  bgPresetId: "brand",
   cutoutMode: "original",
   cutoutImageUrl: null,
 }
@@ -361,7 +364,8 @@ export function MultiPlatformSimulator({
   }
 
   const stylePreset = preview.stylePreset
-  const canvasColor = preview.canvasColor
+  /** "" means "use the brand's canvas colour" (resolved below). */
+  const canvasColorChoice = preview.canvasColor
   const bgPresetId = preview.bgPresetId
   const cutoutMode = preview.cutoutMode
   const displayImageUrl =
@@ -604,6 +608,8 @@ export function MultiPlatformSimulator({
       }),
     [content.brandName, industry, visualPresets]
   )
+  // Story background: the colour picked, else this brand's canvas colour.
+  const canvasColor = canvasColorChoice || resolvedPresets.canvas_color
   // Story backgrounds come from this brand's palette (Brand Brain presets).
   const backgroundOptions = useMemo(
     () =>
@@ -682,10 +688,9 @@ export function MultiPlatformSimulator({
     if (isVideo) return
     const source = originalImageUrl || resolvedMedia?.url
     if (!source || !actionContext) {
-      patchPreview({ cutoutMode: "css_blend" })
+      toast.error("Add a photo before cutting out.")
       return
     }
-    patchPreview({ cutoutMode: "css_blend" })
     setBusy("cutout")
     toast.message("Cutting out subject…")
     const ctx = actionContext
@@ -717,7 +722,8 @@ export function MultiPlatformSimulator({
           body: JSON.stringify({
             imageUrl: sourceUrl,
             entityId: ctx.entityId,
-            itemId: ctx.marketingEntityId,
+            // Studio posts have no Library item; null fails the server check.
+            ...(ctx.marketingEntityId ? { itemId: ctx.marketingEntityId } : {}),
           }),
         })
         if (!response.ok) {
@@ -771,19 +777,23 @@ export function MultiPlatformSimulator({
       return null
     }
 
+    // Server first (Cloudinary AI, or white-backdrop removal); the in-browser
+    // model is the fallback — it needs a large download and can fail to load.
     try {
+      const serverUrl = await serverFallback()
+      if (serverUrl) {
+        applyCutout(serverUrl)
+        return
+      }
       const browserUrl = await browserCutout()
       if (browserUrl) {
         applyCutout(browserUrl)
         return
       }
-      const fallbackUrl = await serverFallback()
-      if (fallbackUrl) {
-        applyCutout(fallbackUrl)
-        return
-      }
       console.warn("[cutout] failed:", failures)
-      toast.error("Cutout unavailable — showing blend fallback.", {
+      // Show the original photo: the blend look hides dark items on dark canvases.
+      patchPreview({ cutoutMode: "original", cutoutImageUrl: null })
+      toast.error("Couldn't cut out this photo — showing the original.", {
         description: failures.join(" · ").slice(0, 240),
       })
     } finally {
@@ -1134,7 +1144,7 @@ export function MultiPlatformSimulator({
             className={cn(
               "relative flex bg-black",
               isFeedPreview
-                ? "min-h-0 w-full overflow-y-auto overflow-x-hidden"
+                ? "min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 : canvasEditActive
                   ? "overflow-visible"
                   : "overflow-hidden",
@@ -1216,6 +1226,12 @@ export function MultiPlatformSimulator({
                             canvasColor={canvasColor}
                             cutoutMode={cutoutMode}
                             visualPresets={resolvedPresets}
+                            // Studio posts aren't Library items: no auto brand
+                            // lines, and the sticker guide never posts.
+                            showCopy={Boolean(item)}
+                            showStickerGuide={Boolean(item)}
+                            subjectScale={preview.subjectScale ?? 1}
+                            subjectOffsetY={preview.subjectOffsetY ?? 0}
                             className="!aspect-auto h-full w-full max-w-none"
                           />
                         }
@@ -1235,11 +1251,6 @@ export function MultiPlatformSimulator({
                   brandName={content.brandName}
                   handle={handle}
                   network={platform === "facebook" ? "facebook" : "instagram"}
-                  hookLine={
-                    textOverlay.enabled && textOverlay.headline.trim()
-                      ? activeSlideText || ""
-                      : activeSlideText || content.headline
-                  }
                   caption={feedPreviewCaption}
                 >
                   <FeedMediaStage
@@ -1384,8 +1395,8 @@ export function MultiPlatformSimulator({
               if (next === "moody_noir") {
                 patchPreview({
                   stylePreset: next,
-                  bgPresetId: "moody_obsidian",
-                  canvasColor: "#121211",
+                  bgPresetId: "brand",
+                  canvasColor: "",
                 })
                 if (
                   (showCreativeControls || platform === "ig_story") &&
@@ -1397,8 +1408,8 @@ export function MultiPlatformSimulator({
               } else {
                 patchPreview({
                   stylePreset: next,
-                  bgPresetId: "pure_paper",
-                  canvasColor: "#FFFFFF",
+                  bgPresetId: "brand",
+                  canvasColor: "",
                 })
               }
             }}
@@ -1588,9 +1599,7 @@ export function MultiPlatformSimulator({
               ) : (
                 <Rocket className="size-3.5" />
               )}
-              {publishCtaLabel.startsWith("🚀")
-                ? publishCtaLabel
-                : `🚀 ${publishCtaLabel}`}
+              {publishCtaLabel.replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, "")}
             </button>
             <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
               {AUTOPILOT_SOP_HELPER}
@@ -1611,7 +1620,7 @@ export function MultiPlatformSimulator({
               ) : (
                 <Download className="size-3.5" />
               )}
-              📥 Download ready media (9:16)
+              Download ready media (9:16)
             </button>
             <button
               type="button"
@@ -1632,8 +1641,8 @@ export function MultiPlatformSimulator({
                 <ClipboardCopy className="size-3.5" />
               )}
               {copied
-                ? "✓ Link copied — ready for IG sticker"
-                : `📋 Copy link sticker URL (${linkStickerPath})`}
+                ? "Link copied — ready for IG sticker"
+                : `Copy link sticker URL (${linkStickerPath})`}
             </button>
             <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
               {DRAFT_DROP_SOP_HELPER}
@@ -2091,20 +2100,17 @@ function FeedChrome({
   brandName,
   handle,
   network,
-  hookLine,
   caption,
   children,
 }: {
   brandName: string
   handle: string
   network: "instagram" | "facebook"
-  hookLine?: string
   caption?: string
   children: ReactNode
 }) {
-  const hook = hookLine?.trim() ?? ""
+  // Feeds show the caption only — Instagram and Facebook have no headline.
   const body = caption?.trim() ?? ""
-  const showHookLine = Boolean(hook && hook !== body)
 
   return (
     <div className="flex w-full flex-col bg-white">
@@ -2133,11 +2139,6 @@ function FeedChrome({
         <Bookmark className="size-5 text-neutral-900" />
       </div>
       <div className="shrink-0 space-y-0.5 px-3 pb-3">
-        {showHookLine ? (
-          <p className="line-clamp-2 text-[0.7rem] font-semibold leading-snug text-neutral-900">
-            {hook}
-          </p>
-        ) : null}
         <p className="whitespace-pre-wrap text-[0.65rem] leading-relaxed text-neutral-800">
           <span className="font-semibold text-neutral-900">
             {network === "facebook" ? brandName : handle}{" "}

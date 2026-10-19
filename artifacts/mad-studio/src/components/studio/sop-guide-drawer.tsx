@@ -93,7 +93,7 @@ export function TeamSopGuideDrawer({ className, compact = false }: Props) {
           )}
         >
           <BookOpen className="size-3.5 shrink-0" aria-hidden />
-          {compact ? "SOP" : "📖 Team SOP & Posting Guide"}
+          {compact ? "SOP" : "Team SOP & Posting Guide"}
         </button>
       </SheetTrigger>
       <SheetContent

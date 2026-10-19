@@ -8,7 +8,7 @@ import {
   useState,
   type DragEvent,
 } from "react"
-import { Eye, Loader2, Plus, X } from "lucide-react"
+import { Eye, Loader2, Play, Plus, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
@@ -451,7 +451,7 @@ export function MediaTray({
           )}
           {visionBusy
             ? "Reading visual details…"
-            : "👁 Visual details extracted from media"}
+            : "Visual details extracted from media"}
         </div>
       ) : null}
 
@@ -492,8 +492,8 @@ export function MediaTray({
                       preload="metadata"
                       className="size-full object-cover"
                     />
-                    <span className="absolute right-1 bottom-1 flex size-5 items-center justify-center border border-mad-black bg-mad-black text-[0.55rem] text-mad-lime">
-                      ▶
+                    <span className="absolute right-1 bottom-1 flex size-5 items-center justify-center border border-mad-black bg-mad-black text-mad-lime">
+                      <Play className="size-3 fill-current" aria-label="Video" />
                     </span>
                   </>
                 ) : (

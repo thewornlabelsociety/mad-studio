@@ -38,7 +38,7 @@ export function defaultWornLabelDotSpecialConfig(
     discountText: "50% OFF",
     headline: "BECAUSE THE BEST WARDROBES AREN'T NEW",
     eyebrow: "SHOP PRE-LOVED FASHION BY VIBE",
-    dateLabel: "⚡ THIS WEEKEND ONLY",
+    dateLabel: "THIS WEEKEND ONLY",
     dateStyle: "gold_pill",
     storeNotice: "IN-STORE & ONLINE • WHANGĀREI BOUTIQUE",
     motionStyle: "pulse",

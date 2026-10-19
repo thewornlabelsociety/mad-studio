@@ -118,7 +118,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Mobile swipe deck (PWA)",
         description:
-          "On phone viewports, /today shows one card at a time from public.daily_queue (status pending_review). Header shows Archive ↔ Skip swipe pills; swipe left to archive, right to skip — both persist (daily_queue status + copy_draft.metadata.today_deck_status) so dismissed drops do not reappear on refresh. Bottom bar: Edit, Preview, 1-Tap Approve. Apply migration 20261002_daily_queue.sql on MAD for full queue sync.",
+          "On phone viewports, /today shows one card at a time from public.daily_queue (status pending_review). Header shows Archive / Skip swipe pills; swipe left to archive, right to skip — both persist (daily_queue status + copy_draft.metadata.today_deck_status) so dismissed drops do not reappear on refresh. Bottom bar: Edit, Preview, 1-Tap Approve. Apply migration 20261002_daily_queue.sql on MAD for full queue sync.",
       },
       {
         name: "Intake radar",
@@ -132,7 +132,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Intake cards",
         description:
-          "Queue preview with drop badges (foodie, eatery, deal, event, marketplace, FÜDI promo). **[ 📱 Mobile Drop ]** rows come from POST /api/intake/mobile-drop (WhatsApp/SMS via Twilio/Make); **[ 🤖 Auto-Triggered ]** rows from GET/POST /api/cron/triggers (NZ-time lunch/knock-off/weekend templates). **Craft in Studio** opens Step 2 (Media). Quick Preview = scrollable live simulator + Quick publish. FÜDI: Build feed carousel picks 2–10 stills, then AI suggests three promo angles via POST /api/ai/carousel-suggest.",
+          "Queue preview with drop badges (foodie, eatery, deal, event, marketplace, FÜDI promo). **[ Mobile Drop ]** rows come from POST /api/intake/mobile-drop (WhatsApp/SMS via Twilio/Make); **[ Auto-Triggered ]** rows from GET/POST /api/cron/triggers (NZ-time lunch/knock-off/weekend templates). **Craft in Studio** opens Step 2 (Media). Quick Preview = scrollable live simulator + Quick publish. FÜDI: Build feed carousel picks 2–10 stills, then AI suggests three promo angles via POST /api/ai/carousel-suggest.",
       },
       {
         name: "Armed today",
@@ -164,12 +164,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Campaign Engine",
         description:
-          "Monospace sidebar: launch brief textarea, duration pills (3-Day, 5-Day, 1-Week), and [ ✨ GENERATE TIMELINE ]. POST /api/generate/campaign writes MAD `campaign_programs` + `campaign_program_days` (migration 20261008_campaign_programs.sql) and returns `programId` so refresh reloads the same flight plan.",
+          "Monospace sidebar: launch brief textarea, duration pills (3-Day, 5-Day, 1-Week), and Generate timeline. POST /api/generate/campaign writes MAD `campaign_programs` + `campaign_program_days` (migration 20261008_campaign_programs.sql) and returns `programId` so refresh reloads the same flight plan.",
       },
       {
         name: "Calendar day cards",
         description:
-          "After generation, each scheduled day shows a 🟡 DRAFT card (phase title + shoot cue). Click for Hook / Vibe / Action detail; [ ⚡ Craft in Studio → ] opens /studio?eid=…&step=3 with the day’s creative angle pre-loaded (MAD Supabase only — not FÜDI).",
+          "After generation, each scheduled day shows a DRAFT card (phase title + shoot cue). Click for Hook / Vibe / Action detail; Craft in Studio opens /studio?eid=…&step=3 with the day’s creative angle pre-loaded (MAD Supabase only — not FÜDI).",
       },
       {
         name: "Calendar canvas",
@@ -186,9 +186,9 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         "Describe the event or launch in the Campaign Engine textarea (8+ characters).",
         "Pick duration: 3-Day, 5-Day, or 1-Week.",
         "Choose Autonomy: Suggest (packs only), Arm (auto-queue scheduled_posts), or Full auto (arm + cron dispatch).",
-        "Click [ ✨ GENERATE TIMELINE ] and confirm day cards appear on the calendar (URL may include programId=).",
+        "Click Generate timeline and confirm day cards appear on the calendar (URL may include programId=).",
         "Refresh the page — timeline should reload from MAD Supabase, not vanish.",
-        "Open a card → [ ⚡ Craft in Studio → ] to continue on Studio Intent with hook and vibe seeded.",
+        "Open a card → Craft in Studio to continue on Studio Intent with hook and vibe seeded.",
         "Optional: Campaigns → Storyboard → Generate pack / Bulk generate for headless Studio packs.",
       ],
     },
@@ -360,7 +360,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Auto-suggest intent from media",
         description:
-          "On Step 2, Auto-Suggest Intent from Media maps drop type, vibe, pillar, persona, hook, and CTA from your attached image or reel (Gemini). If Step 1 vision has not run yet, the button inspects the public media URL on click. AI-filled dropdowns show a ✨ hint; change any field manually to override or pick Custom… for free text.",
+          "On Step 2, Auto-Suggest Intent from Media maps drop type, vibe, pillar, persona, hook, and CTA from your attached image or reel (Gemini). If Step 1 vision has not run yet, the button inspects the public media URL on click. AI-filled dropdowns show a sparkle icon; change any field manually to override or pick Custom… for free text.",
       },
       {
         name: "In-flow wizard SOP",

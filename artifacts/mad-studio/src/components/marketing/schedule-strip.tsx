@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CalendarClock } from "lucide-react"
+import { CalendarClock, Loader2, Save, Send } from "lucide-react"
 
 import {
   buildSlotIso,
@@ -166,7 +166,12 @@ export function ScheduleStrip({
             disabled={disabled || locked || dispatchingNow || confirming}
             className="inline-flex items-center justify-center gap-2 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion disabled:opacity-50"
           >
-            {dispatchingNow ? "Publishing…" : "🚀 Publish Now"}
+            {dispatchingNow ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Send className="size-3.5" aria-hidden />
+            )}
+            {dispatchingNow ? "Publishing…" : "Publish now"}
           </button>
           <span className="hidden text-center font-typewriter text-[0.5rem] font-bold tracking-widest text-neutral-500 uppercase sm:block">
             or schedule
@@ -358,9 +363,10 @@ export function ScheduleStrip({
             disabled={
               disabled || locked || confirming || dispatchingNow || savingDraft
             }
-            className="inline-flex items-center justify-center border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm transition hover:bg-mad-lime disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm transition hover:bg-mad-lime disabled:opacity-50"
           >
-            {savingDraft ? "Saving…" : "💾 Save Draft"}
+            <Save className="size-3.5" aria-hidden />
+            {savingDraft ? "Saving…" : "Save draft"}
           </button>
         ) : null}
       </div>

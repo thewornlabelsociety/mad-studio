@@ -53,7 +53,7 @@ export function StepCopyEditor({
   const [ideasOpen, setIdeasOpen] = useState(wizardCompact)
 
   const labelClass = wizardCompact
-    ? "text-xs font-semibold tracking-wide text-neutral-600 uppercase"
+    ? "font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase"
     : "text-[11px] font-medium tracking-[0.16em] text-neutral-500 uppercase"
 
   const textareaClass = wizardCompact
@@ -251,13 +251,16 @@ export function StepCopyEditor({
     return (
       <section
         className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-hidden border-2 border-mad-black bg-mad-white shadow-keycap-sm",
+          // Sits inside the step panel, which already draws the card.
+          "flex min-h-0 flex-1 flex-col overflow-hidden",
           className
         )}
       >
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-mad-black/10 px-4 py-3 md:px-5">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-mad-black/10 pb-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-neutral-900">Caption</p>
+            <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+              Caption
+            </p>
             <p className="text-xs text-neutral-500">
               {captionVariantLabel
                 ? `${captionVariantLabel} · `
@@ -307,7 +310,7 @@ export function StepCopyEditor({
 
         {/* One scroll area; sections keep their natural height so they never
             squeeze into (and draw over) each other on short screens. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pt-4">
           <div className="flex shrink-0 flex-col gap-4 md:flex-row md:gap-5">
             {captionBlock}
             {hookBlock}

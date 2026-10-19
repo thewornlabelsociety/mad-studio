@@ -2,13 +2,14 @@
 
 import { useTransition } from "react"
 import { Link } from "wouter"
-import { Eye, Loader2, Zap } from "lucide-react"
+import { Eye, Loader2, Shirt, Zap } from "lucide-react"
 import { toast } from "sonner"
 
 import { skipDailyQueueItem } from "@/lib/actions"
 import { FUDI_DROP_BADGES } from "@/lib/today/agenda"
 import type { TodayQueueView } from "@/lib/today/queue"
 import { cn } from "@/lib/utils"
+import { DropKindIcon, IntakeBadgeIcon } from "@/components/ui/app-icons"
 
 type Props = {
   view: TodayQueueView & { queueId?: string }
@@ -69,18 +70,26 @@ export function IntakeActionCard({
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {view.intakeBadge ? (
             <span className="border-2 border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase sm:text-[0.55rem]">
-              [ {view.intakeBadge.emoji} {view.intakeBadge.label} ]
+              <IntakeBadgeIcon
+                kind={view.intakeBadge.kind}
+                className="mr-1 inline size-3 align-[-2px]"
+              />
+              {view.intakeBadge.label}
             </span>
           ) : null}
           {view.isFudi && view.fudiDropKind ? (
             <span className="border-2 border-mad-black bg-[#CCFF00] px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase sm:text-[0.55rem]">
-              {FUDI_DROP_BADGES[view.fudiDropKind].emoji}{" "}
+              <DropKindIcon
+                kind={view.fudiDropKind}
+                className="mr-1 inline size-3 align-[-2px]"
+              />
               {FUDI_DROP_BADGES[view.fudiDropKind].label}
             </span>
           ) : null}
           {view.isWls ? (
             <span className="border-2 border-mad-black bg-mad-lime px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase sm:text-[0.55rem]">
-              👗 NEW CONSIGNMENT
+              <Shirt className="mr-1 inline size-3 align-[-2px]" aria-hidden />
+              NEW CONSIGNMENT
             </span>
           ) : null}
           <span className="border border-mad-black/60 px-1.5 py-0.5 font-typewriter text-[0.45rem] font-bold tracking-wider uppercase sm:text-[0.5rem]">

@@ -63,25 +63,25 @@ const DINERS_TRACK: FudiTrackPresets = {
   hookChips: [
     {
       id: "dish_drop",
-      label: "🍕 Kitchen Pass Drop",
+      label: "Kitchen Pass Drop",
       template:
         "Plated tonight at [Eatery Name]: [Dish Title]. Sizzling hot, live on the FÜDI map.",
     },
     {
       id: "live_deal",
-      label: "🏷️ Live Deal / Perk",
+      label: "Live Deal / Perk",
       template:
         "Just dropped on FÜDI: [Eatery Name] has [Deal Title]. Limited portions, claim via table tap.",
     },
     {
       id: "weekend_event",
-      label: "🎟️ Weekend Event / Tour",
+      label: "Weekend Event / Tour",
       template:
         "Weekend plans? [Event Title] hosted by [Eatery Name]. Check the lineup and RSVP on FÜDI.",
     },
     {
       id: "pantry_maker",
-      label: "🍯 Local Hands Market",
+      label: "Local Hands Market",
       template:
         "Fresh from local hands: [Product Name] by [Maker]. Order direct on FÜDI Marketplace.",
     },

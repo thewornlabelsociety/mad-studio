@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Check, Copy, Loader2, Redo2, Save, Undo2 } from "lucide-react"
+import { Check, Clapperboard, Copy, Loader2, Redo2, Save, Undo2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { saveCampaign } from "@/lib/actions"
@@ -545,7 +545,8 @@ export function PackResultsEditor({
           onClick={() => void copyForCapCut()}
           className="shrink-0 border-2 border-mad-black bg-mad-lime px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-lime"
         >
-          🎬 Copy for CapCut
+          <Clapperboard className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+          Copy for CapCut
         </button>
       </div>
 

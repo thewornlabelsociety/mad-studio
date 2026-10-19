@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Sparkles } from "lucide-react"
 
 import type { CampaignAutonomyMode } from "@/lib/campaigns/program-types"
 import type { PlannerDuration } from "@/lib/planner/planner-timeline-types"
@@ -169,7 +169,10 @@ export function PlannerCampaignEngine({
               Generating…
             </>
           ) : (
-            "[ ✨ GENERATE TIMELINE ]"
+            <>
+              <Sparkles className="size-3.5" aria-hidden />
+              Generate timeline
+            </>
           )}
         </button>
       </div>

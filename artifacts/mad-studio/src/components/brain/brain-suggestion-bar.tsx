@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Loader2, Zap } from "lucide-react"
+import { Lightbulb, Loader2, Zap } from "lucide-react"
 import { useRouter } from "@/lib/next-compat"
 import { toast } from "sonner"
 
@@ -57,7 +57,8 @@ export function BrainSuggestionBar({
         htmlFor="brain-suggestion"
         className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase"
       >
-        💡 Creative Direction & Seasonal Focus
+        <Lightbulb className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+        Creative Direction & Seasonal Focus
       </label>
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-stretch">
         <Input

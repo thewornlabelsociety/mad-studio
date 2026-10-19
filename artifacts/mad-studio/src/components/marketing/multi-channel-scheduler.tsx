@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { Check } from "lucide-react"
+import { Check, Save, Send, Zap } from "lucide-react"
 
 import {
   applyBrainTiming,
@@ -241,7 +241,8 @@ export function MultiChannelScheduler({
             wizardLayout ? "px-3 py-2 text-xs" : "px-2.5 py-1 text-[0.6rem]"
           )}
         >
-          ⚡ Apply Optimal Brain Timing
+          <Zap className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+          Apply optimal Brain timing
         </button>
         {wizardLayout ? (
           <p className="min-w-0 flex-1 font-typewriter text-xs leading-relaxed text-neutral-600 normal-case">
@@ -386,7 +387,8 @@ export function MultiChannelScheduler({
             disabled={busy || locked}
             className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime disabled:opacity-40"
           >
-            {saving ? "Saving…" : "💾 Save Draft"}
+            <Save className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+            {saving ? "Saving…" : "Save draft"}
           </button>
           <button
             type="button"
@@ -394,7 +396,8 @@ export function MultiChannelScheduler({
             disabled={busy || locked || enabled.length === 0 || hasPastSlot}
             className="border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-40"
           >
-            {arming ? "Arming…" : "🚀 Confirm & Arm Multi-Channel Post"}
+            <Send className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+            {arming ? "Arming…" : "Confirm & schedule"}
           </button>
         </div>
       )}

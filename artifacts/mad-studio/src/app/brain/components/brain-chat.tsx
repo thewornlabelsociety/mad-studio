@@ -133,7 +133,7 @@ export function BrainChat({
         toast.error(payload.error ?? "Could not save to Memory Vault.")
         return
       }
-      toast.success("📌 Saved to Memory Vault")
+      toast.success("Saved to Memory Vault")
       router.refresh()
     } catch {
       toast.error("Could not reach Memory Vault.")
@@ -160,7 +160,7 @@ export function BrainChat({
       eid: entityId,
       prompt: text.slice(0, 500),
     })
-    toast.success("⚡ Opening Studio with this angle")
+    toast.success("Opening Studio with this angle")
     router.push(`/studio?${params.toString()}`)
   }
 

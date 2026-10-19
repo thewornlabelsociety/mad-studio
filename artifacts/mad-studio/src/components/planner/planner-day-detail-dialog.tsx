@@ -1,5 +1,7 @@
 "use client"
 
+import { ArrowRight, Sparkles } from "lucide-react"
+
 import { useRouter } from "wouter"
 
 import {
@@ -56,7 +58,7 @@ export function PlannerDayDetailDialog({
       <DialogContent className="max-w-md rounded-none border-2 border-mad-black bg-mad-white shadow-keycap">
         <DialogHeader>
           <p className="font-typewriter text-[0.55rem] font-bold tracking-wider uppercase">
-            <span className="bg-[#CCFF00] px-1 py-0.5 text-mad-black">🟡 DRAFT</span>
+            <span className="bg-[#CCFF00] px-1 py-0.5 text-mad-black">DRAFT</span>
           </p>
           <DialogTitle className="font-typewriter text-sm font-bold tracking-widest text-mad-black uppercase">
             {day.phase}
@@ -90,9 +92,11 @@ export function PlannerDayDetailDialog({
         <button
           type="button"
           onClick={craftInStudio}
-          className="mt-2 w-full border-2 border-mad-black bg-mad-black px-4 py-3 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap hover:bg-neutral-900"
+          className="mt-2 inline-flex w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black px-4 py-3 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap hover:bg-neutral-900"
         >
-          [ ⚡ Craft in Studio → ]
+          <Sparkles className="size-3.5" aria-hidden />
+          Craft in Studio
+          <ArrowRight className="size-3.5" aria-hidden />
         </button>
       </DialogContent>
     </Dialog>

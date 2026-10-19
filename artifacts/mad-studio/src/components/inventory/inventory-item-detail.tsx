@@ -1206,13 +1206,13 @@ export function InventoryItemDetail({
                 onNext={onNext}
                 nextLabel={
                   step === WORKBENCH_STEP_MEDIA
-                    ? "Continue to Intent ──▶"
+                    ? "Continue to Intent"
                     : step === WORKBENCH_STEP_INTENT
-                      ? "Continue to Canvas ──▶"
+                      ? "Continue to Canvas"
                       : step === WORKBENCH_STEP_CANVAS
-                        ? "Continue to Copy ──▶"
+                        ? "Continue to Copy"
                         : step === WORKBENCH_STEP_COPY
-                          ? "Continue to Schedule ──▶"
+                          ? "Continue to Schedule"
                           : undefined
                 }
                 nextBusy={arming || savingDraft}

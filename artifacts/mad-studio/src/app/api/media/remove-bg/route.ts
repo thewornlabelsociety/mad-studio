@@ -11,7 +11,7 @@ const bodySchema = z.object({
   imageUrl: z.string().url(),
   entityId: z.string().uuid(),
   /** Optional marketing entity id for path namespacing */
-  itemId: z.string().uuid().optional(),
+  itemId: z.string().uuid().optional().nullable(),
 })
 
 /**

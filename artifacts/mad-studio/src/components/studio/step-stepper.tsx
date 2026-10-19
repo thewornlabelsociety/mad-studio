@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "wouter"
-import { Check } from "lucide-react"
+import { ArrowRight, Check } from "lucide-react"
 
 import {
   WORKBENCH_STEP_CANVAS,
@@ -252,9 +252,12 @@ export function StepDock({
               window.scrollTo({ top: 0, behavior: "smooth" })
             }}
             disabled={nextDisabled || nextBusy}
-            className="inline-flex min-w-[9rem] items-center justify-center rounded-sm bg-mad-black px-6 py-2.5 text-xs font-medium tracking-[0.12em] text-white uppercase hover:bg-neutral-800 disabled:opacity-40"
+            className="inline-flex min-w-[9rem] items-center justify-center gap-2 rounded-sm bg-mad-black px-6 py-2.5 text-xs font-medium tracking-[0.12em] text-white uppercase hover:bg-neutral-800 disabled:opacity-40"
           >
             {nextBusy ? "Working…" : primary}
+            {!nextBusy && step !== WORKBENCH_STEP_CHANNELS ? (
+              <ArrowRight className="size-3.5" aria-hidden />
+            ) : null}
           </button>
         )}
       </div>

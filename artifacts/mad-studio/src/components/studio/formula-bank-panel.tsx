@@ -12,10 +12,29 @@ import {
 import type { StudioEntityDna } from "@/lib/campaigns/entity-dna"
 import {
   defaultSlotsFromSpark,
+  fillFormulaTemplate,
   resolveConversionActions,
   resolveFormulaBank,
+  slotsInTemplate,
   type FormulaRenderSlots,
 } from "@/lib/studio/formula-bank"
+import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
+
+/** Label and example for each slot field. */
+const SLOT_FIELDS: Record<
+  keyof FormulaRenderSlots,
+  { label: string; placeholder: string }
+> = {
+  item: { label: "Item", placeholder: "e.g. silk midi dress" },
+  brand: { label: "Brand", placeholder: "e.g. Zimmermann" },
+  size: { label: "Size", placeholder: "e.g. 10 or M" },
+  priceA: { label: "Retail price", placeholder: "e.g. $420" },
+  priceB: { label: "Our price", placeholder: "e.g. $135" },
+  location: { label: "Location", placeholder: "e.g. Whangārei" },
+  cityArea: { label: "City / area", placeholder: "e.g. Whangārei" },
+  interest: { label: "Interest", placeholder: "e.g. brunch" },
+  painfulAction: { label: "Habit to stop", placeholder: "e.g. paying full retail" },
+}
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -44,12 +63,20 @@ export function FormulaBankPanel({
   onSlotsChange,
 }: Props) {
   const bank = useMemo(
-    () => resolveFormulaBank(entity.brand_identity),
-    [entity.brand_identity]
+    () =>
+      resolveFormulaBank(
+        entity.brand_identity,
+        resolveIndustryProfile({ name: entity.name, industry: entity.industry }).id
+      ),
+    [entity.brand_identity, entity.name, entity.industry]
   )
   const ctas = useMemo(
-    () => resolveConversionActions(entity.conversion_goals),
-    [entity.conversion_goals]
+    () =>
+      resolveConversionActions(
+        entity.conversion_goals,
+        resolveIndustryProfile({ name: entity.name, industry: entity.industry }).id
+      ),
+    [entity.conversion_goals, entity.name, entity.industry]
   )
 
   const selectedHook = bank.hook_styles.find((h) => h.id === hookId)
@@ -140,36 +167,18 @@ export function FormulaBankPanel({
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        <SlotInput
-          label="Item"
-          value={slots.item}
-          onChange={(v) => patchSlot("item", v)}
-        />
-        <SlotInput
-          label="City / area"
-          value={slots.cityArea}
-          onChange={(v) => patchSlot("cityArea", v)}
-        />
-        <SlotInput
-          label="Price A"
-          value={slots.priceA}
-          onChange={(v) => patchSlot("priceA", v)}
-        />
-        <SlotInput
-          label="Price B"
-          value={slots.priceB}
-          onChange={(v) => patchSlot("priceB", v)}
-        />
-        <SlotInput
-          label="Location"
-          value={slots.location}
-          onChange={(v) => patchSlot("location", v)}
-        />
-        <SlotInput
-          label="Interest"
-          value={slots.interest}
-          onChange={(v) => patchSlot("interest", v)}
-        />
+        {(selectedHook
+          ? slotsInTemplate(selectedHook.template)
+          : (["item"] as Array<keyof FormulaRenderSlots>)
+        ).map((key) => (
+          <SlotInput
+            key={key}
+            label={SLOT_FIELDS[key].label}
+            placeholder={SLOT_FIELDS[key].placeholder}
+            value={slots[key]}
+            onChange={(v) => patchSlot(key, v)}
+          />
+        ))}
       </div>
 
       {(selectedHook || selectedVisual || selectedCta) && (
@@ -179,7 +188,7 @@ export function FormulaBankPanel({
               <span className="font-typewriter text-[0.55rem] font-bold uppercase">
                 Hook preview ·{" "}
               </span>
-              {selectedHook.template}
+              {fillFormulaTemplate(selectedHook.template, slots)}
             </p>
           ) : null}
           {selectedVisual ? (
@@ -233,10 +242,12 @@ function Field({
 
 function SlotInput({
   label,
+  placeholder,
   value,
   onChange,
 }: {
   label: string
+  placeholder?: string
   value: string
   onChange: (value: string) => void
 }) {
@@ -247,8 +258,9 @@ function SlotInput({
       </span>
       <input
         value={value}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 w-full border-2 border-mad-black px-2 py-1.5 font-mono text-xs"
+        className="mt-1 w-full border-2 border-mad-black px-2 py-1.5 font-mono text-xs placeholder:text-neutral-400"
       />
     </label>
   )

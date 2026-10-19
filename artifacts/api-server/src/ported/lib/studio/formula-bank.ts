@@ -29,6 +29,8 @@ export type FormulaBank = {
 
 export type FormulaRenderSlots = {
   item: string
+  brand: string
+  size: string
   priceA: string
   priceB: string
   location: string
@@ -87,6 +89,91 @@ export const DEFAULT_FORMULA_BANK: FormulaBank = {
   ],
 }
 
+/**
+ * Worn Label Society — designer consignment. Hooks lean on brand, size and
+ * value; filming notes are fashion-only (labels, fabric, fit).
+ */
+export const WORN_LABEL_FORMULA_BANK: FormulaBank = {
+  hook_styles: [
+    {
+      id: "wls_just_landed",
+      label: "Just Landed / New In",
+      template: "Just landed: [Brand] [Item], size [Size]. One of one.",
+    },
+    {
+      id: "wls_price_contrast",
+      label: "Designer for Less",
+      template: "[Brand] retails around [Price A]. This [Item] is [Price B] — size [Size].",
+    },
+    {
+      id: "wls_one_of_one",
+      label: "One of One / Last Chance",
+      template: "Only one [Brand] [Item] in size [Size]. When it's gone, it's gone.",
+    },
+    {
+      id: "wls_size_edit",
+      label: "Size Edit",
+      template: "Size [Size]? This week's finds start with this [Brand] [Item].",
+    },
+    {
+      id: "wls_style_it",
+      label: "Style It Three Ways",
+      template: "One [Brand] [Item], three ways to wear it — which is yours?",
+    },
+    {
+      id: "wls_second_life",
+      label: "Second Life / Pre-loved",
+      template: "Give this [Brand] [Item] a second life — pre-loved, never tired.",
+    },
+    {
+      id: "wls_try_on",
+      label: "Showroom Try-On",
+      template: "Try this [Brand] [Item] on in our [Location] showroom — size [Size].",
+    },
+    {
+      id: "wls_price_drop",
+      label: "Price Drop",
+      template: "Price drop: [Brand] [Item], now [Price B]. Size [Size].",
+    },
+  ],
+  visual_directions: [
+    {
+      id: "wls_label_fabric",
+      label: "Label & Fabric Close-Up",
+      cue: "Open on the designer label, then a slow macro across the fabric within 0–2s.",
+    },
+    {
+      id: "wls_hanger_reveal",
+      label: "Hanger Reveal",
+      cue: "Slow pan down the piece on its hanger, ending on the price tag.",
+    },
+    {
+      id: "wls_mirror_try_on",
+      label: "Mirror Try-On",
+      cue: "Wide mirror shot of the fit, then cut to one detail — collar, hem or hardware.",
+    },
+    {
+      id: "wls_rack_walk",
+      label: "Showroom Rack Walk",
+      cue: "Handheld walk along the rail, pulling the piece out to camera.",
+    },
+    {
+      id: "wls_flat_lay",
+      label: "Styled Flat Lay",
+      cue: "Top-down flat lay with shoes and a bag to show how to wear it.",
+    },
+  ],
+}
+
+/** Starting bank per brand profile (FÜDI and others use the default bank). */
+const PROFILE_FORMULA_BANKS: Partial<Record<string, FormulaBank>> = {
+  worn_label: WORN_LABEL_FORMULA_BANK,
+}
+
+const DEFAULT_HOOK_IDS = new Set(
+  DEFAULT_FORMULA_BANK.hook_styles.map((hook) => hook.id)
+)
+
 export const DEFAULT_CONVERSION_ACTIONS: FormulaConversionAction[] = [
   {
     id: "tap_sticker",
@@ -112,6 +199,8 @@ export const DEFAULT_CONVERSION_ACTIONS: FormulaConversionAction[] = [
 
 const SLOT_MAP: Record<string, keyof FormulaRenderSlots> = {
   Item: "item",
+  Brand: "brand",
+  Size: "size",
   "Price A": "priceA",
   "Price B": "priceB",
   Location: "location",
@@ -127,9 +216,16 @@ export function sortFormulaBankByWeight(bank: FormulaBank): FormulaBank {
   return { ...bank, hook_styles }
 }
 
+/**
+ * The brand's formula bank. With a brand profile id, a bank that is only a
+ * saved copy of the generic default (seeded at brand setup) is swapped for
+ * that brand's own starting bank; a customised bank is always kept.
+ */
 export function resolveFormulaBank(
-  identity: BrandIdentity & { formula_bank?: FormulaBank | null }
+  identity: BrandIdentity & { formula_bank?: FormulaBank | null },
+  profileId?: string | null
 ): FormulaBank {
+  const profileBank = profileId ? PROFILE_FORMULA_BANKS[profileId] : undefined
   const bank = identity.formula_bank
   if (
     bank &&
@@ -138,16 +234,99 @@ export function resolveFormulaBank(
     Array.isArray(bank.visual_directions) &&
     bank.visual_directions.length > 0
   ) {
+    const isSeededDefault = bank.hook_styles.every((hook) =>
+      DEFAULT_HOOK_IDS.has(hook.id)
+    )
+    if (profileBank && isSeededDefault) return profileBank
     return bank
   }
-  return DEFAULT_FORMULA_BANK
+  return profileBank ?? DEFAULT_FORMULA_BANK
 }
 
+/** Slot keys a template uses, in order of first appearance. */
+export function slotsInTemplate(template: string): Array<keyof FormulaRenderSlots> {
+  const keys: Array<keyof FormulaRenderSlots> = []
+  for (const match of template.matchAll(/\[([^\]]+)\]/g)) {
+    const key = SLOT_MAP[match[1].trim()]
+    if (key && !keys.includes(key)) keys.push(key)
+  }
+  return keys
+}
+
+/**
+ * Everyday Worn Label calls to action — selling, engagement and showroom —
+ * offered ahead of the brand's own Brand Brain conversion goals.
+ */
+export const WORN_LABEL_CONVERSION_ACTIONS: FormulaConversionAction[] = [
+  {
+    id: "wls_shop_link",
+    label: "Shop · Tap the link",
+    action_text: "Tap the link to shop it before it's gone.",
+  },
+  {
+    id: "wls_dm_hold",
+    label: "Shop · DM to hold it",
+    action_text: 'DM "HOLD" and we\'ll keep it aside for 24 hours.',
+  },
+  {
+    id: "wls_size_edit",
+    label: "Shop · More in your size",
+    action_text: "Shop more pieces in your size through the link.",
+  },
+  {
+    id: "wls_try_on",
+    label: "Showroom · Try it on",
+    action_text: "Try it on in our Whangārei showroom this week.",
+  },
+  {
+    id: "wls_comment_size",
+    label: "Engage · Comment your size",
+    action_text: "Comment your size and we'll tag you when something fits.",
+  },
+  {
+    id: "wls_tag_friend",
+    label: "Engage · Tag a friend",
+    action_text: "Tag the friend this would look incredible on.",
+  },
+  {
+    id: "wls_save",
+    label: "Engage · Save for later",
+    action_text: "Save this so you can find it again.",
+  },
+  {
+    id: "wls_vip",
+    label: "Engage · Join the VIP list",
+    action_text: "Join our VIP list for first look at new arrivals.",
+  },
+]
+
+const PROFILE_CONVERSION_ACTIONS: Partial<
+  Record<string, FormulaConversionAction[]>
+> = {
+  worn_label: WORN_LABEL_CONVERSION_ACTIONS,
+}
+
+/**
+ * CTA choices. With a brand profile id, that brand's everyday CTAs come first,
+ * followed by its own Brand Brain conversion goals (duplicates dropped).
+ */
 export function resolveConversionActions(
-  goals: unknown
+  goals: unknown,
+  profileId?: string | null
 ): FormulaConversionAction[] {
+  const own = parseConversionGoals(goals)
+  const library = profileId ? PROFILE_CONVERSION_ACTIONS[profileId] : undefined
+  if (!library) return own ?? DEFAULT_CONVERSION_ACTIONS
+  const seen = new Set(library.map((row) => row.action_text.toLowerCase()))
+  return [
+    ...library,
+    ...(own ?? []).filter((row) => !seen.has(row.action_text.toLowerCase())),
+  ]
+}
+
+function parseConversionGoals(goals: unknown): FormulaConversionAction[] | null {
   if (!Array.isArray(goals) || goals.length === 0) {
-    return DEFAULT_CONVERSION_ACTIONS
+    return null
   }
   const parsed: FormulaConversionAction[] = []
   for (const entry of goals) {
@@ -178,7 +357,7 @@ export function resolveConversionActions(
       }
     }
   }
-  return parsed.length > 0 ? parsed : DEFAULT_CONVERSION_ACTIONS
+  return parsed.length > 0 ? parsed : null
 }
 
 export function fillFormulaTemplate(
@@ -202,6 +381,8 @@ export function defaultSlotsFromSpark(spark: string): FormulaRenderSlots {
   const trimmed = spark.trim()
   return {
     item: trimmed.slice(0, 80),
+    brand: "",
+    size: "",
     priceA: "",
     priceB: "",
     location: "Whangārei",
@@ -213,7 +394,31 @@ export function defaultSlotsFromSpark(spark: string): FormulaRenderSlots {
 
 /** Unfilled "[Slot]" placeholders left in post copy. */
 export function unfilledFormulaSlots(text: string): string[] {
-  return [...new Set(text.match(/\[[A-Z][A-Za-z ]{0,30}\]/g) ?? [])]
+  return [...new Set(text.match(/\[[A-Z][A-Za-z /]{0,30}\]/g) ?? [])]
+}
+
+/**
+ * Short on-screen line from a hook: its first whole phrase (up to a full
+ * stop, dash or colon), trimmed at a word boundary — never mid-phrase.
+ */
+const DANGLING_WORDS =
+  /\s+(a|an|the|for|to|in|of|at|on|and|or|with|when|you|can|get|this|is|it|your|our)$/i
+
+export function onScreenLine(hook: string, maxLength = 64): string {
+  const phrase =
+    hook
+      .split(/(?<=[.!?])\s+|\s+[—–-]\s+|:\s+/)[0]
+      ?.replace(/[.!?:,]+$/, "")
+      .trim() ?? ""
+  let line = phrase
+  if (line.length > maxLength) {
+    line = line.slice(0, maxLength)
+    const lastSpace = line.lastIndexOf(" ")
+    if (lastSpace > maxLength / 2) line = line.slice(0, lastSpace)
+    while (DANGLING_WORDS.test(line)) line = line.replace(DANGLING_WORDS, "")
+  }
+  // Keep prices and percentages ("$49", "30%") readable on screen.
+  return line.replace(/[^\w\s$%'&]/g, " ").replace(/\s+/g, " ").trim().toUpperCase()
 }
 
 export function buildCampaignPackFromFormula(input: {
@@ -225,14 +430,7 @@ export function buildCampaignPackFromFormula(input: {
   campaignTitle?: string
 }): CampaignPack {
   const spokenHook = fillFormulaTemplate(input.hook.template, input.slots)
-  const onScreen = spokenHook
-    // Keep prices and percentages ("$49", "30%") readable on screen.
-    .replace(/[^\w\s$%]/g, " ")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 5)
-    .join(" ")
-    .toUpperCase()
+  const onScreen = onScreenLine(spokenHook)
 
   // The visual cue is a filming note for the video script, not post copy.
   const captionBody = [
@@ -299,7 +497,7 @@ export function buildCampaignPackFromFormula(input: {
       // One word per tag (hashtags can't have spaces); brand-neutral extras.
       search_optimized_tags: [
         ...new Set(
-          [input.slots.item, input.slots.cityArea, "local", "newin"]
+          [input.slots.brand, input.slots.item, input.slots.cityArea, "local", "newin"]
             .map((tag) =>
               tag
                 .toLowerCase()

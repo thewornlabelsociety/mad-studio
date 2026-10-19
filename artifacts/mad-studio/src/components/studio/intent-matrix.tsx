@@ -3,6 +3,7 @@
 import {
   AUDIENCE_TONE_META,
   AUDIENCE_TONES,
+  audienceToneCue,
   type AudienceTone,
 } from "@/lib/studio/audience-tone"
 import type { StudioIntentChip } from "@/lib/studio/entity-presets"
@@ -15,6 +16,8 @@ type IntentMatrixProps = {
   intentChipId: string
   onIntentChipSelect: (chip: StudioIntentChip) => void
   outputFormats?: string[]
+  /** Brand profile id, for brand-specific tone wording. */
+  brandProfileId?: string | null
 }
 
 export function IntentMatrix({
@@ -24,6 +27,7 @@ export function IntentMatrix({
   intentChipId,
   onIntentChipSelect,
   outputFormats = [],
+  brandProfileId = null,
 }: IntentMatrixProps) {
   return (
     <div className="space-y-4">
@@ -56,7 +60,7 @@ export function IntentMatrix({
                     active ? "text-white/75" : "text-neutral-600"
                   )}
                 >
-                  {meta.promptCue}
+                  {audienceToneCue(tone, brandProfileId)}
                 </p>
               </button>
             )

@@ -45,7 +45,7 @@ const DATE_STYLE_OPTIONS: { id: DateStyle; label: string }[] = [
 ]
 
 const DATE_PRESETS = [
-  { label: "This weekend", value: "⚡ THIS WEEKEND ONLY" },
+  { label: "This weekend", value: "THIS WEEKEND ONLY" },
   { label: "This week only", value: "THIS WEEK ONLY" },
   { label: "Today only", value: "TODAY ONLY" },
 ] as const

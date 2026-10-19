@@ -54,11 +54,14 @@ type Props = {
   visualPresets: VisualPresets | null
   slugSeed?: string | null
   /**
-   * Public URLs of every photo in the tray, in order. With 2+, Instagram feed
-   * and Facebook post them as one carousel; Story / TikTok / email post the
-   * selected photo only.
+   * Every photo in the tray, in order, with that photo's own on-image text.
+   * With 2+, Instagram feed and Facebook post them as one carousel (each slide
+   * baked with its own text); Story / TikTok / email post the selected photo.
    */
-  carouselPhotoUrls?: string[]
+  carouselSlides?: Array<{
+    url: string
+    overlay: CanvasTextOverlayState | null
+  }>
   onDropChannel: (channel: SchedulerChannel) => void
   onConfirm: (mediaByChannel: MediaByChannel, carouselUrls: string[] | null) => void
   confirming: boolean
@@ -176,7 +179,7 @@ export function ReviewBeforeSchedule({
   storyHeadline,
   visualPresets,
   slugSeed = null,
-  carouselPhotoUrls = [],
+  carouselSlides = [],
   onDropChannel,
   onConfirm,
   confirming,
@@ -185,7 +188,7 @@ export function ReviewBeforeSchedule({
   const [artwork, setArtwork] = useState<Artwork | null>(null)
   const [aspects, setAspects] = useState<Record<string, number | null>>({})
   const [slideAspects, setSlideAspects] = useState<Array<number | null>>([])
-  const isCarousel = carouselPhotoUrls.length >= 2
+  const isCarousel = carouselSlides.length >= 2
   const [error, setError] = useState<string | null>(null)
   const [preparing, setPreparing] = useState(false)
   const preparedKey = useRef<string | null>(null)
@@ -199,7 +202,7 @@ export function ReviewBeforeSchedule({
 
   const inputsKey = JSON.stringify([
     photoUrl,
-    carouselPhotoUrls,
+    carouselSlides,
     textOverlay,
     renderStoryCard ? [storyPreview, storyHeadline, visualPresets] : null,
   ])
@@ -232,11 +235,26 @@ export function ReviewBeforeSchedule({
                   })
             )
           )
-          story = await renderStoryCardToUrl(node, entityId)
+          // The preview draws Canvas text over the card, so bake it on too.
+          story = await bakeCanvasTextOnImage({
+            entityId,
+            sourceUrl: await renderStoryCardToUrl(node, entityId),
+            overlay: textOverlay,
+          })
         }
-        // The selected photo carries the baked Canvas text; other slides go as-is.
+        // Each slide gets its own Canvas text baked in.
         const slides = isCarousel
-          ? carouselPhotoUrls.map((url) => (url === photoUrl ? feed : url))
+          ? await Promise.all(
+              carouselSlides.map((slide) =>
+                slide.overlay
+                  ? bakeCanvasTextOnImage({
+                      entityId,
+                      sourceUrl: slide.url,
+                      overlay: slide.overlay,
+                    })
+                  : Promise.resolve(slide.url)
+              )
+            )
           : []
         const [feedAspect, storyAspect, ...perSlide] = await Promise.all([
           imageAspectRatio(feed),
@@ -268,7 +286,7 @@ export function ReviewBeforeSchedule({
     textOverlay,
     renderStoryCard,
     isCarousel,
-    carouselPhotoUrls,
+    carouselSlides,
   ])
 
   const cards = useMemo(
@@ -540,6 +558,10 @@ export function ReviewBeforeSchedule({
               canvasColor={storyPreview.canvasColor}
               cutoutMode={storyPreview.cutoutMode}
               visualPresets={visualPresets}
+              showCopy={false}
+              showStickerGuide={false}
+              subjectScale={storyPreview.subjectScale ?? 1}
+              subjectOffsetY={storyPreview.subjectOffsetY ?? 0}
             />
           </div>
         ) : null}
