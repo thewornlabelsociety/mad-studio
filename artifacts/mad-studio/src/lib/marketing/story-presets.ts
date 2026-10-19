@@ -143,6 +143,33 @@ export type StoryCanvasModel = {
   imageUrl: string | null
 }
 
+/** Story card content for a Studio post that isn't tied to a Library item. */
+export function buildBasicStoryModel(input: {
+  brandName: string
+  headline: string
+  imageUrl: string | null
+  stickerLabel?: string | null
+}): StoryCanvasModel {
+  const { brandName, headline } = input
+  return {
+    brandName,
+    title: headline,
+    headline,
+    category: "New Arrival",
+    designer: brandName,
+    priceLabel: "—",
+    sizeLabel: null,
+    colorLabel: null,
+    productLabel: conciseProductLabel(headline, brandName),
+    vibeTag: null,
+    provenance: null,
+    stickerLabel: input.stickerLabel || "Shop the look",
+    footerLine: `IN STORE AT ${brandName.toUpperCase()} // ONLINE`,
+    specsLine: `${brandName.toUpperCase()} // ${headline.toUpperCase()}`,
+    imageUrl: input.imageUrl,
+  }
+}
+
 export function buildStoryCanvasModel(input: {
   item: MarketingEntity
   brandName: string

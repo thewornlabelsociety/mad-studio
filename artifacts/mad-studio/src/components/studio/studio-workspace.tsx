@@ -18,6 +18,12 @@ import {
   disarmCampaignQueue,
 } from "@/lib/actions"
 import { MultiChannelScheduler } from "@/components/marketing/multi-channel-scheduler"
+import {
+  ReviewBeforeSchedule,
+  type MediaByChannel,
+} from "@/components/studio/review-before-schedule"
+import { resolveVisualPresets } from "@/lib/brands/visual-presets"
+import type { SchedulerChannel } from "@/lib/scheduling/brain-timing"
 import { IntentMatrix } from "@/components/studio/intent-matrix"
 import { PackResultsEditor } from "@/components/studio/pack-results-editor"
 import { CompactChannelRail } from "@/components/studio/compact-channel-rail"
@@ -247,6 +253,7 @@ export function StudioWorkspace({
     typeof window === "undefined" ? null : hydrateDispatchPlan({})
   )
   const [arming, setArming] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const skipIntentObjectiveSync = useRef(false)
   const hydrateToken = useRef(0)
 
@@ -1039,19 +1046,44 @@ export function StudioWorkspace({
     })
   }
 
-  function onArmPack() {
-    if (!pack) { toast.error("Generate or select your pack copy in Step 2 before arming."); return; }
-    const slots = (dispatchPlan ?? []).filter((slot) => slot.enabled)
-    if (slots.length === 0) {
-      toast.message("Tick at least one channel to arm.")
-      return
+  /** Checks that need no artwork; shared by the review screen and arming. */
+  function armBlocker(): string | null {
+    if (!pack) return "Generate or select your pack copy in Step 2 before arming."
+    if (!(dispatchPlan ?? []).some((slot) => slot.enabled)) {
+      return "Tick at least one channel to arm."
     }
     if (!apiImageUrl) {
-      toast.error(
-        "Arming needs a public https image — add or finish uploading media in step 1."
-      )
+      return "Arming needs a public https image — add or finish uploading media in step 1."
+    }
+    return null
+  }
+
+  function openReview() {
+    const blocker = armBlocker()
+    if (blocker) {
+      toast.error(blocker)
       return
     }
+    setReviewOpen(true)
+  }
+
+  function dropChannel(channel: SchedulerChannel) {
+    setDispatchPlan((plan) =>
+      plan
+        ? plan.map((slot) =>
+            slot.channel === channel ? { ...slot, enabled: false } : slot
+          )
+        : plan
+    )
+  }
+
+  function onArmPack(mediaByChannel?: MediaByChannel) {
+    const blocker = armBlocker()
+    if (blocker || !pack || !apiImageUrl) {
+      toast.error(blocker ?? "Nothing to arm yet.")
+      return
+    }
+    const slots = (dispatchPlan ?? []).filter((slot) => slot.enabled)
 
     setArming(true)
     startTransition(async () => {
@@ -1082,6 +1114,7 @@ export function StudioWorkspace({
         pack,
         slots,
         mediaUrl: apiImageUrl,
+        mediaByChannel: mediaByChannel ?? null,
         slugSeed: liveRedirectSlugSeed,
       })
       setArming(false)
@@ -1461,7 +1494,7 @@ export function StudioWorkspace({
             }
             onSaveDraft={() => runSave("draft")}
             saveDraftBusy={pending && !arming}
-            onConfirmArm={onArmPack}
+            onConfirmArm={openReview}
             confirmArmBusy={arming}
             confirmArmDisabled={pending && !arming}
             previewDrawerOpen={previewDrawerOpen}
@@ -1621,7 +1654,7 @@ export function StudioWorkspace({
                 plan={dispatchPlan}
                 onPlanChange={setDispatchPlan}
                 onSaveDraft={() => runSave("draft")}
-                onArm={onArmPack}
+                onArm={openReview}
                 saving={pending && !arming}
                 arming={arming}
                 hideFooterActions
@@ -1717,6 +1750,35 @@ export function StudioWorkspace({
           </div>
         }
       />
+
+      {pack && apiImageUrl && dispatchPlan ? (
+        <ReviewBeforeSchedule
+          open={reviewOpen}
+          onOpenChange={setReviewOpen}
+          entityId={activeEntity.id}
+          brandName={activeEntity.name}
+          pack={pack}
+          slots={dispatchPlan.filter((slot) => slot.enabled)}
+          photoUrl={apiImageUrl}
+          textOverlay={textOverlay}
+          storyPreview={storyPreview}
+          useStoryCard={!isFudi && storyPreview.cutoutMode !== "original"}
+          storyHeadline={simulatorContent.headline}
+          visualPresets={resolveVisualPresets({
+            brandName: activeEntity.name,
+            industry: activeEntity.industry,
+            brandIdentity: activeEntity.brand_identity,
+          })}
+          slugSeed={liveRedirectSlugSeed}
+          unsentPhotoCount={Math.max(
+            0,
+            mediaAssets.filter((asset) => asset.type === "image").length - 1
+          )}
+          onDropChannel={dropChannel}
+          onConfirm={(mediaByChannel) => onArmPack(mediaByChannel)}
+          confirming={arming}
+        />
+      ) : null}
 
       <MediaLibraryDrawer
         entityId={activeEntity.id}

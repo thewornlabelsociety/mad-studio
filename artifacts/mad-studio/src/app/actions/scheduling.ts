@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache"
 
 import type { CampaignPack } from "@/lib/campaigns/pack-schema"
 import type { Json } from "@/lib/database.types"
-import { mergeCaptionWithTags } from "@/lib/inventory/optimization-tags"
 import {
   dispatchImmediateRows,
   resolveSlotTimes,
@@ -13,7 +12,7 @@ import {
 } from "@/lib/scheduling/arm-queue"
 import type { ChannelSlot, SchedulerChannel } from "@/lib/scheduling/brain-timing"
 import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
-import type { ScheduledPostPayload } from "@/lib/scheduling/process-scheduled-posts"
+import { packPayloadFor } from "@/lib/scheduling/pack-payload"
 import { createClient } from "@/lib/supabase/server"
 
 type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }
@@ -40,52 +39,6 @@ async function authorize(entityId: string) {
   return { supabase, user, error: null }
 }
 
-function stripMarkdown(value: string): string {
-  return value
-    .replace(/^#+\s*/gm, "")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/\*(.*?)\*/g, "$1")
-    .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
-    .trim()
-}
-
-function packPayloadFor(
-  channel: SchedulerChannel,
-  pack: CampaignPack,
-  base: Pick<ScheduledPostPayload, "media_url" | "destination_url" | "slug_seed">
-): ScheduledPostPayload {
-  const socialCaption = mergeCaptionWithTags(
-    pack.seo_caption.caption_body,
-    pack.seo_caption.search_optimized_tags
-  )
-  if (channel === "email") {
-    return {
-      ...base,
-      title: pack.campaign_title,
-      headline: pack.email_drop.subject_line,
-      caption: [pack.email_drop.preview_text, stripMarkdown(pack.email_drop.body_markdown)]
-        .filter(Boolean)
-        .join("\n\n"),
-    }
-  }
-  if (channel === "tiktok") {
-    return {
-      ...base,
-      title: pack.campaign_title,
-      headline: pack.algorithmic_signals.on_screen_text,
-      caption: [pack.algorithmic_signals.spoken_hook, socialCaption]
-        .filter(Boolean)
-        .join("\n\n"),
-    }
-  }
-  return {
-    ...base,
-    title: pack.campaign_title,
-    headline: pack.algorithmic_signals.on_screen_text,
-    caption: socialCaption,
-  }
-}
-
 async function cancelCampaignQueue(
   supabase: Awaited<ReturnType<typeof createClient>>,
   entityId: string,
@@ -107,6 +60,11 @@ export async function armCampaignMultiChannelDispatch(input: {
   pack: CampaignPack
   slots: ChannelSlot[]
   mediaUrl: string | null
+  /**
+   * Finished artwork per channel (on-image text baked in, story template
+   * rendered), from the review screen. Channels left out use `mediaUrl`.
+   */
+  mediaByChannel?: Partial<Record<SchedulerChannel, string>> | null
   destinationUrl?: string | null
   slugSeed?: string | null
 }): Promise<ActionResult<ArmDispatchResult>> {
@@ -128,8 +86,20 @@ export async function armCampaignMultiChannelDispatch(input: {
     }
   }
 
+  const mediaUrl = input.mediaUrl
+  const mediaFor = (channel: SchedulerChannel) =>
+    input.mediaByChannel?.[channel]?.trim() || mediaUrl
+  for (const slot of slots) {
+    if (!/^https?:\/\//i.test(mediaFor(slot.channel))) {
+      return {
+        ok: false,
+        error: `Artwork for ${slot.channel} isn't a public https URL — review again.`,
+      }
+    }
+  }
+
   if (slots.some((slot) => slot.channel === "tiktok")) {
-    const tiktokMediaError = tikTokMediaGuardError(input.mediaUrl)
+    const tiktokMediaError = tikTokMediaGuardError(mediaFor("tiktok"))
     if (tiktokMediaError) {
       return { ok: false, error: tiktokMediaError }
     }
@@ -181,7 +151,10 @@ export async function armCampaignMultiChannelDispatch(input: {
         scheduled_time: times[index],
         timing_source: slot.mode === "immediate" ? "immediate" : slot.timingSource,
         demographic_tag: slot.demographicTag.slice(0, 120),
-        payload: packPayloadFor(slot.channel, input.pack, base) as Json,
+        payload: packPayloadFor(slot.channel, input.pack, {
+          ...base,
+          media_url: mediaFor(slot.channel),
+        }) as Json,
         created_by: auth.user.id,
       }))
     )

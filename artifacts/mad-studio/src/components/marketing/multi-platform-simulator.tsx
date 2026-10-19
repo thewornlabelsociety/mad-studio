@@ -41,9 +41,9 @@ import {
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import {
+  buildBasicStoryModel,
   buildStoryCanvasModel,
   CANVAS_BG_PRESETS,
-  conciseProductLabel,
   type StoryStylePreset,
 } from "@/lib/marketing/story-presets"
 import type { MarketingEntity } from "@/lib/inventory/types"
@@ -618,23 +618,12 @@ export function MultiPlatformSimulator({
   const storyModel = useMemo(() => {
     const headline = activeSlideText || content.headline
     if (!item) {
-      return {
+      return buildBasicStoryModel({
         brandName: content.brandName,
-        title: headline,
         headline,
-        category: "New Arrival",
-        designer: content.brandName,
-        priceLabel: "—",
-        sizeLabel: null,
-        colorLabel: null,
-        productLabel: conciseProductLabel(headline, content.brandName),
-        vibeTag: null,
-        provenance: null,
-        stickerLabel: content.stickerLabel || "Shop the look",
-        footerLine: `IN STORE AT ${content.brandName.toUpperCase()} // ONLINE`,
-        specsLine: `${content.brandName.toUpperCase()} // ${headline.toUpperCase()}`,
         imageUrl: imageForCanvas,
-      }
+        stickerLabel: content.stickerLabel,
+      })
     }
     return buildStoryCanvasModel({
       item,

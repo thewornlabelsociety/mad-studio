@@ -241,7 +241,7 @@ export function StepDock({
               disabled={confirmArmDisabled || confirmArmBusy || saveDraftBusy}
               className="inline-flex min-w-[10rem] items-center justify-center rounded-sm bg-mad-black px-5 py-2.5 text-xs font-medium tracking-wide text-white uppercase hover:bg-neutral-800 disabled:opacity-40"
             >
-              {confirmArmBusy ? "Arming…" : "Confirm & publish"}
+              {confirmArmBusy ? "Arming…" : "Review & schedule"}
             </button>
           </div>
         ) : (
