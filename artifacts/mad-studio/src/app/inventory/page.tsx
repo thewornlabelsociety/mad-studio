@@ -96,7 +96,7 @@ export default async function InventoryPage({
   return (
     <StudioAppShell
       className="bg-mad-white"
-      mainClassName="mx-auto w-full max-w-6xl overflow-y-auto px-4 py-8 sm:px-6"
+      mainClassName="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6"
       entities={entities}
       activeEntityId={activeSummary.id}
       userEmail={user.email ?? null}

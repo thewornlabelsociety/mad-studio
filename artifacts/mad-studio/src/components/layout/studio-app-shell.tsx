@@ -28,7 +28,9 @@ export function StudioAppShell({
         <AppTopbar {...topbarProps} />
         <main
           className={cn(
-            "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-mad-white",
+            // Scroll by default; full-height workspaces (Studio, Plan) pass
+            // their own overflow classes, which replace these.
+            "flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-mad-white",
             mainClassName
           )}
         >
