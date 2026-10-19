@@ -78,6 +78,8 @@ export async function publishCampaignToSocials(
   input: CampaignPublishPayload & {
     platform: "instagram" | "facebook"
     placement: "feed" | "story"
+    /** 2+ images → one feed carousel / multi-photo post. */
+    carouselUrls?: string[] | null
   }
 ): Promise<CampaignPublishResult> {
   return postToPublishRoute(ctx, {
@@ -86,6 +88,10 @@ export async function publishCampaignToSocials(
     platform: input.platform,
     placement: input.placement,
     mediaUrl: input.mediaUrl,
+    carouselUrls:
+      input.placement === "feed" && (input.carouselUrls?.length ?? 0) >= 2
+        ? input.carouselUrls
+        : undefined,
     caption: input.caption,
     destinationUrl: input.destinationUrl ?? null,
     slugSeed: input.slugSeed ?? null,

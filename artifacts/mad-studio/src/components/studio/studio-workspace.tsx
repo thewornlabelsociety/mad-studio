@@ -1077,7 +1077,10 @@ export function StudioWorkspace({
     )
   }
 
-  function onArmPack(mediaByChannel?: MediaByChannel) {
+  function onArmPack(
+    mediaByChannel?: MediaByChannel,
+    carouselUrls?: string[] | null
+  ) {
     const blocker = armBlocker()
     if (blocker || !pack || !apiImageUrl) {
       toast.error(blocker ?? "Nothing to arm yet.")
@@ -1115,6 +1118,7 @@ export function StudioWorkspace({
         slots,
         mediaUrl: apiImageUrl,
         mediaByChannel: mediaByChannel ?? null,
+        carouselUrls: carouselUrls ?? null,
         slugSeed: liveRedirectSlugSeed,
       })
       setArming(false)
@@ -1770,12 +1774,17 @@ export function StudioWorkspace({
             brandIdentity: activeEntity.brand_identity,
           })}
           slugSeed={liveRedirectSlugSeed}
-          unsentPhotoCount={Math.max(
-            0,
-            mediaAssets.filter((asset) => asset.type === "image").length - 1
-          )}
+          carouselPhotoUrls={mediaAssets
+            .filter((asset) => asset.type === "image")
+            // Match how the selected photo's URL is chosen (apiImageUrl).
+            .map((asset) =>
+              /^https?:\/\//i.test(asset.url) ? asset.url : asset.publicUrl
+            )
+            .filter((url): url is string => Boolean(url && /^https?:\/\//i.test(url)))}
           onDropChannel={dropChannel}
-          onConfirm={(mediaByChannel) => onArmPack(mediaByChannel)}
+          onConfirm={(mediaByChannel, carouselUrls) =>
+            onArmPack(mediaByChannel, carouselUrls)
+          }
           confirming={arming}
         />
       ) : null}

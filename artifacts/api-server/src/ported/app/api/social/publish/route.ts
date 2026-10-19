@@ -774,6 +774,37 @@ export async function POST(request: Request) {
       metaMediaUrl = prepared.url
     }
 
+    // Feed carousels: every slide must be a public still Meta can fetch.
+    let carouselUrls: string[] | null = null
+    if (input.carouselUrls?.length && placement === "feed") {
+      carouselUrls = []
+      for (const slideUrl of input.carouselUrls) {
+        if (isPublishVideoUrl(slideUrl)) {
+          return HttpResponse.json(
+            { error: "Carousels with video aren't supported yet — use photos only." },
+            { status: 400 }
+          )
+        }
+        try {
+          const ensured = await ensurePublicMediaUrl({
+            mediaUrl: slideUrl,
+            entityId: entity.id,
+          })
+          carouselUrls.push(ensured.url)
+        } catch (error) {
+          return HttpResponse.json(
+            {
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Every carousel slide must be a public HTTPS image.",
+            },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     let publishResult
     try {
       publishResult = await publishToMeta({
@@ -781,6 +812,7 @@ export async function POST(request: Request) {
         mediaUrl: metaMediaUrl,
         caption,
         placement,
+        carouselUrls,
       })
     } catch (error) {
       const raw =

@@ -65,6 +65,8 @@ export async function armCampaignMultiChannelDispatch(input: {
    * rendered), from the review screen. Channels left out use `mediaUrl`.
    */
   mediaByChannel?: Partial<Record<SchedulerChannel, string>> | null
+  /** 2–10 slides posted as one carousel on Instagram feed and Facebook. */
+  carouselUrls?: string[] | null
   destinationUrl?: string | null
   slugSeed?: string | null
 }): Promise<ActionResult<ArmDispatchResult>> {
@@ -97,6 +99,24 @@ export async function armCampaignMultiChannelDispatch(input: {
       }
     }
   }
+
+  const carouselUrls = (input.carouselUrls ?? [])
+    .map((url) => url.trim())
+    .filter(Boolean)
+  if (carouselUrls.length === 1 || carouselUrls.length > 10) {
+    return { ok: false, error: "A carousel needs 2 to 10 photos." }
+  }
+  if (carouselUrls.some((url) => !/^https?:\/\//i.test(url))) {
+    return {
+      ok: false,
+      error: "Every carousel photo must be a public https URL — finish uploading first.",
+    }
+  }
+  const carouselFor = (channel: SchedulerChannel) =>
+    carouselUrls.length >= 2 &&
+    (channel === "instagram_feed" || channel === "facebook")
+      ? carouselUrls
+      : null
 
   if (slots.some((slot) => slot.channel === "tiktok")) {
     const tiktokMediaError = tikTokMediaGuardError(mediaFor("tiktok"))
@@ -151,10 +171,13 @@ export async function armCampaignMultiChannelDispatch(input: {
         scheduled_time: times[index],
         timing_source: slot.mode === "immediate" ? "immediate" : slot.timingSource,
         demographic_tag: slot.demographicTag.slice(0, 120),
-        payload: packPayloadFor(slot.channel, input.pack, {
-          ...base,
-          media_url: mediaFor(slot.channel),
-        }) as Json,
+        payload: {
+          ...packPayloadFor(slot.channel, input.pack, {
+            ...base,
+            media_url: carouselFor(slot.channel)?.[0] ?? mediaFor(slot.channel),
+          }),
+          media_urls: carouselFor(slot.channel),
+        } as Json,
         created_by: auth.user.id,
       }))
     )

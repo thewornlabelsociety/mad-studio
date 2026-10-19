@@ -52,14 +52,21 @@ type Props = {
   storyHeadline: string
   visualPresets: VisualPresets | null
   slugSeed?: string | null
-  /** Photos in the tray beyond the one that's sent (carousels aren't queued). */
-  unsentPhotoCount?: number
+  /**
+   * Public URLs of every photo in the tray, in order. With 2+, Instagram feed
+   * and Facebook post them as one carousel; Story / TikTok / email post the
+   * selected photo only.
+   */
+  carouselPhotoUrls?: string[]
   onDropChannel: (channel: SchedulerChannel) => void
-  onConfirm: (mediaByChannel: MediaByChannel) => void
+  onConfirm: (mediaByChannel: MediaByChannel, carouselUrls: string[] | null) => void
   confirming: boolean
 }
 
-type Artwork = { feed: string; story: string }
+type Artwork = { feed: string; story: string; slides: string[] }
+
+const CAROUSEL_CHANNELS: SchedulerChannel[] = ["instagram_feed", "facebook"]
+const CAROUSEL_MAX = 10
 
 /** Instagram's caption ceiling; TikTok's API caption uses the same. */
 const CAPTION_LIMIT = 2200
@@ -162,7 +169,7 @@ export function ReviewBeforeSchedule({
   storyHeadline,
   visualPresets,
   slugSeed = null,
-  unsentPhotoCount = 0,
+  carouselPhotoUrls = [],
   onDropChannel,
   onConfirm,
   confirming,
@@ -170,6 +177,8 @@ export function ReviewBeforeSchedule({
   const storyRef = useRef<HTMLDivElement>(null)
   const [artwork, setArtwork] = useState<Artwork | null>(null)
   const [aspects, setAspects] = useState<Record<string, number | null>>({})
+  const [slideAspects, setSlideAspects] = useState<Array<number | null>>([])
+  const isCarousel = carouselPhotoUrls.length >= 2
   const [error, setError] = useState<string | null>(null)
   const [preparing, setPreparing] = useState(false)
   const preparedKey = useRef<string | null>(null)
@@ -183,6 +192,7 @@ export function ReviewBeforeSchedule({
 
   const inputsKey = JSON.stringify([
     photoUrl,
+    carouselPhotoUrls,
     textOverlay,
     renderStoryCard ? [storyPreview, storyHeadline, visualPresets] : null,
   ])
@@ -217,13 +227,19 @@ export function ReviewBeforeSchedule({
           )
           story = await renderStoryCardToUrl(node, entityId)
         }
-        const [feedAspect, storyAspect] = await Promise.all([
+        // The selected photo carries the baked Canvas text; other slides go as-is.
+        const slides = isCarousel
+          ? carouselPhotoUrls.map((url) => (url === photoUrl ? feed : url))
+          : []
+        const [feedAspect, storyAspect, ...perSlide] = await Promise.all([
           imageAspectRatio(feed),
           story === feed ? Promise.resolve(null) : imageAspectRatio(story),
+          ...slides.map((url) => imageAspectRatio(url)),
         ])
         if (cancelled) return
         preparedKey.current = inputsKey
-        setArtwork({ feed, story })
+        setArtwork({ feed, story, slides })
+        setSlideAspects(perSlide)
         setAspects({ feed: feedAspect, story: story === feed ? feedAspect : storyAspect })
       } catch (cause) {
         if (cancelled) return
@@ -237,7 +253,16 @@ export function ReviewBeforeSchedule({
     return () => {
       cancelled = true
     }
-  }, [open, inputsKey, entityId, photoUrl, textOverlay, renderStoryCard])
+  }, [
+    open,
+    inputsKey,
+    entityId,
+    photoUrl,
+    textOverlay,
+    renderStoryCard,
+    isCarousel,
+    carouselPhotoUrls,
+  ])
 
   const cards = useMemo(
     () =>
@@ -261,16 +286,37 @@ export function ReviewBeforeSchedule({
           channel: slot.channel,
           caption,
           mediaUrl,
-          aspect,
+          aspect: isCarousel && CAROUSEL_CHANNELS.includes(slot.channel) ? null : aspect,
           slot,
         })
-        if (unsentPhotoCount > 0 && slot.channel !== "email") {
+        const slides =
+          isCarousel && CAROUSEL_CHANNELS.includes(slot.channel) && artwork
+            ? artwork.slides
+            : null
+        if (slides) {
+          if (slides.length > CAROUSEL_MAX) {
+            problems.blocking.push(
+              `${slides.length} photos — carousels take at most ${CAROUSEL_MAX}.`
+            )
+          }
+          if (slot.channel === "instagram_feed") {
+            const badSlide = slideAspects.findIndex(
+              (ratio) => ratio != null && (ratio < 0.79 || ratio > 1.92)
+            )
+            if (badSlide >= 0) {
+              problems.blocking.push(
+                `Photo ${badSlide + 1} is outside Instagram's 4:5 to 1.91:1 shape — crop it or remove it from the tray.`
+              )
+            }
+          }
+        } else if (isCarousel && slot.channel !== "email") {
           problems.warnings.push(
-            `Only the selected photo posts — the other ${unsentPhotoCount} in your tray won't. Carousels can't be scheduled yet.`
+            `Only the selected photo posts here — ${CHANNEL_META[slot.channel].short} doesn't take carousels from the app.`
           )
         }
         return {
           slot,
+          slides,
           mediaUrl,
           payload,
           caption,
@@ -278,7 +324,7 @@ export function ReviewBeforeSchedule({
           ...problems,
         }
       }),
-    [slots, artwork, aspects, pack, slugSeed, unsentPhotoCount]
+    [slots, artwork, aspects, slideAspects, isCarousel, pack, slugSeed]
   )
 
   const blockingCount = cards.reduce(
@@ -293,7 +339,10 @@ export function ReviewBeforeSchedule({
     for (const card of cards) {
       if (card.mediaUrl) mediaByChannel[card.slot.channel] = card.mediaUrl
     }
-    onConfirm(mediaByChannel)
+    const carouselUrls = cards.some((card) => card.slides)
+      ? artwork.slides
+      : null
+    onConfirm(mediaByChannel, carouselUrls)
   }
 
   return (
@@ -361,6 +410,24 @@ export function ReviewBeforeSchedule({
                     )}
                   </div>
                   <div className="min-w-0 space-y-1">
+                    {card.slides ? (
+                      <div className="mb-2">
+                        <p className="mb-1 text-[0.65rem] font-semibold tracking-wide text-neutral-500 uppercase">
+                          Carousel · {card.slides.length} photos
+                        </p>
+                        <div className="flex gap-1 overflow-x-auto">
+                          {card.slides.map((url, index) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={`${url}-${index}`}
+                              src={url}
+                              alt={`Slide ${index + 1}`}
+                              className="size-10 shrink-0 rounded border border-neutral-200 object-cover"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     {card.slot.channel === "email" && card.payload.headline ? (
                       <p className="text-xs font-semibold text-mad-black">
                         Subject: {card.payload.headline}

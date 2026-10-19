@@ -294,13 +294,124 @@ export async function verifyMetaConnection(input: {
   }
 }
 
+/** Instagram feed carousel (2–10 images): child containers → CAROUSEL → publish. */
+export async function publishInstagramCarousel(input: {
+  connection: SocialConnectionRow
+  mediaUrls: string[]
+  caption: string
+}): Promise<MetaPublishResult> {
+  const igUserId = input.connection.account_id
+  const accessToken = input.connection.access_token
+
+  const childIds: string[] = []
+  for (const imageUrl of input.mediaUrls) {
+    const child = await graphRequest<{ id: string }>(
+      `/${encodeURIComponent(igUserId)}/media`,
+      {
+        method: "POST",
+        accessToken,
+        body: { image_url: imageUrl, is_carousel_item: "true" },
+      }
+    )
+    if (!child.id) {
+      throw new Error("Instagram carousel slide container was not created.")
+    }
+    await waitForInstagramContainer({ containerId: child.id, accessToken })
+    childIds.push(child.id)
+  }
+
+  const container = await graphRequest<{ id: string }>(
+    `/${encodeURIComponent(igUserId)}/media`,
+    {
+      method: "POST",
+      accessToken,
+      body: {
+        media_type: "CAROUSEL",
+        children: childIds.join(","),
+        caption: input.caption,
+      },
+    }
+  )
+  if (!container.id) {
+    throw new Error("Instagram carousel container was not created.")
+  }
+  await waitForInstagramContainer({ containerId: container.id, accessToken })
+
+  const published = await graphRequest<{ id: string }>(
+    `/${encodeURIComponent(igUserId)}/media_publish`,
+    {
+      method: "POST",
+      accessToken,
+      body: { creation_id: container.id },
+    }
+  )
+  if (!published.id) {
+    throw new Error("Instagram media_publish did not return a media id.")
+  }
+
+  return {
+    platform: "instagram",
+    placement: "feed",
+    mediaId: published.id,
+    containerId: container.id,
+  }
+}
+
+/** Facebook Page multi-photo post: upload photos unpublished, attach to one post. */
+export async function publishFacebookAlbumPost(input: {
+  connection: SocialConnectionRow
+  mediaUrls: string[]
+  caption: string
+}): Promise<MetaPublishResult> {
+  const pageId = input.connection.account_id
+  const accessToken = input.connection.access_token
+
+  const photoIds: string[] = []
+  for (const url of input.mediaUrls) {
+    const photo = await graphRequest<{ id: string }>(
+      `/${encodeURIComponent(pageId)}/photos`,
+      {
+        method: "POST",
+        accessToken,
+        body: { url, published: "false" },
+      }
+    )
+    if (!photo.id) throw new Error("Facebook photo upload did not return an id.")
+    photoIds.push(photo.id)
+  }
+
+  const body: Record<string, string> = { message: input.caption }
+  photoIds.forEach((id, index) => {
+    body[`attached_media[${index}]`] = JSON.stringify({ media_fbid: id })
+  })
+  const post = await graphRequest<{ id: string }>(
+    `/${encodeURIComponent(pageId)}/feed`,
+    { method: "POST", accessToken, body }
+  )
+  if (!post.id) throw new Error("Facebook post did not return an id.")
+
+  return { platform: "facebook", placement: "feed", mediaId: post.id }
+}
+
 export async function publishToMeta(input: {
   connection: SocialConnectionRow
   mediaUrl: string
   caption: string
   placement: PublishPlacement
+  /** 2–10 images to post as one feed carousel / multi-photo post. */
+  carouselUrls?: string[] | null
 }): Promise<MetaPublishResult> {
+  const carousel =
+    input.placement === "feed" &&
+    input.carouselUrls &&
+    input.carouselUrls.length >= 2
+      ? input.carouselUrls.slice(0, 10)
+      : null
+
   if (input.connection.platform === "instagram") {
+    if (carousel) {
+      return publishInstagramCarousel({ ...input, mediaUrls: carousel })
+    }
     return publishInstagramMedia(input)
   }
   if (input.connection.platform === "facebook") {
@@ -308,6 +419,9 @@ export async function publishToMeta(input: {
       throw new Error(
         "Facebook Page Stories are not supported by this publisher yet — use Instagram Stories or a Facebook feed photo."
       )
+    }
+    if (carousel) {
+      return publishFacebookAlbumPost({ ...input, mediaUrls: carousel })
     }
     return publishFacebookPhoto(input)
   }
