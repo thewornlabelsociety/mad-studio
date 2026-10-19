@@ -127,6 +127,12 @@ import { FormulaBankPanel } from "@/components/studio/formula-bank-panel"
 import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
 import type { MediaLibraryItem } from "@/lib/studio/media-library"
+import type { CanvasItemFacts } from "@/components/studio/canvas-text-overlay"
+import { NewArrivalSuggestions } from "@/components/studio/new-arrival-suggestions"
+import {
+  fetchItemFacts,
+  type NewArrivalSuggestion,
+} from "@/lib/studio/new-arrival-suggestions"
 import {
   buildCampaignPackFromFormula,
   defaultSlotsFromSpark,
@@ -530,7 +536,47 @@ export function StudioWorkspace({
     setCutoutRequestId((value) => value + 1)
   }
 
+  // The item being posted (from a suggestion or the library) — fills the
+  // Brand / Size / Price / Vibe tags on the Canvas step.
+  const [postItem, setPostItem] = useState<{
+    id: string
+    facts: CanvasItemFacts
+  } | null>(null)
+  const isFashionBrand = brandProfileId === "worn_label"
+
+  function applyNewArrival(suggestion: NewArrivalSuggestion) {
+    const all: MediaAsset[] = suggestion.media.map((row, index) => ({
+      id: `arrival-${suggestion.item.id}-${index}`,
+      url: row.url,
+      publicUrl: row.url,
+      type: row.kind,
+    }))
+    const firstVideo = all.find((row) => row.type === "video")
+    const firstPhoto = all.find((row) => row.type !== "video") ?? all[0]
+    const chosen =
+      suggestion.format === "carousel"
+        ? all.filter((row) => row.type !== "video")
+        : suggestion.format === "reel" && firstVideo
+          ? [firstVideo]
+          : firstPhoto
+            ? [firstPhoto]
+            : []
+    if (chosen.length === 0) return
+    onMediaAssetsChange(chosen)
+    setActiveMediaId(chosen[0].id)
+    setSimPlatform(suggestion.format === "story" ? "ig_story" : "ig_feed")
+    setPostItem({ id: suggestion.item.id, facts: suggestion.facts })
+  }
+
   function mountMediaLibraryCarousel(items: MediaLibraryItem[]) {
+    const sourceId = items[0]?.marketingEntityId ?? null
+    if (sourceId && items.every((item) => item.marketingEntityId === sourceId)) {
+      void fetchItemFacts(sourceId, isFashionBrand).then((facts) =>
+        setPostItem(facts ? { id: sourceId, facts } : null)
+      )
+    } else {
+      setPostItem(null)
+    }
     const assets: MediaAsset[] = items.map((item, index) => ({
       id: `lib-${item.id}-${index}`,
       url: item.url,
@@ -1373,6 +1419,7 @@ export function StudioWorkspace({
     return (
       <StepCustomize
         phase={phase}
+        itemFacts={postItem?.facts ?? null}
         entity={activeEntity}
         entityId={activeEntity.id}
         isFudi={isFudi}
@@ -1641,6 +1688,15 @@ export function StudioWorkspace({
         {workbenchStep === WORKBENCH_STEP_MEDIA ? (
           <StepMedia
             entityId={activeEntity.id}
+            suggestionsSlot={
+              <NewArrivalSuggestions
+                entityId={activeEntity.id}
+                isFashion={isFashionBrand}
+                onUse={applyNewArrival}
+                activeItemId={postItem?.id ?? null}
+                disabled={multiplexing || pending || rehydrating}
+              />
+            }
             assets={mediaAssets}
             activeId={activeMediaId}
             onAssetsChange={onMediaAssetsChange}

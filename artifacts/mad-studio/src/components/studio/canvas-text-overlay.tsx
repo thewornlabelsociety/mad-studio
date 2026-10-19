@@ -21,6 +21,9 @@ import {
   CANVAS_TEXT_BG_PAD_X,
   CANVAS_TEXT_BG_PAD_Y,
   type CanvasTextLayerId,
+  CANVAS_TAGS,
+  canvasTagItems,
+  type CanvasTagPositionKey,
   clearCanvasTextOverlay,
   normalizeCanvasTextOverlay,
   canvasTextShadowClass,
@@ -91,8 +94,8 @@ function useCanvasDrag(
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
   overlayRef: MutableRefObject<CanvasTextOverlayState>,
   keys: {
-    x: "positionX" | "stickerX" | "subPositionX"
-    y: "positionY" | "stickerY" | "subPositionY"
+    x: "positionX" | "stickerX" | "subPositionX" | CanvasTagPositionKey
+    y: "positionY" | "stickerY" | "subPositionY" | CanvasTagPositionKey
     min?: number
     max?: number
   }
@@ -143,7 +146,7 @@ function useCanvasFontScaleResize(
   interactive: boolean,
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
   overlayRef: MutableRefObject<CanvasTextOverlayState>,
-  scaleKey: "fontScale" | "subFontScale" = "fontScale"
+  scaleKey: "fontScale" | "subFontScale" | "tagFontScale" = "fontScale"
 ) {
   const resizeRef = useRef<{ startY: number; originScale: number } | null>(null)
 
@@ -180,7 +183,7 @@ function useCanvasTextRotation(
   onChange: ((next: CanvasTextOverlayState) => void) | undefined,
   overlayRef: MutableRefObject<CanvasTextOverlayState>,
   boxRef: RefObject<HTMLDivElement | null>,
-  rotationKey: "rotationDeg" | "subRotationDeg" = "rotationDeg"
+  rotationKey: "rotationDeg" | "subRotationDeg" | "tagRotationDeg" = "rotationDeg"
 ) {
   const rotateRef = useRef<{
     centerX: number
@@ -389,12 +392,30 @@ export function CanvasTextOverlayLayer({
     subBoxRef,
     "subRotationDeg"
   )
+  // Each tag box (New, Brand, Size, Price, Vibe) moves on its own; they
+  // share one size, and tilt comes from the Tags slider.
+  const tagResize = useCanvasFontScaleResize(
+    interactive,
+    onOverlayChange,
+    overlayRef,
+    "tagFontScale"
+  )
+  const tagNewDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagNewX", y: "tagNewY" })
+  const tagBrandDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagBrandX", y: "tagBrandY" })
+  const tagSizeDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagSizeX", y: "tagSizeY" })
+  const tagPriceDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagPriceX", y: "tagPriceY" })
+  const tagVibeDrag = useCanvasDrag(interactive, onOverlayChange, overlayRef, { x: "tagVibeX", y: "tagVibeY" })
   if (!hasDecor) return null
 
   const layers = renderCanvasText ? canvasTextLayers(overlay) : []
   const handlesFor = {
     headline: { boxRef: textBoxRef, ...textDrag, ...textResize, ...textRotate },
     subhead: { boxRef: subBoxRef, ...subDrag, ...subResize, ...subRotate },
+    tag_new: { ...tagNewDrag, ...tagResize },
+    tag_brand: { ...tagBrandDrag, ...tagResize },
+    tag_size: { ...tagSizeDrag, ...tagResize },
+    tag_price: { ...tagPriceDrag, ...tagResize },
+    tag_vibe: { ...tagVibeDrag, ...tagResize },
   }
 
   return (
@@ -435,7 +456,7 @@ export function CanvasTextOverlayLayer({
                 overlay.textAlign === "center" && "text-center",
                 overlay.textAlign === "right" && "text-right",
                 font.className,
-                canvasTextShadowClass(overlay.shadow)
+                !layer.bgColor && canvasTextShadowClass(overlay.shadow)
               )}
               style={{
                 ...font.style,
@@ -544,7 +565,32 @@ type EditorProps = {
   swatches?: ReadonlyArray<{ hex: string; label: string }>
   /** This brand's headline font, listed first. */
   brandFontId?: string | null
+  /** Facts about the item being posted, used to fill the tags line. */
+  itemFacts?: CanvasItemFacts | null
 }
+
+export type CanvasItemFacts = {
+  brand?: string | null
+  size?: string | null
+  price?: string | null
+  vibe?: string | null
+  /** Wording for the "new" pill, e.g. "New consignment" or "New on the menu". */
+  newLabel?: string | null
+}
+
+const LAYER_LABELS: Record<CanvasTextLayerId, string> = {
+  headline: "Headline",
+  subhead: "Subhead",
+  tags: "Tags",
+}
+
+const TAG_ROWS = [
+  { show: "tagShowNew", text: "tagNewLabel", fact: "newLabel", label: "New pill", placeholder: "New consignment" },
+  { show: "tagShowBrand", text: "tagBrand", fact: "brand", label: "Brand", placeholder: "e.g. Zimmermann" },
+  { show: "tagShowSize", text: "tagSize", fact: "size", label: "Size", placeholder: "e.g. 10 or M" },
+  { show: "tagShowPrice", text: "tagPrice", fact: "price", label: "Price", placeholder: "e.g. 180" },
+  { show: "tagShowVibe", text: "tagVibe", fact: "vibe", label: "Vibe", placeholder: "e.g. Coastal boho" },
+] as const
 
 export function CanvasTextOverlayEditor({
   value,
@@ -555,6 +601,7 @@ export function CanvasTextOverlayEditor({
   destinationUrl = null,
   swatches = CANVAS_BRAND_SWATCHES,
   brandFontId = null,
+  itemFacts = null,
 }: EditorProps) {
   const fontOptions = brandFontId
     ? [
@@ -709,6 +756,65 @@ export function CanvasTextOverlayEditor({
         </>
       )}
 
+      <fieldset className={cn("grid gap-x-4 gap-y-2", wizardCompact && "sm:grid-cols-2 xl:grid-cols-3")}>
+        <legend className={cn(sectionTitleClass, "mb-3 w-full")}>
+          Add to image
+        </legend>
+        {TAG_ROWS.map((row) => {
+          const on = value[row.show]
+          return (
+            <div key={row.show} className="flex items-center gap-2">
+              <label className="flex w-20 shrink-0 cursor-pointer items-center gap-2 text-sm text-mad-black">
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    const current = value[row.text].trim()
+                    const fact = itemFacts?.[row.fact]?.trim() ?? ""
+                    // A newly ticked tag drops in under the ones already showing.
+                    const tag = CANVAS_TAGS.find((t) => t.show === row.show)!
+                    const shown = canvasTagItems(value)
+                    const nextY = shown.length
+                      ? Math.min(92, Math.max(...shown.map((t) => t.y)) + 9)
+                      : 8
+                    patch({
+                      [row.show]: checked,
+                      [row.text]: current || fact,
+                      ...(checked
+                        ? {
+                            enabled: true,
+                            [tag.x]: shown[shown.length - 1]?.x ?? 50,
+                            [tag.y]: nextY,
+                          }
+                        : null),
+                    })
+                    if (checked) setLayer("tags")
+                  }}
+                  className="size-4 cursor-pointer accent-mad-black"
+                />
+                {row.label}
+              </label>
+              <input
+                type="text"
+                value={value[row.text]}
+                onChange={(event) =>
+                  patch({
+                    [row.text]: event.target.value,
+                    [row.show]: true,
+                    enabled: true,
+                  })
+                }
+                onFocus={() => setLayer("tags")}
+                placeholder={itemFacts?.[row.fact] || row.placeholder}
+                aria-label={`${row.label} on image`}
+                className={cn(inputClass, "min-w-0 flex-1", wizardCompact && "h-9", !on && "opacity-60")}
+              />
+            </div>
+          )
+        })}
+      </fieldset>
+
       <div
         className={cn(
           wizardCompact
@@ -754,11 +860,11 @@ export function CanvasTextOverlayEditor({
           ) : null}
           {wizardCompact ? (
             <div
-              className="grid grid-cols-2 border-2 border-mad-black"
+              className="grid grid-cols-3 border-2 border-mad-black"
               role="tablist"
               aria-label="Which line to style"
             >
-              {(["headline", "subhead"] as const).map((id) => (
+              {(["headline", "subhead", "tags"] as const).map((id) => (
                 <button
                   key={id}
                   type="button"
@@ -772,7 +878,7 @@ export function CanvasTextOverlayEditor({
                       : "bg-mad-white text-mad-black hover:bg-mad-lime"
                   )}
                 >
-                  {id === "headline" ? "Headline" : "Subhead"}
+                  {LAYER_LABELS[id]}
                 </button>
               ))}
             </div>
@@ -849,7 +955,7 @@ export function CanvasTextOverlayEditor({
         <div className={cn(wizardCompact ? "space-y-4" : "space-y-3")}>
           {wizardCompact ? (
             <p className={sectionTitleClass}>
-              Typography · {layer === "headline" ? "Headline" : "Subhead"}
+              Typography · {LAYER_LABELS[layer]}
             </p>
           ) : null}
           <label className="grid gap-1.5">

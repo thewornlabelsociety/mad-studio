@@ -53,6 +53,8 @@ type Props = {
     offsetY: number
     onOffsetYChange: (offsetY: number) => void
   } | null
+  /** Suggested new arrivals, shown under the tools. */
+  suggestionsSlot?: React.ReactNode
 }
 
 export function StepMedia({
@@ -73,6 +75,7 @@ export function StepMedia({
   onCutoutToggle,
   cutoutDisabled = false,
   storyCard = null,
+  suggestionsSlot = null,
 }: Props) {
   const active = assets.find((row) => row.id === activeId) ?? assets[0] ?? null
   const isVideo = active?.type === "video"
@@ -216,6 +219,8 @@ export function StepMedia({
           {visualDescription}
         </p>
       ) : null}
+
+      {suggestionsSlot}
     </StudioStepPanel>
   )
 }

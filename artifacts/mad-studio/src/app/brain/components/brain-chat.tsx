@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport, type UIMessage } from "ai"
-import { Loader2, MessageSquare, Pin, Sparkles, Wand2 } from "lucide-react"
+import { Copy, Loader2, MessageSquare, Pin, Sparkles, Wand2 } from "lucide-react"
 import { useRouter } from "@/lib/next-compat"
 import { toast } from "sonner"
 
@@ -15,6 +15,8 @@ type BrainChatProps = {
   entityId: string
   entityName: string
   industry: string
+  /** Inside the slide-out Brain panel: fills its height, no outer frame. */
+  embedded?: boolean
 }
 
 function messagePlainText(message: UIMessage): string {
@@ -60,6 +62,7 @@ export function BrainChat({
   entityId,
   entityName,
   industry,
+  embedded = false,
 }: BrainChatProps) {
   const router = useRouter()
   const [input, setInput] = useState("")
@@ -165,8 +168,20 @@ export function BrainChat({
   }
 
   return (
-    <div className="flex min-h-[28rem] flex-col border-2 border-mad-black bg-mad-white shadow-keycap-sm">
-      <header className="border-b-2 border-mad-black px-4 py-3 sm:px-5">
+    <div
+      className={
+        embedded
+          ? "flex h-full min-h-0 flex-col bg-mad-white"
+          : "flex min-h-[28rem] flex-col border-2 border-mad-black bg-mad-white shadow-keycap-sm"
+      }
+    >
+      <header
+        className={
+          embedded
+            ? "hidden"
+            : "border-b-2 border-mad-black px-4 py-3 sm:px-5"
+        }
+      >
         <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
           Brand Director Chat
         </p>
@@ -179,21 +194,30 @@ export function BrainChat({
         </p>
       </header>
 
-      <div className="flex flex-wrap gap-2 border-b-2 border-mad-black px-4 py-3 sm:px-5">
+      <div
+        className={
+          embedded
+            ? "flex shrink-0 gap-2 overflow-x-auto border-b-2 border-mad-black px-4 py-3 [scrollbar-width:none]"
+            : "flex flex-wrap gap-2 border-b-2 border-mad-black px-4 py-3 sm:px-5"
+        }
+      >
         {suggestionChips.map((chip) => (
           <button
             key={chip.id}
             type="button"
             disabled={isBusy}
             onClick={() => void handleSend(chip.prompt)}
-            className="rounded-none border-2 border-mad-black bg-mad-white px-3 py-2 text-left font-typewriter text-[0.65rem] leading-snug tracking-wide text-mad-black uppercase transition-colors hover:bg-mad-black hover:text-mad-white disabled:opacity-50"
+            className={
+              (embedded ? "w-56 shrink-0 " : "") +
+              "rounded-none border-2 border-mad-black bg-mad-white px-3 py-2 text-left font-typewriter text-[0.65rem] leading-snug tracking-wide text-mad-black uppercase transition-colors hover:bg-mad-black hover:text-mad-white disabled:opacity-50"
+            }
           >
             {chip.label}
           </button>
         ))}
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
         {messages.length === 0 ? (
           <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 text-center text-neutral-500">
             <MessageSquare className="size-6 opacity-50" />
@@ -243,6 +267,21 @@ export function BrainChat({
                         <Pin data-icon="inline-start" />
                       )}
                       Save to Memory Vault
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        void navigator.clipboard
+                          .writeText(text)
+                          .then(() => toast.success("Copied"))
+                          .catch(() => toast.error("Couldn't copy."))
+                      }}
+                      className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] tracking-widest uppercase"
+                    >
+                      <Copy data-icon="inline-start" />
+                      Copy
                     </Button>
                     <Button
                       type="button"

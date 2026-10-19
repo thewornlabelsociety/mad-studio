@@ -185,6 +185,37 @@ export type CanvasTextOverlayState = {
   bgColor: string
   subBgColor: string
 
+  /**
+   * Tags line: optional item facts as one pill ("New consignment · Brand ·
+   * Sz 10 · $180 · Vibe"). Each is ticked on or off; the values are editable.
+   */
+  tagShowNew: boolean
+  tagShowBrand: boolean
+  tagShowSize: boolean
+  tagShowPrice: boolean
+  tagShowVibe: boolean
+  tagNewLabel: string
+  tagBrand: string
+  tagSize: string
+  tagPrice: string
+  tagVibe: string
+  tagFontId: CanvasTextFontId
+  tagColor: string
+  tagFontScale: number
+  /** Each tag is its own box, placed on its own (0–100 of the frame). */
+  tagNewX: number
+  tagNewY: number
+  tagBrandX: number
+  tagBrandY: number
+  tagSizeX: number
+  tagSizeY: number
+  tagPriceX: number
+  tagPriceY: number
+  tagVibeX: number
+  tagVibeY: number
+  tagRotationDeg: number
+  tagBgColor: string
+
   textAlign: CanvasTextAlign
 
   stickerEnabled: boolean
@@ -266,6 +297,32 @@ export const DEFAULT_CANVAS_TEXT_OVERLAY: CanvasTextOverlayState = {
   bgColor: "",
   subBgColor: "",
 
+  tagShowNew: false,
+  tagShowBrand: false,
+  tagShowSize: false,
+  tagShowPrice: false,
+  tagShowVibe: false,
+  tagNewLabel: "New consignment",
+  tagBrand: "",
+  tagSize: "",
+  tagPrice: "",
+  tagVibe: "",
+  tagFontId: "impact_bold",
+  tagColor: "#FFFFFF",
+  tagFontScale: 0.5,
+  tagNewX: 50,
+  tagNewY: 8,
+  tagBrandX: 50,
+  tagBrandY: 17,
+  tagSizeX: 50,
+  tagSizeY: 26,
+  tagPriceX: 50,
+  tagPriceY: 35,
+  tagVibeX: 50,
+  tagVibeY: 44,
+  tagRotationDeg: 0,
+  tagBgColor: "#111111",
+
   textAlign: "center",
 
   stickerEnabled: false,
@@ -326,7 +383,11 @@ export function isCanvasStickerId(value: string): value is CanvasStickerId {
 export function canvasOverlayHasDecor(overlay: CanvasTextOverlayState): boolean {
   return (
     overlay.enabled &&
-    Boolean(overlay.headline.trim() || overlay.subhead.trim())
+    Boolean(
+      overlay.headline.trim() ||
+        overlay.subhead.trim() ||
+        canvasTagItems(overlay).length > 0
+    )
   )
 }
 
@@ -522,6 +583,35 @@ export function normalizeCanvasTextOverlay(
     subRotationDeg: degreesOf("subRotationDeg", degreesOf("rotationDeg", 0)),
     bgColor: str("bgColor", ""),
     subBgColor: str("subBgColor", ""),
+
+    tagShowNew: row.tagShowNew === true,
+    tagShowBrand: row.tagShowBrand === true,
+    tagShowSize: row.tagShowSize === true,
+    tagShowPrice: row.tagShowPrice === true,
+    tagShowVibe: row.tagShowVibe === true,
+    tagNewLabel: str("tagNewLabel", DEFAULT_CANVAS_TEXT_OVERLAY.tagNewLabel),
+    tagBrand: str("tagBrand", ""),
+    tagSize: str("tagSize", ""),
+    tagPrice: str("tagPrice", ""),
+    tagVibe: str("tagVibe", ""),
+    tagFontId:
+      typeof row.tagFontId === "string" && isCanvasTextFontId(row.tagFontId)
+        ? row.tagFontId
+        : DEFAULT_CANVAS_TEXT_OVERLAY.tagFontId,
+    tagColor: str("tagColor", DEFAULT_CANVAS_TEXT_OVERLAY.tagColor),
+    tagFontScale: scaleOf("tagFontScale", DEFAULT_CANVAS_TEXT_OVERLAY.tagFontScale),
+    tagNewX: num("tagNewX", DEFAULT_CANVAS_TEXT_OVERLAY.tagNewX),
+    tagNewY: num("tagNewY", DEFAULT_CANVAS_TEXT_OVERLAY.tagNewY),
+    tagBrandX: num("tagBrandX", DEFAULT_CANVAS_TEXT_OVERLAY.tagBrandX),
+    tagBrandY: num("tagBrandY", DEFAULT_CANVAS_TEXT_OVERLAY.tagBrandY),
+    tagSizeX: num("tagSizeX", DEFAULT_CANVAS_TEXT_OVERLAY.tagSizeX),
+    tagSizeY: num("tagSizeY", DEFAULT_CANVAS_TEXT_OVERLAY.tagSizeY),
+    tagPriceX: num("tagPriceX", DEFAULT_CANVAS_TEXT_OVERLAY.tagPriceX),
+    tagPriceY: num("tagPriceY", DEFAULT_CANVAS_TEXT_OVERLAY.tagPriceY),
+    tagVibeX: num("tagVibeX", DEFAULT_CANVAS_TEXT_OVERLAY.tagVibeX),
+    tagVibeY: num("tagVibeY", DEFAULT_CANVAS_TEXT_OVERLAY.tagVibeY),
+    tagRotationDeg: degreesOf("tagRotationDeg", 0),
+    tagBgColor: str("tagBgColor", DEFAULT_CANVAS_TEXT_OVERLAY.tagBgColor),
 
     textAlign:
 
@@ -1043,11 +1133,54 @@ export function canvasTextAnimationClass(
 
 
 
-export type CanvasTextLayerId = "headline" | "subhead"
+export type CanvasTextLayerId = "headline" | "subhead" | "tags"
+
+/** "$180" from "180"; anything else ("$180", "NZ$180") is kept as typed. */
+function priceLabel(raw: string): string {
+  const value = raw.trim()
+  return /^\d+(?:[.,]\d+)?$/.test(value) ? `$${value}` : value
+}
+
+/** "Sz 10" from "10"; "Size M", "Sz M" and "One size" kept as typed. */
+function sizeLabel(raw: string): string {
+  const value = raw.trim()
+  if (!value) return ""
+  return /^sz\b|\bsize\b/i.test(value) ? value : `Sz ${value}`
+}
+
+/** The item-fact tags, each drawn as its own box. */
+export const CANVAS_TAGS = [
+  { id: "tag_new", show: "tagShowNew", text: "tagNewLabel", x: "tagNewX", y: "tagNewY" },
+  { id: "tag_brand", show: "tagShowBrand", text: "tagBrand", x: "tagBrandX", y: "tagBrandY" },
+  { id: "tag_size", show: "tagShowSize", text: "tagSize", x: "tagSizeX", y: "tagSizeY" },
+  { id: "tag_price", show: "tagShowPrice", text: "tagPrice", x: "tagPriceX", y: "tagPriceY" },
+  { id: "tag_vibe", show: "tagShowVibe", text: "tagVibe", x: "tagVibeX", y: "tagVibeY" },
+] as const
+
+export type CanvasTagId = (typeof CANVAS_TAGS)[number]["id"]
+export type CanvasTagPositionKey = (typeof CANVAS_TAGS)[number]["x" | "y"]
+
+/** Ticked tags with their display text (sizes and prices tidied). */
+export function canvasTagItems(
+  overlay: CanvasTextOverlayState
+): Array<{ id: CanvasTagId; text: string; x: number; y: number }> {
+  return CANVAS_TAGS.flatMap((tag) => {
+    if (!overlay[tag.show]) return []
+    const raw = overlay[tag.text] ?? ""
+    const text =
+      tag.id === "tag_size"
+        ? sizeLabel(raw)
+        : tag.id === "tag_price"
+          ? priceLabel(raw)
+          : raw.trim()
+    if (!text) return []
+    return [{ id: tag.id, text, x: overlay[tag.x] ?? 50, y: overlay[tag.y] ?? 10 }]
+  })
+}
 
 /** One line of on-image text with its own style and placement. */
 export type CanvasTextLayer = {
-  id: CanvasTextLayerId
+  id: Exclude<CanvasTextLayerId, "tags"> | CanvasTagId
   text: string
   fontId: CanvasTextFontId
   color: string
@@ -1096,6 +1229,20 @@ export function canvasTextLayers(
       bgColor: overlay.subBgColor ?? "",
     })
   }
+  // Tags share one style but each sits in its own box.
+  for (const tag of canvasTagItems(overlay)) {
+    layers.push({
+      id: tag.id,
+      text: tag.text,
+      fontId: overlay.tagFontId ?? overlay.fontId,
+      color: overlay.tagColor ?? "#FFFFFF",
+      fontScale: overlay.tagFontScale ?? 0.5,
+      positionX: tag.x,
+      positionY: tag.y,
+      rotationDeg: overlay.tagRotationDeg ?? 0,
+      bgColor: overlay.tagBgColor ?? "",
+    })
+  }
   return layers
 }
 
@@ -1118,6 +1265,15 @@ export const CANVAS_TEXT_LAYER_FIELDS = {
     positionY: "subPositionY",
     rotationDeg: "subRotationDeg",
     bgColor: "subBgColor",
+  },
+  tags: {
+    fontId: "tagFontId",
+    color: "tagColor",
+    fontScale: "tagFontScale",
+    positionX: "tagNewX",
+    positionY: "tagNewY",
+    rotationDeg: "tagRotationDeg",
+    bgColor: "tagBgColor",
   },
 } as const
 

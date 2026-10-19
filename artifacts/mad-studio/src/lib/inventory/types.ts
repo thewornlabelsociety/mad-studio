@@ -75,6 +75,8 @@ export type MarketingCopyDraft = {
     /** Today swipe deck: skipped or archived — hide from pending deck even if still unfeatured. */
     today_deck_status?: "skipped" | "archived" | null
     today_deck_dismissed_at?: string | null
+    /** Picked from Studio's new-arrival suggestions — hide it there. */
+    studio_used_at?: string | null
   }
 }
 

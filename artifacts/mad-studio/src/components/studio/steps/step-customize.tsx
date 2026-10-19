@@ -36,7 +36,10 @@ import { AutoTextarea } from "@/components/studio/auto-textarea"
 import { StepCopyEditor } from "@/components/studio/steps/step-copy-editor"
 import { StudioStepPanel } from "@/components/studio/studio-step-panel"
 
-import { CanvasTextOverlayEditor } from "@/components/studio/canvas-text-overlay"
+import {
+  CanvasTextOverlayEditor,
+  type CanvasItemFacts,
+} from "@/components/studio/canvas-text-overlay"
 import { OnScreenTextPanel } from "@/components/studio/on-screen-text-panel"
 
 import {
@@ -141,6 +144,8 @@ function pickSelectValue(
 export type CustomizeWizardPhase = "intent" | "canvas" | "copy" | "all"
 
 type Props = {
+  /** The item being posted — fills the tags line on the Canvas step. */
+  itemFacts?: CanvasItemFacts | null
 
   phase?: CustomizeWizardPhase
 
@@ -311,6 +316,7 @@ const PHASE_META: Record<
 }
 
 export function StepCustomize({
+  itemFacts = null,
 
   phase = "all",
 
@@ -678,7 +684,6 @@ export function StepCustomize({
   const isIntentWizard = phase === "intent"
   const isCanvasWizard = phase === "canvas"
   const isCopyWizard = phase === "copy"
-  const isFitViewportWizard = isIntentWizard
   // Every wizard step shows the same "N · Step" header.
   const isStepWizard = isIntentWizard || isCanvasWizard || isCopyWizard
   // This brand's colours and headline font (Brand Brain → Visual presets).
@@ -698,7 +703,8 @@ export function StepCustomize({
 
     <StudioStepPanel
       fill
-      scrollBody={!isFitViewportWizard}
+      // Every step scrolls; Intent used to be fixed-height and clipped.
+      scrollBody
       compactHeader={isStepWizard}
       kicker={meta.step}
       title={meta.title}
@@ -951,6 +957,7 @@ export function StepCustomize({
           destinationUrl={destinationUrl}
           swatches={brandSwatches(brandPresets)}
           brandFontId={brandPresets.heading_font_id ?? null}
+          itemFacts={itemFacts}
         />
         </>
 

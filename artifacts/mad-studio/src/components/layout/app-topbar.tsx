@@ -1,14 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "wouter"
 import { usePathname, useRouter } from "@/lib/next-compat"
 import { useTransition } from "react"
-import { Check, ChevronsUpDown, Menu, Plus, User } from "lucide-react"
+import { Brain, Check, ChevronsUpDown, Menu, Plus, User } from "lucide-react"
 
 import { setActiveEntity, signOut } from "@/lib/actions"
 import { useStudioNavLinks } from "@/components/layout/app-sidebar"
 import { MadFavicon } from "@/components/brand/mad-logo"
+import { BrainDrawer } from "@/components/brain/brain-drawer"
 import { TeamSopGuideDrawer, TeamSopGuideSheet } from "@/components/studio/sop-guide-drawer"
 import { Button } from "@/components/ui/button"
 import {
@@ -140,6 +141,46 @@ export function AppTopbar({
     : ""
 
   const navItems = useStudioNavLinks(entities, activeEntityId)
+  const [brainOpen, setBrainOpen] = useState(false)
+  const activeEntity =
+    entities.find((entity) => entity.id === activeEntityId) ?? null
+
+  // Ctrl+B / Cmd+B opens the Brand Brain from any page.
+  useEffect(() => {
+    if (!activeEntity) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.shiftKey &&
+        !event.altKey &&
+        event.key.toLowerCase() === "b"
+      ) {
+        event.preventDefault()
+        setBrainOpen((open) => !open)
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [activeEntity])
+
+  const brainButton = (className?: string) =>
+    activeEntity ? (
+      <button
+        type="button"
+        onClick={() => setBrainOpen((open) => !open)}
+        aria-pressed={brainOpen}
+        title="Brand Brain (Ctrl+B)"
+        className={cn(
+          "inline-flex items-center gap-1.5 border-2 border-mad-black px-2.5 py-1.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors hover:bg-mad-lime",
+          brainOpen ? "bg-mad-lime" : "bg-mad-white",
+          className
+        )}
+      >
+        <Brain className="size-3.5 shrink-0" aria-hidden />
+        <span className="hidden md:inline">Brand Brain</span>
+        <span className="sr-only md:hidden">Brand Brain</span>
+      </button>
+    ) : null
 
   function isActive(match: string | string[]) {
     return isStudioNavActive(pathname, match)
@@ -148,6 +189,15 @@ export function AppTopbar({
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200 bg-mad-white md:border-b">
       <TeamSopGuideSheet open={sopSheetOpen} onOpenChange={setSopSheetOpen} />
+      {activeEntity ? (
+        <BrainDrawer
+          open={brainOpen}
+          onOpenChange={setBrainOpen}
+          entityId={activeEntity.id}
+          entityName={activeEntity.name}
+          industry={activeEntity.industry ?? ""}
+        />
+      ) : null}
 
       <div className="flex w-full items-center justify-between gap-2 px-2 py-2 md:hidden">
         <Link
@@ -164,6 +214,7 @@ export function AppTopbar({
             className="max-w-[min(100%,11rem)]"
           />
         </div>
+        {brainButton("h-8 px-2")}
         <MobileNav
           navItems={navItems}
           isActive={isActive}
@@ -190,6 +241,7 @@ export function AppTopbar({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {brainButton()}
           <TeamSopGuideDrawer className="hidden md:inline-flex" />
           <AccountMenu
             userEmail={userEmail}
