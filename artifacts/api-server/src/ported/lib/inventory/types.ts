@@ -48,9 +48,33 @@ export type MarketingCopyDraft = {
     original_id?: string | null
     item_type?: string | null
     location?: string | null
+    /** Operator override for Today / workbench drop badge (FÜDI). */
     drop_kind?: string | null
+    /** Operator override for channel hint chip, e.g. TikTok / IG Story. */
     channel_hint?: string | null
+    /** Operator override for listing vibe (hooks + tags). */
     listing_vibe?: string | null
+    /** On-image text styling (position, font, colors) for publish preview. */
+    canvas_text_overlay?: unknown
+    /**
+     * Operator-set post details. Kept apart from the synced listing columns so
+     * a website re-sync never overwrites what was approved for posting.
+     */
+    post_brand?: string | null
+    post_size?: string | null
+    post_description?: string | null
+    post_description_approved_at?: string | null
+    /** Last story template picked in the Story maker. */
+    story_template?: "cutout" | "full_page" | null
+    /** Background-removed PNG for the Cutout story template. */
+    cutout_url?: string | null
+    /** Intake channel for Today badges (mobile_drop, auto_trigger, …). */
+    origin?: string | null
+    sender?: string | null
+    auto_template?: string | null
+    /** Today swipe deck: skipped or archived — hide from pending deck even if still unfeatured. */
+    today_deck_status?: "skipped" | "archived" | null
+    today_deck_dismissed_at?: string | null
   }
 }
 
@@ -188,6 +212,15 @@ function parseCopyDraftMetadata(
   const drop_kind = str("drop_kind")
   const channel_hint = str("channel_hint")
   const listing_vibe = str("listing_vibe")
+  const post_brand = str("post_brand")
+  const post_size = str("post_size")
+  const post_description = str("post_description")
+  const post_description_approved_at = str("post_description_approved_at")
+  const story_template =
+    record.story_template === "cutout" || record.story_template === "full_page"
+      ? record.story_template
+      : undefined
+  const cutout_url = str("cutout_url")
   if (
     !target_url &&
     !source_table &&
@@ -196,7 +229,13 @@ function parseCopyDraftMetadata(
     !location &&
     !drop_kind &&
     !channel_hint &&
-    !listing_vibe
+    !listing_vibe &&
+    !post_brand &&
+    !post_size &&
+    !post_description &&
+    !post_description_approved_at &&
+    !story_template &&
+    !cutout_url
   ) {
     return undefined
   }
@@ -209,6 +248,12 @@ function parseCopyDraftMetadata(
     drop_kind: drop_kind ?? null,
     channel_hint: channel_hint ?? null,
     listing_vibe: listing_vibe ?? null,
+    post_brand: post_brand ?? null,
+    post_size: post_size ?? null,
+    post_description: post_description ?? null,
+    post_description_approved_at: post_description_approved_at ?? null,
+    story_template: story_template ?? null,
+    cutout_url: cutout_url ?? null,
   }
 }
 

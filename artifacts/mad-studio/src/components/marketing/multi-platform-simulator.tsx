@@ -28,6 +28,7 @@ import { toast } from "sonner"
 import { ensureInventoryTrackableLink } from "@/lib/actions"
 import {
   StoryCanvas,
+  storyExportFilter,
   type CutoutMode,
 } from "@/components/marketing/story-canvas"
 import {
@@ -1018,6 +1019,7 @@ export function MultiPlatformSimulator({
 
       if (!node) return
       const dataUrl = await toPng(node, {
+        filter: storyExportFilter,
         cacheBust: true,
         pixelRatio: 3,
         width: node.offsetWidth,
@@ -1402,7 +1404,8 @@ export function MultiPlatformSimulator({
               <SelectValue placeholder="Style" />
             </SelectTrigger>
             <SelectContent className="rounded-none border-2 border-mad-black">
-              <SelectItem value="moody_noir">Clean</SelectItem>
+              <SelectItem value="moody_noir">Cutout</SelectItem>
+              <SelectItem value="full_page">Full page</SelectItem>
               <SelectItem value="magazine_editorial">Editorial</SelectItem>
             </SelectContent>
           </Select>

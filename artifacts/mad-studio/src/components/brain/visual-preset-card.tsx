@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { StudioEntityDna } from "@/lib/campaigns/entity-dna"
-import type { VisualPresets } from "@/lib/entities/dna-schema"
+import type { LogoCorner, VisualPresets } from "@/lib/entities/dna-schema"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -203,7 +203,135 @@ export function VisualPresetCard({ entity, className }: Props) {
           </Select>
         </div>
       </div>
+
+      <LogoField
+        entityId={entity.id}
+        logoUrl={draft.logo_url ?? null}
+        corner={draft.logo_corner ?? "top_left"}
+        onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
+      />
     </section>
+  )
+}
+
+const LOGO_CORNERS: Array<{ id: LogoCorner; label: string }> = [
+  { id: "top_left", label: "Top left" },
+  { id: "top_right", label: "Top right" },
+  { id: "bottom_left", label: "Bottom left" },
+  { id: "bottom_right", label: "Bottom right" },
+]
+
+/** Optional: this brand's logo, offered as an "Add logo" switch on stories. */
+function LogoField({
+  entityId,
+  logoUrl,
+  corner,
+  onChange,
+}: {
+  entityId: string
+  logoUrl: string | null
+  corner: LogoCorner
+  onChange: (patch: Partial<VisualPresets>) => void
+}) {
+  const [uploading, setUploading] = useState(false)
+
+  async function upload(file: File) {
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.set("file", file)
+      form.set("entityId", entityId)
+      const response = await fetch("/api/media/upload-logo", {
+        method: "POST",
+        body: form,
+      })
+      const payload = (await response.json()) as {
+        logoUrl?: string
+        error?: string
+      }
+      if (!response.ok || !payload.logoUrl) {
+        throw new Error(payload.error || "Logo upload failed.")
+      }
+      onChange({ logo_url: payload.logoUrl })
+      toast.success("Logo uploaded — press Save presets to keep it.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Logo upload failed.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="grid gap-3 border-t border-neutral-200 pt-4 sm:grid-cols-[120px_1fr]">
+      <div className="flex aspect-square items-center justify-center border-2 border-dashed border-neutral-300 bg-neutral-50 p-2">
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt="Brand logo" className="max-h-full max-w-full object-contain" />
+        ) : (
+          <span className="text-center text-[0.65rem] text-neutral-400">
+            No logo
+          </span>
+        )}
+      </div>
+      <div className="space-y-2">
+        <div>
+          <Label className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+            Logo (optional)
+          </Label>
+          <p className="mt-1 text-xs text-neutral-600">
+            Stories can add it in a corner when you switch on &quot;Add
+            logo&quot;. A transparent PNG works best.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-1.5 border-2 border-mad-black bg-mad-white px-3 py-1.5 font-typewriter text-[0.6rem] font-bold uppercase hover:bg-mad-lime/50">
+            {uploading ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            {logoUrl ? "Replace" : "Upload logo"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className="sr-only"
+              disabled={uploading}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) void upload(file)
+                event.target.value = ""
+              }}
+            />
+          </label>
+          {logoUrl ? (
+            <button
+              type="button"
+              onClick={() => onChange({ logo_url: undefined })}
+              className="font-typewriter text-[0.6rem] font-bold uppercase text-neutral-500 underline hover:text-mad-black"
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+        {logoUrl ? (
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Logo corner">
+            {LOGO_CORNERS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={corner === option.id}
+                onClick={() => onChange({ logo_corner: option.id })}
+                className={cn(
+                  "border-2 px-2 py-1 font-typewriter text-[0.55rem] font-bold uppercase",
+                  corner === option.id
+                    ? "border-mad-black bg-mad-black text-mad-white"
+                    : "border-neutral-300 text-neutral-600 hover:border-mad-black"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
   )
 }
 

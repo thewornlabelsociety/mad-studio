@@ -10,7 +10,7 @@ import {
   type StoryFormat,
   type StoryStylePreset,
 } from "@/lib/marketing/story-presets"
-import type { VisualPresets } from "@/lib/entities/dna-schema"
+import type { LogoCorner, VisualPresets } from "@/lib/entities/dna-schema"
 import { cssFontStack } from "@/lib/brands/visual-presets"
 import { cn } from "@/lib/utils"
 
@@ -26,6 +26,8 @@ type StoryCanvasProps = {
   floatCutout?: boolean
   cutoutMode?: CutoutMode
   visualPresets?: VisualPresets | null
+  /** Stamp the brand's own logo (from Brand Brain) in its chosen corner. */
+  showLogo?: boolean
   className?: string
 }
 
@@ -39,6 +41,7 @@ export const StoryCanvas = forwardRef<HTMLDivElement, StoryCanvasProps>(
       floatCutout,
       cutoutMode,
       visualPresets = null,
+      showLogo = false,
       className,
     },
     ref
@@ -84,6 +87,13 @@ export const StoryCanvas = forwardRef<HTMLDivElement, StoryCanvasProps>(
             visualPresets={visualPresets}
           />
         ) : null}
+        {stylePreset === "full_page" ? (
+          <FullPage
+            model={model}
+            canvasColor={canvasColor}
+            visualPresets={visualPresets}
+          />
+        ) : null}
         {stylePreset === "magazine_editorial" ? (
           <MagazineEditorial
             model={model}
@@ -92,10 +102,62 @@ export const StoryCanvas = forwardRef<HTMLDivElement, StoryCanvasProps>(
             visualPresets={visualPresets}
           />
         ) : null}
+        {showLogo && visualPresets?.logo_url ? (
+          <BrandLogo
+            src={visualPresets.logo_url}
+            corner={visualPresets.logo_corner ?? "top_left"}
+          />
+        ) : null}
       </div>
     )
   }
 )
+
+const LOGO_CORNER_CLASS: Record<LogoCorner, string> = {
+  top_left: "left-[5%] top-[4%]",
+  top_right: "right-[5%] top-[4%]",
+  bottom_left: "bottom-[4%] left-[5%]",
+  bottom_right: "bottom-[4%] right-[5%]",
+}
+
+/** The brand's own logo, small and clear of Instagram's top bar. */
+function BrandLogo({ src, corner }: { src: string; corner: LogoCorner }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      crossOrigin="anonymous"
+      className={cn(
+        "pointer-events-none absolute z-20 h-[6%] max-w-[30%] object-contain",
+        LOGO_CORNER_CLASS[corner]
+      )}
+    />
+  )
+}
+
+/**
+ * Where the real link sticker goes once the story is on the phone. Preview
+ * only: exports skip anything marked data-export-ignore, so no fake sticker
+ * is baked into the image.
+ */
+function LinkStickerGuide({ label, color }: { label: string; color: string }) {
+  return (
+    <div
+      data-export-ignore="true"
+      className="inline-flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[0.6rem] font-semibold tracking-wide uppercase"
+      style={{ borderColor: `${color}99`, color }}
+    >
+      <span aria-hidden>🔗</span>
+      {label} · add on phone
+    </div>
+  )
+}
+
+/** Export filter for html-to-image: drop preview-only guides. */
+export function storyExportFilter(node: HTMLElement): boolean {
+  return node.dataset?.exportIgnore !== "true"
+}
 
 function ProductImage({
   src,
@@ -169,15 +231,6 @@ function ProductImage({
   )
 }
 
-function StickerPill({ label }: { label: string }) {
-  return (
-    <div className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-[0.65rem] font-bold tracking-wide text-neutral-900 uppercase shadow-sm ring-1 ring-black/10">
-      <span aria-hidden>🔗</span>
-      {label}
-    </div>
-  )
-}
-
 function resolveTheme(
   stylePreset: StoryStylePreset,
   canvasColor: string | null | undefined,
@@ -191,6 +244,11 @@ function resolveTheme(
       canvas: "#121211",
       text: "#EDECE8",
       accent: "#0F3B2E",
+    },
+    full_page: {
+      canvas: "#121211",
+      text: "#FFFFFF",
+      accent: "#FFFFFF",
     },
     magazine_editorial: {
       canvas: "#FFFFFF",
@@ -215,14 +273,16 @@ function resolveTheme(
   }
 }
 
-/** Shared caption for Clean style: Brand · Category · Size only. */
+/** Shared caption for the Cutout style: Brand · Category · Size only. */
 function StoryCopyBlock({
   model,
   visualPresets,
+  accent,
   className,
 }: {
   model: StoryCanvasModel
   visualPresets?: VisualPresets | null
+  accent: string
   className?: string
 }) {
   const category =
@@ -232,6 +292,11 @@ function StoryCopyBlock({
 
   return (
     <div className={cn("space-y-1 text-center", className)}>
+      <span
+        aria-hidden
+        className="mx-auto mb-2 block h-px w-8"
+        style={{ background: accent }}
+      />
       <p className="text-[0.6rem] font-semibold tracking-[0.2em] uppercase opacity-70">
         {model.designer}
       </p>
@@ -267,7 +332,7 @@ function MoodyNoir({
   canvasColor?: string | null
   visualPresets?: VisualPresets | null
 }) {
-  const { canvas, text } = resolveTheme(
+  const { canvas, text, accent } = resolveTheme(
     "moody_noir",
     canvasColor,
     visualPresets
@@ -290,11 +355,88 @@ function MoodyNoir({
       <StoryCopyBlock
         model={model}
         visualPresets={visualPresets}
+        accent={accent}
         className="mt-3"
       />
 
       <div className="mt-4 flex justify-center">
-        <StickerPill label={model.stickerLabel || "Shop the look"} />
+        <LinkStickerGuide
+          label={model.stickerLabel || "Shop the look"}
+          color={text}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** Photo fills the frame; a band in the brand's colours carries brand · size. */
+function FullPage({
+  model,
+  canvasColor,
+  visualPresets,
+}: {
+  model: StoryCanvasModel
+  canvasColor?: string | null
+  visualPresets?: VisualPresets | null
+}) {
+  const { canvas, text, accent } = resolveTheme(
+    "full_page",
+    canvasColor,
+    visualPresets
+  )
+  const font = visualPresets
+    ? cssFontStack(visualPresets.font_family)
+    : "Georgia, serif"
+  const category =
+    model.productLabel ||
+    conciseProductLabel(model.headline || model.title, model.designer)
+
+  return (
+    <div className="absolute inset-0" style={{ background: canvas }}>
+      <ProductImage
+        src={model.imageUrl}
+        alt={model.title}
+        fit="cover"
+        className="absolute inset-0"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-[45%]"
+        style={{
+          background: `linear-gradient(to top, ${canvas}F2 0%, ${canvas}B3 45%, transparent 100%)`,
+        }}
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-1 px-5 pb-24"
+        style={{ color: text }}
+      >
+        <span
+          aria-hidden
+          className="mb-1 block h-0.5 w-8"
+          style={{ background: accent }}
+        />
+        <p className="text-[0.6rem] font-semibold tracking-[0.22em] uppercase opacity-80">
+          {model.designer}
+        </p>
+        {category ? (
+          <h3
+            className="text-xl leading-tight"
+            style={{ fontFamily: font }}
+          >
+            {category}
+          </h3>
+        ) : null}
+        {model.sizeLabel ? (
+          <p className="text-[0.65rem] tracking-[0.16em] uppercase opacity-80">
+            Size {model.sizeLabel}
+          </p>
+        ) : null}
+      </div>
+      <div className="absolute inset-x-0 bottom-[6%] flex justify-center">
+        <LinkStickerGuide
+          label={model.stickerLabel || "Shop the look"}
+          color={text}
+        />
       </div>
     </div>
   )
@@ -373,7 +515,10 @@ function MagazineEditorial({
         className="flex items-center justify-end gap-3 border-t px-4 py-4"
         style={{ borderColor: `${text}26` }}
       >
-        <StickerPill label={model.stickerLabel || "Shop the look"} />
+        <LinkStickerGuide
+          label={model.stickerLabel || "Shop the look"}
+          color={text}
+        />
       </div>
     </div>
   )

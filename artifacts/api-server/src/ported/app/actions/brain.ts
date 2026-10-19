@@ -13,6 +13,7 @@ import {
   entityDnaSchema,
   type AudienceSegment,
   type BrandIdentity,
+  type LogoCorner,
   type EntityDna,
 } from "@/lib/entities/dna-schema"
 import type { Json } from "@/lib/database.types"
@@ -112,6 +113,8 @@ export async function saveVisualPresets(input: {
     accent_color: string
     text_color: string
     font_family: string
+    logo_url?: string
+    logo_corner?: LogoCorner
   }
 }): Promise<ActionResult<{ brandIdentity: BrandIdentity }>> {
   const auth = await assertCanEdit(input.entityId)
@@ -148,6 +151,8 @@ export async function saveVisualPresets(input: {
     vibes: Array.isArray(current.vibes) ? current.vibes : [],
     tagline: typeof current.tagline === "string" ? current.tagline : "",
     visual_presets: input.visualPresets,
+    // Keep the saved hook/visual formulas; leaving this out wiped them.
+    formula_bank: current.formula_bank,
   })
 
   if (!parsed.success) {

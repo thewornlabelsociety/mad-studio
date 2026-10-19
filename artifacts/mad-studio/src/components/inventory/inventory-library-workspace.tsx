@@ -7,6 +7,8 @@ import {
   StudioDetailDrawer,
   StudioMasterDetailLayout,
 } from "@/components/layout/studio-master-detail"
+import type { VisualPresets } from "@/lib/entities/dna-schema"
+import { getPostReadiness } from "@/lib/inventory/post-readiness"
 import {
   formatInventoryPrice,
   type MarketingEntity,
@@ -17,8 +19,14 @@ type Props = {
   entityId: string
   brandName: string
   websiteUrl?: string | null
+  industry?: string | null
+  visualPresets: VisualPresets
+  /** Fashion brands need a size before an item counts as ready. */
+  requireSize: boolean
   items: MarketingEntity[]
 }
+
+type Filter = "all" | "ready" | "needs"
 
 const STATUS_DOT: Record<string, string> = {
   unfeatured: "bg-neutral-400",
@@ -32,14 +40,47 @@ export function InventoryLibraryWorkspace({
   entityId,
   brandName,
   websiteUrl = null,
-  items,
+  industry = null,
+  visualPresets,
+  requireSize,
+  items: initialItems,
 }: Props) {
+  const [items, setItems] = useState(initialItems)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [filter, setFilter] = useState<Filter>("all")
+
+  useEffect(() => setItems(initialItems), [initialItems])
+
+  const readyById = useMemo(() => {
+    const map = new Map<string, boolean>()
+    for (const item of items) {
+      map.set(
+        item.id,
+        getPostReadiness({ item, entityId, websiteUrl, requireSize }).ready
+      )
+    }
+    return map
+  }, [items, entityId, websiteUrl, requireSize])
+
+  const readyCount = [...readyById.values()].filter(Boolean).length
+  const visible = items.filter((item) =>
+    filter === "all"
+      ? true
+      : filter === "ready"
+        ? readyById.get(item.id)
+        : !readyById.get(item.id)
+  )
 
   const selected = useMemo(
     () => items.find((item) => item.id === selectedId) ?? null,
     [items, selectedId]
   )
+
+  function onItemChange(next: MarketingEntity) {
+    setItems((current) =>
+      current.map((row) => (row.id === next.id ? next : row))
+    )
+  }
 
   useEffect(() => {
     if (!selectedId) return
@@ -63,15 +104,17 @@ export function InventoryLibraryWorkspace({
           No library items yet
         </p>
         <p className="mt-2 text-sm text-neutral-600">
-          Pull intake from the button above, or sync website catalog via{" "}
-          <code className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs">
-            /api/sync/website
-          </code>
-          .
+          Pull new arrivals from the button above to bring in your latest stock.
         </p>
       </div>
     )
   }
+
+  const filters: Array<{ id: Filter; label: string }> = [
+    { id: "all", label: `All (${items.length})` },
+    { id: "ready", label: `Ready (${readyCount})` },
+    { id: "needs", label: `Needs details (${items.length - readyCount})` },
+  ]
 
   return (
     <StudioMasterDetailLayout
@@ -79,61 +122,97 @@ export function InventoryLibraryWorkspace({
       className="min-h-0 flex-1"
       mainClassName="px-0 pb-6 lg:pr-2"
       main={
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-          {items.map((item) => {
-            const thumb = item.images[0]
-            const active = item.id === selectedId
-            return (
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter library">
+            {filters.map((option) => (
               <button
-                key={item.id}
+                key={option.id}
                 type="button"
-                onClick={() =>
-                  setSelectedId((current) =>
-                    current === item.id ? null : item.id
-                  )
-                }
+                role="tab"
+                aria-selected={filter === option.id}
+                onClick={() => setFilter(option.id)}
                 className={cn(
-                  "group overflow-hidden rounded-xl border bg-white text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mad-black focus-visible:ring-offset-2",
-                  active
-                    ? "border-mad-black ring-2 ring-mad-black ring-offset-2"
-                    : "border-neutral-200"
+                  "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  filter === option.id
+                    ? "border-mad-black bg-mad-black text-mad-white"
+                    : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500"
                 )}
               >
-                <div className="relative aspect-square bg-neutral-100">
-                  {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={thumb}
-                      alt=""
-                      className="size-full object-cover transition-transform group-hover:scale-[1.02]"
-                    />
-                  ) : (
-                    <div className="flex size-full items-center justify-center text-[0.65rem] text-neutral-400">
-                      No media
-                    </div>
-                  )}
-                  <span
-                    className={cn(
-                      "absolute left-2 top-2 size-2 rounded-full ring-2 ring-white",
-                      STATUS_DOT[item.status] ?? STATUS_DOT.unfeatured
-                    )}
-                    title={item.status}
-                  />
-                </div>
-                <div className="space-y-0.5 p-2.5">
-                  <p className="line-clamp-2 text-sm font-medium leading-snug text-mad-black">
-                    {item.title}
-                  </p>
-                  <p className="truncate text-xs text-neutral-500">
-                    {formatInventoryPrice(item.price)}
-                    {item.status !== "unfeatured"
-                      ? ` · ${item.status}`
-                      : ""}
-                  </p>
-                </div>
+                {option.label}
               </button>
-            )
-          })}
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            {visible.map((item) => {
+              const thumb = item.images[0]
+              const active = item.id === selectedId
+              const ready = readyById.get(item.id)
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() =>
+                    setSelectedId((current) =>
+                      current === item.id ? null : item.id
+                    )
+                  }
+                  className={cn(
+                    "group overflow-hidden rounded-xl border bg-white text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mad-black focus-visible:ring-offset-2",
+                    active
+                      ? "border-mad-black ring-2 ring-mad-black ring-offset-2"
+                      : "border-neutral-200"
+                  )}
+                >
+                  <div className="relative aspect-square bg-neutral-100">
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumb}
+                        alt=""
+                        className="size-full object-cover transition-transform group-hover:scale-[1.02]"
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center text-[0.65rem] text-neutral-400">
+                        No media
+                      </div>
+                    )}
+                    <span
+                      className={cn(
+                        "absolute left-2 top-2 size-2 rounded-full ring-2 ring-white",
+                        STATUS_DOT[item.status] ?? STATUS_DOT.unfeatured
+                      )}
+                      title={item.status}
+                    />
+                    <span
+                      className={cn(
+                        "absolute right-2 top-2 rounded-full px-2 py-0.5 text-[0.6rem] font-semibold tracking-wide uppercase shadow-sm",
+                        ready
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-white/90 text-amber-800"
+                      )}
+                    >
+                      {ready ? "Ready" : "Needs details"}
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 p-2.5">
+                    <p className="line-clamp-2 text-sm font-medium leading-snug text-mad-black">
+                      {item.title}
+                    </p>
+                    <p className="truncate text-xs text-neutral-500">
+                      {formatInventoryPrice(item.price)}
+                      {item.status !== "unfeatured"
+                        ? ` · ${item.status}`
+                        : ""}
+                    </p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          {visible.length === 0 ? (
+            <p className="text-sm text-neutral-500">Nothing here yet.</p>
+          ) : null}
         </div>
       }
       detail={
@@ -157,6 +236,10 @@ export function InventoryLibraryWorkspace({
               entityId={entityId}
               brandName={brandName}
               websiteUrl={websiteUrl}
+              industry={industry}
+              visualPresets={visualPresets}
+              requireSize={requireSize}
+              onItemChange={onItemChange}
             />
           </StudioDetailDrawer>
         ) : null

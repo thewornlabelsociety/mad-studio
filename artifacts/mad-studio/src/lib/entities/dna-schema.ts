@@ -37,7 +37,14 @@ export const visualPresetsSchema = z.object({
     .describe(
       "Dominant type vibe: serif, sans, mono, or a CSS font-family stack"
     ),
+  /** This brand's own logo (not MAD Studio's), stamped on story graphics. */
+  logo_url: z.string().optional(),
+  logo_corner: z
+    .enum(["top_left", "top_right", "bottom_left", "bottom_right"])
+    .optional(),
 })
+
+export type LogoCorner = NonNullable<VisualPresets["logo_corner"]>
 
 export type VisualPresets = z.infer<typeof visualPresetsSchema>
 

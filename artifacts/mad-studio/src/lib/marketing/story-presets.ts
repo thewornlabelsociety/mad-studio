@@ -33,6 +33,7 @@ function fudiShortTitle(raw: string, venue?: string | null): string {
 
 export const STORY_STYLE_PRESETS = [
   "moody_noir",
+  "full_page",
   "magazine_editorial",
 ] as const
 
@@ -45,8 +46,13 @@ export const STORY_STYLE_OPTIONS: Array<{
 }> = [
   {
     id: "moody_noir",
-    label: "Clean",
-    description: "Deep canvas, cutout subject, brand · category · size",
+    label: "Cutout",
+    description: "Item cut out on your brand colour, brand · category · size",
+  },
+  {
+    id: "full_page",
+    label: "Full page",
+    description: "Photo fills the screen, slim band with brand · size",
   },
   {
     id: "magazine_editorial",
@@ -193,7 +199,10 @@ export function buildStoryCanvasModel(input: {
     profile,
     `${input.item.title} ${input.item.description ?? ""} ${input.headline ?? ""}`
   )
-  const designer = input.item.brand?.trim() || input.brandName
+  const designer =
+    input.item.copy_draft?.metadata?.post_brand?.trim() ||
+    input.item.brand?.trim() ||
+    input.brandName
   const category =
     vibeTag ||
     profile.contentPillars[0] ||
@@ -306,8 +315,11 @@ export function isDarkCanvas(hex: string): boolean {
   return luma < 0.45
 }
 
-function extractSizeLabel(item: MarketingEntity): string | null {
+export function extractSizeLabel(item: MarketingEntity): string | null {
+  const override = item.copy_draft?.metadata?.post_size?.trim()
+  if (override) return override.toUpperCase()
   const haystack = `${item.title} ${item.description ?? ""}`
+  if (/\bone[\s-]?size\b|\bOSFA\b/i.test(haystack)) return "ONE SIZE"
   const labeled = haystack.match(/\bSize[:\s]*([A-Za-z0-9./\-]+)/i)
   if (labeled?.[1]) return labeled[1].toUpperCase()
   const bare = haystack.match(/\b(XXS|XS|S|M|L|XL|XXL|2XL|3XL)\b/i)

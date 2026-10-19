@@ -77,5 +77,7 @@ export function resolveVisualPresets(input: {
     ),
     text_color: normalizeHexColor(parsed.data.text_color, fallback.text_color),
     font_family: parsed.data.font_family || fallback.font_family,
+    logo_url: parsed.data.logo_url?.trim() || undefined,
+    logo_corner: parsed.data.logo_corner,
   }
 }

@@ -7,7 +7,10 @@ import {
   RepurposeButton,
   RemoveIntakeButton,
 } from "@/components/inventory/inventory-list-actions"
+import { ItemPostDetails } from "@/components/inventory/item-post-details"
+import { StoryMaker } from "@/components/inventory/story-maker"
 import { Button } from "@/components/ui/button"
+import type { VisualPresets } from "@/lib/entities/dna-schema"
 import {
   formatInventoryPrice,
   type MarketingEntity,
@@ -51,6 +54,10 @@ type Props = {
   entityId: string
   brandName: string
   websiteUrl?: string | null
+  industry?: string | null
+  visualPresets: VisualPresets
+  requireSize: boolean
+  onItemChange: (item: MarketingEntity) => void
 }
 
 export function InventoryItemInspector({
@@ -58,6 +65,10 @@ export function InventoryItemInspector({
   entityId,
   brandName,
   websiteUrl = null,
+  industry = null,
+  visualPresets,
+  requireSize,
+  onItemChange,
 }: Props) {
   const thumb = item.images[0]
   const caption = resolveCaption(item)
@@ -79,7 +90,7 @@ export function InventoryItemInspector({
   const isScheduled = item.status === "scheduled"
 
   return (
-    <div className="flex flex-col gap-5 px-4 py-4">
+    <div className="flex min-w-0 flex-col gap-5 overflow-x-hidden px-4 py-4">
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -113,20 +124,29 @@ export function InventoryItemInspector({
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
-        {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumb}
-            alt=""
-            className="aspect-[4/5] w-full object-cover"
-          />
-        ) : (
-          <div className="flex aspect-[4/5] items-center justify-center text-sm text-neutral-400">
-            No media
-          </div>
-        )}
-      </div>
+      <ItemPostDetails
+        item={item}
+        entityId={entityId}
+        websiteUrl={websiteUrl}
+        requireSize={requireSize}
+        onItemChange={onItemChange}
+      />
+
+      {thumb ? (
+        <StoryMaker
+          item={item}
+          entityId={entityId}
+          brandName={brandName}
+          industry={industry}
+          websiteUrl={websiteUrl}
+          visualPresets={visualPresets}
+          onItemChange={onItemChange}
+        />
+      ) : (
+        <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-sm text-neutral-400">
+          No media
+        </div>
+      )}
 
       {(isPublished || isScheduled || views > 0) && (
         <dl className="grid grid-cols-2 gap-3 rounded-lg border border-neutral-200 bg-neutral-50/80 p-3 text-sm">

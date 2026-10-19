@@ -32,6 +32,7 @@ import * as imageProxy from "../ported/app/api/media/image-proxy/route";
 import * as inspect from "../ported/app/api/media/inspect/route";
 import * as removeBackground from "../ported/app/api/media/remove-bg/route";
 import * as uploadCutout from "../ported/app/api/media/upload-cutout/route";
+import * as uploadLogo from "../ported/app/api/media/upload-logo/route";
 import * as publish from "../ported/app/api/social/publish/route";
 import * as verifySocial from "../ported/app/api/social/verify/route";
 import * as pullArrivals from "../ported/app/api/sync/pull-new-arrivals/route";
@@ -177,6 +178,7 @@ router.get("/api/media/image-proxy", webHandler(method(imageProxy, "GET"), false
 router.post("/api/media/inspect", webHandler(method(inspect, "POST")));
 router.post("/api/media/remove-bg", webHandler(method(removeBackground, "POST")));
 router.post("/api/media/upload-cutout", webHandler(method(uploadCutout, "POST")));
+router.post("/api/media/upload-logo", webHandler(method(uploadLogo, "POST")));
 router.post("/api/social/publish", webHandler(method(publish, "POST")));
 router.get("/api/social/verify", webHandler(method(verifySocial, "GET"), false));
 router.post("/api/sync/pull-new-arrivals", webHandler(method(pullArrivals, "POST")));
