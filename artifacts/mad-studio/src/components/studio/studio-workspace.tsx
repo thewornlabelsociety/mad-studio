@@ -144,6 +144,7 @@ import { saveCanvasLayouts } from "@/lib/actions"
 import { NewArrivalSuggestions } from "@/components/studio/new-arrival-suggestions"
 import {
   fetchItemFacts,
+  fetchItemsForStudio,
   SUGGESTED_FORMAT_LABELS,
   type NewArrivalSuggestion,
 } from "@/lib/studio/new-arrival-suggestions"
@@ -588,6 +589,56 @@ export function StudioWorkspace({
   const isFashionBrand = brandProfileId === "worn_label"
   const mediaAssetsRef = useRef(mediaAssets)
   mediaAssetsRef.current = mediaAssets
+
+  // Build from Today's Brain team: ?items=a,b,c&format=carousel loads those
+  // items — one photo each, or every photo when it's a single item.
+  const builtFromTeam = useRef(false)
+  useEffect(() => {
+    if (builtFromTeam.current || rehydrating) return
+    const raw = searchParams.get("items")?.trim()
+    if (!raw) return
+    builtFromTeam.current = true
+    const ids = raw.split(",").map((id) => id.trim()).filter(Boolean).slice(0, 10)
+    const format = searchParams.get("format")
+    void fetchItemsForStudio(ids, isFashionBrand)
+      .then((rows) => {
+        const assets: MediaAsset[] = []
+        const facts: Record<string, CanvasItemFacts> = {}
+        for (const row of rows) {
+          const media = row.media.filter((m) =>
+            format === "reel" ? m.kind === "video" : m.kind !== "video"
+          )
+          const chosen =
+            rows.length === 1 && format === "carousel" ? media : media.slice(0, 1)
+          chosen.forEach((m, index) => {
+            const id = `team-${row.item.id}-${index}`
+            assets.push({ id, url: m.url, publicUrl: m.url, type: m.kind })
+            facts[id] = row.facts
+          })
+        }
+        if (assets.length === 0) {
+          toast.error("Those items have no photos to use.")
+          return
+        }
+        const tray = assets.slice(0, 10)
+        onMediaAssetsChange(tray)
+        setActiveMediaId(tray[0].id)
+        setSlideFacts(facts)
+        setSimPlatform(format === "story" ? "ig_story" : "ig_feed")
+        // Tidy the address without a router navigation (that would remount
+        // Studio and empty the tray we just filled).
+        const params = new URLSearchParams(window.location.search)
+        params.delete("items")
+        params.delete("format")
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `/studio?${params.toString()}`
+        )
+      })
+      .catch(() => toast.error("Couldn't load those items."))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rehydrating])
 
   function applyNewArrival(suggestion: NewArrivalSuggestion) {
     const all: MediaAsset[] = suggestion.media.map((row, index) => ({

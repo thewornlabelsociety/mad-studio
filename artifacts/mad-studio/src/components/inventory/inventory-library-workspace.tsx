@@ -24,6 +24,8 @@ type Props = {
   /** Fashion brands need a size before an item counts as ready. */
   requireSize: boolean
   items: MarketingEntity[]
+  /** Open this item's details on load (e.g. from the Merchandiser's Fix link). */
+  initialSelectedId?: string | null
 }
 
 type Filter = "all" | "ready" | "needs"
@@ -44,9 +46,10 @@ export function InventoryLibraryWorkspace({
   visualPresets,
   requireSize,
   items: initialItems,
+  initialSelectedId = null,
 }: Props) {
   const [items, setItems] = useState(initialItems)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId)
   const [filter, setFilter] = useState<Filter>("all")
 
   useEffect(() => setItems(initialItems), [initialItems])

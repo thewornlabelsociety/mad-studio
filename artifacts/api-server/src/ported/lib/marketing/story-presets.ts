@@ -259,7 +259,7 @@ export function isDarkCanvas(hex: string): boolean {
   return luma < 0.45
 }
 
-function extractSizeLabel(item: MarketingEntity): string | null {
+export function extractSizeLabel(item: MarketingEntity): string | null {
   const haystack = `${item.title} ${item.description ?? ""}`
   const labeled = haystack.match(/\bSize[:\s]*([A-Za-z0-9./\-]+)/i)
   if (labeled?.[1]) return labeled[1].toUpperCase()

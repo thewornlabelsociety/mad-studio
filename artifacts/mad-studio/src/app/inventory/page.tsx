@@ -25,7 +25,7 @@ export const metadata = {
 }
 
 type InventoryPageProps = {
-  searchParams: Promise<{ eid?: string; entityId?: string }>
+  searchParams: Promise<{ eid?: string; entityId?: string; item?: string }>
 }
 
 export default async function InventoryPage({
@@ -132,6 +132,7 @@ export default async function InventoryPage({
           visualPresets={visualPresets}
           requireSize={requireSize}
           items={items}
+          initialSelectedId={params.item ?? null}
         />
     </StudioAppShell>
   )

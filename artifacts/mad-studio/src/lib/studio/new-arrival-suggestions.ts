@@ -165,3 +165,23 @@ export async function fetchItemFacts(
     .maybeSingle()
   return data ? itemFactsFor(mapMarketingEntityRow(data), isFashion) : null
 }
+
+/** Items by id, in the order given, with their photos and tag facts (Build from Today). */
+export async function fetchItemsForStudio(
+  itemIds: string[],
+  isFashion: boolean
+): Promise<Array<{ item: MarketingEntity; media: NewArrivalSuggestion["media"]; facts: CanvasItemFacts }>> {
+  if (itemIds.length === 0) return []
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("marketing_entities")
+    .select(ITEM_SELECT)
+    .in("id", itemIds)
+  if (error) throw new Error(error.message)
+  const byId = new Map((data ?? []).map((row) => [row.id, mapMarketingEntityRow(row)]))
+  return itemIds.flatMap((id) => {
+    const item = byId.get(id)
+    if (!item) return []
+    return [{ item, media: mediaOf(item), facts: itemFactsFor(item, isFashion) }]
+  })
+}

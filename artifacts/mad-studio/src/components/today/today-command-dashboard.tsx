@@ -19,6 +19,8 @@ import { resolveInventoryIntakeMode } from "@/lib/inventory/entity-intake"
 import type { DispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { cn } from "@/lib/utils"
 import { PlatformIcon } from "@/components/ui/app-icons"
+import { BrainTeam } from "@/components/today/brain-team"
+import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 
 export type ArmedTodayRow = {
   id: string
@@ -125,6 +127,15 @@ export function TodayCommandDashboard({
           </p>
         ) : null}
       </header>
+
+      <BrainTeam
+        entityId={entityId}
+        websiteUrl={websiteUrl}
+        isFashion={
+          resolveIndustryProfile({ name: entityName, industry }).id === "worn_label"
+        }
+        items={queue.map((view) => view.item)}
+      />
 
       <section
         id="going-out"
