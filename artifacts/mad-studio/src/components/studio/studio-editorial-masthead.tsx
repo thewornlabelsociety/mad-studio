@@ -43,7 +43,7 @@ export function StudioEditorialMasthead({
         className
       )}
     >
-      <p className="text-[11px] font-medium tracking-[0.22em] text-neutral-500 uppercase">
+      <p className="text-[12px] font-medium tracking-[0.22em] text-neutral-500 uppercase">
         Create · {brandName}
       </p>
       <div className="mt-1.5 flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between">

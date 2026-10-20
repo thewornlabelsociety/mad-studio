@@ -1,4 +1,4 @@
-import { type ReactNode } from "react"
+import { useEffect, type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Link, Route, Switch, Router as WouterRouter, useLocation } from "wouter"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -87,9 +87,34 @@ function AuthCallback() {
     return null
   }} />
 }
+const PAGE_TITLES: Array<[string, string]> = [
+  ["/today", "Today"],
+  ["/studio", "Create"],
+  ["/planner", "Calendar"],
+  ["/campaigns", "Campaigns"],
+  ["/promo", "Promo"],
+  ["/inventory", "Library"],
+  ["/brain", "Brand Brain"],
+  ["/analytics", "Analytics"],
+  ["/settings", "Settings"],
+  ["/help", "Help"],
+  ["/login", "Sign in"],
+]
+
+/** Keeps the browser tab title in step with the page you're on. */
+function RouteTitle() {
+  const [location] = useLocation()
+  useEffect(() => {
+    const match = PAGE_TITLES.find(([prefix]) => location.startsWith(prefix))
+    document.title = match ? `${match[1]} | MAD Studio` : "MAD Studio"
+  }, [location])
+  return null
+}
+
 function App() {
   return <QueryClientProvider client={client}><ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
     <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+      <RouteTitle />
       <Content><Switch>
         <Route path="/" component={Home} />
         <Route path="/login" component={Login} />

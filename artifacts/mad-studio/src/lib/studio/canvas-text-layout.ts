@@ -3,7 +3,7 @@ import type { CanvasTextOverlayState } from "@/lib/studio/canvas-text-types"
 /** Matches baked PNG typography: font px = frameWidth × ratio × fontScale. */
 export const CANVAS_TEXT_WIDTH_RATIO = 0.065
 
-export const CANVAS_TEXT_FONT_SCALE_MIN = 0.5
+export const CANVAS_TEXT_FONT_SCALE_MIN = 0.15
 export const CANVAS_TEXT_FONT_SCALE_MAX = 2.5
 export const CANVAS_TEXT_FONT_SCALE_DEFAULT = 1
 
@@ -29,7 +29,8 @@ export function canvasTextFontSizePx(
 ): number {
   const width = Math.max(1, frameWidthPx)
   const scale = clampCanvasTextFontScale(fontScale)
-  return Math.max(12, Math.round(width * CANVAS_TEXT_WIDTH_RATIO * scale))
+  // No pixel floor: the preview must match the baked image at any size.
+  return Math.max(1, width * CANVAS_TEXT_WIDTH_RATIO * scale)
 }
 
 export function canvasTextLineHeightPx(fontSizePx: number): number {

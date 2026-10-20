@@ -203,7 +203,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
               <Button
                 type="submit"
                 size="sm"
-                className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.65rem] uppercase"
+                className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.75rem] uppercase"
               >
                 Claim first org admin
               </Button>
@@ -226,7 +226,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         ) : activeEntity ? (
           <Suspense
             fallback={
-              <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-neutral-500 uppercase">
+              <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-neutral-500 uppercase">
                 Loading studio…
               </p>
             }

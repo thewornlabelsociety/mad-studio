@@ -17,7 +17,7 @@ type Props = {
 }
 
 const btn =
-  "inline-flex h-9 items-center gap-1.5 border-2 border-mad-black px-2.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase disabled:opacity-40"
+  "inline-flex h-9 items-center gap-1.5 border-2 border-mad-black px-2.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase disabled:opacity-40"
 
 /**
  * Your saved layouts (saved from the icon beside the live preview): pick one
@@ -51,7 +51,7 @@ export function CanvasLayoutsBar({
         className
       )}
     >
-      <span className="inline-flex items-center gap-1.5 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+      <span className="inline-flex items-center gap-1.5 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
         <LayoutTemplate className="size-4" aria-hidden />
         Layouts
       </span>

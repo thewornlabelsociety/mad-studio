@@ -14,7 +14,7 @@ import {
   canvasTextLineHeightPx,
 } from "@/lib/studio/canvas-text-layout"
 
-async function loadImageBlob(sourceUrl: string, entityId: string): Promise<Blob> {
+export async function loadImageBlob(sourceUrl: string, entityId: string): Promise<Blob> {
   try {
     const direct = await fetch(sourceUrl, { mode: "cors", cache: "no-store" })
     if (direct.ok) return await direct.blob()
@@ -298,6 +298,28 @@ export async function bakeStoryFrame(input: {
   })
   if (!uploadRes.ok) throw new Error("Could not upload the Story image.")
   const payload = (await uploadRes.json()) as { transparentUrl?: string }
+  if (!payload.transparentUrl) throw new Error("Upload did not return a public URL.")
+  return payload.transparentUrl
+}
+
+/** Save a finished canvas as a PNG in storage and return its public URL. */
+export async function uploadCanvasImage(
+  canvas: HTMLCanvasElement,
+  entityId: string,
+  filename: string
+): Promise<string> {
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (value) => (value ? resolve(value) : reject(new Error("Export failed."))),
+      "image/png"
+    )
+  })
+  const form = new FormData()
+  form.append("file", blob, filename)
+  form.append("entityId", entityId)
+  const response = await fetch("/api/media/upload-cutout", { method: "POST", body: form })
+  if (!response.ok) throw new Error("Could not upload the image.")
+  const payload = (await response.json()) as { transparentUrl?: string }
   if (!payload.transparentUrl) throw new Error("Upload did not return a public URL.")
   return payload.transparentUrl
 }

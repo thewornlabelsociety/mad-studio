@@ -46,7 +46,7 @@ function StatusChip({
   return (
     <span
       className={cn(
-        "inline-flex border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-widest uppercase shadow-keycap-sm",
+        "inline-flex border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.7rem] font-bold tracking-widest uppercase shadow-keycap-sm",
         tone === "lime" && "bg-mad-lime text-mad-black",
         tone === "vermillion" && "bg-mad-vermillion text-mad-white",
         tone === "muted" && "bg-neutral-100 text-mad-black",
@@ -134,7 +134,7 @@ function CampaignAccordionRow({
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span
-            className="font-typewriter text-[0.6rem] tracking-wider text-neutral-600 uppercase"
+            className="font-typewriter text-[0.72rem] tracking-wider text-neutral-600 uppercase"
             suppressHydrationWarning
           >
             {new Date(displayDate).toLocaleDateString()}
@@ -146,14 +146,14 @@ function CampaignAccordionRow({
               onClick={() => {
                 if (!expanded) onToggle()
               }}
-              className="font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-black uppercase underline decoration-2 underline-offset-2 hover:text-mad-vermillion"
+              className="font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-black uppercase underline decoration-2 underline-offset-2 hover:text-mad-vermillion"
             >
               {pendingCount > 0 ? `${pendingCount} queued` : null}
               {pendingCount > 0 && failedCount > 0 ? " · " : null}
               {failedCount > 0 ? `${failedCount} failed` : null}
             </button>
           ) : null}
-          <span className="hidden font-typewriter text-[0.65rem] tracking-wider text-mad-black uppercase md:inline">
+          <span className="hidden font-typewriter text-[0.75rem] tracking-wider text-mad-black uppercase md:inline">
             Spend: {formatMoney(spend)}
             <span className="mx-1 text-neutral-400">|</span>
             Sales: {formatMoney(sales)}
@@ -166,7 +166,7 @@ function CampaignAccordionRow({
               event.stopPropagation()
               setLogOpen(true)
             }}
-            className="rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] uppercase shadow-keycap-sm hover:bg-mad-lime"
+            className="rounded-none border-2 border-mad-black font-typewriter text-[0.72rem] uppercase shadow-keycap-sm hover:bg-mad-lime"
           >
             <Plus data-icon="inline-start" />
             Log Spend / Sales
@@ -188,7 +188,7 @@ function CampaignAccordionRow({
               onPostsChange={setQueue}
             />
 
-            <p className="font-typewriter text-[0.65rem] tracking-wider text-neutral-600 uppercase md:hidden">
+            <p className="font-typewriter text-[0.75rem] tracking-wider text-neutral-600 uppercase md:hidden">
               Spend: {formatMoney(spend)}
               <span className="mx-1 text-neutral-400">|</span>
               Sales: {formatMoney(sales)}
@@ -260,7 +260,7 @@ export function CampaignsLedger({
       <div className="flex flex-wrap items-end justify-between gap-4 border-b-2 border-mad-black pb-4">
         <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
               MAD Studio · Past ledger
             </p>
             <h1 className="font-typewriter text-2xl font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-3xl">
@@ -279,7 +279,7 @@ export function CampaignsLedger({
           asChild
           variant="outline"
           size="sm"
-          className="rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase shadow-keycap-sm hover:bg-mad-lime"
+          className="rounded-none border-2 border-mad-black font-typewriter text-[0.75rem] uppercase shadow-keycap-sm hover:bg-mad-lime"
         >
           <Link href={`/studio?eid=${encodeURIComponent(entityId)}`}>
             Back to Studio
@@ -333,7 +333,7 @@ export function CampaignsLedger({
           <Button
             asChild
             size="sm"
-            className="mt-4 rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.65rem] uppercase text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
+            className="mt-4 rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.75rem] uppercase text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
           >
             <Link href={`/studio?eid=${encodeURIComponent(entityId)}`}>
               Open Studio

@@ -27,7 +27,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
   if (error) {
     return (
       <div className="mx-auto flex min-h-svh max-w-lg flex-col items-center justify-center gap-3 px-4 text-center">
-        <p className="brand-typewriter text-[0.65rem] text-mad-black">
+        <p className="brand-typewriter text-[0.75rem] text-mad-black">
           MAD STUDIO
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">

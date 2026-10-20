@@ -20,7 +20,7 @@ export function CanvasSlidePicker({ slides, activeId, onSelect }: Props) {
   return (
     <div className="mb-4 border-b-2 border-mad-black/10 pb-4">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+        <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
           Editing slide {activeIndex >= 0 ? activeIndex + 1 : 1} of {slides.length}
         </p>
         <p className="text-xs text-neutral-500">
@@ -47,12 +47,12 @@ export function CanvasSlidePicker({ slides, activeId, onSelect }: Props) {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={slide.url} alt="" className="size-full object-cover" />
-              <span className="absolute bottom-0 left-0 bg-mad-black px-1 font-typewriter text-[0.55rem] font-bold text-mad-white">
+              <span className="absolute bottom-0 left-0 bg-mad-black px-1 font-typewriter text-[0.7rem] font-bold text-mad-white">
                 {index + 1}
               </span>
               {slide.hasText ? (
                 <span
-                  className="absolute top-0.5 right-0.5 bg-mad-lime px-1 font-typewriter text-[0.5rem] font-bold text-mad-black"
+                  className="absolute top-0.5 right-0.5 bg-mad-lime px-1 font-typewriter text-[0.68rem] font-bold text-mad-black"
                   aria-hidden
                 >
                   T

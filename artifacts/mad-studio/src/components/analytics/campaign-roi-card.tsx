@@ -36,7 +36,7 @@ function MetricCard({
 }) {
   return (
     <div className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-      <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-neutral-500 uppercase">
+      <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-neutral-500 uppercase">
         {label}
       </p>
       <p
@@ -103,7 +103,7 @@ export function CampaignRoiCard({
             size="sm"
             variant="outline"
             onClick={() => setLogOpen(true)}
-            className="rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase shadow-keycap-sm hover:bg-mad-lime"
+            className="rounded-none border-2 border-mad-black font-typewriter text-[0.75rem] uppercase shadow-keycap-sm hover:bg-mad-lime"
           >
             <Plus data-icon="inline-start" />
             Log Spend / Sales
@@ -131,7 +131,7 @@ export function CampaignRoiCard({
 
       <button
         type="button"
-        className="inline-flex items-center gap-1.5 font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase underline-offset-2 hover:underline"
+        className="inline-flex items-center gap-1.5 font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-black uppercase underline-offset-2 hover:underline"
         onClick={() => setInspectorOpen((value) => !value)}
       >
         Inspect diagnostic metrics

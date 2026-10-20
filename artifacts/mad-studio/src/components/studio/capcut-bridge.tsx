@@ -81,7 +81,7 @@ export function CapCutBridge({ payload, className, iconOnly = false }: Props) {
       disabled={busy}
       onClick={() => void copyCapCutBundle()}
       className={cn(
-        "inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-60",
+        "inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-60",
         className
       )}
     >

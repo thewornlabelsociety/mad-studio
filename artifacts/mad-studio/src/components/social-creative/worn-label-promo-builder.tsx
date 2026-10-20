@@ -125,8 +125,8 @@ export function WornLabelPromoBuilder({
   const printPreviewScale = 0.52
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,340px)_1fr] lg:gap-8">
-      <aside className="space-y-5 border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
+    <div className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-4 px-4 py-3 lg:grid-cols-[minmax(0,340px)_1fr]">
+      <aside className="space-y-5 border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm lg:min-h-0 lg:overflow-y-auto">
         <div>
           <h2 className="font-typewriter text-xs font-bold tracking-wider uppercase">
             Weekly color dot special
@@ -138,7 +138,7 @@ export function WornLabelPromoBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label className="font-typewriter text-[0.65rem] uppercase">
+          <Label className="font-typewriter text-[0.75rem] uppercase">
             Preview mode
           </Label>
           <div className="flex gap-2">
@@ -146,7 +146,7 @@ export function WornLabelPromoBuilder({
               type="button"
               variant="outline"
               className={cn(
-                "flex-1 gap-1.5 rounded-none border-2 font-typewriter text-[0.6rem] uppercase",
+                "flex-1 gap-1.5 rounded-none border-2 font-typewriter text-[0.72rem] uppercase",
                 previewSurface === "social"
                   ? "border-mad-black bg-mad-black text-mad-white"
                   : "border-mad-black bg-mad-white"
@@ -160,7 +160,7 @@ export function WornLabelPromoBuilder({
               type="button"
               variant="outline"
               className={cn(
-                "flex-1 gap-1.5 rounded-none border-2 font-typewriter text-[0.6rem] uppercase",
+                "flex-1 gap-1.5 rounded-none border-2 font-typewriter text-[0.72rem] uppercase",
                 previewSurface === "print"
                   ? "border-mad-black bg-mad-black text-mad-white"
                   : "border-mad-black bg-mad-white"
@@ -175,7 +175,7 @@ export function WornLabelPromoBuilder({
 
         {previewSurface === "social" ? (
           <div className="space-y-2">
-            <Label className="font-typewriter text-[0.65rem] uppercase">
+            <Label className="font-typewriter text-[0.75rem] uppercase">
               Channel
             </Label>
             <div className="grid grid-cols-2 gap-2">
@@ -185,7 +185,7 @@ export function WornLabelPromoBuilder({
                   type="button"
                   variant="outline"
                   className={cn(
-                    "h-auto min-h-9 rounded-none border-2 px-2 py-2 font-typewriter text-[0.55rem] leading-tight uppercase",
+                    "h-auto min-h-9 rounded-none border-2 px-2 py-2 font-typewriter text-[0.7rem] leading-tight uppercase",
                     channel === row.id
                       ? "border-mad-black bg-mad-lime text-mad-black"
                       : "border-neutral-300 bg-mad-white"
@@ -193,23 +193,23 @@ export function WornLabelPromoBuilder({
                   onClick={() => setChannel(row.id)}
                 >
                   {row.shortLabel}
-                  <span className="mt-0.5 block text-[0.5rem] font-normal normal-case text-neutral-600">
+                  <span className="mt-0.5 block text-[0.68rem] font-normal normal-case text-neutral-600">
                     {row.aspectRatio}
                   </span>
                 </Button>
               ))}
             </div>
-            <p className="text-[0.6rem] text-neutral-500">{channelMeta.captionHint}</p>
+            <p className="text-[0.72rem] text-neutral-500">{channelMeta.captionHint}</p>
           </div>
         ) : (
-          <p className="rounded border border-neutral-200 bg-neutral-50 p-2 text-[0.65rem] leading-relaxed text-neutral-600">
+          <p className="rounded border border-neutral-200 bg-neutral-50 p-2 text-[0.75rem] leading-relaxed text-neutral-600">
             A4 portrait · white flyer · large color dot and bold black type for
             boutique window / counter posting (not the dark social graphic).
           </p>
         )}
 
         <div className="space-y-2">
-          <Label className="font-typewriter text-[0.65rem] uppercase">
+          <Label className="font-typewriter text-[0.75rem] uppercase">
             Tag color
           </Label>
           <div className="grid grid-cols-4 gap-2">
@@ -238,7 +238,7 @@ export function WornLabelPromoBuilder({
                         : undefined,
                     }}
                   />
-                  <span className="font-typewriter text-[0.5rem] uppercase">
+                  <span className="font-typewriter text-[0.68rem] uppercase">
                     {name.slice(0, 3)}
                   </span>
                 </button>
@@ -248,7 +248,7 @@ export function WornLabelPromoBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="discount" className="font-typewriter text-[0.65rem] uppercase">
+          <Label htmlFor="discount" className="font-typewriter text-[0.75rem] uppercase">
             Discount
           </Label>
           <Input
@@ -260,7 +260,7 @@ export function WornLabelPromoBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="headline" className="font-typewriter text-[0.65rem] uppercase">
+          <Label htmlFor="headline" className="font-typewriter text-[0.75rem] uppercase">
             Headline
           </Label>
           <Input
@@ -272,7 +272,7 @@ export function WornLabelPromoBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="dateLabel" className="font-typewriter text-[0.65rem] uppercase">
+          <Label htmlFor="dateLabel" className="font-typewriter text-[0.75rem] uppercase">
             Date / validity
           </Label>
           <Input
@@ -288,7 +288,7 @@ export function WornLabelPromoBuilder({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-7 rounded-none border border-mad-black font-typewriter text-[0.55rem] uppercase"
+                className="h-7 rounded-none border border-mad-black font-typewriter text-[0.7rem] uppercase"
                 onClick={() => patch({ dateLabel: preset.value })}
               >
                 {preset.label}
@@ -298,7 +298,7 @@ export function WornLabelPromoBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label className="font-typewriter text-[0.65rem] uppercase">
+          <Label className="font-typewriter text-[0.75rem] uppercase">
             Date style
           </Label>
           <Select
@@ -348,7 +348,7 @@ export function WornLabelPromoBuilder({
           </Button>
         )}
 
-        <p className="text-center text-[0.65rem] text-neutral-500">
+        <p className="text-center text-[0.75rem] text-neutral-500">
           {previewSurface === "social"
             ? `1080×${config.aspectRatio === "1:1" ? "1080" : "1920"} social asset`
             : "210×297mm print sheet · white background"}
@@ -357,7 +357,7 @@ export function WornLabelPromoBuilder({
 
       <div
         className={cn(
-          "flex min-h-[480px] items-start justify-center overflow-auto border-2 border-mad-black p-6",
+          "flex min-h-[480px] items-start justify-center overflow-auto border-2 border-mad-black p-6 lg:min-h-0",
           previewSurface === "print" ? "bg-neutral-100" : "bg-neutral-200"
         )}
       >

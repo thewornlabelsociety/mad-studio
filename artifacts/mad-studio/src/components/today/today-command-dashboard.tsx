@@ -79,191 +79,177 @@ export function TodayCommandDashboard({
     [entityName, industry]
   )
 
+  const goingOutLabel = formatAgendaLiveDate().split(",")[0].toLowerCase()
+  const cronPaused = dispatchCronHealth?.stale !== false
+
+  // Desktop Today is one screen: three columns that each scroll inside.
   return (
-    <div className="space-y-8">
-      <header className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 space-y-1">
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              {liveDateLabel}
-            </p>
-            <h1 className="font-typewriter text-2xl font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-3xl">
-              Today // {entityName}
-            </h1>
-          </div>
-          <BrainEmblemLink entityId={entityId} size={72} />
-        </div>
-
-        <TodayChecklist
-          entityId={entityId}
-          failedCount={failedDispatchCount}
-          scheduledCount={armedCount}
-          newDropsCount={queue.length}
-        />
-
-        <p className="border-l-4 border-mad-lime pl-3 text-sm text-neutral-700">
-          <span className="font-typewriter text-[0.6rem] font-bold tracking-widest text-neutral-500 uppercase">
-            This week&apos;s focus ·{" "}
-          </span>
-          {brainDirective}
-        </p>
-
-        {dispatchCronHealth?.stale !== false ? (
-          <p className="border-2 border-mad-vermillion bg-mad-vermillion/10 px-3 py-2 text-xs text-mad-black">
-            <strong>Auto-posting may be paused.</strong> The scheduler last ran{" "}
-            {dispatchCronHealth?.lastRunAt
-              ? `at ${formatTime(dispatchCronHealth.lastRunAt)}`
-              : "never"}
-            {dispatchCronHealth?.lastStatus
-              ? ` (${dispatchCronHealth.lastStatus})`
-              : ""}
-            .{" "}
-            <Link
-              href={`/campaigns?eid=${encodeURIComponent(entityId)}`}
-              className="font-bold underline"
-            >
-              Check the queue
-            </Link>
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            {liveDateLabel}
           </p>
-        ) : null}
+          <h1 className="font-typewriter text-xl font-bold tracking-typewriter-tight text-mad-black uppercase">
+            Today // {entityName}
+          </h1>
+        </div>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+          <p
+            className="hidden max-w-xl truncate border-l-4 border-mad-lime pl-2 text-xs text-neutral-700 lg:block"
+            title={brainDirective}
+          >
+            <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
+              Focus ·{" "}
+            </span>
+            {brainDirective}
+          </p>
+          {cronPaused ? (
+            <Link
+              href={`/planner?eid=${encodeURIComponent(entityId)}`}
+              title={`The scheduler last ran ${
+                dispatchCronHealth?.lastRunAt ? `at ${formatTime(dispatchCronHealth.lastRunAt)}` : "never"
+              }${dispatchCronHealth?.lastStatus ? ` (${dispatchCronHealth.lastStatus})` : ""}. Check the calendar.`}
+              className="shrink-0 border-2 border-mad-vermillion bg-mad-vermillion/10 px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase hover:bg-mad-vermillion/20"
+            >
+              Auto-posting may be paused
+            </Link>
+          ) : null}
+          <BrainEmblemLink entityId={entityId} size={44} />
+        </div>
       </header>
 
-      <BrainTeam
-        entityId={entityId}
-        websiteUrl={websiteUrl}
-        isFashion={
-          resolveIndustryProfile({ name: entityName, industry }).id === "worn_label"
-        }
-        items={queue.map((view) => view.item)}
-      />
+      <div className="grid min-h-0 flex-1 grid-cols-12 gap-3">
+        {/* Left: the day's jobs and what goes out automatically. */}
+        <div className="col-span-12 flex min-h-0 flex-col gap-3 overflow-y-auto lg:col-span-3">
+          <TodayChecklist
+            entityId={entityId}
+            failedCount={failedDispatchCount}
+            scheduledCount={armedCount}
+            newDropsCount={queue.length}
+          />
 
-      <section
-        id="going-out"
-        className="scroll-mt-4 space-y-4 border-t-2 border-mad-black/15 pt-6"
-      >
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              Posts automatically
-            </p>
-            <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
-              Going out {formatAgendaLiveDate().split(",")[0].toLowerCase()}
-            </h2>
-          </div>
-          <Link
-            href={`/campaigns?eid=${encodeURIComponent(entityId)}`}
-            className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
+          <section
+            id="going-out"
+            className="border-2 border-mad-black bg-mad-white shadow-keycap-sm"
           >
-            Edit in Calendar →
-          </Link>
-        </div>
-
-        {armedRows.length === 0 ? (
-          <p className="text-sm text-neutral-500">
-            Nothing scheduled today. Make a post in Create and pick a time on
-            the last step.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {armedRows.map((row) => (
-              <li
-                key={row.id}
-                className="flex flex-wrap items-center gap-3 border-2 border-mad-black bg-mad-white px-3 py-2.5 shadow-keycap-sm"
+            <div className="flex items-center justify-between gap-2 border-b-2 border-mad-black px-3 py-2">
+              <div>
+                <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
+                  Posts automatically
+                </p>
+                <h2 className="font-typewriter text-xs font-bold tracking-wide uppercase">
+                  Going out {goingOutLabel}
+                </h2>
+              </div>
+              <Link
+                href={`/planner?eid=${encodeURIComponent(entityId)}`}
+                className="shrink-0 border-2 border-mad-black px-2 py-1 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
               >
-                <span className="font-mono text-sm tabular-nums text-neutral-600">
-                  {formatTime(row.scheduledTime)}
-                </span>
-                <span className="inline-flex items-center gap-1.5 font-typewriter text-sm">
-                  <PlatformIcon platform={row.platform} className="size-4" />
-                  {platformLabel(row.platform)}
-                </span>
-                <span className="min-w-0 flex-1 truncate font-typewriter text-xs font-bold tracking-wide uppercase">
-                  {row.title}
-                </span>
-                <span
-                  className={cn(
-                    "border border-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase",
-                    row.status === "scheduled"
-                      ? "bg-mad-lime text-mad-black"
-                      : "bg-neutral-100"
-                  )}
-                >
-                  Scheduled
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section
-        id="new-drops"
-        className="scroll-mt-4 space-y-4 border-t-2 border-mad-black/15 pt-6"
-      >
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              Post from your phone
-            </p>
-            <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
-              New drops ({queue.length})
-            </h2>
-            <p className="mt-1 text-xs text-neutral-600">
-              {unfeaturedCount} item{unfeaturedCount === 1 ? "" : "s"} in your
-              library {unfeaturedCount === 1 ? "hasn't" : "haven't"} been
-              posted yet.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <PullNewArrivalsButton
-              entityId={entityId}
-              intakeMode={intakeMode}
-              variant="agenda"
-            />
-            <Link
-              href={`/studio?eid=${encodeURIComponent(entityId)}&step=2&fresh=1`}
-              className="inline-flex h-10 items-center justify-center gap-1 border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
-            >
-              Make a different post
-            </Link>
-          {isFudi && queue.length >= 2 ? (
-            <button
-              type="button"
-              onClick={() => setCarouselOpen(true)}
-              className="border-2 border-mad-black bg-[#CCFF00] px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
-            >
-              Build feed carousel
-            </button>
-          ) : null}
-          </div>
+                Calendar →
+              </Link>
+            </div>
+            {armedRows.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-neutral-500">
+                Nothing scheduled today. Make a post in Create and pick a time on
+                the last step.
+              </p>
+            ) : (
+              <ul className="divide-y divide-neutral-200">
+                {armedRows.map((row) => (
+                  <li key={row.id} className="flex items-center gap-2 px-3 py-2">
+                    <span className="font-mono text-xs tabular-nums text-neutral-600">
+                      {formatTime(row.scheduledTime)}
+                    </span>
+                    <PlatformIcon platform={row.platform} className="size-3.5 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold" title={`${platformLabel(row.platform)} · ${row.title}`}>
+                      {row.title}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
 
-        {queue.length === 0 ? (
-          <div className="border-2 border-dashed border-mad-black/40 bg-mad-white px-6 py-12 text-center shadow-keycap-sm">
-            <p className="font-typewriter text-sm font-bold tracking-typewriter-tight uppercase">
-              All caught up
-            </p>
-            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
-              No new drops waiting. Pull new arrivals if you&apos;ve added stock,
-              or make a post from scratch.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {queue.map((view) => (
-              <IntakeActionCard
-                key={view.item.id}
-                view={view}
+        {/* Middle: the Brain team, one role at a time. */}
+        <BrainTeam
+          tabbed
+          className="col-span-12 min-h-[24rem] lg:col-span-5 lg:min-h-0"
+          entityId={entityId}
+          websiteUrl={websiteUrl}
+          isFashion={
+            resolveIndustryProfile({ name: entityName, industry }).id === "worn_label"
+          }
+          items={queue.map((view) => view.item)}
+        />
+
+        {/* Right: new drops to post. */}
+        <section
+          id="new-drops"
+          className="col-span-12 flex min-h-[24rem] flex-col border-2 border-mad-black bg-mad-white shadow-keycap-sm lg:col-span-4 lg:min-h-0"
+        >
+          <div className="shrink-0 space-y-2 border-b-2 border-mad-black px-3 py-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="font-typewriter text-xs font-bold tracking-wide uppercase">
+                New drops ({queue.length})
+              </h2>
+              <p className="text-[0.75rem] text-neutral-500">
+                {unfeaturedCount} unposted in Library
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <PullNewArrivalsButton
                 entityId={entityId}
-                onSkip={(id) =>
-                  setQueue((prev) => prev.filter((row) => row.item.id !== id))
-                }
-                onPreview={(row) => setPreview(row)}
+                intakeMode={intakeMode}
+                variant="agenda"
               />
-            ))}
+              <Link
+                href={`/studio?eid=${encodeURIComponent(entityId)}&step=2&fresh=1`}
+                className="inline-flex h-10 items-center justify-center border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
+              >
+                New post
+              </Link>
+              {isFudi && queue.length >= 2 ? (
+                <button
+                  type="button"
+                  onClick={() => setCarouselOpen(true)}
+                  className="inline-flex h-10 items-center border-2 border-mad-black bg-[#CCFF00] px-3 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
+                >
+                  Feed carousel
+                </button>
+              ) : null}
+            </div>
           </div>
-        )}
-      </section>
+
+          <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
+            {queue.length === 0 ? (
+              <div className="px-3 py-8 text-center">
+                <p className="font-typewriter text-xs font-bold tracking-wide uppercase">
+                  All caught up
+                </p>
+                <p className="mx-auto mt-1 max-w-xs text-xs text-neutral-600">
+                  No new drops waiting. Pull new arrivals if you&apos;ve added
+                  stock, or make a post from scratch.
+                </p>
+              </div>
+            ) : (
+              queue.map((view) => (
+                <IntakeActionCard
+                  key={view.item.id}
+                  compact
+                  view={view}
+                  entityId={entityId}
+                  onSkip={(id) =>
+                    setQueue((prev) => prev.filter((row) => row.item.id !== id))
+                  }
+                  onPreview={(row) => setPreview(row)}
+                />
+              ))
+            )}
+          </div>
+        </section>
+      </div>
 
       <IntakePreviewDialog
         view={preview}

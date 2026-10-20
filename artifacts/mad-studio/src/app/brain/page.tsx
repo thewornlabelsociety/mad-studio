@@ -109,7 +109,7 @@ export default async function BrainPage({ searchParams }: BrainPageProps) {
   return (
     <StudioAppShell
       className="bg-mad-white"
-      mainClassName="mx-auto w-full max-w-6xl px-4 py-8"
+      mainClassName="mx-auto flex w-full max-w-7xl flex-col overflow-hidden px-4 py-4"
       entities={entities}
       activeEntityId={entity.id}
       userEmail={user.email ?? null}

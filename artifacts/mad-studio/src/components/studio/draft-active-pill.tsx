@@ -11,7 +11,7 @@ export function DraftActivePill({ onStartFresh, className }: Props) {
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-2 rounded-full border border-mad-black/30 bg-neutral-50 px-3 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase",
+        "inline-flex max-w-full items-center gap-2 rounded-full border border-mad-black/30 bg-neutral-50 px-3 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase",
         className
       )}
     >

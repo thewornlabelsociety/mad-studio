@@ -24,6 +24,8 @@ export type ActiveMultiplexerPackBuffer = {
   entityId: string
   pack: CampaignPack
   mediaUrl: string | null
+  /** Every photo in a carousel draft (mediaUrl is the first). */
+  mediaUrls?: string[]
   eventDescription: string
   intent: MultiplexerIntent
   objective: string

@@ -31,7 +31,12 @@ type Props = {
   isFashion: boolean
   /** Newest unposted arrivals (Today's new drops). */
   items: MarketingEntity[]
+  /** One role at a time in tabs, filling its column (desktop Today). */
+  tabbed?: boolean
+  className?: string
 }
+
+type RoleTab = "merch" | "art" | "copy"
 
 type Captions = {
   headline: string
@@ -63,26 +68,45 @@ function RoleCard({
   role,
   summary,
   children,
+  fill = false,
+  hidden = false,
 }: {
   icon: ReactNode
   role: string
   summary: string
   children: ReactNode
+  /** Fill the panel and scroll inside (tabbed layout). */
+  fill?: boolean
+  hidden?: boolean
 }) {
   return (
-    <article className="flex min-w-0 flex-col border-2 border-mad-black bg-mad-white shadow-keycap-sm">
-      <header className="flex items-start gap-2.5 border-b-2 border-mad-black px-3 py-2.5">
+    <article
+      hidden={hidden}
+      className={cn(
+        "flex min-w-0 flex-col bg-mad-white",
+        fill ? "h-full min-h-0" : "border-2 border-mad-black shadow-keycap-sm"
+      )}
+    >
+      <header
+        className={cn(
+          "flex shrink-0 items-start gap-2.5 border-b-2 border-mad-black px-3 py-2.5",
+          fill && "hidden"
+        )}
+      >
         <span className="flex size-8 shrink-0 items-center justify-center border-2 border-mad-black bg-mad-lime">
           {icon}
         </span>
         <div className="min-w-0">
-          <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
             {role}
           </p>
           <p className="text-sm font-semibold leading-snug text-mad-black">{summary}</p>
         </div>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">{children}</div>
+      <div className={cn("flex min-h-0 flex-1 flex-col gap-2 p-3", fill && "overflow-y-auto")}>
+        {fill ? <p className="text-sm font-semibold leading-snug text-mad-black">{summary}</p> : null}
+        {children}
+      </div>
     </article>
   )
 }
@@ -91,7 +115,15 @@ function RoleCard({
  * Brain team on Today: a Merchandiser, Art director and Copywriter working
  * from your real stock. Nothing is generated except words, and only when asked.
  */
-export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Props) {
+export function BrainTeam({
+  entityId,
+  websiteUrl = null,
+  isFashion,
+  items,
+  tabbed = false,
+  className,
+}: Props) {
+  const [tab, setTab] = useState<RoleTab>("art")
   const eid = encodeURIComponent(entityId)
   const report = useMemo(
     () =>
@@ -166,24 +198,74 @@ export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Pro
 
   if (items.length === 0) return null
 
-  return (
-    <section aria-label="Brain team" className="space-y-3">
-      <div>
-        <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-          Brain team
-        </p>
-        <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
-          Today&apos;s suggestions
-        </h2>
-        <p className="mt-1 text-xs text-neutral-600">
-          From your newest {items.length} unposted arrivals — real photos and
-          details only. Each suggestion says why.
-        </p>
-      </div>
+  const tabs: Array<{ id: RoleTab; label: string; icon: typeof Palette }> = [
+    { id: "merch", label: "Merchandiser", icon: ClipboardCheck },
+    { id: "art", label: "Art director", icon: Palette },
+    { id: "copy", label: "Copywriter", icon: PenLine },
+  ]
 
-      <div className="grid items-start gap-3 lg:grid-cols-3">
+  return (
+    <section
+      aria-label="Brain team"
+      className={cn(
+        tabbed
+          ? "flex min-h-0 flex-col border-2 border-mad-black bg-mad-white shadow-keycap-sm"
+          : "space-y-3",
+        className
+      )}
+    >
+      {tabbed ? (
+        <div className="shrink-0 border-b-2 border-mad-black">
+          <p className="px-3 pt-2.5 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            Brain team · from your newest {items.length} arrivals
+          </p>
+          <div role="tablist" aria-label="Brain team roles" className="mt-2 grid grid-cols-3">
+            {tabs.map((row) => {
+              const Icon = row.icon
+              const active = tab === row.id
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(row.id)}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-1.5 border-t-2 border-r-2 border-mad-black px-2 py-2 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase last:border-r-0",
+                    active ? "bg-mad-black text-mad-white" : "bg-mad-white hover:bg-mad-lime"
+                  )}
+                >
+                  <Icon className="size-3.5" aria-hidden />
+                  {row.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            Brain team
+          </p>
+          <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
+            Today&apos;s suggestions
+          </h2>
+          <p className="mt-1 text-xs text-neutral-600">
+            From your newest {items.length} unposted arrivals — real photos and
+            details only. Each suggestion says why.
+          </p>
+        </div>
+      )}
+
+      <div
+        className={cn(
+          tabbed ? "min-h-0 flex-1" : "grid items-start gap-3 lg:grid-cols-3"
+        )}
+      >
         {/* Merchandiser */}
         <RoleCard
+          fill={tabbed}
+          hidden={tabbed && tab !== "merch"}
           icon={<ClipboardCheck className="size-4" aria-hidden />}
           role="Merchandiser"
           summary={
@@ -197,7 +279,7 @@ export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Pro
               {report.gaps.map((gap) => (
                 <span
                   key={gap.id}
-                  className="border border-mad-black bg-neutral-100 px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wide uppercase"
+                  className="border border-mad-black bg-neutral-100 px-1.5 py-0.5 font-typewriter text-[0.7rem] font-bold tracking-wide uppercase"
                 >
                   {gap.count} need {gap.label}
                 </span>
@@ -211,13 +293,13 @@ export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Pro
                   <p className="truncate text-xs font-semibold text-mad-black">
                     {finding.item.title}
                   </p>
-                  <p className="truncate text-[0.7rem] text-neutral-600">
+                  <p className="truncate text-[0.75rem] text-neutral-600">
                     Missing: {finding.missing.map((m) => m.label.toLowerCase()).join(", ")}
                   </p>
                 </div>
                 <Link
                   href={`/inventory?eid=${eid}&item=${encodeURIComponent(finding.item.id)}`}
-                  className="shrink-0 border-2 border-mad-black px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
+                  className="shrink-0 border-2 border-mad-black px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
                 >
                   Fix
                 </Link>
@@ -236,6 +318,8 @@ export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Pro
 
         {/* Art director */}
         <RoleCard
+          fill={tabbed}
+          hidden={tabbed && tab !== "art"}
           icon={<Palette className="size-4" aria-hidden />}
           role="Art director"
           summary={
@@ -273,28 +357,31 @@ export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Pro
                       })}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="inline-flex items-center gap-1 font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-600 uppercase">
+                      <p className="inline-flex items-center gap-1 font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-600 uppercase">
                         <Icon className="size-3" aria-hidden />
                         {meta.label}
                         {pick.items.length > 1 ? ` · ${pick.items.length} items` : ""}
                       </p>
                       <p className="truncate text-xs font-semibold text-mad-black">{pick.title}</p>
-                      <p className="text-[0.7rem] leading-snug text-neutral-600">{pick.reason}</p>
+                      <p className="text-[0.75rem] leading-snug text-neutral-600">{pick.reason}</p>
                     </div>
                   </div>
                   <div className="mt-2 flex gap-1.5">
                     <Link
                       href={studioHref(entityId, pick)}
-                      className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion"
+                      className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion"
                     >
                       <Wand2 className="size-3" aria-hidden />
                       Build
                     </Link>
                     <button
                       type="button"
-                      onClick={() => setCopyPickId(pick.id)}
+                      onClick={() => {
+                        setCopyPickId(pick.id)
+                        if (tabbed) setTab("copy")
+                      }}
                       aria-pressed={selected}
-                      className="inline-flex items-center gap-1 border-2 border-mad-black px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
+                      className="inline-flex items-center gap-1 border-2 border-mad-black px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
                     >
                       <PenLine className="size-3" aria-hidden />
                       Captions
@@ -308,6 +395,8 @@ export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Pro
 
         {/* Copywriter */}
         <RoleCard
+          fill={tabbed}
+          hidden={tabbed && tab !== "copy"}
           icon={<PenLine className="size-4" aria-hidden />}
           role="Copywriter"
           summary={
@@ -332,7 +421,7 @@ export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Pro
                   <button
                     type="button"
                     onClick={() => openInStudio(copyPick, current)}
-                    className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion"
+                    className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion"
                   >
                     <Wand2 className="size-3" aria-hidden />
                     Build with these
@@ -341,7 +430,7 @@ export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Pro
                     type="button"
                     disabled={writing}
                     onClick={() => void writeCaptions(copyPick)}
-                    className="inline-flex items-center gap-1 border-2 border-mad-black px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase hover:bg-mad-lime disabled:opacity-40"
+                    className="inline-flex items-center gap-1 border-2 border-mad-black px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase hover:bg-mad-lime disabled:opacity-40"
                   >
                     {writing ? (
                       <Loader2 className="size-3 animate-spin" aria-hidden />
@@ -363,7 +452,7 @@ export function BrainTeam({ entityId, websiteUrl = null, isFashion, items }: Pro
                   type="button"
                   disabled={writing}
                   onClick={() => void writeCaptions(copyPick)}
-                  className="inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-black px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
+                  className="inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-black px-3 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
                 >
                   {writing ? (
                     <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -397,7 +486,7 @@ function CaptionBlock({
   return (
     <div className="border border-neutral-200 p-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+        <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
           {label}
         </span>
         <button

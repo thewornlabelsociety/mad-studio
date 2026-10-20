@@ -128,7 +128,7 @@ export function SparkImageUploader({
 
   return (
     <div className="mt-4 space-y-2">
-      <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+      <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
         Attach Visual Drop Asset (Optional)
       </p>
 
@@ -187,7 +187,7 @@ export function SparkImageUploader({
           )}
         >
           <ImagePlus className="size-4 text-mad-black" />
-          <span className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase">
+          <span className="font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-black uppercase">
             + Click or drag item photo here (PNG, JPG, WEBP)
           </span>
         </label>

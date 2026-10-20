@@ -121,7 +121,7 @@ export function PullNewArrivalsButton({
       disabled={loading}
       className={
         agenda
-          ? "inline-flex items-center justify-center gap-1.5 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion disabled:opacity-60"
+          ? "inline-flex items-center justify-center gap-1.5 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion disabled:opacity-60"
           : "inline-flex items-center justify-center gap-2 rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
       }
     >

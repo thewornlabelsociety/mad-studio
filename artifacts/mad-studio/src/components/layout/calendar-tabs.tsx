@@ -37,7 +37,7 @@ export function CalendarTabs({
         className
       )}
     >
-      <span className="mr-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-neutral-500 uppercase">
+      <span className="mr-2 font-typewriter text-[0.72rem] font-bold tracking-widest text-neutral-500 uppercase">
         Calendar
       </span>
       {views.map((view) => {

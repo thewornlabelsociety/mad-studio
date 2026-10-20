@@ -53,7 +53,7 @@ export function StudioStepPanel({
             <p
               className={cn(
                 "font-medium tracking-[0.2em] text-mad-vermillion uppercase",
-                compactHeader ? "text-xs" : "text-[11px]"
+                compactHeader ? "text-xs" : "text-[12px]"
               )}
             >
               {kicker}

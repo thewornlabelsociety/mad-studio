@@ -56,7 +56,7 @@ function statusTone(status: string) {
 }
 
 const actionButton =
-  "inline-flex h-7 items-center gap-1 border-2 border-mad-black px-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm disabled:opacity-40"
+  "inline-flex h-7 items-center gap-1 border-2 border-mad-black px-2 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm disabled:opacity-40"
 
 function QueueRow({
   entityId,
@@ -150,19 +150,19 @@ function QueueRow({
   return (
     <li className="space-y-2 border-2 border-mad-black bg-mad-white px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase">
+        <span className="font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-black uppercase">
           {label}
         </span>
         <span
           className={cn(
-            "border-2 border-mad-black px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-widest uppercase",
+            "border-2 border-mad-black px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-widest uppercase",
             statusTone(post.status)
           )}
         >
           {post.status}
         </span>
         <span
-          className="font-typewriter text-[0.6rem] tracking-wider text-neutral-600 uppercase"
+          className="font-typewriter text-[0.72rem] tracking-wider text-neutral-600 uppercase"
           suppressHydrationWarning
         >
           {post.status === "published" ? "Sent " : ""}
@@ -251,7 +251,7 @@ function QueueRow({
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase hover:text-mad-black"
+            className="font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase hover:text-mad-black"
           >
             Close
           </button>
@@ -282,7 +282,7 @@ export function CampaignQueuePanel({
 
   return (
     <section className="space-y-2">
-      <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+      <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
         Publishing queue
       </p>
       <ul className="space-y-2">

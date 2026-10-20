@@ -165,7 +165,7 @@ export function CarouselStrategyModal({
             <Sparkles className="size-4 text-mad-vermillion" />
             Carousel promo angles
           </DialogTitle>
-          <p className="font-typewriter text-[0.5rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
+          <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
             FÜDI Content Intelligence suggests sequencing, hooks, and captions —
             pick one or keep your manual slide order.
           </p>
@@ -210,10 +210,10 @@ export function CarouselStrategyModal({
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <span className="inline-block border border-mad-black bg-[#CCFF00] px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase">
+                      <span className="inline-block border border-mad-black bg-[#CCFF00] px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase">
                         {angle.angle_title}
                       </span>
-                      <p className="mt-1 font-typewriter text-[0.5rem] leading-relaxed text-neutral-600 normal-case">
+                      <p className="mt-1 font-typewriter text-[0.68rem] leading-relaxed text-neutral-600 normal-case">
                         {angle.reasoning}
                       </p>
                     </div>
@@ -234,7 +234,7 @@ export function CarouselStrategyModal({
                             alt=""
                             className="size-full object-cover"
                           />
-                          <span className="absolute bottom-0 right-0 bg-mad-black px-1 font-typewriter text-[0.45rem] font-bold text-mad-white">
+                          <span className="absolute bottom-0 right-0 bg-mad-black px-1 font-typewriter text-[0.68rem] font-bold text-mad-white">
                             {slidePos + 1}
                           </span>
                         </div>
@@ -242,7 +242,7 @@ export function CarouselStrategyModal({
                     })}
                   </div>
 
-                  <p className="mt-2 font-typewriter text-[0.55rem] font-bold tracking-wide text-mad-black">
+                  <p className="mt-2 font-typewriter text-[0.7rem] font-bold tracking-wide text-mad-black">
                     {angle.hook}
                   </p>
                   <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-neutral-700">
@@ -254,7 +254,7 @@ export function CarouselStrategyModal({
                     disabled={pending}
                     onClick={() => onApply(angle)}
                     className={cn(
-                      "mt-3 inline-flex h-9 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
+                      "mt-3 inline-flex h-9 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
                     )}
                   >
                     {pending ? (
@@ -275,7 +275,7 @@ export function CarouselStrategyModal({
             type="button"
             disabled={pending || loading}
             onClick={onSkipManual}
-            className="inline-flex h-10 w-full items-center justify-center border-2 border-mad-black bg-mad-white font-typewriter text-[0.55rem] font-bold tracking-wider uppercase hover:bg-mad-lime disabled:opacity-50"
+            className="inline-flex h-10 w-full items-center justify-center border-2 border-mad-black bg-mad-white font-typewriter text-[0.7rem] font-bold tracking-wider uppercase hover:bg-mad-lime disabled:opacity-50"
           >
             Skip AI / manual order
           </button>

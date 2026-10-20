@@ -92,7 +92,7 @@ export function FudiFeedCarouselDialog({
           <DialogTitle className="font-typewriter text-sm font-bold tracking-typewriter-tight uppercase">
             Build feed carousel
           </DialogTitle>
-          <p className="font-typewriter text-[0.5rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
+          <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
             Multi-image IG / Facebook carousel for FÜDI platform promo — pick
             slides from today&apos;s intake, then craft in Studio.
           </p>
@@ -100,7 +100,7 @@ export function FudiFeedCarouselDialog({
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
           <div className="space-y-1.5">
-            <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+            <p className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
               Promo angle
             </p>
             <div className="flex flex-wrap gap-1">
@@ -112,7 +112,7 @@ export function FudiFeedCarouselDialog({
                     type="button"
                     onClick={() => setTemplateId(template.id)}
                     className={cn(
-                      "border-2 border-mad-black px-2 py-1 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase transition",
+                      "border-2 border-mad-black px-2 py-1 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase transition",
                       active
                         ? "bg-[#CCFF00] text-mad-black"
                         : "bg-mad-white hover:bg-mad-lime"
@@ -126,7 +126,7 @@ export function FudiFeedCarouselDialog({
           </div>
 
           <div className="space-y-2">
-            <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+            <p className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
               Slides ({selected.length}/10)
             </p>
             {selectable.length === 0 ? (
@@ -155,7 +155,7 @@ export function FudiFeedCarouselDialog({
                           className="size-full object-cover"
                         />
                         {active ? (
-                          <span className="absolute right-0 top-0 bg-mad-black px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold text-mad-white">
+                          <span className="absolute right-0 top-0 bg-mad-black px-1.5 py-0.5 font-typewriter text-[0.7rem] font-bold text-mad-white">
                             {order + 1}
                           </span>
                         ) : null}
@@ -173,7 +173,7 @@ export function FudiFeedCarouselDialog({
             type="button"
             disabled={selected.length < 2}
             onClick={onBuild}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-50"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-50"
           >
             <Images className="size-4" />
             Build feed carousel

@@ -11,7 +11,16 @@ import {
   type ReactNode,
   type RefObject,
 } from "react"
-import { ImageIcon, Layers, Loader2, RotateCw, SquareDashed } from "lucide-react"
+import {
+  ImageIcon,
+  Layers,
+  Loader2,
+  Palette,
+  RotateCw,
+  SquareDashed,
+  Tags,
+  Type,
+} from "lucide-react"
 import { requestCutout } from "@/lib/media/request-cutout"
 import { toast } from "sonner"
 
@@ -373,7 +382,7 @@ function DraggableDecor({
         {children}
       </div>
       {interactive && hint && !handlesOn ? (
-        <span className="mt-1 block text-center font-typewriter text-[0.45rem] font-bold tracking-wider text-white/80 uppercase drop-shadow-md">
+        <span className="mt-1 block text-center font-typewriter text-[0.68rem] font-bold tracking-wider text-white/80 uppercase drop-shadow-md">
           {hint}
         </span>
       ) : null}
@@ -636,7 +645,7 @@ function CanvasNativePostPanel({
     <div className="border-t-2 border-mad-black/10 pt-5 lg:col-span-3">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <h3 className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <h3 className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Add on your phone after publish
           </h3>
           <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
@@ -663,13 +672,13 @@ function CanvasNativePostPanel({
             key={feature.id}
             className="border-2 border-mad-black bg-mad-white p-3 md:p-4"
           >
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase">
+            <p className="font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-black uppercase">
               {feature.title}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-neutral-600">
               {feature.detail}
             </p>
-            <p className="mt-2 font-typewriter text-[0.55rem] font-bold tracking-wide text-neutral-500 uppercase">
+            <p className="mt-2 font-typewriter text-[0.7rem] font-bold tracking-wide text-neutral-500 uppercase">
               {feature.platforms.join(" · ")}
             </p>
           </li>
@@ -791,7 +800,27 @@ export function CanvasTextOverlayEditor({
     (isCanvasTagId(selected) && !shownTags.some((t) => t.id === selected))
       ? "headline"
       : selected
-  const setLayer = selectCanvasItem
+  type EditorTab = "words" | "tags" | "logo" | "style"
+  const [tab, setTab] = useState<EditorTab>("words")
+  const selectedFromEditor = useRef(false)
+  const firstSelection = useRef(true)
+  const setLayer = (target: CanvasSelectable) => {
+    selectedFromEditor.current = true
+    selectCanvasItem(target)
+  }
+  // A box clicked on the image (not from these controls) opens its Style tab.
+  useEffect(() => {
+    if (firstSelection.current) {
+      firstSelection.current = false
+      return
+    }
+    if (selectedFromEditor.current) {
+      selectedFromEditor.current = false
+      return
+    }
+    if (wizardCompact) setTab(selected === "logo" ? "logo" : "style")
+  }, [selected, wizardCompact])
+  const show = (which: EditorTab) => !wizardCompact || tab === which
   const style = readLayerStyle(value, layer)
   const layerFontId = style.fontId
   const layerColor = style.color
@@ -845,20 +874,20 @@ export function CanvasTextOverlayEditor({
   }
 
   const labelClass = wizardCompact
-    ? "font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase"
-    : "font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase"
+    ? "font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase"
+    : "font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase"
   const inputClass = wizardCompact
     ? "h-10 w-full border-2 border-mad-black bg-mad-white px-3 text-sm outline-none placeholder:text-neutral-400 focus:bg-mad-lime/20"
     : "w-full border-2 border-mad-black px-2 py-1 text-base outline-none focus:bg-mad-lime/20 md:text-xs"
   const sectionTitleClass = wizardCompact
-    ? "border-b-2 border-mad-black/10 pb-1.5 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase"
+    ? "border-b-2 border-mad-black/10 pb-1.5 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase"
     : labelClass
   const btnClass = wizardCompact
-    ? "border-2 border-mad-black px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase"
-    : "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.4rem] font-bold uppercase"
+    ? "border-2 border-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase"
+    : "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.68rem] font-bold uppercase"
   const selectClass = wizardCompact
     ? "h-10 w-full min-w-0 rounded-none border-2 border-mad-black bg-mad-white text-sm shadow-none"
-    : "h-8 w-full min-w-0 rounded-none border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.55rem] uppercase shadow-none"
+    : "h-8 w-full min-w-0 rounded-none border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.7rem] uppercase shadow-none"
   const rangeClass = "w-full cursor-pointer accent-mad-black"
 
   const tipsCopy = (
@@ -877,20 +906,45 @@ export function CanvasTextOverlayEditor({
     <section
       className={cn(
         wizardCompact
-          ? "flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto"
+          ? "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto"
           : "space-y-2 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm",
         className
       )}
     >
       {wizardCompact ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <details className="min-w-0 flex-1 text-sm leading-relaxed text-neutral-600">
-            <summary className="cursor-pointer font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase">
-              Tips — drag, scale & bake on export
-            </summary>
-            <p className="mt-2 max-w-2xl">{tipsCopy}</p>
-          </details>
+        <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-2 bg-mad-white px-1 pb-2">
+          <div role="tablist" aria-label="Canvas tools" className="flex flex-wrap border-2 border-mad-black">
+            {(
+              [
+                { id: "words", label: "Words", icon: Type },
+                { id: "tags", label: "Tags", icon: Tags },
+                { id: "logo", label: "Logo & backdrop", icon: ImageIcon },
+                { id: "style", label: "Style", icon: Palette },
+              ] as const
+            ).map((row) => {
+              const Icon = row.icon
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === row.id}
+                  onClick={() => setTab(row.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 border-r-2 border-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase last:border-r-0",
+                    tab === row.id ? "bg-mad-black text-mad-white" : "bg-mad-white hover:bg-mad-lime"
+                  )}
+                >
+                  <Icon className="size-3.5" aria-hidden />
+                  {row.label}
+                </button>
+              )
+            })}
+          </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <span title={typeof tipsCopy === "string" ? tipsCopy : undefined} className="sr-only">
+              Tips
+            </span>
             <button
               type="button"
               onClick={() => onChange(clearCanvasTextOverlay())}
@@ -916,7 +970,7 @@ export function CanvasTextOverlayEditor({
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-typewriter text-[0.5rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            <p className="font-typewriter text-[0.68rem] font-bold tracking-widest text-mad-vermillion uppercase">
               On-canvas text
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -942,12 +996,13 @@ export function CanvasTextOverlayEditor({
               </button>
             </div>
           </div>
-          <p className="font-typewriter text-[0.45rem] leading-relaxed text-neutral-600 normal-case">
+          <p className="font-typewriter text-[0.68rem] leading-relaxed text-neutral-600 normal-case">
             {tipsCopy}
           </p>
         </>
       )}
 
+      {show("tags") ? (
       <fieldset className={cn("grid gap-x-4 gap-y-2", wizardCompact && "sm:grid-cols-2 xl:grid-cols-3")}>
         <legend className={cn(sectionTitleClass, "mb-3 w-full")}>
           Add to image
@@ -1008,7 +1063,9 @@ export function CanvasTextOverlayEditor({
           )
         })}
       </fieldset>
+      ) : null}
 
+      {show("logo") ? (
       <section className={cn("grid gap-4", wizardCompact && "lg:grid-cols-2")}>
         <div className="space-y-2">
           <label className="flex cursor-pointer items-center gap-2 text-sm text-mad-black">
@@ -1103,7 +1160,7 @@ export function CanvasTextOverlayEditor({
                     className="size-4 border border-mad-black"
                     style={{ background: value.backdropColor }}
                   />
-                  <span className="font-typewriter text-[0.55rem] font-bold uppercase">
+                  <span className="font-typewriter text-[0.7rem] font-bold uppercase">
                     Custom
                   </span>
                   <input
@@ -1148,14 +1205,18 @@ export function CanvasTextOverlayEditor({
           ) : null}
         </div>
       </section>
+      ) : null}
 
       <div
         className={cn(
           wizardCompact
-            ? "grid min-w-0 gap-6 lg:grid-cols-3 lg:gap-8"
+            ? tab === "style"
+              ? "grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-8"
+              : "grid min-w-0 gap-4"
             : "space-y-3"
         )}
       >
+        {show("words") ? (
         <div className={cn(wizardCompact ? "space-y-4" : "space-y-3")}>
           {wizardCompact ? (
             <p className={sectionTitleClass}>On-image copy</p>
@@ -1186,8 +1247,16 @@ export function CanvasTextOverlayEditor({
               className={inputClass}
             />
           </label>
+          {wizardCompact ? (
+            <p className="text-xs text-neutral-600">
+              Click any text on the photo to style it, drag to move it, and use
+              the corner handles to resize or tilt.
+            </p>
+          ) : null}
         </div>
+        ) : null}
 
+        {show("style") ? (
         <div className={cn(wizardCompact ? "space-y-4" : "space-y-3")}>
           {wizardCompact ? (
             <p className={sectionTitleClass}>Position & scale</p>
@@ -1206,7 +1275,7 @@ export function CanvasTextOverlayEditor({
                   aria-selected={selected === id}
                   onClick={() => setLayer(id)}
                   className={cn(
-                    "border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase",
+                    "border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase",
                     selected === id
                       ? "bg-mad-black text-mad-white"
                       : "bg-mad-white text-mad-black hover:bg-mad-lime"
@@ -1250,7 +1319,7 @@ export function CanvasTextOverlayEditor({
             </span>
             <input
               type="range"
-              min={0.5}
+              min={0.15}
               max={2.5}
               step={0.05}
               value={layerScale}
@@ -1281,7 +1350,9 @@ export function CanvasTextOverlayEditor({
             />
           </label>
         </div>
+        ) : null}
 
+        {show("style") ? (
         <div className={cn(wizardCompact ? "space-y-4" : "space-y-3")}>
           {wizardCompact ? (
             <p className={sectionTitleClass}>
@@ -1352,7 +1423,7 @@ export function CanvasTextOverlayEditor({
                   style={{ background: layerColor }}
                 />
                 {wizardCompact ? (
-                  <span className="font-typewriter text-[0.55rem] font-bold uppercase">
+                  <span className="font-typewriter text-[0.7rem] font-bold uppercase">
                     Custom
                   </span>
                 ) : null}
@@ -1376,7 +1447,7 @@ export function CanvasTextOverlayEditor({
                 type="button"
                 onClick={() => patchStyle({ bgColor: "" })}
                 className={cn(
-                  "flex items-center border-2 border-mad-black px-2 font-typewriter text-[0.55rem] font-bold uppercase",
+                  "flex items-center border-2 border-mad-black px-2 font-typewriter text-[0.7rem] font-bold uppercase",
                   wizardCompact ? "h-9" : "h-6",
                   !layerBg
                     ? "bg-mad-black text-mad-white"
@@ -1413,7 +1484,7 @@ export function CanvasTextOverlayEditor({
                   style={{ background: layerBg || "transparent" }}
                 />
                 {wizardCompact ? (
-                  <span className="font-typewriter text-[0.55rem] font-bold uppercase">
+                  <span className="font-typewriter text-[0.7rem] font-bold uppercase">
                     Custom
                   </span>
                 ) : null}
@@ -1447,13 +1518,21 @@ export function CanvasTextOverlayEditor({
             </Select>
           </label>
         </div>
+        ) : null}
 
-        {wizardCompact ? (
-          <CanvasNativePostPanel
-            destinationUrl={destinationUrl}
-            isVideo={isVideo}
-            btnClass={btnClass}
-          />
+        {wizardCompact && tab === "words" ? (
+          <details className="border-2 border-mad-black">
+            <summary className="cursor-pointer px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase hover:bg-mad-lime/30">
+              Add on your phone: link stickers, polls, music
+            </summary>
+            <div className="border-t-2 border-mad-black p-3">
+              <CanvasNativePostPanel
+                destinationUrl={destinationUrl}
+                isVideo={isVideo}
+                btnClass={btnClass}
+              />
+            </div>
+          </details>
         ) : null}
       </div>
     </section>

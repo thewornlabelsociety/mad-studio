@@ -140,7 +140,7 @@ export function ScheduleStrip({
       {!embedded ? (
         <header className="flex flex-wrap items-start justify-between gap-2 border-b-2 border-mad-black pb-2">
           <div>
-            <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
               SOP · Schedule gate
             </p>
             <h2 className="mt-0.5 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
@@ -151,7 +151,7 @@ export function ScheduleStrip({
         </header>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
             SOP gate · channels + slot
           </p>
           <SopScheduleBadge ready={scheduleReady} locked={locked} />
@@ -164,7 +164,7 @@ export function ScheduleStrip({
             type="button"
             onClick={onDispatchNow}
             disabled={disabled || locked || dispatchingNow || confirming}
-            className="inline-flex items-center justify-center gap-2 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion disabled:opacity-50"
           >
             {dispatchingNow ? (
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -173,10 +173,10 @@ export function ScheduleStrip({
             )}
             {dispatchingNow ? "Publishing…" : "Publish now"}
           </button>
-          <span className="hidden text-center font-typewriter text-[0.5rem] font-bold tracking-widest text-neutral-500 uppercase sm:block">
+          <span className="hidden text-center font-typewriter text-[0.68rem] font-bold tracking-widest text-neutral-500 uppercase sm:block">
             or schedule
           </span>
-          <p className="hidden truncate font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase sm:block sm:text-right">
+          <p className="hidden truncate font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase sm:block sm:text-right">
             {selectedAt
               ? formatScheduleToast(selectedAt)
               : "Pick a slot below"}
@@ -192,7 +192,7 @@ export function ScheduleStrip({
             gridTemplateColumns: `4.5rem repeat(${days.length}, minmax(0, 1fr))`,
           }}
         >
-          <div className="border-r-2 border-mad-black px-1.5 py-1.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <div className="border-r-2 border-mad-black px-1.5 py-1.5 font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
             Slot
           </div>
           {days.map((day) => (
@@ -200,10 +200,10 @@ export function ScheduleStrip({
               key={day.dateKey}
               className="border-r-2 border-mad-black px-0.5 py-1.5 text-center last:border-r-0"
             >
-              <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-vermillion uppercase">
+              <p className="font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-vermillion uppercase">
                 {day.weekday}
               </p>
-              <p className="font-typewriter text-[0.55rem] font-bold tracking-tight text-mad-black uppercase">
+              <p className="font-typewriter text-[0.7rem] font-bold tracking-tight text-mad-black uppercase">
                 {day.label.replace(" ", "\u00a0")}
               </p>
             </div>
@@ -222,10 +222,10 @@ export function ScheduleStrip({
             }}
           >
             <div className="flex flex-col justify-center border-r-2 border-mad-black px-1.5 py-1.5">
-              <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase">
+              <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-black uppercase">
                 {slot.label}
               </span>
-              <span className="font-typewriter text-[0.55rem] text-neutral-500">
+              <span className="font-typewriter text-[0.7rem] text-neutral-500">
                 {String(slot.hour).padStart(2, "0")}:
                 {String(slot.minute).padStart(2, "0")}
               </span>
@@ -252,7 +252,7 @@ export function ScheduleStrip({
                   disabled={Boolean(taken) || disabled || locked || past}
                   onClick={() => selectSlot(day.date, slot)}
                   className={cn(
-                    "flex min-h-[2.35rem] items-center justify-center border-r-2 border-mad-black px-0.5 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase transition last:border-r-0",
+                    "flex min-h-[2.35rem] items-center justify-center border-r-2 border-mad-black px-0.5 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase transition last:border-r-0",
                     taken || past
                       ? "cursor-default bg-neutral-100 text-neutral-400"
                       : selected
@@ -270,7 +270,7 @@ export function ScheduleStrip({
 
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <label className="grid min-w-0 gap-1">
-          <span className="inline-flex items-center gap-1.5 font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-black uppercase">
+          <span className="inline-flex items-center gap-1.5 font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-black uppercase">
             <CalendarClock className="size-3" />
             Exact time
           </span>
@@ -295,7 +295,7 @@ export function ScheduleStrip({
                 key={option.id}
                 title={option.label}
                 className={cn(
-                  "inline-flex items-center gap-1.5 border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm transition",
+                  "inline-flex items-center gap-1.5 border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm transition",
                   locked || disabled
                     ? "cursor-not-allowed opacity-60"
                     : "cursor-pointer",
@@ -313,7 +313,7 @@ export function ScheduleStrip({
                 />
                 <span
                   className={cn(
-                    "flex size-3.5 items-center justify-center border-2 border-mad-black text-[0.55rem]",
+                    "flex size-3.5 items-center justify-center border-2 border-mad-black text-[0.7rem]",
                     checked
                       ? "bg-mad-lime text-mad-black"
                       : "bg-mad-white text-mad-black"
@@ -330,14 +330,14 @@ export function ScheduleStrip({
       </div>
 
       {selectedAt ? (
-        <p className="border-2 border-mad-black bg-mad-lime/40 px-2.5 py-1.5 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
+        <p className="border-2 border-mad-black bg-mad-lime/40 px-2.5 py-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase">
           Auto-post · {formatScheduleToast(selectedAt)}
           {channels.length > 0
             ? ` · ${channels.length} channel${channels.length === 1 ? "" : "s"}`
             : " · pick channels"}
         </p>
       ) : (
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase">
+        <p className="font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase">
           Tap a cell or set exact time — then confirm to arm auto-dispatch
         </p>
       )}
@@ -348,7 +348,7 @@ export function ScheduleStrip({
           onClick={onConfirm}
           disabled={!canConfirm || confirming || dispatchingNow}
           className={cn(
-            "inline-flex items-center justify-center border-2 border-mad-black px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest uppercase shadow-keycap-sm transition",
+            "inline-flex items-center justify-center border-2 border-mad-black px-3 py-2 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase shadow-keycap-sm transition",
             canConfirm
               ? "bg-mad-vermillion text-mad-white hover:brightness-95 disabled:opacity-60"
               : "cursor-not-allowed bg-neutral-200 text-neutral-500"
@@ -363,7 +363,7 @@ export function ScheduleStrip({
             disabled={
               disabled || locked || confirming || dispatchingNow || savingDraft
             }
-            className="inline-flex items-center justify-center gap-2 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm transition hover:bg-mad-lime disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm transition hover:bg-mad-lime disabled:opacity-50"
           >
             <Save className="size-3.5" aria-hidden />
             {savingDraft ? "Saving…" : "Save draft"}
@@ -383,7 +383,7 @@ function SopScheduleBadge({
 }) {
   if (locked) {
     return (
-      <span className="border-2 border-mad-black bg-mad-lime px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase shadow-keycap-sm">
+      <span className="border-2 border-mad-black bg-mad-lime px-2 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-black uppercase shadow-keycap-sm">
         Published
       </span>
     )
@@ -391,7 +391,7 @@ function SopScheduleBadge({
   return (
     <span
       className={cn(
-        "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase shadow-keycap-sm",
+        "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase shadow-keycap-sm",
         ready
           ? "bg-mad-lime text-mad-black"
           : "bg-mad-white text-neutral-500"

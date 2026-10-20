@@ -84,7 +84,7 @@ export function PlatformPreview({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p
-            className="text-[0.65rem] font-semibold tracking-[0.18em] uppercase"
+            className="text-[0.75rem] font-semibold tracking-[0.18em] uppercase"
             style={{ color: profile.theme.accent }}
           >
             {profile.theme.label} · {profile.storyTemplate.replace(/_/g, " ")}
@@ -119,7 +119,7 @@ export function PlatformPreview({
           {profile.vibeTags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full px-2.5 py-1 text-[0.65rem] font-medium tracking-wide"
+              className="rounded-full px-2.5 py-1 text-[0.75rem] font-medium tracking-wide"
               style={{
                 background:
                   tag === vibeTag ? profile.theme.accent : `${profile.theme.mist}`,
@@ -271,7 +271,7 @@ function MoodyNoirOverlay({
       <div className="flex items-start justify-between gap-2">
         {vibeTag ? (
           <span
-            className="rounded-sm px-2 py-1 font-serif text-[0.65rem] tracking-wide"
+            className="rounded-sm px-2 py-1 font-serif text-[0.75rem] tracking-wide"
             style={{
               background: profile.theme.accent,
               color: profile.theme.onAccent,
@@ -283,7 +283,7 @@ function MoodyNoirOverlay({
           <span />
         )}
         <span
-          className="rounded-sm px-2 py-1 text-[0.55rem] font-semibold tracking-[0.16em] uppercase"
+          className="rounded-sm px-2 py-1 text-[0.7rem] font-semibold tracking-[0.16em] uppercase"
           style={{
             background: `${profile.theme.canvas}CC`,
             color: profile.theme.ink,
@@ -301,7 +301,7 @@ function MoodyNoirOverlay({
         }}
       >
         <p
-          className="font-serif text-[0.65rem] tracking-[0.14em] uppercase"
+          className="font-serif text-[0.75rem] tracking-[0.14em] uppercase"
           style={{ color: profile.theme.accent }}
         >
           The Moody Noir Edit
@@ -317,7 +317,7 @@ function MoodyNoirOverlay({
         />
         {specs ? (
           <p
-            className="text-[0.7rem] tracking-wide uppercase"
+            className="text-[0.75rem] tracking-wide uppercase"
             style={{ color: `${profile.theme.ink}CC` }}
           >
             {specs}
@@ -336,7 +336,7 @@ function MoodyNoirOverlay({
         {channel === "story" ? (
           <div className="flex justify-center pt-1">
             <span
-              className="rounded-full px-4 py-1.5 text-[0.7rem] font-semibold tracking-wide"
+              className="rounded-full px-4 py-1.5 text-[0.75rem] font-semibold tracking-wide"
               style={{
                 background: profile.theme.ink,
                 color: profile.theme.canvas,
@@ -348,7 +348,7 @@ function MoodyNoirOverlay({
         ) : null}
         {profile.locationFooter ? (
           <p
-            className="pt-1 text-center text-[0.6rem] tracking-[0.12em] uppercase"
+            className="pt-1 text-center text-[0.72rem] tracking-[0.12em] uppercase"
             style={{ color: `${profile.theme.ink}99` }}
           >
             {profile.locationFooter}
@@ -378,7 +378,7 @@ function FreshBiteOverlay({
     <div className="absolute inset-0 z-10 flex flex-col justify-between p-4">
       <div className="flex items-start justify-between gap-2">
         <span
-          className="rounded-full px-2.5 py-1 text-[0.65rem] font-semibold"
+          className="rounded-full px-2.5 py-1 text-[0.75rem] font-semibold"
           style={{
             background: profile.theme.canvas,
             color: profile.theme.ink,
@@ -388,7 +388,7 @@ function FreshBiteOverlay({
           {vibeTag ?? "Neighborhood Special"}
         </span>
         <span
-          className="rounded-full px-2.5 py-1 text-[0.6rem] font-bold tracking-wide uppercase"
+          className="rounded-full px-2.5 py-1 text-[0.72rem] font-bold tracking-wide uppercase"
           style={{
             background: profile.theme.accent,
             color: profile.theme.onAccent,
@@ -407,7 +407,7 @@ function FreshBiteOverlay({
           }}
         >
           <p
-            className="text-[0.65rem] font-semibold tracking-[0.14em] uppercase"
+            className="text-[0.75rem] font-semibold tracking-[0.14em] uppercase"
             style={{ color: profile.theme.accent }}
           >
             The Fresh Bite / Eatery Drop
@@ -466,7 +466,7 @@ function DefaultOverlay({
 }) {
   return (
     <div className="absolute inset-x-0 bottom-0 z-10 space-y-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent p-4">
-      <span className="inline-flex rounded-full bg-white/90 px-2.5 py-0.5 text-[0.65rem] font-medium tracking-wide text-neutral-800 uppercase">
+      <span className="inline-flex rounded-full bg-white/90 px-2.5 py-0.5 text-[0.75rem] font-medium tracking-wide text-neutral-800 uppercase">
         {designer}
         {priceLabel !== "—" ? ` · ${priceLabel}` : ""}
       </span>
@@ -489,7 +489,7 @@ function DefaultOverlay({
       />
       {channel === "story" ? (
         <div className="flex justify-center">
-          <span className="rounded-full bg-white px-4 py-1.5 text-[0.7rem] font-semibold text-neutral-900">
+          <span className="rounded-full bg-white px-4 py-1.5 text-[0.75rem] font-semibold text-neutral-900">
             {profile.shopLinkLabel}
           </span>
         </div>

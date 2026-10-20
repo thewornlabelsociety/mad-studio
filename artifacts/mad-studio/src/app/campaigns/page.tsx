@@ -66,7 +66,7 @@ export default async function CampaignsPage({
   return (
     <StudioAppShell
       className="bg-mad-white"
-      mainClassName="mx-auto w-full max-w-6xl px-4 py-8"
+      mainClassName="mx-auto flex w-full max-w-7xl flex-col overflow-hidden px-4 py-3"
       entities={entities}
       activeEntityId={activeEntity.id}
       userEmail={user.email ?? null}
@@ -83,7 +83,7 @@ export default async function CampaignsPage({
     >
         <CalendarTabs
           activeEntity={activeEntity}
-          className="mb-6 rounded-md border"
+          className="mb-3 shrink-0 rounded-md border"
         />
         <Suspense fallback={null}>
           <CampaignsToast />

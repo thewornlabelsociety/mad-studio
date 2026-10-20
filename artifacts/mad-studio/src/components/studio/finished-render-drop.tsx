@@ -170,10 +170,10 @@ export function FinishedRenderDropZone({
         ) : (
           <Download className="size-5" />
         )}
-        <span className="font-typewriter text-[0.55rem] font-bold tracking-wider uppercase">
+        <span className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase">
           Drop finished render here
         </span>
-        <span className="font-typewriter text-[0.45rem] tracking-wide text-neutral-500 normal-case">
+        <span className="font-typewriter text-[0.68rem] tracking-wide text-neutral-500 normal-case">
           MP4 / MOV / PNG / JPG replaces active draft media
         </span>
       </div>

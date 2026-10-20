@@ -210,7 +210,7 @@ export function AuthForm({
       <div className="mb-8 flex flex-col items-center gap-4 text-center">
         <span className="inline-flex items-center gap-3">
           <MadStudioLogo size="md" href={null} />
-          <span className="inline-flex border border-mad-black bg-mad-lime px-2 py-0.5 font-typewriter text-[10px] font-bold tracking-wider text-mad-black uppercase">
+          <span className="inline-flex border border-mad-black bg-mad-lime px-2 py-0.5 font-typewriter text-[11.5px] font-bold tracking-wider text-mad-black uppercase">
             .NZ
           </span>
         </span>
@@ -244,7 +244,7 @@ export function AuthForm({
           type="button"
           onClick={() => setMode("signin")}
           className={cn(
-            "px-3 py-2.5 font-typewriter text-[0.65rem] font-bold tracking-widest uppercase transition-colors",
+            "px-3 py-2.5 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase transition-colors",
             mode === "signin"
               ? "bg-mad-black text-mad-white"
               : "bg-mad-white text-mad-black hover:bg-neutral-100"
@@ -256,7 +256,7 @@ export function AuthForm({
           type="button"
           onClick={() => setMode("signup")}
           className={cn(
-            "px-3 py-2.5 font-typewriter text-[0.65rem] font-bold tracking-widest uppercase transition-colors",
+            "px-3 py-2.5 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase transition-colors",
             mode === "signup"
               ? "bg-mad-black text-mad-white"
               : "bg-mad-white text-mad-black hover:bg-neutral-100"
@@ -271,7 +271,7 @@ export function AuthForm({
           type="button"
           onClick={() => setMethod("password")}
           className={cn(
-            "pb-2 font-typewriter text-[0.65rem] font-bold tracking-widest uppercase transition-colors",
+            "pb-2 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase transition-colors",
             method === "password"
               ? "border-b-2 border-mad-vermillion text-mad-black"
               : "text-neutral-500 hover:text-mad-black"
@@ -283,7 +283,7 @@ export function AuthForm({
           type="button"
           onClick={() => setMethod("magic")}
           className={cn(
-            "pb-2 font-typewriter text-[0.65rem] font-bold tracking-widest uppercase transition-colors",
+            "pb-2 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase transition-colors",
             method === "magic"
               ? "border-b-2 border-mad-vermillion text-mad-black"
               : "text-neutral-500 hover:text-mad-black"
@@ -298,7 +298,7 @@ export function AuthForm({
           <div className="grid gap-2">
             <label
               htmlFor="operator-name"
-              className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase"
+              className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase"
             >
               Operator Name
             </label>
@@ -319,7 +319,7 @@ export function AuthForm({
         <div className="grid gap-2">
           <label
             htmlFor="work-email"
-            className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase"
+            className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase"
           >
             Work Email
           </label>
@@ -340,7 +340,7 @@ export function AuthForm({
           <div className="grid gap-2">
             <label
               htmlFor="password"
-              className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase"
+              className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase"
             >
               Password
             </label>
@@ -367,7 +367,7 @@ export function AuthForm({
                 aria-controls="password"
                 aria-pressed={showPassword}
                 onClick={() => setShowPassword((visible) => !visible)}
-                className="absolute inset-y-0 right-0 flex items-center px-3 font-typewriter text-[0.65rem] font-bold tracking-widest text-neutral-600 uppercase hover:text-mad-black focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-mad-vermillion"
+                className="absolute inset-y-0 right-0 flex items-center px-3 font-typewriter text-[0.75rem] font-bold tracking-widest text-neutral-600 uppercase hover:text-mad-black focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-mad-vermillion"
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
@@ -393,7 +393,7 @@ export function AuthForm({
       <p className="mt-6 text-center">
         <Link
           href="/"
-          className="font-typewriter text-[0.65rem] font-bold tracking-widest text-neutral-600 uppercase underline underline-offset-2 hover:text-mad-black"
+          className="font-typewriter text-[0.75rem] font-bold tracking-widest text-neutral-600 uppercase underline underline-offset-2 hover:text-mad-black"
         >
           ← Back to Homepage
         </Link>

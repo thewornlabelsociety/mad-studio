@@ -20,6 +20,11 @@ import {
   bakeStoryFrame,
 } from "@/lib/media/bake-canvas-text"
 import { canvasBackdropOn, canvasTextOnly } from "@/lib/studio/canvas-text-types"
+import {
+  FEED_SHAPE,
+  STORY_SHAPE,
+  fitImageToShape,
+} from "@/lib/media/fit-to-platform"
 import { buildBasicStoryModel } from "@/lib/marketing/story-presets"
 import {
   CHANNEL_META,
@@ -219,20 +224,27 @@ export function ReviewBeforeSchedule({
     setArtwork(null)
     void (async () => {
       try {
-        const feed = await bakeCanvasTextOnImage({
+        const baked = await bakeCanvasTextOnImage({
           entityId,
           sourceUrl: photoUrl,
           overlay: textOverlay,
         })
-        let story = feed
-        if (!renderStoryCard && canvasBackdropOn(textOverlay)) {
-          // Backdrop on: post the Story full-bleed in that colour, as previewed.
-          story = await bakeStoryFrame({
-            entityId,
-            sourceUrl: feed,
-            color: textOverlay.backdropColor,
-          })
-        }
+        // Fit to each platform's shape for you — nothing is cropped off.
+        const backdropFill = canvasBackdropOn(textOverlay)
+          ? textOverlay.backdropColor
+          : null
+        const feed = await fitImageToShape({
+          entityId,
+          sourceUrl: baked,
+          shape: FEED_SHAPE,
+          fillColor: backdropFill,
+        })
+        let story = await fitImageToShape({
+          entityId,
+          sourceUrl: baked,
+          shape: STORY_SHAPE,
+          fillColor: backdropFill,
+        })
         if (renderStoryCard) {
           // Let the offscreen card's images finish loading before capture.
           await new Promise((resolve) => setTimeout(resolve, 400))
@@ -255,18 +267,28 @@ export function ReviewBeforeSchedule({
             overlay: canvasTextOnly(textOverlay),
           })
         }
-        // Each slide gets its own Canvas text baked in.
+        // Each slide gets its own Canvas text baked in, then every slide is
+        // fitted to the same 4:5 shape (Instagram needs carousels to match).
         const slides = isCarousel
           ? await Promise.all(
-              carouselSlides.map((slide) =>
-                slide.overlay
-                  ? bakeCanvasTextOnImage({
+              carouselSlides.map(async (slide) => {
+                const bakedSlide = slide.overlay
+                  ? await bakeCanvasTextOnImage({
                       entityId,
                       sourceUrl: slide.url,
                       overlay: slide.overlay,
                     })
-                  : Promise.resolve(slide.url)
-              )
+                  : slide.url
+                return fitImageToShape({
+                  entityId,
+                  sourceUrl: bakedSlide,
+                  shape: FEED_SHAPE,
+                  fillColor:
+                    slide.overlay && canvasBackdropOn(slide.overlay)
+                      ? slide.overlay.backdropColor
+                      : null,
+                })
+              })
             )
           : []
         const [feedAspect, storyAspect, ...perSlide] = await Promise.all([
@@ -306,7 +328,7 @@ export function ReviewBeforeSchedule({
     () =>
       slots.map((slot) => {
         const mediaUrl = artwork
-          ? slot.channel === "instagram_story"
+          ? slot.channel === "instagram_story" || slot.channel === "tiktok"
             ? artwork.story
             : artwork.feed
           : null
@@ -317,7 +339,7 @@ export function ReviewBeforeSchedule({
         })
         const caption = payload.caption ?? ""
         const aspect =
-          slot.channel === "instagram_story"
+          slot.channel === "instagram_story" || slot.channel === "tiktok"
             ? (aspects.story ?? null)
             : (aspects.feed ?? null)
         const problems = problemsFor({
@@ -419,7 +441,7 @@ export function ReviewBeforeSchedule({
                   </div>
                   <span
                     className={cn(
-                      "rounded-full px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide",
+                      "rounded-full px-2 py-0.5 text-[0.75rem] font-semibold uppercase tracking-wide",
                       card.blocking.length
                         ? "bg-mad-vermillion/15 text-mad-vermillion"
                         : "bg-emerald-100 text-emerald-800"
@@ -450,7 +472,7 @@ export function ReviewBeforeSchedule({
                   <div className="min-w-0 space-y-1">
                     {card.slides ? (
                       <div className="mb-2">
-                        <p className="mb-1 text-[0.65rem] font-semibold tracking-wide text-neutral-500 uppercase">
+                        <p className="mb-1 text-[0.75rem] font-semibold tracking-wide text-neutral-500 uppercase">
                           Carousel · {card.slides.length} photos
                         </p>
                         <div className="flex gap-1 overflow-x-auto">
@@ -477,7 +499,7 @@ export function ReviewBeforeSchedule({
                       )}
                     </p>
                     {card.slot.channel !== "email" ? (
-                      <p className="text-[0.65rem] text-neutral-400">
+                      <p className="text-[0.75rem] text-neutral-400">
                         {card.caption.length} / {CAPTION_LIMIT} characters
                       </p>
                     ) : null}

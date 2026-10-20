@@ -33,10 +33,10 @@ export function OnScreenTextPanel({ value, onChange }: Props) {
 
   return (
     <div className="space-y-2 border-t-2 border-mad-black/15 pt-3">
-      <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+      <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
         [ On-Screen Text ]
       </p>
-      <p className="text-[0.65rem] leading-snug text-neutral-600">
+      <p className="text-[0.75rem] leading-snug text-neutral-600">
         Only this headline/subhead bakes onto the image — not your Hook or caption
         strip. Use Canvas for font, shadow, and highlight. Clear below to remove
         all on-image text and re-save or download clean media.
@@ -45,18 +45,18 @@ export function OnScreenTextPanel({ value, onChange }: Props) {
         <button
           type="button"
           onClick={() => onChange(clearCanvasTextOverlay())}
-          className="border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.45rem] font-bold uppercase hover:bg-mad-vermillion hover:text-mad-white"
+          className="border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.68rem] font-bold uppercase hover:bg-mad-vermillion hover:text-mad-white"
         >
           Clear on-image text
         </button>
-        <span className="font-typewriter text-[0.45rem] text-neutral-500 normal-case">
+        <span className="font-typewriter text-[0.68rem] text-neutral-500 normal-case">
           {value.enabled && (value.headline.trim() || value.subhead.trim())
             ? "On-image text active"
             : "No on-image text"}
         </span>
       </div>
       <label className="block space-y-1">
-        <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+        <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
           Headline on media
         </span>
         <AutoTextarea
@@ -70,7 +70,7 @@ export function OnScreenTextPanel({ value, onChange }: Props) {
         />
       </label>
       <label className="block space-y-1">
-        <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+        <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
           Subhead
         </span>
         <AutoTextarea
@@ -85,7 +85,7 @@ export function OnScreenTextPanel({ value, onChange }: Props) {
       </label>
 
       <div className="space-y-1.5 border-t border-mad-black/10 pt-2">
-        <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+        <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
           Tilt ({Math.round(rotationDeg)}°)
         </span>
         <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

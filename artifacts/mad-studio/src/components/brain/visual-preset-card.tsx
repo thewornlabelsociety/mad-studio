@@ -76,7 +76,7 @@ export function VisualPresetCard({ entity, className }: Props) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Visual presets
           </p>
           <h2 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
@@ -92,7 +92,7 @@ export function VisualPresetCard({ entity, className }: Props) {
           size="sm"
           onClick={onSave}
           disabled={pending}
-          className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] uppercase text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
+          className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.72rem] uppercase text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
         >
           {pending ? (
             <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" />
@@ -117,7 +117,7 @@ export function VisualPresetCard({ entity, className }: Props) {
         }}
       >
         <div
-          className="flex aspect-square items-end justify-start border-2 p-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase"
+          className="flex aspect-square items-end justify-start border-2 p-2 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase"
           style={{
             borderColor: draft.text_color,
             background: draft.accent_color,
@@ -127,7 +127,7 @@ export function VisualPresetCard({ entity, className }: Props) {
           Accent
         </div>
         <div className="space-y-1 self-center">
-          <p className="font-typewriter text-[0.55rem] tracking-[0.18em] uppercase opacity-70">
+          <p className="font-typewriter text-[0.7rem] tracking-[0.18em] uppercase opacity-70">
             Live preview
           </p>
           <p className="text-lg font-semibold leading-tight">{entity.name}</p>
@@ -172,7 +172,7 @@ export function VisualPresetCard({ entity, className }: Props) {
         <div className="grid gap-1.5">
           <Label
             htmlFor="font_family"
-            className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase"
+            className="font-typewriter text-[0.72rem] font-bold tracking-widest uppercase"
           >
             Font family
           </Label>
@@ -245,7 +245,7 @@ function BrandPaletteField({
   return (
     <div className="grid gap-2 border-t border-neutral-200 pt-4">
       <div>
-        <Label className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+        <Label className="font-typewriter text-[0.72rem] font-bold tracking-widest uppercase">
           Brand palette
         </Label>
         <p className="mt-1 text-xs text-neutral-600">
@@ -287,7 +287,7 @@ function BrandPaletteField({
           <button
             type="button"
             onClick={() => add(adding)}
-            className="border-l-2 border-dashed border-mad-black px-2 font-typewriter text-[0.6rem] font-bold uppercase hover:bg-mad-lime/30"
+            className="border-l-2 border-dashed border-mad-black px-2 font-typewriter text-[0.72rem] font-bold uppercase hover:bg-mad-lime/30"
           >
             Add {adding.toUpperCase()}
           </button>
@@ -312,7 +312,7 @@ function HeadlineFontField({
   return (
     <div className="grid gap-3 border-t border-neutral-200 pt-4 sm:grid-cols-[minmax(0,14rem)_1fr] sm:items-center">
       <div className="grid gap-1.5">
-        <Label className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+        <Label className="font-typewriter text-[0.72rem] font-bold tracking-widest uppercase">
           Headline font
         </Label>
         <Select value={active.id} onValueChange={onChange}>
@@ -392,14 +392,14 @@ function LogoField({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt="Brand logo" className="max-h-full max-w-full object-contain" />
         ) : (
-          <span className="text-center text-[0.65rem] text-neutral-400">
+          <span className="text-center text-[0.75rem] text-neutral-400">
             No logo
           </span>
         )}
       </div>
       <div className="space-y-2">
         <div>
-          <Label className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+          <Label className="font-typewriter text-[0.72rem] font-bold tracking-widest uppercase">
             Logo (optional)
           </Label>
           <p className="mt-1 text-xs text-neutral-600">
@@ -408,7 +408,7 @@ function LogoField({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-1.5 border-2 border-mad-black bg-mad-white px-3 py-1.5 font-typewriter text-[0.6rem] font-bold uppercase hover:bg-mad-lime/50">
+          <label className="inline-flex cursor-pointer items-center gap-1.5 border-2 border-mad-black bg-mad-white px-3 py-1.5 font-typewriter text-[0.72rem] font-bold uppercase hover:bg-mad-lime/50">
             {uploading ? <Loader2 className="size-3.5 animate-spin" /> : null}
             {logoUrl ? "Replace" : "Upload logo"}
             <input
@@ -427,7 +427,7 @@ function LogoField({
             <button
               type="button"
               onClick={() => onChange({ logo_url: undefined })}
-              className="font-typewriter text-[0.6rem] font-bold uppercase text-neutral-500 underline hover:text-mad-black"
+              className="font-typewriter text-[0.72rem] font-bold uppercase text-neutral-500 underline hover:text-mad-black"
             >
               Remove
             </button>
@@ -443,7 +443,7 @@ function LogoField({
                 aria-checked={corner === option.id}
                 onClick={() => onChange({ logo_corner: option.id })}
                 className={cn(
-                  "border-2 px-2 py-1 font-typewriter text-[0.55rem] font-bold uppercase",
+                  "border-2 px-2 py-1 font-typewriter text-[0.7rem] font-bold uppercase",
                   corner === option.id
                     ? "border-mad-black bg-mad-black text-mad-white"
                     : "border-neutral-300 text-neutral-600 hover:border-mad-black"
@@ -475,10 +475,10 @@ function ColorSwatchField({
   return (
     <div className="grid gap-2">
       <div className="flex items-center justify-between gap-2">
-        <Label className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+        <Label className="font-typewriter text-[0.72rem] font-bold tracking-widest uppercase">
           {label}
         </Label>
-        <span className="font-mono text-[0.65rem] uppercase text-neutral-500">
+        <span className="font-mono text-[0.75rem] uppercase text-neutral-500">
           {normalized}
         </span>
       </div>

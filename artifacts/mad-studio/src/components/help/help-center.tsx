@@ -34,7 +34,7 @@ function SectionBlock({
         <p className="mt-2">
           <Link
             href={`${section.route}${entityQuery}`}
-            className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-vermillion uppercase hover:underline"
+            className="font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-vermillion uppercase hover:underline"
           >
             Open {section.route} →
           </Link>
@@ -55,7 +55,7 @@ function SectionBlock({
 
       {section.sop ? (
         <div className="mt-6 border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-          <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
             SOP · {section.sop.title}
           </p>
           <p className="mt-1 text-xs text-neutral-600">
@@ -104,7 +104,7 @@ export function HelpCenter({ entityQuery }: Props) {
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
       <aside className="lg:sticky lg:top-28 lg:w-56 lg:shrink-0">
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+        <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
           Contents
         </p>
         <nav className="mt-2 flex flex-col gap-1">
@@ -112,20 +112,20 @@ export function HelpCenter({ entityQuery }: Props) {
             <a
               key={section.id}
               href={`#${section.id}`}
-              className="font-typewriter text-[0.65rem] tracking-tight text-mad-black uppercase hover:text-mad-vermillion"
+              className="font-typewriter text-[0.75rem] tracking-tight text-mad-black uppercase hover:text-mad-vermillion"
             >
               {section.title}
             </a>
           ))}
         </nav>
-        <p className="mt-6 font-typewriter text-[0.5rem] tracking-wider text-neutral-400 uppercase">
+        <p className="mt-6 font-typewriter text-[0.68rem] tracking-wider text-neutral-400 uppercase">
           Doc v{MAD_STUDIO_HELP_INTRO.version}
         </p>
       </aside>
 
       <div className="min-w-0 flex-1">
         <header className="mb-8 border-b-2 border-mad-black pb-6">
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Help &amp; workflows
           </p>
           <h1 className="mt-2 font-typewriter text-2xl font-bold tracking-typewriter-tight text-mad-black uppercase sm:text-3xl">

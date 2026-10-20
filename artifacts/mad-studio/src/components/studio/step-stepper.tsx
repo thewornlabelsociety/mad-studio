@@ -89,7 +89,7 @@ export function StepStepper({
             <>
               <span
                 className={cn(
-                  "flex size-5 shrink-0 items-center justify-center font-typewriter text-[0.65rem] font-bold",
+                  "flex size-5 shrink-0 items-center justify-center font-typewriter text-[0.75rem] font-bold",
                   active
                     ? "bg-mad-black text-mad-white"
                     : complete
@@ -99,7 +99,7 @@ export function StepStepper({
               >
                 {complete ? <Check className="size-3 stroke-[3]" /> : item.id}
               </span>
-              <span className="truncate font-typewriter text-[0.65rem] font-bold tracking-wider uppercase">
+              <span className="truncate font-typewriter text-[0.75rem] font-bold tracking-wider uppercase">
                 {item.label}
               </span>
             </>

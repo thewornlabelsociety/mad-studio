@@ -32,7 +32,7 @@ export function IntentMatrix({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+        <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
           Audience tone
         </p>
         <div className="grid grid-cols-1 gap-2">
@@ -51,12 +51,12 @@ export function IntentMatrix({
                     : "bg-mad-white text-mad-black hover:bg-mad-lime"
                 )}
               >
-                <p className="font-typewriter text-[0.65rem] font-bold tracking-wider uppercase">
+                <p className="font-typewriter text-[0.75rem] font-bold tracking-wider uppercase">
                   {meta.label}
                 </p>
                 <p
                   className={cn(
-                    "mt-1 text-[0.65rem] leading-relaxed normal-case",
+                    "mt-1 text-[0.75rem] leading-relaxed normal-case",
                     active ? "text-white/75" : "text-neutral-600"
                   )}
                 >
@@ -77,7 +77,7 @@ export function IntentMatrix({
               type="button"
               onClick={() => onIntentChipSelect(chip)}
               className={cn(
-                "border-2 border-mad-black px-2 py-3 text-left font-typewriter text-[0.65rem] font-bold tracking-wider uppercase transition-colors",
+                "border-2 border-mad-black px-2 py-3 text-left font-typewriter text-[0.75rem] font-bold tracking-wider uppercase transition-colors",
                 active
                   ? "bg-mad-black text-mad-white shadow-keycap-sm"
                   : "bg-mad-white text-mad-black hover:bg-mad-lime"
@@ -91,14 +91,14 @@ export function IntentMatrix({
 
       {outputFormats.length > 0 ? (
         <div className="border-t-2 border-mad-black pt-3">
-          <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+          <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
             Output emphasis
           </p>
           <ul className="mt-1.5 flex flex-wrap gap-1.5">
             {outputFormats.map((format) => (
               <li
                 key={format}
-                className="border border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase"
+                className="border border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase"
               >
                 {format}
               </li>

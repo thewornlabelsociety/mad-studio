@@ -427,10 +427,10 @@ export function MediaTray({
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between gap-2">
-        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+        <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
           Media tray
         </p>
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase">
+        <p className="font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase">
           PNG · JPG · WEBP · MP4 · MOV
         </p>
       </div>
@@ -438,7 +438,7 @@ export function MediaTray({
       {visionReady || visionBusy ? (
         <div
           className={cn(
-            "inline-flex items-center gap-1.5 border-2 border-mad-black px-2.5 py-1 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase shadow-keycap-sm",
+            "inline-flex items-center gap-1.5 border-2 border-mad-black px-2.5 py-1 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase shadow-keycap-sm",
             visionBusy
               ? "bg-mad-white text-neutral-600"
               : "bg-mad-lime text-mad-black"
@@ -533,12 +533,12 @@ export function MediaTray({
           disabled={disabled}
           onClick={() => setLibraryOpen(true)}
           className={cn(
-            "flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 border-2 border-dashed border-mad-black bg-mad-lime font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase transition hover:bg-mad-black hover:text-mad-white",
+            "flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 border-2 border-dashed border-mad-black bg-mad-lime font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase transition hover:bg-mad-black hover:text-mad-white",
             disabled && "pointer-events-none opacity-50"
           )}
         >
           <Plus className="size-4" />
-          <span className="text-[0.55rem] font-medium tracking-wide uppercase">
+          <span className="text-[0.7rem] font-medium tracking-wide uppercase">
             Add
           </span>
         </button>

@@ -577,7 +577,7 @@ export function normalizeCanvasTextOverlay(
   const scaleOf = (key: string, fallback: number) => {
     const raw = row[key]
     const n = typeof raw === "number" ? raw : Number(raw)
-    return Number.isFinite(n) ? Math.min(2.5, Math.max(0.5, n)) : fallback
+    return Number.isFinite(n) ? Math.min(2.5, Math.max(0.15, n)) : fallback
   }
   const degreesOf = (key: string, fallback: number) => {
     const raw = row[key]
@@ -616,7 +616,7 @@ export function normalizeCanvasTextOverlay(
       const raw = row.fontScale
       const n = typeof raw === "number" ? raw : Number(raw)
       if (!Number.isFinite(n)) return DEFAULT_CANVAS_TEXT_OVERLAY.fontScale
-      return Math.min(2.5, Math.max(0.5, n))
+      return Math.min(2.5, Math.max(0.15, n))
     })(),
 
     rotationDeg: (() => {
@@ -1354,7 +1354,7 @@ function normalizeTagStyles(raw: unknown): CanvasTextOverlayState["tagStyles"] {
     if (typeof r.color === "string") style.color = r.color
     if (typeof r.bgColor === "string") style.bgColor = r.bgColor
     if (typeof r.fontScale === "number" && Number.isFinite(r.fontScale)) {
-      style.fontScale = Math.min(2.5, Math.max(0.3, r.fontScale))
+      style.fontScale = Math.min(2.5, Math.max(0.15, r.fontScale))
     }
     if (typeof r.rotationDeg === "number" && Number.isFinite(r.rotationDeg)) {
       style.rotationDeg = Math.min(180, Math.max(-180, r.rotationDeg))

@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import {
   QUOTE_SOURCES,
@@ -61,7 +62,7 @@ function FieldLabel({
     <div className="space-y-0.5">
       <Label
         htmlFor={htmlFor}
-        className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase"
+        className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase"
       >
         {plain}
       </Label>
@@ -220,72 +221,80 @@ export function BrainLab({
     })
   }
 
-  return (
-    <div className="space-y-6">
-      <BrainWorkspaceBack entityId={entity.id} />
+  // One screen: a compact header, the sections as a menu on the left, and
+  // the open section scrolling inside its own panel.
+  const tabClass =
+    "w-full justify-start rounded-none border-2 border-mad-black bg-mad-white px-3 py-2 text-left font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase data-[state=active]:bg-mad-black data-[state=active]:text-mad-white"
+  const panelClass = "mt-0 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1"
 
-      <div className="flex items-start justify-between gap-4 border-b-2 border-mad-black pb-5">
-        <div className="min-w-0 space-y-2">
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-            {entity.name} // Brand Intelligence
-          </p>
-          <h1 className="brand-typewriter text-2xl text-mad-black sm:text-3xl">
-            Brand Brain
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
-            Tune voice, memory, and creative direction — then push seasonal focus
-            straight into the workbench.
-          </p>
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b-2 border-mad-black pb-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <BrainEmblem size={44} />
+          <div className="min-w-0">
+            <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
+              {entity.name} // Brand Intelligence
+            </p>
+            <h1 className="brand-typewriter text-xl text-mad-black">Brand Brain</h1>
+          </div>
         </div>
-        <BrainEmblem size={104} className="mt-1" />
+        <BrainWorkspaceBack entityId={entity.id} />
       </div>
 
       <BrainSuggestionBar entityId={entity.id} />
 
-      <Tabs defaultValue="dna" className="gap-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-none border-0 bg-transparent p-0 shadow-none sm:grid-cols-5">
-          <TabsTrigger
-            value="dna"
-            className="rounded-none border-2 border-mad-black bg-mad-white px-3 py-2.5 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm data-[state=active]:bg-mad-black data-[state=active]:text-mad-white data-[state=active]:shadow-none"
-          >
+      <Tabs
+        defaultValue="look"
+        orientation="vertical"
+        className="flex min-h-0 flex-1 flex-col gap-3 md:flex-row"
+      >
+        <TabsList className="flex h-auto w-full shrink-0 flex-row flex-wrap gap-1.5 rounded-none border-0 bg-transparent p-0 shadow-none md:w-48 md:flex-col md:flex-nowrap">
+          <TabsTrigger value="look" className={tabClass}>
+            Look &amp; logo
+          </TabsTrigger>
+          <TabsTrigger value="dna" className={tabClass}>
             Core DNA
           </TabsTrigger>
-          <TabsTrigger
-            value="docs"
-            className="rounded-none border-2 border-mad-black bg-mad-white px-3 py-2.5 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm data-[state=active]:bg-mad-black data-[state=active]:text-mad-white data-[state=active]:shadow-none"
-          >
+          <TabsTrigger value="words" className={tabClass}>
+            Words to avoid
+          </TabsTrigger>
+          <TabsTrigger value="audiences" className={tabClass}>
+            Audiences
+          </TabsTrigger>
+                    <TabsTrigger value="docs" className={tabClass}>
             Documents
           </TabsTrigger>
-          <TabsTrigger
-            value="quotes"
-            className="rounded-none border-2 border-mad-black bg-mad-white px-3 py-2.5 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm data-[state=active]:bg-mad-black data-[state=active]:text-mad-white data-[state=active]:shadow-none"
-          >
+          <TabsTrigger value="quotes" className={tabClass}>
             Street Ear
           </TabsTrigger>
-          <TabsTrigger
-            value="memory"
-            className="rounded-none border-2 border-mad-black bg-mad-white px-3 py-2.5 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm data-[state=active]:bg-mad-black data-[state=active]:text-mad-white data-[state=active]:shadow-none"
-          >
+          <TabsTrigger value="memory" className={tabClass}>
             Memory
           </TabsTrigger>
-          <TabsTrigger
-            value="chat"
-            className="col-span-2 rounded-none border-2 border-mad-black bg-mad-white px-3 py-2.5 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm data-[state=active]:bg-mad-black data-[state=active]:text-mad-white data-[state=active]:shadow-none sm:col-span-1"
-          >
+          <TabsTrigger value="chat" className={tabClass}>
             Brand Director
+          </TabsTrigger>
+          <TabsTrigger value="diagnostics" className={cn(tabClass, "text-neutral-500")}>
+            Diagnostics
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dna" className="mt-0 space-y-4">
+        <TabsContent value="look" className={panelClass}>
           <VisualPresetCard entity={entity} />
+        </TabsContent>
+        <TabsContent value="dna" className={panelClass}>
           <DnaIntakeWizard entity={entity} />
+        </TabsContent>
+        <TabsContent value="words" className={panelClass}>
           <ForbiddenWordsEditor entity={entity} />
+        </TabsContent>
+        <TabsContent value="audiences" className={panelClass}>
           <AudienceSegmentsEditor entity={entity} />
         </TabsContent>
 
-        <TabsContent value="docs" className="mt-0 space-y-4">
+        <TabsContent value="docs" className={panelClass}>
           <div>
-            <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
               Documents
             </p>
             <h2 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
@@ -317,7 +326,7 @@ export function BrainLab({
             <p className="mt-3 font-typewriter text-sm font-bold tracking-wide text-mad-black uppercase">
               Drag & drop a document here
             </p>
-            <p className="mt-1 font-typewriter text-[0.65rem] tracking-wider text-neutral-500 uppercase">
+            <p className="mt-1 font-typewriter text-[0.75rem] tracking-wider text-neutral-500 uppercase">
               PDF, DOCX, TXT, MD, CSV
             </p>
             <input
@@ -335,7 +344,7 @@ export function BrainLab({
               type="button"
               variant="outline"
               size="sm"
-              className="mt-4 rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase shadow-keycap-sm"
+              className="mt-4 rounded-none border-2 border-mad-black font-typewriter text-[0.75rem] uppercase shadow-keycap-sm"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
             >
@@ -367,7 +376,7 @@ export function BrainLab({
                         {doc.title}
                       </p>
                       <p
-                        className="font-typewriter text-[0.65rem] tracking-wider text-neutral-500 uppercase"
+                        className="font-typewriter text-[0.75rem] tracking-wider text-neutral-500 uppercase"
                         suppressHydrationWarning
                       >
                         {doc.doc_type ?? "guideline"} ·{" "}
@@ -408,7 +417,7 @@ export function BrainLab({
           </div>
         </TabsContent>
 
-        <TabsContent value="quotes" className="mt-0">
+        <TabsContent value="quotes" className={panelClass}>
           <StreetEar
             entityId={entity.id}
             entityName={entity.name}
@@ -438,9 +447,9 @@ export function BrainLab({
           />
         </TabsContent>
 
-        <TabsContent value="memory" className="mt-0 space-y-4">
+        <TabsContent value="memory" className={panelClass}>
           <div>
-            <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
               Memory
             </p>
             <h2 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
@@ -469,7 +478,7 @@ export function BrainLab({
               type="button"
               disabled={addingDirective || manualDirective.trim().length < 3}
               onClick={() => void onAddManualDirective()}
-              className="shrink-0 rounded-none border-2 border-mad-black bg-[#CCFF00] font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-black uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white"
+              className="shrink-0 rounded-none border-2 border-mad-black bg-[#CCFF00] font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-black uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white"
             >
               {addingDirective ? (
                 <Loader2 className="animate-spin" data-icon="inline-start" />
@@ -506,22 +515,22 @@ export function BrainLab({
           )}
         </TabsContent>
 
-        <TabsContent value="chat" className="mt-0">
+        <TabsContent value="chat" className="mt-0 flex min-h-0 flex-1 flex-col border-2 border-mad-black">
           <BrainChat
             entityId={entity.id}
             entityName={entity.name}
             industry={entity.industry}
+            embedded
           />
         </TabsContent>
-      </Tabs>
-
-      <Collapsible className="border-2 border-mad-black bg-mad-white shadow-keycap-sm">
-        <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-4 py-3 text-left font-typewriter text-[0.65rem] font-bold tracking-widest text-neutral-500 uppercase hover:bg-mad-lime/30 hover:text-mad-black">
+        <TabsContent value="diagnostics" className={panelClass}>
+      <Collapsible defaultOpen className="border-2 border-mad-black bg-mad-white shadow-keycap-sm">
+        <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-4 py-3 text-left font-typewriter text-[0.75rem] font-bold tracking-widest text-neutral-500 uppercase hover:bg-mad-lime/30 hover:text-mad-black">
           <span>▾ Advanced Diagnostics</span>
           <ChevronDown className="size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
         </CollapsibleTrigger>
         <CollapsibleContent className="border-t-2 border-mad-black px-4 py-3">
-          <dl className="grid gap-2 font-mono text-[0.7rem] text-neutral-500 sm:grid-cols-2">
+          <dl className="grid gap-2 font-mono text-[0.75rem] text-neutral-500 sm:grid-cols-2">
             <div>
               <dt className="text-neutral-400">Entity ID</dt>
               <dd className="break-all text-mad-black">{entity.id}</dd>
@@ -551,6 +560,8 @@ export function BrainLab({
           </dl>
         </CollapsibleContent>
       </Collapsible>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
@@ -580,7 +591,7 @@ function TakeawayEditor({
             {item.title}
           </p>
           <p
-            className="font-typewriter text-[0.65rem] tracking-wider text-neutral-500 uppercase"
+            className="font-typewriter text-[0.75rem] tracking-wider text-neutral-500 uppercase"
             suppressHydrationWarning
           >
             {item.outcome_rating} ·{" "}
@@ -593,7 +604,7 @@ function TakeawayEditor({
             size="sm"
             variant="outline"
             disabled={pending}
-            className="rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] uppercase shadow-keycap-sm"
+            className="rounded-none border-2 border-mad-black font-typewriter text-[0.72rem] uppercase shadow-keycap-sm"
             onClick={() => {
               startTransition(async () => {
                 const result = await updateCampaignTakeaway({
@@ -617,7 +628,7 @@ function TakeawayEditor({
             size="sm"
             variant="ghost"
             disabled={pending}
-            className="rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] uppercase hover:bg-mad-vermillion hover:text-mad-white"
+            className="rounded-none border-2 border-mad-black font-typewriter text-[0.72rem] uppercase hover:bg-mad-vermillion hover:text-mad-white"
             onClick={() => {
               startTransition(async () => {
                 const result = await clearCampaignTakeaway({

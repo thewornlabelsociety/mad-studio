@@ -176,7 +176,7 @@ export function InventoryLibraryWorkspace({
                         className="size-full object-cover transition-transform group-hover:scale-[1.02]"
                       />
                     ) : (
-                      <div className="flex size-full items-center justify-center text-[0.65rem] text-neutral-400">
+                      <div className="flex size-full items-center justify-center text-[0.75rem] text-neutral-400">
                         No media
                       </div>
                     )}
@@ -189,7 +189,7 @@ export function InventoryLibraryWorkspace({
                     />
                     <span
                       className={cn(
-                        "absolute right-2 top-2 rounded-full px-2 py-0.5 text-[0.6rem] font-semibold tracking-wide uppercase shadow-sm",
+                        "absolute right-2 top-2 rounded-full px-2 py-0.5 text-[0.72rem] font-semibold tracking-wide uppercase shadow-sm",
                         ready
                           ? "bg-emerald-100 text-emerald-800"
                           : "bg-white/90 text-amber-800"
@@ -225,7 +225,7 @@ export function InventoryLibraryWorkspace({
             onClose={() => setSelectedId(null)}
             headerSlot={
               <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+                <p className="text-[12px] font-medium uppercase tracking-wide text-neutral-500">
                   Library item
                 </p>
                 <p className="truncate text-sm font-semibold text-mad-black">

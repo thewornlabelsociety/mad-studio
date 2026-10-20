@@ -2,7 +2,7 @@
 
 import { useTransition } from "react"
 import { Link } from "wouter"
-import { Eye, Loader2, Shirt, Zap } from "lucide-react"
+import { Eye, Loader2, Shirt, X, Zap } from "lucide-react"
 import { toast } from "sonner"
 
 import { skipDailyQueueItem } from "@/lib/actions"
@@ -16,6 +16,8 @@ type Props = {
   entityId: string
   onSkip: (itemId: string) => void
   onPreview: (view: TodayQueueView) => void
+  /** One-line row with icon actions (desktop Today column). */
+  compact?: boolean
 }
 
 export function IntakeActionCard({
@@ -23,6 +25,7 @@ export function IntakeActionCard({
   entityId,
   onSkip,
   onPreview,
+  compact = false,
 }: Props) {
   const [pending, startTransition] = useTransition()
   const studioHref = `/studio?eid=${encodeURIComponent(entityId)}&itemId=${encodeURIComponent(view.item.id)}&step=2`
@@ -43,6 +46,71 @@ export function IntakeActionCard({
     })
   }
 
+  if (compact) {
+    const title = view.isFudi
+      ? view.displayTitle
+      : view.item.brand?.trim() || view.displayTitle
+    const meta = view.isFudi
+      ? view.venueOrBrand || view.detailLine
+      : [view.wlsSize ? `Size ${view.wlsSize}` : null, view.wlsPrice, view.item.vibe]
+          .filter(Boolean)
+          .join(" · ")
+    const iconBtn =
+      "inline-flex size-8 items-center justify-center border-2 border-mad-black disabled:opacity-50"
+    return (
+      <article className="flex items-center gap-2 border-2 border-mad-black bg-mad-white p-1.5">
+        <div className="size-14 shrink-0 overflow-hidden border border-mad-black bg-neutral-100">
+          {view.mediaUrl ? (
+            view.isVideo ? (
+              <video src={view.mediaUrl} className="size-full object-cover" muted playsInline preload="metadata" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={view.mediaUrl} alt="" loading="lazy" className="size-full object-cover" />
+            )
+          ) : null}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-semibold text-mad-black" title={view.displayTitle}>
+            {title}
+          </p>
+          {!view.isFudi ? (
+            <p className="truncate text-[0.75rem] text-neutral-600">{view.displayTitle}</p>
+          ) : null}
+          {meta ? <p className="truncate text-[0.75rem] text-neutral-500">{meta}</p> : null}
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <Link
+            href={studioHref}
+            aria-label="Craft in Studio"
+            title="Craft in Studio"
+            className={cn(iconBtn, "bg-mad-black text-mad-white hover:bg-mad-vermillion")}
+          >
+            <Zap className="size-3.5" aria-hidden />
+          </Link>
+          <button
+            type="button"
+            onClick={() => onPreview(view)}
+            aria-label="Quick preview"
+            title="Quick preview"
+            className={cn(iconBtn, "bg-mad-white hover:bg-mad-lime")}
+          >
+            <Eye className="size-3.5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={onSkipClick}
+            aria-label="Skip — hide from Today"
+            title="Skip — hide from Today"
+            className={cn(iconBtn, "bg-mad-white hover:bg-neutral-200")}
+          >
+            {pending ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" aria-hidden />}
+          </button>
+        </div>
+      </article>
+    )
+  }
+
   return (
     <article className="grid grid-cols-[4.75rem_minmax(0,1fr)_9.25rem] items-center gap-3 border-2 border-mad-black bg-mad-white p-3 shadow-keycap-sm sm:grid-cols-[6.5rem_minmax(0,1fr)_11.5rem] sm:gap-4 sm:p-4">
       <div className="relative aspect-square w-full shrink-0 overflow-hidden border-2 border-mad-black bg-neutral-100">
@@ -60,7 +128,7 @@ export function IntakeActionCard({
             <img src={view.mediaUrl} alt="" className="size-full object-cover" />
           )
         ) : (
-          <div className="flex size-full items-center justify-center font-typewriter text-[0.45rem] font-bold text-neutral-400 uppercase sm:text-[0.5rem]">
+          <div className="flex size-full items-center justify-center font-typewriter text-[0.68rem] font-bold text-neutral-400 uppercase sm:text-[0.68rem]">
             No media
           </div>
         )}
@@ -69,7 +137,7 @@ export function IntakeActionCard({
       <div className="min-w-0 space-y-1.5 sm:space-y-2">
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {view.intakeBadge ? (
-            <span className="border-2 border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase sm:text-[0.55rem]">
+            <span className="border-2 border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-black uppercase sm:text-[0.7rem]">
               <IntakeBadgeIcon
                 kind={view.intakeBadge.kind}
                 className="mr-1 inline size-3 align-[-2px]"
@@ -78,7 +146,7 @@ export function IntakeActionCard({
             </span>
           ) : null}
           {view.isFudi && view.fudiDropKind ? (
-            <span className="border-2 border-mad-black bg-[#CCFF00] px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase sm:text-[0.55rem]">
+            <span className="border-2 border-mad-black bg-[#CCFF00] px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-black uppercase sm:text-[0.7rem]">
               <DropKindIcon
                 kind={view.fudiDropKind}
                 className="mr-1 inline size-3 align-[-2px]"
@@ -87,12 +155,12 @@ export function IntakeActionCard({
             </span>
           ) : null}
           {view.isWls ? (
-            <span className="border-2 border-mad-black bg-mad-lime px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase sm:text-[0.55rem]">
+            <span className="border-2 border-mad-black bg-mad-lime px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase sm:text-[0.7rem]">
               <Shirt className="mr-1 inline size-3 align-[-2px]" aria-hidden />
               NEW CONSIGNMENT
             </span>
           ) : null}
-          <span className="border border-mad-black/60 px-1.5 py-0.5 font-typewriter text-[0.45rem] font-bold tracking-wider uppercase sm:text-[0.5rem]">
+          <span className="border border-mad-black/60 px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase sm:text-[0.68rem]">
             [ {view.channelRecommendation} ]
           </span>
         </div>
@@ -100,7 +168,7 @@ export function IntakeActionCard({
         {view.isFudi ? (
           <>
             {view.venueOrBrand ? (
-              <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase sm:text-[0.6rem]">
+              <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase sm:text-[0.72rem]">
                 {view.venueOrBrand}
               </p>
             ) : null}
@@ -123,7 +191,7 @@ export function IntakeActionCard({
               {view.wlsSize ? ` · Size ${view.wlsSize}` : ""} · {view.wlsPrice}
             </p>
             {view.item.vibe ? (
-              <span className="inline-block border border-mad-black px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase sm:text-[0.55rem]">
+              <span className="inline-block border border-mad-black px-2 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase sm:text-[0.7rem]">
                 Shop-by-Vibe · {view.item.vibe}
               </span>
             ) : null}
@@ -131,7 +199,7 @@ export function IntakeActionCard({
         )}
 
         <p className="line-clamp-2 text-xs leading-snug text-neutral-800 sm:text-sm">
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-widest text-mad-vermillion uppercase sm:text-[0.55rem]">
+          <span className="font-typewriter text-[0.68rem] font-bold tracking-widest text-mad-vermillion uppercase sm:text-[0.7rem]">
             Hook ·{" "}
           </span>
           {view.recommendedHook}
@@ -141,7 +209,7 @@ export function IntakeActionCard({
       <div className="flex flex-col gap-1.5 self-center sm:gap-2">
         <Link
           href={studioHref}
-          className="inline-flex h-9 items-center justify-center gap-1 border-2 border-mad-black bg-mad-black px-2 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion sm:h-10 sm:px-3 sm:text-[0.6rem]"
+          className="inline-flex h-9 items-center justify-center gap-1 border-2 border-mad-black bg-mad-black px-2 font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion sm:h-10 sm:px-3 sm:text-[0.72rem]"
         >
           <Zap className="size-3 shrink-0 sm:size-3.5" />
           <span className="truncate">Craft in Studio</span>
@@ -149,7 +217,7 @@ export function IntakeActionCard({
         <button
           type="button"
           onClick={() => onPreview(view)}
-          className="inline-flex h-9 items-center justify-center gap-1 border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime sm:h-10 sm:px-3 sm:text-[0.6rem]"
+          className="inline-flex h-9 items-center justify-center gap-1 border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime sm:h-10 sm:px-3 sm:text-[0.72rem]"
         >
           <Eye className="size-3 shrink-0 sm:size-3.5" />
           <span className="truncate">Quick Preview</span>
@@ -159,7 +227,7 @@ export function IntakeActionCard({
           disabled={pending}
           onClick={onSkipClick}
           className={cn(
-            "inline-flex h-9 items-center justify-center border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase hover:bg-neutral-200 disabled:opacity-50 sm:h-10 sm:px-3 sm:text-[0.6rem]"
+            "inline-flex h-9 items-center justify-center border-2 border-mad-black bg-mad-white px-2 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase hover:bg-neutral-200 disabled:opacity-50 sm:h-10 sm:px-3 sm:text-[0.72rem]"
           )}
         >
           {pending ? (

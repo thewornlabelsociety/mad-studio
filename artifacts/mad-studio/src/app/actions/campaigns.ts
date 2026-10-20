@@ -17,6 +17,7 @@ import {
 } from "@/lib/campaigns/pack-schema"
 import type { Json } from "@/lib/database.types"
 import type { FudiAudienceTrack } from "@/lib/studio/fudi-tracks"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 export type SaveCampaignInput = {
@@ -437,4 +438,100 @@ export async function dispatchCampaignPack(
     dispatched: succeeded.length,
     endpoints: succeeded.map((result) => result.value),
   }
+}
+
+type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }
+
+/** Calendar: clear a whole campaign plan (its already-scheduled posts stay). */
+export async function archiveCampaignProgram(input: {
+  entityId: string
+  programId: string
+}): Promise<ActionResult<{ archived: true }>> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error || !auth.user) {
+    return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+  // Plan tables aren't in every copy's generated types.
+  const admin = createAdminClient() as unknown as { from: (table: string) => any }
+  const { data, error } = await admin
+    .from("campaign_programs")
+    .update({ status: "archived", updated_at: new Date().toISOString() })
+    .eq("id", input.programId)
+    .eq("entity_id", input.entityId)
+    .select("id")
+    .maybeSingle()
+  if (error) return { ok: false, error: error.message }
+  if (!data) return { ok: false, error: "That plan wasn't found." }
+  return { ok: true, data: { archived: true } }
+}
+
+/** Calendar: drop one planned day from a campaign plan. */
+export async function skipCampaignProgramDay(input: {
+  entityId: string
+  dayId: string
+}): Promise<ActionResult<{ skipped: true }>> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error || !auth.user) {
+    return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+  // Plan tables aren't in every copy's generated types.
+  const admin = createAdminClient() as unknown as { from: (table: string) => any }
+  const { data: day } = await admin
+    .from("campaign_program_days")
+    .select("id, program_id")
+    .eq("id", input.dayId)
+    .maybeSingle()
+  if (!day) return { ok: false, error: "That planned day wasn't found." }
+  const { data: program } = await admin
+    .from("campaign_programs")
+    .select("id")
+    .eq("id", day.program_id)
+    .eq("entity_id", input.entityId)
+    .maybeSingle()
+  if (!program) return { ok: false, error: "That planned day wasn't found." }
+  const { error } = await admin
+    .from("campaign_program_days")
+    .update({ status: "skipped", updated_at: new Date().toISOString() })
+    .eq("id", input.dayId)
+  if (error) return { ok: false, error: error.message }
+  return { ok: true, data: { skipped: true } }
+}
+
+/**
+ * Calendar: hide posts from the calendar (e.g. test posts). Nothing changes
+ * on Instagram, Facebook or TikTok.
+ */
+export async function hideCalendarPosts(input: {
+  entityId: string
+  postIds: string[]
+}): Promise<ActionResult<{ hidden: number }>> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error || !auth.user) {
+    return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+  const ids = input.postIds.slice(0, 50)
+  const { data: rows, error: readError } = await auth.supabase
+    .from("scheduled_posts")
+    .select("id, payload")
+    .eq("entity_id", input.entityId)
+    .in("id", ids)
+  if (readError) return { ok: false, error: readError.message }
+  let hidden = 0
+  for (const row of rows ?? []) {
+    const payload =
+      row.payload && typeof row.payload === "object" && !Array.isArray(row.payload)
+        ? (row.payload as Record<string, unknown>)
+        : {}
+    const { error } = await auth.supabase
+      .from("scheduled_posts")
+      .update({
+        payload: { ...payload, calendar_hidden: true } as Json,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id)
+      .eq("entity_id", input.entityId)
+    if (error) return { ok: false, error: error.message }
+    hidden += 1
+  }
+  return { ok: true, data: { hidden } }
 }

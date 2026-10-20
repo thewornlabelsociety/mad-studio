@@ -36,7 +36,7 @@ export function MeteringRangeFilter({ entityId, activeRange }: Props) {
             key={range.value}
             href={href}
             className={cn(
-              "border-2 px-2.5 py-1.5 font-typewriter text-[0.65rem] tracking-typewriter-tight uppercase transition-colors",
+              "border-2 px-2.5 py-1.5 font-typewriter text-[0.75rem] tracking-typewriter-tight uppercase transition-colors",
               active
                 ? "border-mad-black bg-mad-black text-mad-white shadow-keycap-sm"
                 : "border-mad-black bg-mad-white text-mad-black hover:bg-mad-lime"

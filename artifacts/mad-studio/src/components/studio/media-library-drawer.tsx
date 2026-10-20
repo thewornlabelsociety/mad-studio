@@ -145,7 +145,7 @@ export function MediaLibraryDrawer(props: Props) {
           <SheetTitle className="font-typewriter text-sm font-bold tracking-typewriter-tight uppercase">
             Media library
           </SheetTitle>
-          <p className="font-typewriter text-[0.5rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
+          <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
             {mode === "attach"
               ? "Pick intake or uploaded entity media, or upload a new file — then add to your tray."
               : "Recent entity media — multi-select up to 10 stills or clips, then build a feed carousel in the simulator."}
@@ -153,7 +153,7 @@ export function MediaLibraryDrawer(props: Props) {
           {onUploadFiles ? (
             <label
               htmlFor={uploadInputId}
-              className="mt-2 inline-flex cursor-pointer items-center gap-1.5 border-2 border-mad-black bg-mad-lime px-2.5 py-1.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white"
+              className="mt-2 inline-flex cursor-pointer items-center gap-1.5 border-2 border-mad-black bg-mad-lime px-2.5 py-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white"
             >
               <Upload className="size-3.5" />
               Upload new file
@@ -201,18 +201,18 @@ export function MediaLibraryDrawer(props: Props) {
                           className="size-full object-cover"
                         />
                       )}
-                      <span className="absolute left-0 top-0 max-w-full truncate bg-mad-black/80 px-1 py-0.5 font-typewriter text-[0.4rem] font-bold text-mad-white uppercase">
+                      <span className="absolute left-0 top-0 max-w-full truncate bg-mad-black/80 px-1 py-0.5 font-typewriter text-[0.68rem] font-bold text-mad-white uppercase">
                         {item.origin === "fudi_intake"
                           ? "[ FÜDI App ]"
                           : "[ Upload ]"}
                       </span>
                       {active ? (
-                        <span className="absolute right-0 bottom-0 bg-mad-vermillion px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold text-white">
+                        <span className="absolute right-0 bottom-0 bg-mad-vermillion px-1.5 py-0.5 font-typewriter text-[0.7rem] font-bold text-white">
                           {order + 1}
                         </span>
                       ) : null}
                     </button>
-                    <p className="mt-0.5 line-clamp-2 font-typewriter text-[0.45rem] leading-tight text-neutral-600 normal-case">
+                    <p className="mt-0.5 line-clamp-2 font-typewriter text-[0.68rem] leading-tight text-neutral-600 normal-case">
                       {item.sourceTitle}
                     </p>
                   </li>
@@ -229,7 +229,7 @@ export function MediaLibraryDrawer(props: Props) {
               mode === "attach" ? selected.length < 1 : selected.length < 2
             }
             onClick={onPrimaryAction}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase disabled:opacity-50"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase disabled:opacity-50"
           >
             {mode === "attach" ? (
               <>
@@ -246,7 +246,7 @@ export function MediaLibraryDrawer(props: Props) {
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="mt-2 inline-flex h-9 w-full items-center justify-center gap-1 border-2 border-mad-black bg-mad-white font-typewriter text-[0.55rem] font-bold uppercase"
+            className="mt-2 inline-flex h-9 w-full items-center justify-center gap-1 border-2 border-mad-black bg-mad-white font-typewriter text-[0.7rem] font-bold uppercase"
           >
             <X className="size-3.5" />
             Close

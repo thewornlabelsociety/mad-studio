@@ -24,8 +24,8 @@ export function StudioWizardSopChecklist({
   className?: string
 }) {
   return (
-    <div className={cn("space-y-1.5 font-typewriter text-[0.6rem] leading-relaxed normal-case", className)}>
-      <p className="text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+    <div className={cn("space-y-1.5 font-typewriter text-[0.72rem] leading-relaxed normal-case", className)}>
+      <p className="text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
         {title}
       </p>
       <ol className="list-decimal space-y-1 pl-4 text-neutral-800">

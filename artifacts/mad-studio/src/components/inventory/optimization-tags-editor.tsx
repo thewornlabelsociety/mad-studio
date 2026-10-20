@@ -158,7 +158,7 @@ export function OptimizationTagsEditor({
           type="button"
           disabled={aiBusy}
           onClick={() => void suggestTagsWithAi()}
-          className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
+          className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
         >
           {aiBusy ? (
             <Loader2 className="size-3 animate-spin" />
@@ -179,7 +179,7 @@ export function OptimizationTagsEditor({
               type="button"
               onClick={() => toggleTag(tag)}
               className={cn(
-                "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider lowercase",
+                "border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.7rem] font-bold tracking-wider lowercase",
                 active
                   ? "bg-mad-black text-mad-white"
                   : "bg-mad-white text-mad-black hover:bg-mad-lime",
@@ -210,18 +210,18 @@ export function OptimizationTagsEditor({
         <button
           type="button"
           onClick={addCustomTag}
-          className="shrink-0 border-2 border-mad-black bg-mad-lime px-2 py-1 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase hover:bg-mad-black hover:text-mad-white"
+          className="shrink-0 border-2 border-mad-black bg-mad-lime px-2 py-1 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase hover:bg-mad-black hover:text-mad-white"
         >
           Add
         </button>
       </div>
 
       {tags.length > 0 ? (
-        <p className="font-typewriter text-[0.55rem] leading-relaxed text-neutral-600 normal-case">
+        <p className="font-typewriter text-[0.7rem] leading-relaxed text-neutral-600 normal-case">
           Live footer · {formatTagsForCaption(tags)}
         </p>
       ) : (
-        <p className="font-typewriter text-[0.55rem] text-neutral-500 uppercase">
+        <p className="font-typewriter text-[0.7rem] text-neutral-500 uppercase">
           Tap chips, type a tag, or use AI suggest (max {OPTIMIZATION_TAG_MAX})
         </p>
       )}

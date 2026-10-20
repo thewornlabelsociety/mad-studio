@@ -226,7 +226,7 @@ export function StoryMaker({
             <span className="block text-sm font-medium">{option.label}</span>
             <span
               className={cn(
-                "block text-[0.7rem]",
+                "block text-[0.75rem]",
                 template === option.id ? "text-neutral-300" : "text-neutral-500"
               )}
             >

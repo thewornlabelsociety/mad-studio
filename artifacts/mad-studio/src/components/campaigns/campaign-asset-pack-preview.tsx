@@ -45,7 +45,7 @@ export function CampaignAssetPackPreview({ assetPack }: Props) {
 
   return (
     <div className="space-y-2">
-      <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-neutral-500 uppercase">
+      <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-neutral-500 uppercase">
         5-piece asset pack · {channelLabelFromAssetPack(assetPack)}
       </p>
       <div className="grid gap-2 md:grid-cols-2">
@@ -54,7 +54,7 @@ export function CampaignAssetPackPreview({ assetPack }: Props) {
             key={module.label}
             className="border-2 border-mad-black/20 bg-mad-white px-3 py-2"
           >
-            <p className="font-typewriter text-[0.55rem] font-bold tracking-wider uppercase">
+            <p className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase">
               {module.label}
             </p>
             <p className="mt-1 line-clamp-3 text-xs text-neutral-700">

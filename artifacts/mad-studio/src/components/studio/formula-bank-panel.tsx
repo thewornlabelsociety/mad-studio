@@ -112,7 +112,7 @@ export function FormulaBankPanel({
   return (
     <section className="mt-4 space-y-4 border-t-2 border-mad-black pt-4">
       <div>
-        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
           Formula bank · $0 render
         </p>
         <p className="mt-1 text-xs text-neutral-600">
@@ -124,7 +124,7 @@ export function FormulaBankPanel({
       <div className="grid gap-3 sm:grid-cols-3 [&>*]:min-w-0">
         <Field label="Hook style">
           <Select value={hookId ?? ""} onValueChange={onHookIdChange}>
-            <SelectTrigger className="w-full min-w-0 rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase [&>span]:truncate">
+            <SelectTrigger className="w-full min-w-0 rounded-none border-2 border-mad-black font-typewriter text-[0.75rem] uppercase [&>span]:truncate">
               <SelectValue placeholder="Hook" />
             </SelectTrigger>
             <SelectContent>
@@ -138,7 +138,7 @@ export function FormulaBankPanel({
         </Field>
         <Field label="Visual direction">
           <Select value={visualId ?? ""} onValueChange={onVisualIdChange}>
-            <SelectTrigger className="w-full min-w-0 rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase [&>span]:truncate">
+            <SelectTrigger className="w-full min-w-0 rounded-none border-2 border-mad-black font-typewriter text-[0.75rem] uppercase [&>span]:truncate">
               <SelectValue placeholder="Visual" />
             </SelectTrigger>
             <SelectContent>
@@ -152,7 +152,7 @@ export function FormulaBankPanel({
         </Field>
         <Field label="Conversion CTA">
           <Select value={ctaId ?? ""} onValueChange={onCtaIdChange}>
-            <SelectTrigger className="w-full min-w-0 rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] uppercase [&>span]:truncate">
+            <SelectTrigger className="w-full min-w-0 rounded-none border-2 border-mad-black font-typewriter text-[0.75rem] uppercase [&>span]:truncate">
               <SelectValue placeholder="CTA" />
             </SelectTrigger>
             <SelectContent>
@@ -185,7 +185,7 @@ export function FormulaBankPanel({
         <div className="space-y-2 border-2 border-mad-black bg-mad-lime/30 p-3 font-mono text-xs leading-relaxed text-mad-black">
           {selectedHook ? (
             <p>
-              <span className="font-typewriter text-[0.55rem] font-bold uppercase">
+              <span className="font-typewriter text-[0.7rem] font-bold uppercase">
                 Hook preview ·{" "}
               </span>
               {fillFormulaTemplate(selectedHook.template, slots)}
@@ -193,7 +193,7 @@ export function FormulaBankPanel({
           ) : null}
           {selectedVisual ? (
             <p>
-              <span className="font-typewriter text-[0.55rem] font-bold uppercase">
+              <span className="font-typewriter text-[0.7rem] font-bold uppercase">
                 Visual ·{" "}
               </span>
               {selectedVisual.cue}
@@ -201,7 +201,7 @@ export function FormulaBankPanel({
           ) : null}
           {selectedCta ? (
             <p>
-              <span className="font-typewriter text-[0.55rem] font-bold uppercase">
+              <span className="font-typewriter text-[0.7rem] font-bold uppercase">
                 CTA ·{" "}
               </span>
               {selectedCta.action_text}
@@ -213,7 +213,7 @@ export function FormulaBankPanel({
       <button
         type="button"
         className={cn(
-          "w-full border-2 border-mad-black bg-mad-lime px-4 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white sm:w-auto"
+          "w-full border-2 border-mad-black bg-mad-lime px-4 py-2 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white sm:w-auto"
         )}
         onClick={() => onSlotsChange(defaultSlotsFromSpark(spark))}
       >
@@ -232,7 +232,7 @@ function Field({
 }) {
   return (
     <label className="block space-y-1">
-      <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-600 uppercase">
+      <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-600 uppercase">
         {label}
       </span>
       {children}
@@ -253,7 +253,7 @@ function SlotInput({
 }) {
   return (
     <label className="block">
-      <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+      <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
         {label}
       </span>
       <input

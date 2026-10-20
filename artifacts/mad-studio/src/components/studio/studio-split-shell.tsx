@@ -78,7 +78,7 @@ export function StudioSplitShell({
           <div className="hidden min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-neutral-200/80 bg-neutral-50/90 lg:flex">
             <div className="flex h-full min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 overflow-hidden px-2 py-2 lg:px-3">
               <div className="flex w-full shrink-0 items-center justify-center gap-2">
-                <p className="text-[11px] font-medium tracking-wide text-neutral-500 uppercase">
+                <p className="text-[12px] font-medium tracking-wide text-neutral-500 uppercase">
                   Live preview
                 </p>
                 {previewActions}

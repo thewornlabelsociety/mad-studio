@@ -161,7 +161,7 @@ function LinkStickerGuide({ label, color }: { label: string; color: string }) {
   return (
     <div
       data-export-ignore="true"
-      className="inline-flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[0.6rem] font-semibold tracking-wide uppercase"
+      className="inline-flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[0.72rem] font-semibold tracking-wide uppercase"
       style={{ borderColor: `${color}99`, color }}
     >
       <Link2 className="size-3" aria-hidden />
@@ -313,7 +313,7 @@ function StoryCopyBlock({
         className="mx-auto mb-2 block h-px w-8"
         style={{ background: accent }}
       />
-      <p className="text-[0.6rem] font-semibold tracking-[0.2em] uppercase opacity-70">
+      <p className="text-[0.72rem] font-semibold tracking-[0.2em] uppercase opacity-70">
         {model.designer}
       </p>
       {category ? (
@@ -329,7 +329,7 @@ function StoryCopyBlock({
         </h3>
       ) : null}
       {sizeLine ? (
-        <p className="text-[0.65rem] tracking-[0.14em] uppercase opacity-70">
+        <p className="text-[0.75rem] tracking-[0.14em] uppercase opacity-70">
           {sizeLine}
         </p>
       ) : null}
@@ -451,7 +451,7 @@ function FullPage({
           className="mb-1 block h-0.5 w-8"
           style={{ background: accent }}
         />
-        <p className="text-[0.6rem] font-semibold tracking-[0.22em] uppercase opacity-80">
+        <p className="text-[0.72rem] font-semibold tracking-[0.22em] uppercase opacity-80">
           {model.designer}
         </p>
         {category ? (
@@ -463,7 +463,7 @@ function FullPage({
           </h3>
         ) : null}
         {model.sizeLabel ? (
-          <p className="text-[0.65rem] tracking-[0.16em] uppercase opacity-80">
+          <p className="text-[0.75rem] tracking-[0.16em] uppercase opacity-80">
             Size {model.sizeLabel}
           </p>
         ) : null}
@@ -514,7 +514,7 @@ function MagazineEditorial({
         >
           <div className="space-y-3">
             <p
-              className="text-[0.55rem] font-semibold tracking-[0.2em] uppercase"
+              className="text-[0.7rem] font-semibold tracking-[0.2em] uppercase"
               style={{ color: accent }}
             >
               {model.designer}
@@ -527,7 +527,7 @@ function MagazineEditorial({
             </h3>
           </div>
           {model.sizeLabel ? (
-            <p className="text-[0.58rem] tracking-[0.14em] uppercase opacity-70">
+            <p className="text-[0.7rem] tracking-[0.14em] uppercase opacity-70">
               Size {model.sizeLabel}
             </p>
           ) : (

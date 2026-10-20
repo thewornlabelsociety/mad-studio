@@ -19,13 +19,13 @@ export function PlannerDayCard({ day, onSelect, className }: Props) {
         className
       )}
     >
-      <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-black uppercase">
+      <p className="font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-black uppercase">
         <span className="inline-block bg-[#CCFF00] px-1 py-0.5">DRAFT</span>
       </p>
-      <p className="mt-1 font-typewriter text-[0.55rem] font-bold tracking-wide text-mad-black uppercase">
+      <p className="mt-1 font-typewriter text-[0.7rem] font-bold tracking-wide text-mad-black uppercase">
         {day.phase}
       </p>
-      <p className="mt-1 line-clamp-3 font-typewriter text-[0.55rem] leading-snug text-neutral-700 italic">
+      <p className="mt-1 line-clamp-3 font-typewriter text-[0.7rem] leading-snug text-neutral-700 italic">
         {day.directorialAction}
       </p>
     </button>

@@ -703,7 +703,7 @@ export function StepCustomize({
   })
   const intentFieldLabel = isIntentWizard
     ? "text-xs font-semibold tracking-wide text-neutral-600 uppercase"
-    : "font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase"
+    : "font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase"
   const intentSelectClass = isIntentWizard
     ? INTENT_WIZARD_SELECT_CLASS
     : DNA_SELECT_TRIGGER_CLASS
@@ -733,7 +733,7 @@ export function StepCustomize({
             onClick={() => void runIntentAutoSuggest()}
             className={cn(
               "flex w-full items-center justify-center gap-2 border-2 border-mad-black px-3 font-typewriter font-bold tracking-wide uppercase shadow-keycap-sm transition",
-              isIntentWizard ? "py-2.5 text-sm" : "py-2 text-[0.55rem]",
+              isIntentWizard ? "py-2.5 text-sm" : "py-2 text-[0.7rem]",
               canAutoSuggestIntent
                 ? "bg-mad-lime text-mad-black hover:bg-mad-black hover:text-mad-white disabled:opacity-60"
                 : "cursor-not-allowed bg-neutral-100 text-neutral-400"
@@ -752,11 +752,11 @@ export function StepCustomize({
             )}
           </button>
           {!isIntentWizard && !canAutoSuggestIntent ? (
-            <p className="font-typewriter text-[0.45rem] text-neutral-500 normal-case">
+            <p className="font-typewriter text-[0.68rem] text-neutral-500 normal-case">
               Attach media on Step 1 (upload must finish) to unlock auto-suggest.
             </p>
           ) : !isIntentWizard && !hasVisionCache ? (
-            <p className="font-typewriter text-[0.45rem] text-neutral-500 normal-case">
+            <p className="font-typewriter text-[0.68rem] text-neutral-500 normal-case">
               Step 1 vision not run yet — click above to inspect and map intent.
             </p>
           ) : null}
@@ -849,7 +849,7 @@ export function StepCustomize({
           <span className={intentFieldLabel}>Audience persona</span>
 
           {personas.length === 0 ? (
-            <p className="font-typewriter text-[0.55rem] text-neutral-500 normal-case">
+            <p className="font-typewriter text-[0.7rem] text-neutral-500 normal-case">
               Add audience segments in Brain to pick a persona.
             </p>
           ) : (
@@ -884,7 +884,7 @@ export function StepCustomize({
           <span className={intentFieldLabel}>Hook blueprint</span>
 
           {bank.hook_styles.length === 0 ? (
-            <p className="font-typewriter text-[0.55rem] text-neutral-500 normal-case">
+            <p className="font-typewriter text-[0.7rem] text-neutral-500 normal-case">
               Add hook blueprints in Brain DNA presets.
             </p>
           ) : (
@@ -921,7 +921,7 @@ export function StepCustomize({
           <span className={intentFieldLabel}>Call to action (CTA)</span>
 
           {ctas.length === 0 ? (
-            <p className="font-typewriter text-[0.55rem] text-neutral-500 normal-case">
+            <p className="font-typewriter text-[0.7rem] text-neutral-500 normal-case">
               Add conversion goals in Brain to pick a CTA.
             </p>
           ) : (
@@ -1014,7 +1014,7 @@ export function StepCustomize({
 
         <div className="flex flex-wrap items-end justify-between gap-2">
 
-          <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
 
             Copy engine
 
@@ -1026,7 +1026,7 @@ export function StepCustomize({
 
               {captionVariantLabel ? (
 
-                <span className="font-typewriter text-[0.5rem] tracking-wider text-neutral-500 uppercase">
+                <span className="font-typewriter text-[0.68rem] tracking-wider text-neutral-500 uppercase">
 
                   {captionVariantLabel}
 
@@ -1042,7 +1042,7 @@ export function StepCustomize({
 
                   onClick={onRotateCaption}
 
-                  className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
+                  className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2 py-1 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
 
                 >
 
@@ -1064,7 +1064,7 @@ export function StepCustomize({
 
                   disabled={enhancingCaption}
 
-                  className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.5rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-60"
+                  className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-60"
 
                 >
 
@@ -1122,7 +1122,7 @@ export function StepCustomize({
 
                   className={cn(
 
-                    "block font-typewriter text-[0.5rem] font-bold tracking-wider uppercase",
+                    "block font-typewriter text-[0.68rem] font-bold tracking-wider uppercase",
 
                     active ? "text-mad-lime" : "text-mad-vermillion"
 
@@ -1148,7 +1148,7 @@ export function StepCustomize({
 
         <label className="block space-y-1">
 
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
 
             Opening line — pick a Brain hook above or type your own
 
@@ -1174,7 +1174,7 @@ export function StepCustomize({
 
         <label className="block space-y-1">
 
-          <span className="flex items-center gap-2 font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <span className="flex items-center gap-2 font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
 
             Caption
 
@@ -1249,7 +1249,7 @@ export function StepCustomize({
 
         <label className="grid min-w-0 gap-1">
 
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
 
             Destination URL
 
@@ -1271,7 +1271,7 @@ export function StepCustomize({
 
           {trackablePreview ? (
 
-            <p className="font-mono text-[0.6rem] text-neutral-600">
+            <p className="font-mono text-[0.72rem] text-neutral-600">
 
               Trackable · {trackablePreview}
 

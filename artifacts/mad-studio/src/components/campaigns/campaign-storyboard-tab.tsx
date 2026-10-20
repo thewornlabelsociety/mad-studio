@@ -58,7 +58,7 @@ function DayRow({
         <p className="font-typewriter text-xs font-bold uppercase">{day.phase}</p>
         <p className="mt-1 text-xs text-neutral-600">{day.hook}</p>
         {day.last_error ? (
-          <p className="mt-1 text-[0.65rem] text-mad-vermillion">{day.last_error}</p>
+          <p className="mt-1 text-[0.75rem] text-mad-vermillion">{day.last_error}</p>
         ) : null}
       </td>
       <td className="px-3 py-3 text-xs text-neutral-600 italic max-w-[14rem]">
@@ -67,7 +67,7 @@ function DayRow({
       <td className="px-3 py-3">
         <span
           className={cn(
-            "inline-block border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold uppercase",
+            "inline-block border-2 border-mad-black px-2 py-0.5 font-typewriter text-[0.7rem] font-bold uppercase",
             day.status === "armed" || day.status === "published"
               ? "bg-mad-lime"
               : day.status === "failed"
@@ -85,7 +85,7 @@ function DayRow({
               type="button"
               disabled={busy}
               onClick={() => onGenerate(day.id)}
-              className="font-typewriter text-[0.55rem] font-bold tracking-wider uppercase underline hover:text-mad-vermillion disabled:opacity-40"
+              className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase underline hover:text-mad-vermillion disabled:opacity-40"
             >
               Generate pack
             </button>
@@ -95,14 +95,14 @@ function DayRow({
               type="button"
               disabled={busy}
               onClick={() => onArm(day.id)}
-              className="font-typewriter text-[0.55rem] font-bold tracking-wider uppercase underline hover:text-mad-vermillion disabled:opacity-40"
+              className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase underline hover:text-mad-vermillion disabled:opacity-40"
             >
               Arm posts
             </button>
           ) : null}
           <Link
             href={studioHref}
-            className="font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase underline hover:text-mad-vermillion"
+            className="font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase underline hover:text-mad-vermillion"
           >
             Craft →
           </Link>
@@ -194,7 +194,7 @@ export function CampaignStoryboardTab({ entityId, programId }: Props) {
 
   if (loading) {
     return (
-      <p className="font-typewriter text-[0.65rem] tracking-widest text-neutral-500 uppercase">
+      <p className="font-typewriter text-[0.75rem] tracking-widest text-neutral-500 uppercase">
         Loading campaign program…
       </p>
     )
@@ -234,7 +234,7 @@ export function CampaignStoryboardTab({ entityId, programId }: Props) {
   return (
     <div className="space-y-4">
       <div className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-        <p className="font-typewriter text-[0.6rem] tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.72rem] tracking-widest text-mad-vermillion uppercase">
           Active program
         </p>
         <h2 className="mt-1 font-typewriter text-lg font-bold text-mad-black">{program.title}</h2>
@@ -246,7 +246,7 @@ export function CampaignStoryboardTab({ entityId, programId }: Props) {
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
             href={`/planner?eid=${encodeURIComponent(entityId)}&programId=${encodeURIComponent(program.id)}`}
-            className="border-2 border-mad-black bg-mad-black px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase"
+            className="border-2 border-mad-black bg-mad-black px-3 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase"
           >
             Open in Planner
           </Link>
@@ -255,7 +255,7 @@ export function CampaignStoryboardTab({ entityId, programId }: Props) {
               type="button"
               disabled={busy}
               onClick={() => void handleBulkOrchestrate()}
-              className="border-2 border-mad-black bg-mad-lime px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase disabled:opacity-50"
+              className="border-2 border-mad-black bg-mad-lime px-3 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase disabled:opacity-50"
             >
               Bulk generate ({Math.min(pendingCount, 5)} days)
             </button>
@@ -267,19 +267,19 @@ export function CampaignStoryboardTab({ entityId, programId }: Props) {
         <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b-2 border-mad-black bg-mad-black text-mad-white">
-              <th className="px-3 py-2 font-typewriter text-[0.55rem] tracking-widest uppercase">
+              <th className="px-3 py-2 font-typewriter text-[0.7rem] tracking-widest uppercase">
                 Date
               </th>
-              <th className="px-3 py-2 font-typewriter text-[0.55rem] tracking-widest uppercase">
+              <th className="px-3 py-2 font-typewriter text-[0.7rem] tracking-widest uppercase">
                 Phase / Hook
               </th>
-              <th className="px-3 py-2 font-typewriter text-[0.55rem] tracking-widest uppercase">
+              <th className="px-3 py-2 font-typewriter text-[0.7rem] tracking-widest uppercase">
                 Directorial
               </th>
-              <th className="px-3 py-2 font-typewriter text-[0.55rem] tracking-widest uppercase">
+              <th className="px-3 py-2 font-typewriter text-[0.7rem] tracking-widest uppercase">
                 Status
               </th>
-              <th className="px-3 py-2 font-typewriter text-[0.55rem] tracking-widest uppercase text-right">
+              <th className="px-3 py-2 font-typewriter text-[0.7rem] tracking-widest uppercase text-right">
                 Action
               </th>
             </tr>
@@ -299,7 +299,7 @@ export function CampaignStoryboardTab({ entityId, programId }: Props) {
         </table>
       </div>
 
-      <p className="font-typewriter text-[0.55rem] text-neutral-500">
+      <p className="font-typewriter text-[0.7rem] text-neutral-500">
         Headless pack uses latest intake media + Gemini multiplexer; Arm writes{" "}
         <code className="text-xs">scheduled_posts</code> with Brain timing.{" "}
         {timelinePreview.length} calendar day{timelinePreview.length === 1 ? "" : "s"} synced.

@@ -114,7 +114,7 @@ export function ItemPostDetails({
         <h4 className="text-sm font-semibold text-mad-black">Ready to post?</h4>
         <span
           className={cn(
-            "rounded-full px-2.5 py-0.5 text-[0.65rem] font-semibold tracking-wide uppercase",
+            "rounded-full px-2.5 py-0.5 text-[0.75rem] font-semibold tracking-wide uppercase",
             readiness.ready
               ? "bg-emerald-100 text-emerald-800"
               : "bg-amber-100 text-amber-800"

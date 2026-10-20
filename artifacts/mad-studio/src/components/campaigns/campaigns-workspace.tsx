@@ -35,34 +35,26 @@ export function CampaignsWorkspace({ entityId, entityName, programId }: Props) {
   const [ledgerActivated, setLedgerActivated] = useState(initialTab === "ledger")
 
   useEffect(() => {
-    document.title = "Campaigns | MAD Studio"
+    // Tab title is set by RouteTitle (App.tsx).
   }, [])
 
   useEffect(() => {
     if (tab === "ledger") setLedgerActivated(true)
   }, [tab])
 
+  // One screen: title and tabs on one row, the open tab scrolls inside.
   return (
-    <div className="space-y-6">
-      <div className="space-y-2 border-b-2 border-mad-black pb-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <MadStudioLogo size="sm" />
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
-              MAD Studio · Campaigns
-            </p>
-            <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
-              Ops workspace for planning and ledger — not the public brand site.
-              Active brand:{" "}
-              <span className="font-semibold text-mad-black">{entityName}</span>{" "}
-              (switch in the top bar).
-            </p>
-          </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-mad-black pb-3">
+        <div>
+          <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            Campaigns · {entityName}
+          </p>
+          <h1 className="font-typewriter text-lg font-bold tracking-typewriter-tight uppercase">
+            Storyboard &amp; ledger
+          </h1>
         </div>
-      </div>
-
-      <header className="sticky top-0 z-20 -mx-4 border-b-2 border-mad-black bg-mad-white/95 px-4 py-4 backdrop-blur-sm">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
           {TAB_OPTIONS.map((optionId) => {
             const active = tab === optionId
             return (
@@ -71,20 +63,20 @@ export function CampaignsWorkspace({ entityId, entityName, programId }: Props) {
                 type="button"
                 onClick={() => setTab(optionId)}
                 className={cn(
-                  "border-2 border-mad-black px-4 py-2.5 font-typewriter text-[0.65rem] font-bold tracking-widest uppercase transition-colors sm:text-xs",
+                  "border-2 border-mad-black px-3 py-2 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase transition-colors",
                   active
                     ? "bg-mad-black text-mad-white shadow-keycap"
                     : "bg-mad-white text-mad-black shadow-keycap-sm hover:bg-mad-lime"
                 )}
               >
-                [ {TAB_LABEL_DISPLAY[optionId]} ]
+                {TAB_LABEL_DISPLAY[optionId]}
               </button>
             )
           })}
         </div>
       </header>
 
-      <div className="min-h-[420px]">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <div className={tab === "storyboard" ? "block" : "hidden"}>
           <CampaignStoryboardTab entityId={entityId} programId={programId} />
         </div>

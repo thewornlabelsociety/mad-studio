@@ -98,7 +98,8 @@ export async function orchestrateCampaignProgram(input: {
 }
 
 export function programDaysToTimeline(days: CampaignProgramDayRow[]): PlannerTimelineDay[] {
-  return days.map((row) => {
+  // Days removed from the plan on the calendar stay out of it.
+  return days.filter((row) => row.status !== "skipped").map((row) => {
     const mapped = programDayToTimelineDay(row)
     return {
       id: mapped.id,

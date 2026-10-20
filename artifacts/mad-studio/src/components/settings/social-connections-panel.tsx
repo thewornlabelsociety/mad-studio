@@ -247,7 +247,7 @@ export function SocialConnectionsPanel({
   return (
     <div className="space-y-5">
       <section className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap">
-        <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
           Active tenant
         </p>
         <h2 className="mt-1 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
@@ -287,7 +287,7 @@ export function SocialConnectionsPanel({
 
               <dl className="mt-4 space-y-2 text-sm">
                 <div>
-                  <dt className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+                  <dt className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
                     Account name
                   </dt>
                   <dd className="text-mad-black">
@@ -295,7 +295,7 @@ export function SocialConnectionsPanel({
                   </dd>
                 </div>
                 <div>
-                  <dt className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+                  <dt className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
                     Account ID
                   </dt>
                   <dd className="font-mono text-xs text-mad-black">
@@ -303,7 +303,7 @@ export function SocialConnectionsPanel({
                   </dd>
                 </div>
                 <div>
-                  <dt className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+                  <dt className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
                     Token
                   </dt>
                   <dd className="font-mono text-xs text-neutral-600">
@@ -311,7 +311,7 @@ export function SocialConnectionsPanel({
                   </dd>
                 </div>
                 <div>
-                  <dt className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+                  <dt className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
                     Last token sync
                   </dt>
                   <dd className="text-xs text-neutral-600">
@@ -330,7 +330,7 @@ export function SocialConnectionsPanel({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="rounded-none border-2 border-mad-black bg-mad-lime font-typewriter text-[0.6rem] uppercase shadow-keycap-sm hover:bg-mad-white"
+                    className="rounded-none border-2 border-mad-black bg-mad-lime font-typewriter text-[0.72rem] uppercase shadow-keycap-sm hover:bg-mad-white"
                     asChild
                   >
                     <a
@@ -346,7 +346,7 @@ export function SocialConnectionsPanel({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="rounded-none border-2 border-mad-black bg-mad-lime font-typewriter text-[0.6rem] uppercase shadow-keycap-sm hover:bg-mad-white"
+                    className="rounded-none border-2 border-mad-black bg-mad-lime font-typewriter text-[0.72rem] uppercase shadow-keycap-sm hover:bg-mad-white"
                     asChild
                   >
                     <a
@@ -360,7 +360,7 @@ export function SocialConnectionsPanel({
                 <Button
                   type="button"
                   size="sm"
-                  className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] uppercase text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
+                  className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.72rem] uppercase text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
                   onClick={() => openEditor(card)}
                   disabled={pending}
                 >
@@ -371,7 +371,7 @@ export function SocialConnectionsPanel({
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] uppercase shadow-keycap-sm"
+                  className="rounded-none border-2 border-mad-black font-typewriter text-[0.72rem] uppercase shadow-keycap-sm"
                   onClick={() => void testConnection(card)}
                   disabled={pending || testing || (!connected && !card.schemaOnly)}
                 >
@@ -387,7 +387,7 @@ export function SocialConnectionsPanel({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="rounded-none font-typewriter text-[0.6rem] uppercase"
+                    className="rounded-none font-typewriter text-[0.72rem] uppercase"
                     onClick={() => disconnect(card.platform)}
                     disabled={pending}
                   >
@@ -517,7 +517,7 @@ function StatusPill({
 }) {
   if (schemaOnly && !connected) {
     return (
-      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[0.65rem] font-medium text-amber-800">
+      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[0.75rem] font-medium text-amber-800">
         Schema Ready
       </span>
     )
@@ -526,7 +526,7 @@ function StatusPill({
   return (
     <span
       className={cn(
-        "rounded-full px-2.5 py-1 text-[0.65rem] font-medium",
+        "rounded-full px-2.5 py-1 text-[0.75rem] font-medium",
         connected
           ? "bg-emerald-50 text-emerald-700"
           : "bg-neutral-100 text-neutral-500"

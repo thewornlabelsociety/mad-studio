@@ -72,7 +72,7 @@ export function PlannerCampaignEngine({
           CAMPAIGN ENGINE
         </h2>
         {programTitle ? (
-          <p className="mt-1 font-typewriter text-[0.55rem] leading-snug text-neutral-600">
+          <p className="mt-1 font-typewriter text-[0.7rem] leading-snug text-neutral-600">
             Active program: {programTitle}
           </p>
         ) : null}
@@ -80,7 +80,7 @@ export function PlannerCampaignEngine({
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
         <label className="flex min-h-0 flex-1 flex-col gap-2">
-          <span className="font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <span className="font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase">
             Launch brief
           </span>
           <textarea
@@ -92,7 +92,7 @@ export function PlannerCampaignEngine({
         </label>
 
         <div className="shrink-0 space-y-2">
-          <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <p className="font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase">
             Duration
           </p>
           <div className="flex flex-wrap gap-2">
@@ -105,7 +105,7 @@ export function PlannerCampaignEngine({
                   disabled={generating}
                   onClick={() => setDuration(option.id)}
                   className={cn(
-                    "border-2 border-mad-black px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase transition-colors disabled:opacity-50",
+                    "border-2 border-mad-black px-3 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase transition-colors disabled:opacity-50",
                     active
                       ? "bg-mad-black text-mad-white shadow-keycap-sm"
                       : "bg-mad-white text-mad-black shadow-keycap-sm hover:bg-mad-lime"
@@ -119,7 +119,7 @@ export function PlannerCampaignEngine({
         </div>
 
         <div className="shrink-0 space-y-2">
-          <p className="font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <p className="font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase">
             Autonomy
           </p>
           <div className="flex flex-col gap-2">
@@ -132,14 +132,14 @@ export function PlannerCampaignEngine({
                   disabled={generating}
                   onClick={() => setAutonomyMode(option.id)}
                   className={cn(
-                    "border-2 border-mad-black px-3 py-2 text-left font-typewriter text-[0.55rem] transition-colors disabled:opacity-50",
+                    "border-2 border-mad-black px-3 py-2 text-left font-typewriter text-[0.7rem] transition-colors disabled:opacity-50",
                     active
                       ? "bg-mad-black text-mad-white shadow-keycap-sm"
                       : "bg-mad-white text-mad-black shadow-keycap-sm hover:bg-mad-lime/40"
                   )}
                 >
                   <span className="font-bold uppercase tracking-wider">{option.label}</span>
-                  <span className="mt-0.5 block text-[0.5rem] leading-snug opacity-80">
+                  <span className="mt-0.5 block text-[0.68rem] leading-snug opacity-80">
                     {option.hint}
                   </span>
                 </button>
@@ -150,7 +150,7 @@ export function PlannerCampaignEngine({
 
         {lastError ? (
           <p
-            className="shrink-0 border-2 border-mad-black bg-mad-vermillion/10 p-3 font-typewriter text-[0.6rem] leading-relaxed text-mad-black"
+            className="shrink-0 border-2 border-mad-black bg-mad-vermillion/10 p-3 font-typewriter text-[0.72rem] leading-relaxed text-mad-black"
             role="alert"
           >
             {lastError}
@@ -161,7 +161,7 @@ export function PlannerCampaignEngine({
           type="button"
           disabled={!canGenerate}
           onClick={() => void onGenerate(brief, duration, autonomyMode)}
-          className="flex shrink-0 items-center justify-center gap-2 border-2 border-mad-black bg-[#FF5500] px-4 py-3 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex shrink-0 items-center justify-center gap-2 border-2 border-mad-black bg-[#FF5500] px-4 py-3 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {generating ? (
             <>

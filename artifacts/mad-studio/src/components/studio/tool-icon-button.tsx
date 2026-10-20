@@ -51,7 +51,7 @@ export const ToolIconButton = forwardRef<HTMLButtonElement, Props>(
           side="bottom"
           className="max-w-[14rem] border-2 border-mad-black bg-mad-black text-mad-white"
         >
-          <p className="font-typewriter text-[0.6rem] font-bold tracking-wider uppercase">
+          <p className="font-typewriter text-[0.72rem] font-bold tracking-wider uppercase">
             {label}
           </p>
           {hint ? <p className="mt-0.5 text-xs text-neutral-300">{hint}</p> : null}

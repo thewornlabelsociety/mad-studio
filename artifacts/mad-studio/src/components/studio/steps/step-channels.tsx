@@ -88,7 +88,7 @@ export function StepChannels({
               type="button"
               onClick={() => toggleChannel(channel, platform)}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-[11px] font-medium tracking-wide uppercase transition",
+                "rounded-full border px-3 py-1.5 text-[12px] font-medium tracking-wide uppercase transition",
                 enabled || active
                   ? "border-mad-black bg-mad-black text-mad-white"
                   : "border-neutral-200 bg-white hover:border-neutral-400"

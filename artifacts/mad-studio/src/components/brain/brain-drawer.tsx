@@ -59,7 +59,7 @@ export function BrainDrawer({
             <Brain className="size-4" aria-hidden />
           </span>
           <div className="min-w-0">
-            <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
               Brand Brain
             </p>
             <p className="truncate text-sm font-semibold text-mad-black">
@@ -70,7 +70,7 @@ export function BrainDrawer({
         <div className="flex shrink-0 items-center gap-1">
           <Link
             href={`/brain?eid=${encodeURIComponent(entityId)}`}
-            className="inline-flex h-8 items-center gap-1 border-2 border-mad-black px-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
+            className="inline-flex h-8 items-center gap-1 border-2 border-mad-black px-2 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
             title="Open the full Brand Brain page"
           >
             Full Brain

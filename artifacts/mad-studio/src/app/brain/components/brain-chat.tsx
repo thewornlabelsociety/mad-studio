@@ -182,7 +182,7 @@ export function BrainChat({
             : "border-b-2 border-mad-black px-4 py-3 sm:px-5"
         }
       >
-        <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
           Brand Director Chat
         </p>
         <h2 className="mt-1 font-typewriter text-base text-mad-black sm:text-lg">
@@ -209,7 +209,7 @@ export function BrainChat({
             onClick={() => void handleSend(chip.prompt)}
             className={
               (embedded ? "w-56 shrink-0 " : "") +
-              "rounded-none border-2 border-mad-black bg-mad-white px-3 py-2 text-left font-typewriter text-[0.65rem] leading-snug tracking-wide text-mad-black uppercase transition-colors hover:bg-mad-black hover:text-mad-white disabled:opacity-50"
+              "rounded-none border-2 border-mad-black bg-mad-white px-3 py-2 text-left font-typewriter text-[0.75rem] leading-snug tracking-wide text-mad-black uppercase transition-colors hover:bg-mad-black hover:text-mad-white disabled:opacity-50"
             }
           >
             {chip.label}
@@ -236,7 +236,7 @@ export function BrainChat({
                   isAssistant ? "mr-auto" : "ml-auto"
                 }`}
               >
-                <p className="font-typewriter text-[0.6rem] tracking-widest text-neutral-500 uppercase">
+                <p className="font-typewriter text-[0.72rem] tracking-widest text-neutral-500 uppercase">
                   {isAssistant ? "Brand Director" : "You"}
                 </p>
                 <div
@@ -256,7 +256,7 @@ export function BrainChat({
                       variant="outline"
                       disabled={savingId === message.id}
                       onClick={() => void saveToMemory(message)}
-                      className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] tracking-widest uppercase"
+                      className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.72rem] tracking-widest uppercase"
                     >
                       {savingId === message.id ? (
                         <Loader2
@@ -278,7 +278,7 @@ export function BrainChat({
                           .then(() => toast.success("Copied"))
                           .catch(() => toast.error("Couldn't copy."))
                       }}
-                      className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] tracking-widest uppercase"
+                      className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.72rem] tracking-widest uppercase"
                     >
                       <Copy data-icon="inline-start" />
                       Copy
@@ -288,7 +288,7 @@ export function BrainChat({
                       size="sm"
                       variant="outline"
                       onClick={() => sendToStudio(message)}
-                      className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] tracking-widest uppercase"
+                      className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.72rem] tracking-widest uppercase"
                     >
                       <Wand2 data-icon="inline-start" />
                       Send to Studio
@@ -333,7 +333,7 @@ export function BrainChat({
               type="button"
               variant="outline"
               onClick={() => stop()}
-              className="h-11 rounded-none border-2 border-mad-black font-typewriter text-[0.65rem] tracking-widest uppercase"
+              className="h-11 rounded-none border-2 border-mad-black font-typewriter text-[0.75rem] tracking-widest uppercase"
             >
               Stop
             </Button>
@@ -341,7 +341,7 @@ export function BrainChat({
           <Button
             type="submit"
             disabled={isBusy || !input.trim()}
-            className="h-11 rounded-none border-2 border-mad-black bg-mad-black px-5 font-typewriter text-[0.7rem] tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
+            className="h-11 rounded-none border-2 border-mad-black bg-mad-black px-5 font-typewriter text-[0.75rem] tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
           >
             {isBusy ? (
               <>

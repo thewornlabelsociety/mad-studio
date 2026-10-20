@@ -160,7 +160,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
   return (
     <section className="space-y-4 border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
       <div>
-        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
           Target audiences
         </p>
         <h3 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
@@ -178,7 +178,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
             key={preset.name}
             type="button"
             onClick={() => addPreset(preset)}
-            className="border-2 border-mad-black bg-[#CCFF00]/40 px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase hover:bg-[#CCFF00]"
+            className="border-2 border-mad-black bg-[#CCFF00]/40 px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase hover:bg-[#CCFF00]"
           >
             + {preset.name}
           </button>
@@ -214,7 +214,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                     <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                       <span
                         className={cn(
-                          "shrink-0 border border-mad-black px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase",
+                          "shrink-0 border border-mad-black px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase",
                           kindStyle
                         )}
                       >
@@ -229,7 +229,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                       <span className="font-mono text-xs text-neutral-600">
                         {ui.ageBracket}
                       </span>
-                      <span className="border border-mad-black bg-mad-white px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase">
+                      <span className="border border-mad-black bg-mad-white px-2 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase">
                         {ui.primaryFeature}
                       </span>
                     </span>
@@ -238,7 +238,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                       {ui.channelPills.map((pill) => (
                         <span
                           key={pill}
-                          className="border border-mad-black/60 px-1.5 py-0.5 font-typewriter text-[0.45rem] font-bold tracking-wider uppercase"
+                          className="border border-mad-black/60 px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase"
                         >
                           [{pill}]
                         </span>
@@ -257,7 +257,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                 <CollapsibleContent>
                   <article className="space-y-4 border-2 border-t-0 border-mad-black bg-mad-white p-5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+                      <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
                         Segment detail
                       </p>
                       {segments.length > 1 ? (
@@ -278,7 +278,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
 
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="grid gap-1 sm:col-span-2">
-                        <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+                        <span className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
                           Segment name
                         </span>
                         <input
@@ -291,7 +291,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                         />
                       </label>
                       <label className="grid gap-1">
-                        <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+                        <span className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
                           Role
                         </span>
                         <input
@@ -303,7 +303,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                         />
                       </label>
                       <label className="grid gap-1">
-                        <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+                        <span className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
                           Primary conversion goal
                         </span>
                         <input
@@ -321,7 +321,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                     </div>
 
                     <label className="grid gap-1">
-                      <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+                      <span className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
                         Acute pain point
                       </span>
                       <textarea
@@ -334,7 +334,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                       />
                     </label>
                     <label className="grid gap-1">
-                      <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+                      <span className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
                         What they really want
                       </span>
                       <textarea
@@ -348,7 +348,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                     </label>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="grid gap-1">
-                        <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+                        <span className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
                           Purchase trigger
                         </span>
                         <input
@@ -362,7 +362,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                         />
                       </label>
                       <label className="grid gap-1">
-                        <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+                        <span className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
                           Winning rebuttal / hook
                         </span>
                         <input
@@ -378,7 +378,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 border-t border-mad-black/20 pt-4">
-                      <span className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+                      <span className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
                         Forecasting &amp; analytics tag
                       </span>
                       <code className="border-2 border-mad-black bg-neutral-100 px-2 py-1 font-mono text-xs">
@@ -390,7 +390,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                       type="button"
                       disabled={pending}
                       onClick={onSave}
-                      className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
+                      className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
                     >
                       {pending ? (
                         <Loader2 className="size-3.5 animate-spin" />
@@ -409,7 +409,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
         <button
           type="button"
           onClick={() => setSegments((prev) => [...prev, emptySegment()])}
-          className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase hover:bg-[#CCFF00]"
+          className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase hover:bg-[#CCFF00]"
         >
           <Plus className="size-3.5" />
           Add segment

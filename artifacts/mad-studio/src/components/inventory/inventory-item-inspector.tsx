@@ -95,7 +95,7 @@ export function InventoryItemInspector({
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
-              "inline-flex rounded-full px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide",
+              "inline-flex rounded-full px-2.5 py-0.5 text-[0.75rem] font-semibold uppercase tracking-wide",
               STATUS_TONE[item.status] ?? STATUS_TONE.unfeatured
             )}
           >
@@ -116,7 +116,7 @@ export function InventoryItemInspector({
           {" · "}
           {formatInventoryPrice(item.price)}
         </p>
-        <p className="text-[11px] text-neutral-400">
+        <p className="text-[12px] text-neutral-400">
           Intake {new Date(item.created_at).toLocaleString()}
           {item.published_at
             ? ` · Published ${new Date(item.published_at).toLocaleString()}`
@@ -151,7 +151,7 @@ export function InventoryItemInspector({
       {(isPublished || isScheduled || views > 0) && (
         <dl className="grid grid-cols-2 gap-3 rounded-lg border border-neutral-200 bg-neutral-50/80 p-3 text-sm">
           <div>
-            <dt className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+            <dt className="text-[12px] font-medium uppercase tracking-wide text-neutral-500">
               Views
             </dt>
             <dd className="font-semibold tabular-nums text-mad-black">
@@ -159,7 +159,7 @@ export function InventoryItemInspector({
             </dd>
           </div>
           <div>
-            <dt className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+            <dt className="text-[12px] font-medium uppercase tracking-wide text-neutral-500">
               Clicks
             </dt>
             <dd className="font-semibold tabular-nums text-mad-black">
@@ -167,7 +167,7 @@ export function InventoryItemInspector({
             </dd>
           </div>
           <div>
-            <dt className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+            <dt className="text-[12px] font-medium uppercase tracking-wide text-neutral-500">
               Sales
             </dt>
             <dd className="font-semibold tabular-nums text-mad-black">
@@ -176,7 +176,7 @@ export function InventoryItemInspector({
           </div>
           {engagement ? (
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+              <dt className="text-[12px] font-medium uppercase tracking-wide text-neutral-500">
                 Click rate
               </dt>
               <dd className="font-semibold tabular-nums text-mad-black">
@@ -193,7 +193,7 @@ export function InventoryItemInspector({
       )}
 
       <div className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+        <p className="text-[12px] font-semibold uppercase tracking-wide text-neutral-500">
           Caption
         </p>
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-800">

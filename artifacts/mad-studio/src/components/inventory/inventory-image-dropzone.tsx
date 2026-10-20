@@ -118,7 +118,7 @@ export function InventoryImageDropzone({
 
   return (
     <div className="space-y-3">
-      <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+      <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
         Supplementary Media Uploads
       </p>
 
@@ -180,7 +180,7 @@ export function InventoryImageDropzone({
         ) : (
           <ImagePlus className="size-4 text-mad-black" />
         )}
-        <span className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase">
+        <span className="font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-black uppercase">
           {uploading
             ? "Uploading…"
             : "+ Click or drag item photo here (PNG, JPG, WEBP)"}

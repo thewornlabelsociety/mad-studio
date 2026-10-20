@@ -184,7 +184,7 @@ export function PostIntentEditor({
     : INTENT_SELECT_TRIGGER
   const labelClass = wizardCompact
     ? "text-xs font-semibold tracking-wide text-neutral-600 uppercase"
-    : "font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-500 uppercase"
+    : "font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase"
 
   return (
     <section
@@ -198,10 +198,10 @@ export function PostIntentEditor({
     >
       {!wizardCompact ? (
         <>
-          <p className="font-typewriter text-[0.5rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.68rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Post intent
           </p>
-          <p className="font-typewriter text-[0.5rem] leading-relaxed text-neutral-500 normal-case">
+          <p className="font-typewriter text-[0.68rem] leading-relaxed text-neutral-500 normal-case">
             What this drop is about — saved with your draft. Channel targeting is
             chosen on Schedule.
           </p>

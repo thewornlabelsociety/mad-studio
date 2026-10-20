@@ -942,6 +942,11 @@ export function StudioWorkspace({
         entityId: activeEntity.id,
         pack: input.pack,
         mediaUrl: input.mediaUrl,
+        // Keep every carousel photo, not just the first.
+        mediaUrls: mediaAssetsRef.current
+          .filter((row) => row.type !== "video")
+          .map((row) => row.publicUrl || row.url)
+          .filter((url) => /^https?:\/\//i.test(url)),
         eventDescription: input.eventDescription,
         intent: input.intent,
         objective: input.objective,
@@ -1082,7 +1087,14 @@ export function StudioWorkspace({
           skipIntentObjectiveSync.current = true
           setPack(local.pack)
           setCampaignId(local.packId)
-          syncMediaFromUrl(local.mediaUrl)
+          if ((local.mediaUrls?.length ?? 0) >= 2) {
+            const restored = mediaAssetsFromImageUrls(local.mediaUrls ?? [])
+            setMediaAssets(restored)
+            setActiveMediaId(restored[0]?.id ?? null)
+            setAttachedImageUrl(local.mediaUrls?.[0] ?? local.mediaUrl)
+          } else {
+            syncMediaFromUrl(local.mediaUrl)
+          }
           if (local.fudiTrack) setFudiTrack(local.fudiTrack)
           setIntent(local.intent)
           const localTrackChips = local.fudiTrack
@@ -1202,6 +1214,8 @@ export function StudioWorkspace({
     pack,
     campaignId,
     studioMediaUrl,
+    // Save again when carousel photos change.
+    mediaAssets,
     rawSpark,
     intent,
     objective,
@@ -1342,7 +1356,10 @@ export function StudioWorkspace({
       setPack(withStudioTags(payload.pack))
       setCampaignId(nextCampaignId)
       setRedirectSlugSeed(nextSlugSeed)
-      if (payload.attachedImageUrl) {
+      // The server echoes the first photo back; only adopt it for a single
+      // photo, so a carousel keeps all its slides (and their Canvas text).
+      const photosInTray = mediaAssetsRef.current.filter((row) => row.type !== "video")
+      if (payload.attachedImageUrl && photosInTray.length < 2) {
         syncMediaFromUrl(payload.attachedImageUrl)
       }
       setEditorSession((value) => value + 1)
@@ -1820,7 +1837,7 @@ export function StudioWorkspace({
                 outputFormats={fudiTrackPresets?.outputFormats ?? []}
               />
               <label className="grid gap-1.5">
-                <span className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+                <span className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
                   Objective
                 </span>
                 <Select value={objective} onValueChange={setObjective}>
@@ -2119,7 +2136,7 @@ export function StudioWorkspace({
                 />
                 <div className="grid gap-3 border-t border-neutral-100 pt-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                   <div>
-                    <p className="text-[11px] font-medium tracking-[0.16em] text-mad-vermillion uppercase">
+                    <p className="text-[12px] font-medium tracking-[0.16em] text-mad-vermillion uppercase">
                       Generate pack
                     </p>
                     <p className="mt-1 text-sm leading-relaxed text-neutral-600">
@@ -2137,6 +2154,18 @@ export function StudioWorkspace({
                     >
                       Render formula pack ($0)
                     </button>
+                    {rawSpark.trim().length < 8 ? (
+                      <p className="text-xs text-neutral-600">
+                        Needs a caption first.{" "}
+                        <button
+                          type="button"
+                          onClick={() => setWorkbenchStep(WORKBENCH_STEP_COPY)}
+                          className="font-semibold text-mad-black underline underline-offset-2 hover:text-mad-vermillion"
+                        >
+                          Go to Copy
+                        </button>
+                      </p>
+                    ) : null}
                     <button
                       type="button"
                       onClick={activateMultiplexer}

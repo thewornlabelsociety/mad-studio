@@ -59,18 +59,19 @@ export default async function PromoPage({ searchParams }: PromoPageProps) {
   return (
     <StudioAppShell
       className="bg-mad-white"
+      mainClassName="flex flex-col overflow-hidden"
       entities={entities}
       activeEntityId={activeSummary.id}
       userEmail={user.email ?? null}
       isOrgAdmin={isOrgAdmin}
       organizationId={organizationId}
     >
-        <CalendarTabs activeEntity={activeSummary} />
-        <div className="border-b-2 border-mad-black px-4 py-4">
-          <h1 className="brand-typewriter text-2xl text-mad-black">
+        <CalendarTabs activeEntity={activeSummary} className="shrink-0" />
+        <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 border-b-2 border-mad-black px-4 py-2">
+          <h1 className="brand-typewriter text-xl text-mad-black">
             Promo Builder
           </h1>
-          <p className="mt-1 max-w-2xl text-sm text-neutral-600">
+          <p className="text-sm text-neutral-600">
             {entityType === "WORN_LABEL"
               ? "Weekly Color Dot Special graphics for feed and story."
               : "Hospitality deal builder arrives in Phase 2."}

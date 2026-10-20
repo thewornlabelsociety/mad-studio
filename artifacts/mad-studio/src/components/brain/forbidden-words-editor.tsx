@@ -63,7 +63,7 @@ export function ForbiddenWordsEditor({ entity }: Props) {
   return (
     <section className="space-y-3 border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
       <div>
-        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
           Forbidden words · brand safety
         </p>
         <p className="mt-1 text-xs text-neutral-600">
@@ -79,7 +79,7 @@ export function ForbiddenWordsEditor({ entity }: Props) {
               key={`${word}-${index}`}
               type="button"
               onClick={() => removeWord(index)}
-              className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-lime px-2.5 py-1 font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black uppercase hover:bg-mad-vermillion hover:text-mad-white"
+              className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-lime px-2.5 py-1 font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-black uppercase hover:bg-mad-vermillion hover:text-mad-white"
               title="Remove tag"
             >
               {word.startsWith("#") ? word : `#${word}`}
@@ -104,7 +104,7 @@ export function ForbiddenWordsEditor({ entity }: Props) {
         <button
           type="button"
           onClick={addWord}
-          className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
+          className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-3 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase hover:bg-mad-lime"
         >
           <Plus className="size-3.5" />
           Add
@@ -113,7 +113,7 @@ export function ForbiddenWordsEditor({ entity }: Props) {
           type="button"
           disabled={pending}
           onClick={onSave}
-          className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
+          className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-3 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
         >
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : null}
           Save safety tags

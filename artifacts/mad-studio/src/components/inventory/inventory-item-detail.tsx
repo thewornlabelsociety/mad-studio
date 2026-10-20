@@ -190,7 +190,7 @@ function SopStatusPill({
   return (
     <span
       className={cn(
-        "font-typewriter text-[0.55rem] font-bold tracking-wider uppercase",
+        "font-typewriter text-[0.7rem] font-bold tracking-wider uppercase",
         valid ? "text-emerald-700" : "text-amber-700"
       )}
       title={criteria.map((c) => `${c.passed ? "✓" : "○"} ${c.label}`).join("\n")}
@@ -1041,7 +1041,7 @@ export function InventoryItemDetail({
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Link
             href={`/today?eid=${encodeURIComponent(entityId)}`}
-            className="shrink-0 font-typewriter text-[0.6rem] font-bold tracking-wider text-neutral-500 uppercase hover:text-mad-black"
+            className="shrink-0 font-typewriter text-[0.72rem] font-bold tracking-wider text-neutral-500 uppercase hover:text-mad-black"
           >
             ← Today
           </Link>
@@ -1050,7 +1050,7 @@ export function InventoryItemDetail({
             {item.title}
           </h1>
           {priceLabel !== "—" ? (
-            <span className="hidden shrink-0 font-typewriter text-[0.6rem] text-neutral-500 sm:inline">
+            <span className="hidden shrink-0 font-typewriter text-[0.72rem] text-neutral-500 sm:inline">
               {priceLabel}
             </span>
           ) : null}
@@ -1066,7 +1066,7 @@ export function InventoryItemDetail({
             onClick={onApprove}
             disabled={pending || !sopValid}
             className={cn(
-              "shrink-0 border px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase transition",
+              "shrink-0 border px-3 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase transition",
               sopValid
                 ? "border-mad-black bg-mad-black text-mad-white hover:bg-mad-vermillion disabled:opacity-50"
                 : "cursor-not-allowed border-neutral-200 bg-neutral-50 text-neutral-400"
@@ -1075,7 +1075,7 @@ export function InventoryItemDetail({
             {pending && !arming && !savingDraft ? "…" : "Approve"}
           </button>
         ) : (
-          <span className="shrink-0 font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-400 uppercase">
+          <span className="shrink-0 font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-400 uppercase">
             {status === "scheduled" || status === "published"
               ? status
               : "approved"}
@@ -1089,13 +1089,13 @@ export function InventoryItemDetail({
             <div className="order-2 min-w-0 space-y-3 md:order-1">
               <section className="space-y-1.5 border border-mad-black/25 bg-mad-white p-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+                  <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
                     Review
                   </p>
                   <button
                     type="button"
                     onClick={() => setStep(WORKBENCH_STEP_COPY)}
-                    className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase underline-offset-2 hover:text-mad-black hover:underline"
+                    className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase underline-offset-2 hover:text-mad-black hover:underline"
                   >
                     Edit captions
                   </button>
@@ -1121,7 +1121,7 @@ export function InventoryItemDetail({
                   wizardLayout
                 />
               ) : (
-                <p className="border-2 border-mad-black px-3 py-6 text-center font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+                <p className="border-2 border-mad-black px-3 py-6 text-center font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
                   Calculating Brain timing…
                 </p>
               )}
@@ -1351,12 +1351,12 @@ export function InventoryItemDetail({
       ) : null}
 
       <Collapsible>
-        <CollapsibleTrigger className="group flex w-full items-center gap-2 py-1 text-left font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-400 uppercase hover:text-neutral-600">
+        <CollapsibleTrigger className="group flex w-full items-center gap-2 py-1 text-left font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-400 uppercase hover:text-neutral-600">
           <ChevronDown className="size-3 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
           Diagnostics
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-2 pb-1">
-          <dl className="grid gap-2 font-mono text-[0.65rem] text-neutral-500 sm:grid-cols-2">
+          <dl className="grid gap-2 font-mono text-[0.75rem] text-neutral-500 sm:grid-cols-2">
             <div>
               <dt className="text-neutral-400">Marketing entity</dt>
               <dd className="break-all text-neutral-700">{item.id}</dd>

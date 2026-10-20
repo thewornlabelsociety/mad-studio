@@ -177,7 +177,7 @@ export function IntakePreviewDialog({
               <DialogTitle className="font-typewriter text-sm font-bold tracking-typewriter-tight uppercase">
                 Quick preview
               </DialogTitle>
-              <p className="font-typewriter text-[0.5rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
+              <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
                 Live preview — Feed/Facebook can publish live; Story/TikTok use
                 Download media + Copy link sticker URL for your phone drop.
               </p>
@@ -212,7 +212,7 @@ export function IntakePreviewDialog({
               <div className="mt-4 pb-1">
                 <Link
                   href={`${studioHref}${studioHref.includes("?") ? "&" : "?"}step=2`}
-                  className="inline-flex w-full items-center justify-center border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
+                  className="inline-flex w-full items-center justify-center border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime"
                   onClick={() => onOpenChange(false)}
                 >
                   Craft in Studio →

@@ -108,7 +108,7 @@ function useStudioChromeTopbarSlots() {
     centerSlot = <DraftActivePill onStartFresh={onStartFresh} />
   } else if (rehydrating) {
     centerSlot = (
-      <span className="inline-flex items-center gap-1.5 font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase">
+      <span className="inline-flex items-center gap-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase">
         <Loader2 className="size-3 animate-spin" />
         Restoring…
       </span>
@@ -119,11 +119,11 @@ function useStudioChromeTopbarSlots() {
   if (draftActive && onStartFresh) {
     mobileMenuSlot = (
       <>
-        <DropdownMenuLabel className="font-typewriter text-[0.55rem] font-bold tracking-wider uppercase">
+        <DropdownMenuLabel className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase">
           Draft active
         </DropdownMenuLabel>
         <DropdownMenuItem
-          className="rounded-none font-typewriter text-[0.65rem] font-bold uppercase text-mad-vermillion"
+          className="rounded-none font-typewriter text-[0.75rem] font-bold uppercase text-mad-vermillion"
           onSelect={onStartFresh}
         >
           Start fresh
@@ -132,7 +132,7 @@ function useStudioChromeTopbarSlots() {
     )
   } else if (rehydrating) {
     mobileMenuSlot = (
-      <DropdownMenuLabel className="inline-flex items-center gap-1.5 font-typewriter text-[0.55rem] uppercase">
+      <DropdownMenuLabel className="inline-flex items-center gap-1.5 font-typewriter text-[0.7rem] uppercase">
         <Loader2 className="size-3 animate-spin" />
         Restoring…
       </DropdownMenuLabel>

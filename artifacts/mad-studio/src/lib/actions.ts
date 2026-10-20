@@ -84,4 +84,7 @@ export const disarmCampaignQueue = (...args: any[]) => action("disarmCampaignQue
 export const pushScheduledPostNow = (...args: any[]) => action("pushScheduledPostNow", ...args)
 export const rescheduleScheduledPost = (...args: any[]) => action("rescheduleScheduledPost", ...args)
 export const cancelScheduledPost = (...args: any[]) => action("cancelScheduledPost", ...args)
+export const archiveCampaignProgram = (...args: any[]) => action("archiveCampaignProgram", ...args)
+export const skipCampaignProgramDay = (...args: any[]) => action("skipCampaignProgramDay", ...args)
+export const hideCalendarPosts = (...args: any[]) => action("hideCalendarPosts", ...args)
 export const createEntity = (...args: any[]) => action("createEntity", ...args)

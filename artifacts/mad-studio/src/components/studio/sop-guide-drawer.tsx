@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 
 export function TeamSopGuideBody() {
   return (
-    <div className="mt-4 space-y-6 font-typewriter text-[0.65rem] leading-relaxed text-mad-black normal-case">
+    <div className="mt-4 space-y-6 font-typewriter text-[0.75rem] leading-relaxed text-mad-black normal-case">
       {TEAM_POSTING_TRACK_SOPS.map((track, index) => (
         <section
           key={track.id}
@@ -26,11 +26,11 @@ export function TeamSopGuideBody() {
             index === 0 ? "bg-mad-lime/30" : "bg-mad-white"
           )}
         >
-          <h2 className="text-[0.7rem] font-bold tracking-widest uppercase">
+          <h2 className="text-[0.75rem] font-bold tracking-widest uppercase">
             {track.title}
           </h2>
           {track.intro ? (
-            <p className="text-[0.6rem] text-neutral-700">{track.intro}</p>
+            <p className="text-[0.72rem] text-neutral-700">{track.intro}</p>
           ) : null}
           <ol className="list-decimal space-y-1.5 pl-4">
             {track.steps.map((step) => (
@@ -38,7 +38,7 @@ export function TeamSopGuideBody() {
             ))}
           </ol>
           {track.stickerBullets?.length ? (
-            <ul className="list-disc space-y-0.5 pl-4 text-[0.6rem]">
+            <ul className="list-disc space-y-0.5 pl-4 text-[0.72rem]">
               {track.stickerBullets.map((line) => (
                 <li key={line}>{line}</li>
               ))}
@@ -66,7 +66,7 @@ export function TeamSopGuideSheet({ open, onOpenChange }: SheetProps) {
           <SheetTitle className="font-typewriter text-sm font-bold tracking-typewriter-tight uppercase">
             Team SOP &amp; posting guide
           </SheetTitle>
-          <p className="font-typewriter text-[0.55rem] leading-relaxed tracking-wide text-neutral-600 normal-case">
+          <p className="font-typewriter text-[0.7rem] leading-relaxed tracking-wide text-neutral-600 normal-case">
             {STUDIO_SOP_DRAWER_INTRO}
           </p>
         </SheetHeader>
@@ -88,7 +88,7 @@ export function TeamSopGuideDrawer({ className, compact = false }: Props) {
         <button
           type="button"
           className={cn(
-            "inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-white px-2.5 py-1.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors hover:bg-mad-lime",
+            "inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-white px-2.5 py-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors hover:bg-mad-lime",
             className
           )}
         >
@@ -104,7 +104,7 @@ export function TeamSopGuideDrawer({ className, compact = false }: Props) {
           <SheetTitle className="font-typewriter text-sm font-bold tracking-typewriter-tight uppercase">
             Team SOP &amp; posting guide
           </SheetTitle>
-          <p className="font-typewriter text-[0.55rem] leading-relaxed tracking-wide text-neutral-600 normal-case">
+          <p className="font-typewriter text-[0.7rem] leading-relaxed tracking-wide text-neutral-600 normal-case">
             {STUDIO_SOP_DRAWER_INTRO}
           </p>
         </SheetHeader>

@@ -25,7 +25,7 @@ function MetricBlock({
 }) {
   return (
     <div className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-      <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-neutral-500 uppercase">
+      <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-neutral-500 uppercase">
         {label}
       </p>
       <p

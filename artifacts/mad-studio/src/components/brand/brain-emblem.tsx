@@ -66,7 +66,7 @@ export function BrainEmblemLink({
         <TooltipContent
           side="bottom"
           sideOffset={8}
-          className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.65rem] tracking-wider text-mad-white uppercase"
+          className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.75rem] tracking-wider text-mad-white uppercase"
         >
           {tooltip}
         </TooltipContent>

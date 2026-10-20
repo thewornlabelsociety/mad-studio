@@ -121,7 +121,7 @@ export function MobileDeviceSimulator({
               type="button"
               onClick={() => setMode(item.id)}
               className={cn(
-                "border-2 px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors",
+                "border-2 px-3 py-2 font-typewriter text-[0.75rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors",
                 active ? "text-white" : "bg-mad-white hover:opacity-90"
               )}
               style={{
@@ -140,12 +140,12 @@ export function MobileDeviceSimulator({
         <div className="overflow-hidden rounded-[32px] bg-mad-white">
           <div className="relative flex items-center justify-between bg-mad-white px-5 pt-3 pb-2">
             <div className="absolute top-2 left-1/2 h-5 w-24 -translate-x-1/2 rounded-full bg-mad-black" />
-            <span className="font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-black">
+            <span className="font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-black">
               9:41
             </span>
             <div className="flex items-center gap-1 text-mad-black">
               <Signal className="size-3.5" />
-              <span className="font-typewriter text-[0.55rem] font-bold">
+              <span className="font-typewriter text-[0.7rem] font-bold">
                 5G
               </span>
               <BatteryFull className="size-3.5" />
@@ -266,7 +266,7 @@ function ReelScreen({
       <CanvasTextOverlayLayer overlay={storyOverlay} className="z-20" />
 
       <div className="absolute top-4 right-14 left-4 z-10">
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-white uppercase drop-shadow">
+        <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-white uppercase drop-shadow">
           {brandName}
         </p>
       </div>
@@ -284,45 +284,45 @@ function ReelScreen({
       </div>
 
       <div className="absolute right-3 bottom-6 left-3 z-10 space-y-2">
-        <span className="inline-block border-2 border-mad-black bg-mad-vermillion px-2 py-1 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm">
+        <span className="inline-block border-2 border-mad-black bg-mad-vermillion px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm">
           0-3s Spoken Hook
         </span>
         <p className="text-sm font-bold leading-snug text-mad-white drop-shadow">
           {pack.algorithmic_signals.spoken_hook}
         </p>
 
-        <span className="inline-block border-2 border-mad-black bg-mad-lime px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-tight text-mad-black uppercase shadow-keycap-sm">
+        <span className="inline-block border-2 border-mad-black bg-mad-lime px-2 py-1 font-typewriter text-[0.75rem] font-bold tracking-tight text-mad-black uppercase shadow-keycap-sm">
           {pack.algorithmic_signals.on_screen_text}
         </span>
 
         <div className="mt-2 border-2 border-mad-white/40 bg-mad-black/70 px-2 py-2">
-          <p className="font-typewriter text-[0.5rem] tracking-widest text-mad-lime uppercase">
+          <p className="font-typewriter text-[0.68rem] tracking-widest text-mad-lime uppercase">
             Teleprompter
           </p>
           <div className="mt-1 max-h-20 space-y-1 overflow-hidden">
             {pack.short_video_script.spoken_lines.slice(0, 3).map((line) => (
               <p
                 key={line}
-                className="truncate text-[0.7rem] leading-snug text-mad-white"
+                className="truncate text-[0.75rem] leading-snug text-mad-white"
               >
                 {line}
               </p>
             ))}
           </div>
-          <p className="mt-2 text-[0.65rem] font-bold text-mad-lime">
+          <p className="mt-2 text-[0.75rem] font-bold text-mad-lime">
             CTA · {pack.short_video_script.cta_spoken}
           </p>
         </div>
 
         <div className="flex flex-col items-center gap-1 pt-1">
           <span
-            className="rounded-full px-4 py-1.5 text-[0.7rem] font-semibold tracking-wide text-white"
+            className="rounded-full px-4 py-1.5 text-[0.75rem] font-semibold tracking-wide text-white"
             style={{ background: accent }}
           >
             {shopLabel}
           </span>
           {footer ? (
-            <p className="text-center text-[0.55rem] tracking-wide text-white/70 uppercase">
+            <p className="text-center text-[0.7rem] tracking-wide text-white/70 uppercase">
               {footer}
             </p>
           ) : null}
@@ -344,7 +344,7 @@ function RailIcon({
       <div className="flex size-9 items-center justify-center rounded-full bg-mad-black/35 backdrop-blur-sm">
         {icon}
       </div>
-      <span className="font-typewriter text-[0.5rem] font-bold tracking-wider uppercase drop-shadow">
+      <span className="font-typewriter text-[0.68rem] font-bold tracking-wider uppercase drop-shadow">
         {label}
       </span>
     </div>
@@ -413,13 +413,13 @@ function CarouselScreen({
           <button
             type="button"
             onClick={onPrev}
-            className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2 py-1.5 font-typewriter text-[0.6rem] font-bold uppercase hover:bg-mad-lime"
+            className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2 py-1.5 font-typewriter text-[0.72rem] font-bold uppercase hover:bg-mad-lime"
           >
             <ChevronLeft className="size-3.5" />
             Prev
           </button>
           <div className="flex flex-col items-center gap-1">
-            <p className="font-typewriter text-[0.5rem] font-bold tracking-widest text-neutral-500 uppercase">
+            <p className="font-typewriter text-[0.68rem] font-bold tracking-widest text-neutral-500 uppercase">
               Slide {index + 1} / {total} · 4:5
             </p>
             <div className="flex gap-1">
@@ -437,7 +437,7 @@ function CarouselScreen({
           <button
             type="button"
             onClick={onNext}
-            className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2 py-1.5 font-typewriter text-[0.6rem] font-bold uppercase hover:bg-mad-lime"
+            className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2 py-1.5 font-typewriter text-[0.72rem] font-bold uppercase hover:bg-mad-lime"
           >
             Next
             <ChevronRight className="size-3.5" />
@@ -445,7 +445,7 @@ function CarouselScreen({
         </div>
 
         {isHeroSlide && bodyText ? (
-          <p className="border border-neutral-200 bg-neutral-50 px-2 py-1.5 text-[0.65rem] leading-relaxed text-neutral-600">
+          <p className="border border-neutral-200 bg-neutral-50 px-2 py-1.5 text-[0.75rem] leading-relaxed text-neutral-600">
             <span className="font-typewriter font-bold tracking-wider text-neutral-500 uppercase">
               Caption ·{" "}
             </span>
@@ -476,7 +476,7 @@ function ProductHeroSlide({
       <VisualBackdrop imageUrl={imageUrl} />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/40" />
       <div className="absolute top-0 right-0 left-0 z-10 px-4 pt-4">
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-[0.22em] text-white/90 uppercase drop-shadow">
+        <p className="font-typewriter text-[0.7rem] font-bold tracking-[0.22em] text-white/90 uppercase drop-shadow">
           {brandName}
         </p>
       </div>
@@ -519,12 +519,12 @@ function EditorialSlideCard({
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <p
-            className="text-[0.55rem] font-bold tracking-[0.22em] uppercase"
+            className="text-[0.7rem] font-bold tracking-[0.22em] uppercase"
             style={{ color: accent }}
           >
             {brandName}
           </p>
-          <p className="text-[0.5rem] font-bold tracking-widest uppercase opacity-60">
+          <p className="text-[0.68rem] font-bold tracking-widest uppercase opacity-60">
             {slideNumber}/{total}
           </p>
         </div>
@@ -539,7 +539,7 @@ function EditorialSlideCard({
           <p className="text-[0.95rem] leading-relaxed opacity-90">{bodyText}</p>
         ) : null}
         <div
-          className="inline-block border-2 px-3 py-2 text-[0.55rem] font-bold tracking-widest uppercase"
+          className="inline-block border-2 px-3 py-2 text-[0.7rem] font-bold tracking-widest uppercase"
           style={{
             borderColor: text,
             color: text,
@@ -570,7 +570,7 @@ function CaptionScreen({
         <VisualBackdrop imageUrl={imageUrl} />
       </div>
       <div className="space-y-3 px-4 py-4">
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
           {brandName}
         </p>
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-mad-black">
@@ -602,7 +602,7 @@ function EmailScreen({
   return (
     <div className="flex aspect-[9/16] w-full flex-col bg-mad-white">
       <div className="border-b-2 border-mad-black px-4 py-3">
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+        <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
           Inbox · VIP
         </p>
         <p className="mt-2 text-xs text-mad-black">
@@ -624,7 +624,7 @@ function EmailScreen({
           />
         ) : (
           <div className="flex aspect-[16/10] w-full items-center justify-center border-b-2 border-mad-black bg-mad-lime">
-            <span className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase">
+            <span className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase">
               Featured Drop
             </span>
           </div>
@@ -634,12 +634,9 @@ function EmailScreen({
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-mad-black">
             {body}
           </p>
-          <button
-            type="button"
-            className="w-full border-2 border-mad-black bg-mad-vermillion px-3 py-3 font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm"
-          >
+          <div className="w-full cursor-default border-2 border-mad-black bg-mad-vermillion px-3 py-3 text-center font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm">
             Shop Drop Now
-          </button>
+          </div>
         </div>
       </div>
     </div>
@@ -658,13 +655,13 @@ function DmScreen({
   return (
     <div className="flex aspect-[9/16] w-full flex-col bg-neutral-100">
       <div className="border-b-2 border-mad-black bg-mad-white px-4 py-3">
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
           {platform || "Direct Message"}
         </p>
         <p className="mt-1 font-typewriter text-xs font-bold tracking-tight text-mad-black uppercase">
           To · Partner / Buyer
         </p>
-        <p className="mt-0.5 text-[0.65rem] text-neutral-500">From {brandName}</p>
+        <p className="mt-0.5 text-[0.75rem] text-neutral-500">From {brandName}</p>
       </div>
       <div className="flex flex-1 flex-col justify-end gap-3 px-4 py-4">
         <div className="ml-8 rounded-2xl rounded-br-sm border-2 border-mad-black bg-mad-lime px-3 py-3 shadow-keycap-sm">

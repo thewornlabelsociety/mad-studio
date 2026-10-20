@@ -30,22 +30,22 @@ export function CampaignsConversionTable({ rows }: Props) {
       <table className="min-w-full border-collapse text-left text-sm">
         <thead>
           <tr className="border-b-2 border-mad-black bg-mad-lime/30">
-            <th className="px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-widest uppercase">
+            <th className="px-3 py-2 font-typewriter text-[0.7rem] font-bold tracking-widest uppercase">
               Media
             </th>
-            <th className="px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-widest uppercase">
+            <th className="px-3 py-2 font-typewriter text-[0.7rem] font-bold tracking-widest uppercase">
               Drop Title
             </th>
-            <th className="px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-widest uppercase">
+            <th className="px-3 py-2 font-typewriter text-[0.7rem] font-bold tracking-widest uppercase">
               Target Audience
             </th>
-            <th className="px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-widest uppercase">
+            <th className="px-3 py-2 font-typewriter text-[0.7rem] font-bold tracking-widest uppercase">
               CTR
             </th>
-            <th className="px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-widest uppercase">
+            <th className="px-3 py-2 font-typewriter text-[0.7rem] font-bold tracking-widest uppercase">
               Direct Conversions
             </th>
-            <th className="px-3 py-2 font-typewriter text-[0.55rem] font-bold tracking-widest uppercase">
+            <th className="px-3 py-2 font-typewriter text-[0.7rem] font-bold tracking-widest uppercase">
               Cost-per-Click
             </th>
           </tr>
@@ -63,7 +63,7 @@ export function CampaignsConversionTable({ rows }: Props) {
                       className="size-full object-cover"
                     />
                   ) : (
-                    <div className="flex size-full items-center justify-center font-typewriter text-[0.45rem] text-neutral-400 uppercase">
+                    <div className="flex size-full items-center justify-center font-typewriter text-[0.68rem] text-neutral-400 uppercase">
                       —
                     </div>
                   )}

@@ -169,10 +169,10 @@ export function MultiChannelScheduler({
         </p>
       ) : (
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Dispatch & Schedule
           </p>
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-600 uppercase">
+          <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-600 uppercase">
             {summary}
           </span>
         </div>
@@ -238,7 +238,7 @@ export function MultiChannelScheduler({
           disabled={locked || enabled.length === 0}
           className={cn(
             "border-2 border-mad-black bg-mad-lime font-typewriter font-bold tracking-wide text-mad-black uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-lime disabled:opacity-40",
-            wizardLayout ? "px-3 py-2 text-xs" : "px-2.5 py-1 text-[0.6rem]"
+            wizardLayout ? "px-3 py-2 text-xs" : "px-2.5 py-1 text-[0.72rem]"
           )}
         >
           <Zap className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
@@ -249,7 +249,7 @@ export function MultiChannelScheduler({
             Staggers channels to Brain audience windows.
           </p>
         ) : (
-          <p className="min-w-0 flex-1 font-typewriter text-[0.5rem] leading-relaxed text-neutral-600 normal-case">
+          <p className="min-w-0 flex-1 font-typewriter text-[0.68rem] leading-relaxed text-neutral-600 normal-case">
             Staggers each channel to its audience window — IG Story lunch /
             commute, IG Feed midday / evening, TikTok night, Facebook morning,
             VIP email Tue / Thu 10am.
@@ -258,7 +258,7 @@ export function MultiChannelScheduler({
       </div>
 
       {enabled.length === 0 ? (
-        <p className="border border-mad-black/20 px-2 py-3 text-center font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase">
+        <p className="border border-mad-black/20 px-2 py-3 text-center font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase">
           Tick a channel to add its slot
         </p>
       ) : (
@@ -286,7 +286,7 @@ export function MultiChannelScheduler({
                   <p
                     className={cn(
                       "font-typewriter font-bold tracking-wide text-mad-black uppercase",
-                      wizardLayout ? "text-sm" : "text-[0.6rem]"
+                      wizardLayout ? "text-sm" : "text-[0.72rem]"
                     )}
                   >
                     {CHANNEL_META[slot.channel].label}
@@ -294,7 +294,7 @@ export function MultiChannelScheduler({
                   <p
                     className={cn(
                       "truncate font-typewriter text-neutral-600 normal-case",
-                      wizardLayout ? "mt-0.5 text-xs" : "text-[0.5rem]"
+                      wizardLayout ? "mt-0.5 text-xs" : "text-[0.68rem]"
                     )}
                   >
                     {slot.demographicTag}
@@ -316,12 +316,12 @@ export function MultiChannelScheduler({
                     </span>
                   </p>
                   {clash ? (
-                    <p className="font-typewriter text-[0.5rem] text-amber-700 normal-case">
+                    <p className="font-typewriter text-[0.68rem] text-amber-700 normal-case">
                       Within 20 min of “{clash.title}”
                     </p>
                   ) : null}
                   {past ? (
-                    <p className="font-typewriter text-[0.5rem] text-mad-vermillion normal-case">
+                    <p className="font-typewriter text-[0.68rem] text-mad-vermillion normal-case">
                       Time has passed — pick a new slot or switch to Immediate
                     </p>
                   ) : null}
@@ -341,7 +341,7 @@ export function MultiChannelScheduler({
                     "w-full border-2 border-mad-black bg-mad-white font-typewriter text-mad-black focus:bg-mad-lime/20 disabled:border-mad-black/30 disabled:text-neutral-400",
                     wizardLayout
                       ? "px-2.5 py-2 text-sm sm:w-[13rem]"
-                      : "px-1.5 py-1 text-[0.6rem] sm:w-[11.5rem]"
+                      : "px-1.5 py-1 text-[0.72rem] sm:w-[11.5rem]"
                   )}
                 />
 
@@ -361,7 +361,7 @@ export function MultiChannelScheduler({
                         "flex-1 font-typewriter font-bold tracking-wide uppercase disabled:opacity-40",
                         wizardLayout
                           ? "px-3 py-2 text-xs"
-                          : "px-2 py-1 text-[0.5rem]",
+                          : "px-2 py-1 text-[0.68rem]",
                         slot.mode === mode
                           ? mode === "immediate"
                             ? "bg-mad-vermillion text-mad-white"
@@ -385,7 +385,7 @@ export function MultiChannelScheduler({
             type="button"
             onClick={onSaveDraft}
             disabled={busy || locked}
-            className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime disabled:opacity-40"
+            className="border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase hover:bg-mad-lime disabled:opacity-40"
           >
             <Save className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
             {saving ? "Saving…" : "Save draft"}
@@ -394,7 +394,7 @@ export function MultiChannelScheduler({
             type="button"
             onClick={onArm}
             disabled={busy || locked || enabled.length === 0 || hasPastSlot}
-            className="border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-40"
+            className="border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-40"
           >
             <Send className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
             {arming ? "Arming…" : "Confirm & schedule"}
@@ -402,7 +402,7 @@ export function MultiChannelScheduler({
         </div>
       )}
       {locked ? (
-        <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+        <p className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
           Published — queue locked
         </p>
       ) : null}

@@ -156,13 +156,13 @@ export function CampaignPostMortem({
     <section className="space-y-4">
       <CampaignAssetPackPreview assetPack={assetPack} />
       {targetSegment ? (
-        <p className="font-typewriter text-[0.6rem] tracking-wider text-neutral-600 uppercase">
+        <p className="font-typewriter text-[0.72rem] tracking-wider text-neutral-600 uppercase">
           Target audience · {targetSegment}
         </p>
       ) : null}
 
       <div className="space-y-2 border-2 border-mad-black bg-mad-lime/15 p-3 shadow-keycap-sm">
-        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+        <p className="font-typewriter text-[0.72rem] font-bold tracking-widest uppercase">
           <Trophy className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
           Mark as winner
         </p>
@@ -181,7 +181,7 @@ export function CampaignPostMortem({
           type="button"
           onClick={onMarkWinner}
           disabled={markingWinner}
-          className="inline-flex items-center gap-2 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-60"
+          className="inline-flex items-center gap-2 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-60"
         >
           {markingWinner ? (
             <Loader2 className="size-4 animate-spin" />
@@ -223,12 +223,12 @@ export function CampaignPostMortem({
             >
               <Icon className="size-4 shrink-0" />
               <span>
-                <span className="block text-[0.7rem] font-bold tracking-wider uppercase">
+                <span className="block text-[0.75rem] font-bold tracking-wider uppercase">
                   {item.plain}
                 </span>
                 <span
                   className={cn(
-                    "block text-[0.6rem] tracking-wider uppercase",
+                    "block text-[0.72rem] tracking-wider uppercase",
                     active && item.value === "loss"
                       ? "text-mad-white/80"
                       : active
@@ -248,7 +248,7 @@ export function CampaignPostMortem({
         <div className="grid gap-2">
           <Label
             htmlFor={`worked-${campaignId}`}
-            className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase"
+            className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase"
           >
             What Worked Well
           </Label>
@@ -264,7 +264,7 @@ export function CampaignPostMortem({
         <div className="grid gap-2">
           <Label
             htmlFor={`friction-${campaignId}`}
-            className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase"
+            className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase"
           >
             What Didn&apos;t Land
           </Label>
@@ -281,7 +281,7 @@ export function CampaignPostMortem({
 
       {takeaway ? (
         <div className="border-2 border-mad-black bg-mad-lime/40 px-4 py-3 text-sm text-mad-black shadow-keycap-sm">
-          <p className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+          <p className="font-typewriter text-[0.72rem] font-bold tracking-widest uppercase">
             Playbook Directive
           </p>
           <p className="mt-1.5 leading-relaxed">{takeaway}</p>
@@ -292,7 +292,7 @@ export function CampaignPostMortem({
         type="button"
         onClick={onSave}
         disabled={saving}
-        className="inline-flex items-center justify-center gap-2 border-2 border-mad-black bg-mad-black px-5 py-3 font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap transition-colors hover:bg-mad-vermillion disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 border-2 border-mad-black bg-mad-black px-5 py-3 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap transition-colors hover:bg-mad-vermillion disabled:opacity-60"
       >
         {saving ? (
           <>

@@ -38,7 +38,7 @@ export function StudioCreateChrome({
 
         <div className="flex flex-col gap-2 pr-14 sm:flex-row sm:items-center sm:gap-4 lg:gap-6 lg:pr-16">
           <div className="min-w-0 shrink-0 sm:max-w-[9rem] lg:max-w-[11rem]">
-            <p className="truncate text-[10px] font-medium tracking-[0.18em] text-neutral-500 uppercase">
+            <p className="truncate text-[11.5px] font-medium tracking-[0.18em] text-neutral-500 uppercase">
               {brandName}
             </p>
             <h1 className="brand-typewriter truncate text-lg leading-tight text-mad-black lg:text-xl">
@@ -73,7 +73,7 @@ export function StudioCreateChrome({
                   >
                     <span
                       className={cn(
-                        "flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums sm:size-7 sm:text-[11px]",
+                        "flex size-6 shrink-0 items-center justify-center rounded-full text-[11.5px] font-semibold tabular-nums sm:size-7 sm:text-[12px]",
                         active
                           ? "bg-mad-black text-white"
                           : complete
@@ -83,7 +83,7 @@ export function StudioCreateChrome({
                     >
                       {index + 1}
                     </span>
-                    <span className="hidden truncate text-[11px] font-medium lg:inline xl:text-xs">
+                    <span className="hidden truncate text-[12px] font-medium lg:inline xl:text-xs">
                       {item.label}
                     </span>
                   </button>

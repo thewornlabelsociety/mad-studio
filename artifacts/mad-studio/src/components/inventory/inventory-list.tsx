@@ -145,7 +145,7 @@ export function InventoryList({ entityId, items }: Props) {
                   className="size-16 rounded-lg border border-neutral-200 object-cover"
                 />
               ) : (
-                <div className="flex size-16 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-[0.65rem] text-neutral-400">
+                <div className="flex size-16 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-[0.75rem] text-neutral-400">
                   No media
                 </div>
               )}
@@ -168,7 +168,7 @@ export function InventoryList({ entityId, items }: Props) {
                   </div>
                   <span
                     className={cn(
-                      "inline-flex rounded-full px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-wide",
+                      "inline-flex rounded-full px-2.5 py-1 text-[0.75rem] font-medium uppercase tracking-wide",
                       STATUS_TONE[item.status] ?? STATUS_TONE.unfeatured
                     )}
                   >

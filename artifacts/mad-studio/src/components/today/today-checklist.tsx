@@ -236,7 +236,7 @@ export function TodayChecklist({
                   <a
                     href={step.action.href}
                     className={cn(
-                      "shrink-0 border-2 border-mad-black px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase",
+                      "shrink-0 border-2 border-mad-black px-3 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase",
                       isNext
                         ? "bg-mad-black text-mad-white hover:bg-mad-vermillion"
                         : "bg-mad-white hover:bg-mad-lime"
@@ -248,7 +248,7 @@ export function TodayChecklist({
                   <Link
                     href={step.action.href}
                     className={cn(
-                      "shrink-0 border-2 border-mad-black px-3 py-1.5 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase",
+                      "shrink-0 border-2 border-mad-black px-3 py-1.5 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase",
                       isNext
                         ? "bg-mad-black text-mad-white hover:bg-mad-vermillion"
                         : "bg-mad-white hover:bg-mad-lime"

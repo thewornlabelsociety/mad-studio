@@ -169,11 +169,11 @@ export function StepMedia({
           aria-label="Story card"
           className="mt-4 space-y-3 border-2 border-mad-black bg-mad-white p-3"
         >
-          <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Story card
           </p>
           <div className="space-y-1.5">
-            <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-black uppercase">
+            <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-black uppercase">
               Background
             </span>
             <div className="flex flex-wrap gap-2">
@@ -195,7 +195,7 @@ export function StepMedia({
             </div>
           </div>
           <label className="grid gap-1">
-            <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-black uppercase">
+            <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-black uppercase">
               Item size ({Math.round(storyCard.scale * 100)}%)
             </span>
             <input
@@ -209,7 +209,7 @@ export function StepMedia({
             />
           </label>
           <label className="grid gap-1">
-            <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-black uppercase">
+            <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-black uppercase">
               Item position
             </span>
             <input

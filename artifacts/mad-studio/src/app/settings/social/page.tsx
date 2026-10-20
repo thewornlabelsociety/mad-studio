@@ -72,7 +72,7 @@ export default async function SocialSettingsPage({
   return (
     <StudioAppShell
       className="bg-mad-white"
-      mainClassName="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6"
+      mainClassName="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4"
       entities={entities}
       activeEntityId={activeEntity.id}
       userEmail={user.email ?? null}
@@ -87,16 +87,15 @@ export default async function SocialSettingsPage({
         ) : null
       }
     >
-        <section className="border-b-2 border-mad-black pb-4">
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <section className="border-b-2 border-mad-black pb-3">
+          <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Settings · Social
           </p>
-          <h1 className="brand-typewriter mt-1 text-xl text-mad-black sm:text-2xl">
-            Account Connection & Token Management
+          <h1 className="brand-typewriter mt-1 text-xl text-mad-black">
+            Connected accounts
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
-            Connect Instagram Business, Facebook Page, and TikTok credentials for
-            in-house dispatch — plus an outbound webhook for Make / n8n / Zapier.
+          <p className="mt-1 max-w-2xl text-sm text-neutral-600">
+            Connect Instagram, Facebook and TikTok so Studio can post for {activeEntity.name}.
           </p>
           {!listed.ok ? (
             <p
@@ -108,17 +107,25 @@ export default async function SocialSettingsPage({
           ) : null}
         </section>
 
-        <OutboundWebhookCard
-          entityId={activeEntity.id}
-          brandName={activeEntity.name}
-          initialWebhookUrl={outboundChannel?.webhook_url ?? null}
-        />
-
         <SocialConnectionsPanel
           entityId={activeEntity.id}
           brandName={activeEntity.name}
           initialConnections={connections}
         />
+
+        <details className="group border-2 border-mad-black bg-mad-white">
+          <summary className="cursor-pointer list-none px-4 py-3 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase hover:bg-mad-lime/30">
+            <span className="mr-2 inline-block transition-transform group-open:rotate-90">›</span>
+            Advanced · Automation webhook (Make, n8n, Zapier)
+          </summary>
+          <div className="border-t-2 border-mad-black p-4">
+            <OutboundWebhookCard
+              entityId={activeEntity.id}
+              brandName={activeEntity.name}
+              initialWebhookUrl={outboundChannel?.webhook_url ?? null}
+            />
+          </div>
+        </details>
     </StudioAppShell>
   )
 }

@@ -197,7 +197,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       userEmail={user.email ?? null}
       isOrgAdmin={isOrgAdmin}
       organizationId={organizationId}
-      mainClassName="mx-auto w-full max-w-6xl md:px-4"
+      mainClassName="mx-auto flex w-full max-w-[100rem] flex-col md:px-2"
       teamSlot={
         isOrgAdmin && organizationId ? (
           <TeamInviteModal
@@ -227,7 +227,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           />
           </div>
         </div>
-        <div className="hidden min-h-0 flex-1 overflow-y-auto px-4 py-8 md:block">
+        <div className="hidden min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 md:flex">
           <TodayCommandDashboard
             entityId={activeEntityId}
             entityName={activeEntity.name}

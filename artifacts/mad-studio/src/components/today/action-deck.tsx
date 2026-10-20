@@ -232,7 +232,7 @@ export function TodayActionDeck({
   return (
     <div className="relative flex min-h-[calc(100dvh-3.5rem)] flex-col pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
       <header className="shrink-0 border-b-2 border-mad-black/10 px-4 py-3">
-        <p className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
           {liveDateLabel}
         </p>
         <h1 className="font-typewriter text-lg font-bold tracking-typewriter-tight uppercase">
@@ -245,7 +245,7 @@ export function TodayActionDeck({
           className="mt-2 flex items-center justify-between gap-2"
           aria-label="Swipe left to archive, swipe right to skip"
         >
-          <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-mad-vermillion/20 px-2 py-1.5 font-typewriter text-[0.45rem] font-bold tracking-wider text-mad-black uppercase shadow-keycap-sm">
+          <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-mad-vermillion/20 px-2 py-1.5 font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-black uppercase shadow-keycap-sm">
             <ArrowLeft className="size-3.5 shrink-0" aria-hidden />
             Archive
           </span>
@@ -253,7 +253,7 @@ export function TodayActionDeck({
             className="size-5 shrink-0 text-neutral-500"
             aria-hidden
           />
-          <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-neutral-100 px-2 py-1.5 font-typewriter text-[0.45rem] font-bold tracking-wider text-neutral-800 uppercase shadow-keycap-sm">
+          <span className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-neutral-100 px-2 py-1.5 font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-800 uppercase shadow-keycap-sm">
             Skip
             <ArrowRight className="size-3.5 shrink-0" aria-hidden />
           </span>
@@ -262,13 +262,13 @@ export function TodayActionDeck({
 
       <div className="relative flex flex-1 items-center justify-center px-4 py-4">
         <motion.div
-          className="pointer-events-none absolute left-6 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-vermillion uppercase"
+          className="pointer-events-none absolute left-6 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-vermillion uppercase"
           style={{ opacity: archiveHint }}
         >
           Archive
         </motion.div>
         <motion.div
-          className="pointer-events-none absolute right-6 font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-500 uppercase"
+          className="pointer-events-none absolute right-6 font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase"
           style={{ opacity: skipHint }}
         >
           Skip
@@ -312,14 +312,14 @@ export function TodayActionDeck({
               </div>
 
               <div className="space-y-2 px-4 py-4">
-                <p className="font-typewriter text-[0.5rem] font-bold tracking-widest text-neutral-500 uppercase">
+                <p className="font-typewriter text-[0.68rem] font-bold tracking-widest text-neutral-500 uppercase">
                   {card.channelRecommendation}
                 </p>
                 <h2 className="font-typewriter text-base font-bold leading-snug tracking-typewriter-tight uppercase">
                   {liveCopy?.headline ?? card.displayTitle}
                 </h2>
                 <p className="text-sm leading-relaxed text-neutral-700">
-                  <span className="font-typewriter text-[0.45rem] font-bold tracking-widest text-mad-vermillion uppercase">
+                  <span className="font-typewriter text-[0.68rem] font-bold tracking-widest text-mad-vermillion uppercase">
                     Hook ·{" "}
                   </span>
                   {liveCopy?.captionBody || card.recommendedHook}
@@ -336,7 +336,7 @@ export function TodayActionDeck({
             type="button"
             disabled={!card || pending}
             onClick={openEdit}
-            className="inline-flex flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-mad-white py-3 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase"
+            className="inline-flex flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-mad-white py-3 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase"
           >
             <Pencil className="size-3.5" />
             Edit
@@ -345,7 +345,7 @@ export function TodayActionDeck({
             type="button"
             disabled={!card || pending}
             onClick={() => setPreviewOpen(true)}
-            className="inline-flex flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-mad-white py-3 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase"
+            className="inline-flex flex-1 items-center justify-center gap-1 border-2 border-mad-black bg-mad-white py-3 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase"
           >
             <Smartphone className="size-3.5" />
             Preview
@@ -355,7 +355,7 @@ export function TodayActionDeck({
             disabled={!card || pending}
             onClick={oneTapPublish}
             className={cn(
-              "inline-flex flex-[1.35] items-center justify-center gap-1 border-2 border-mad-black bg-mad-lime py-3 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm",
+              "inline-flex flex-[1.35] items-center justify-center gap-1 border-2 border-mad-black bg-mad-lime py-3 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm",
               pending && "opacity-70"
             )}
           >
@@ -392,7 +392,7 @@ export function TodayActionDeck({
           </SheetHeader>
           <div className="mt-4 space-y-3 px-1">
             <label className="block space-y-1">
-              <span className="font-typewriter text-[0.5rem] font-bold tracking-wider uppercase text-neutral-500">
+              <span className="font-typewriter text-[0.68rem] font-bold tracking-wider uppercase text-neutral-500">
                 Headline
               </span>
               <textarea
@@ -403,7 +403,7 @@ export function TodayActionDeck({
               />
             </label>
             <label className="block space-y-1">
-              <span className="font-typewriter text-[0.5rem] font-bold tracking-wider uppercase text-neutral-500">
+              <span className="font-typewriter text-[0.68rem] font-bold tracking-wider uppercase text-neutral-500">
                 Hook / caption lead
               </span>
               <textarea
@@ -417,7 +417,7 @@ export function TodayActionDeck({
               type="button"
               disabled={pending}
               onClick={saveEdit}
-              className="w-full border-2 border-mad-black bg-mad-black py-3 font-typewriter text-[0.6rem] font-bold tracking-wider text-mad-white uppercase"
+              className="w-full border-2 border-mad-black bg-mad-black py-3 font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase"
             >
               Save to card
             </button>

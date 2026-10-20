@@ -78,7 +78,7 @@ function FieldLabel({
     <div className="space-y-0.5">
       <label
         htmlFor={htmlFor}
-        className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase"
+        className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase"
       >
         {plain}
       </label>
@@ -113,7 +113,7 @@ export function StreetEar({
   return (
     <div className="space-y-4">
       <div>
-        <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+        <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
           Street Ear // Voice of Customer &amp; Language Bank
         </p>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-600">
@@ -132,7 +132,7 @@ export function StreetEar({
                 type="button"
                 onClick={() => onApplySeed(seed)}
                 className={cn(
-                  "border-2 border-mad-black bg-[#CCFF00]/50 px-2 py-1 text-left font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase transition hover:bg-[#CCFF00] hover:scale-[1.02]"
+                  "border-2 border-mad-black bg-[#CCFF00]/50 px-2 py-1 text-left font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase transition hover:bg-[#CCFF00] hover:scale-[1.02]"
                 )}
               >
                 [ + &quot;{seed.text}&quot; ]
@@ -179,7 +179,7 @@ export function StreetEar({
             type="button"
             onClick={onAddQuote}
             disabled={pending || !quoteText.trim()}
-            className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.65rem] uppercase text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
+            className="rounded-none border-2 border-mad-black bg-mad-black font-typewriter text-[0.75rem] uppercase text-mad-white shadow-keycap-sm hover:bg-mad-vermillion"
           >
             {pending ? (
               <Loader2 className="animate-spin" data-icon="inline-start" />
@@ -205,7 +205,7 @@ export function StreetEar({
               <div className="min-w-0 flex-1">
                 <Badge
                   variant="outline"
-                  className="rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.55rem] uppercase"
+                  className="rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.7rem] uppercase"
                 >
                   {sourceLabel[quote.source ?? "in_store"] ?? quote.source}
                 </Badge>

@@ -59,7 +59,7 @@ export function BrandSwitcher({
           variant="outline"
           size="sm"
           className={cn(
-            "mad-keycap-sm max-w-[11rem] min-w-0 justify-between gap-2 rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.65rem] tracking-typewriter-tight uppercase text-mad-black hover:bg-mad-lime hover:text-mad-black sm:max-w-[14rem]",
+            "mad-keycap-sm max-w-[11rem] min-w-0 justify-between gap-2 rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.75rem] tracking-typewriter-tight uppercase text-mad-black hover:bg-mad-lime hover:text-mad-black sm:max-w-[14rem]",
             className
           )}
           disabled={pending}
@@ -72,7 +72,7 @@ export function BrandSwitcher({
         align="start"
         className="min-w-[14rem] rounded-none border-2 border-mad-black shadow-keycap"
       >
-        <DropdownMenuLabel className="font-typewriter text-[0.65rem] tracking-typewriter uppercase">
+        <DropdownMenuLabel className="font-typewriter text-[0.75rem] tracking-typewriter uppercase">
           Switch brand
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-mad-black" />
@@ -171,7 +171,7 @@ export function AppTopbar({
         aria-pressed={brainOpen}
         title="Brand Brain (Ctrl+B)"
         className={cn(
-          "inline-flex items-center gap-1.5 border-2 border-mad-black px-2.5 py-1.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors hover:bg-mad-lime",
+          "inline-flex items-center gap-1.5 border-2 border-mad-black px-2.5 py-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors hover:bg-mad-lime",
           brainOpen ? "bg-mad-lime" : "bg-mad-white",
           className
         )}
@@ -277,7 +277,7 @@ function AccountMenu({
           variant="outline"
           size="sm"
           className={cn(
-            "gap-1.5 rounded-none border-2 border-mad-black font-typewriter text-[0.6rem] uppercase shadow-keycap-sm",
+            "gap-1.5 rounded-none border-2 border-mad-black font-typewriter text-[0.72rem] uppercase shadow-keycap-sm",
             className
           )}
         >
@@ -291,7 +291,7 @@ function AccountMenu({
       >
         {userEmail ? (
           <>
-            <DropdownMenuLabel className="max-w-[14rem] truncate font-typewriter text-[0.55rem] normal-case">
+            <DropdownMenuLabel className="max-w-[14rem] truncate font-typewriter text-[0.7rem] normal-case">
               {userEmail}
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-mad-black" />
@@ -347,7 +347,7 @@ function MobileNav({
         <Button
           variant="outline"
           size="sm"
-          className="shrink-0 rounded-none border-2 border-mad-black px-2.5 font-typewriter text-[0.65rem] font-bold uppercase shadow-keycap-sm"
+          className="shrink-0 rounded-none border-2 border-mad-black px-2.5 font-typewriter text-[0.75rem] font-bold uppercase shadow-keycap-sm"
           aria-label="Open menu"
         >
           <Menu className="size-4" />
@@ -377,7 +377,7 @@ function MobileNav({
             </DropdownMenuItem>
           ))}
         <DropdownMenuSeparator className="bg-mad-black" />
-        <DropdownMenuLabel className="font-typewriter text-[0.55rem] tracking-widest uppercase text-neutral-500">
+        <DropdownMenuLabel className="font-typewriter text-[0.7rem] tracking-widest uppercase text-neutral-500">
           Settings
         </DropdownMenuLabel>
         {navItems
@@ -397,13 +397,13 @@ function MobileNav({
           ))}
         <DropdownMenuSeparator className="bg-mad-black" />
         <DropdownMenuItem
-          className="rounded-none font-typewriter text-[0.65rem] font-bold uppercase"
+          className="rounded-none font-typewriter text-[0.75rem] font-bold uppercase"
           onSelect={() => onOpenTeamSop?.()}
         >
           Team SOP &amp; posting guide
         </DropdownMenuItem>
         {userEmail ? (
-          <DropdownMenuLabel className="truncate font-typewriter text-[0.55rem] normal-case">
+          <DropdownMenuLabel className="truncate font-typewriter text-[0.7rem] normal-case">
             {userEmail}
           </DropdownMenuLabel>
         ) : null}

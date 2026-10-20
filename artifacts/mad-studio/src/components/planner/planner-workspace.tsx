@@ -4,7 +4,10 @@
 
 import { useCallback, useEffect, useState } from "react"
 
+import { Megaphone } from "lucide-react"
 import { toast } from "sonner"
+
+import { cn } from "@/lib/utils"
 
 
 
@@ -83,7 +86,7 @@ export function PlannerWorkspace({ entityId }: Props) {
 
   useEffect(() => {
 
-    document.title = "Planner | MAD Studio"
+    // Tab title is set by RouteTitle (App.tsx).
 
   }, [])
 
@@ -119,7 +122,7 @@ export function PlannerWorkspace({ entityId }: Props) {
 
           setTimeline(days)
 
-          if (days[0]?.date) setAnchorDate(days[0].date)
+          // Open on today; a plan only moves the calendar when it's generated.
 
         }
 
@@ -259,6 +262,9 @@ export function PlannerWorkspace({ entityId }: Props) {
 
 
 
+  // The campaign planner opens on demand; the calendar of real posts leads.
+  const [engineOpen, setEngineOpen] = useState(false)
+
   const handleSelectDay = useCallback((day: PlannerTimelineDay) => {
 
     setSelectedDay(day)
@@ -273,26 +279,48 @@ export function PlannerWorkspace({ entityId }: Props) {
 
     <div className="flex h-[calc(100vh-64px)] w-full overflow-hidden bg-mad-white">
 
-      <PlannerCampaignEngine
-
-        generating={generating || hydrating}
-
-        lastError={lastError}
-
-        programTitle={program?.title ?? null}
-
-        onGenerate={handleGenerate}
-
-      />
+      {engineOpen ? (
+        <PlannerCampaignEngine
+          generating={generating || hydrating}
+          lastError={lastError}
+          programTitle={program?.title ?? null}
+          onGenerate={handleGenerate}
+        />
+      ) : null}
 
       <PlannerCalendarCanvas
-
+        entityId={entityId}
         anchorDate={anchorDate}
-
         timeline={timeline}
-
         onSelectDay={handleSelectDay}
-
+        programId={program?.id ?? programId}
+        onPlanChanged={(change) => {
+          if (change.kind === "cleared") {
+            setTimeline([])
+            setProgram(null)
+            setProgramId(null)
+            const params = new URLSearchParams(window.location.search)
+            params.delete("programId")
+            window.history.replaceState(window.history.state, "", `/planner?${params.toString()}`)
+            return
+          }
+          setTimeline((days) => days.filter((day) => day.id !== change.dayId))
+        }}
+        toolbarStart={
+          <button
+            type="button"
+            onClick={() => setEngineOpen((open) => !open)}
+            aria-pressed={engineOpen}
+            title="Plan a multi-day campaign"
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 border-2 border-mad-black px-2.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase",
+              engineOpen ? "bg-mad-black text-mad-white" : "bg-mad-white hover:bg-mad-lime"
+            )}
+          >
+            <Megaphone className="size-3.5" aria-hidden />
+            Campaign planner
+          </button>
+        }
       />
 
       <PlannerDayDetailDialog

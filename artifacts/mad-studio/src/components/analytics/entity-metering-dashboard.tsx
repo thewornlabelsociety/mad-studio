@@ -2,6 +2,15 @@
 
 import { useState } from "react"
 import { Link } from "wouter"
+import { ScrollText } from "lucide-react"
+
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 
 import {
   breakdownByAgent,
@@ -47,7 +56,7 @@ function MetricCard({
 }) {
   return (
     <div className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-      <p className="font-typewriter text-[0.6rem] tracking-widest text-neutral-500 uppercase">
+      <p className="font-typewriter text-[0.72rem] tracking-widest text-neutral-500 uppercase">
         {label}
       </p>
       <p className="mt-2 font-typewriter text-2xl tracking-tight text-mad-black">
@@ -66,7 +75,7 @@ function AgentCostCard({ item }: { item: AgentBreakdown }) {
       <p className="font-typewriter text-sm font-bold text-mad-black">
         {item.agentLabel}
       </p>
-      <p className="mt-2 font-typewriter text-[0.7rem] tracking-typewriter-tight text-neutral-600 uppercase">
+      <p className="mt-2 font-typewriter text-[0.75rem] tracking-typewriter-tight text-neutral-600 uppercase">
         {item.runs} runs · {formatNzd(item.costNzd)} · {formatTokens(item.tokens)}{" "}
         tokens
       </p>
@@ -93,37 +102,152 @@ export function EntityMeteringDashboard({
     : allLogRows.slice(0, TELEMETRY_PREVIEW)
   const canExpand = allLogRows.length > TELEMETRY_PREVIEW
 
+  function CallLogTable() {
+    return (
+      <div className="space-y-3">
+          <div className="overflow-x-auto border-2 border-mad-black bg-mad-white shadow-keycap-sm">
+            <table className="w-full min-w-[56rem] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b-2 border-mad-black bg-mad-black text-mad-white">
+                  <th className="px-3 py-2 font-typewriter text-[0.72rem] tracking-widest uppercase">
+                    Timestamp
+                  </th>
+                  <th className="px-3 py-2 font-typewriter text-[0.72rem] tracking-widest uppercase">
+                    Agent
+                  </th>
+                  <th className="px-3 py-2 font-typewriter text-[0.72rem] tracking-widest uppercase">
+                    Model
+                  </th>
+                  <th className="px-3 py-2 font-typewriter text-[0.72rem] tracking-widest uppercase">
+                    Prompt
+                  </th>
+                  <th className="px-3 py-2 font-typewriter text-[0.72rem] tracking-widest uppercase">
+                    Output
+                  </th>
+                  <th className="px-3 py-2 font-typewriter text-[0.72rem] tracking-widest uppercase">
+                    Speed
+                  </th>
+                  <th className="px-3 py-2 font-typewriter text-[0.72rem] tracking-widest uppercase">
+                    Cost NZD
+                  </th>
+                  <th className="px-3 py-2 font-typewriter text-[0.72rem] tracking-widest uppercase">
+                    Summary
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {logRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="px-3 py-6 text-center text-neutral-500"
+                    >
+                      No telemetry rows yet for this range.
+                    </td>
+                  </tr>
+                ) : (
+                  logRows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b border-mad-black/20 align-top last:border-b-0"
+                    >
+                      <td className="px-3 py-2 whitespace-nowrap text-xs text-neutral-600">
+                        {formatCompactTime(row.created_at)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="font-medium">{row.agent_label}</span>
+                        <span className="mt-0.5 block font-typewriter text-[0.7rem] text-neutral-500 uppercase">
+                          {row.agent_type}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {row.model_used}
+                      </td>
+                      <td className="px-3 py-2 tabular-nums">
+                        {formatTokens(row.prompt_tokens)}
+                      </td>
+                      <td className="px-3 py-2 tabular-nums">
+                        {formatTokens(row.completion_tokens)}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {formatLatency(row.duration_ms)}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">
+                        {formatNzd(Number(row.raw_cost_nzd))}
+                      </td>
+                      <td className="max-w-[16rem] px-3 py-2 text-xs text-neutral-600">
+                        {row.summary || "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {canExpand ? (
+            <button
+              type="button"
+              onClick={() => setShowAllTelemetry((open) => !open)}
+              className="border-2 border-mad-black bg-mad-white px-3 py-1.5 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm transition hover:bg-mad-lime"
+            >
+              {showAllTelemetry
+                ? "Show less"
+                : `See more (${allLogRows.length - TELEMETRY_PREVIEW} more)`}
+            </button>
+          ) : null}
+      </div>
+      )
+  }
+
+  // One screen: summary up top; the full call log opens in a side drawer.
   return (
-    <div className="space-y-8">
-      <section className="flex flex-wrap items-end justify-between gap-4 border-b-2 border-mad-black pb-4">
-        <div className="space-y-2">
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <section className="flex shrink-0 flex-wrap items-end justify-between gap-4 border-b-2 border-mad-black pb-3">
+        <div className="space-y-1">
+          <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Usage &amp; Cost Intelligence
           </p>
           <h1 className="brand-typewriter text-xl text-mad-black sm:text-2xl">
             {entityName}
           </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-neutral-600">
-            Exact token capture, model latency, and calculated provider cost —
-            scoped to this brand. Showing{" "}
-            <span className="font-typewriter text-xs font-bold text-mad-black uppercase">
-              {RANGE_LABELS[range]}
-            </span>
-            .
+          <p className="text-sm text-neutral-600">
+            AI usage and cost for this brand ·{" "}
+            <span className="font-semibold text-mad-black">{RANGE_LABELS[range]}</span>
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <MeteringRangeFilter entityId={entityId} activeRange={range} />
+          <Sheet>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-white px-3 py-1.5 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase shadow-keycap-sm hover:bg-mad-lime"
+              >
+                <ScrollText className="size-3.5" aria-hidden />
+                Call log ({allLogRows.length})
+              </button>
+            </SheetTrigger>
+            <SheetContent className="w-full overflow-y-auto border-l-2 border-mad-black bg-mad-white sm:max-w-4xl">
+              <SheetHeader className="border-b-2 border-mad-black pb-3 text-left">
+                <SheetTitle className="font-typewriter text-sm font-bold tracking-wide uppercase">
+                  Call telemetry log
+                </SheetTitle>
+              </SheetHeader>
+              <div className="p-4">
+                <CallLogTable />
+              </div>
+            </SheetContent>
+          </Sheet>
           <Link
             href={`/settings/social?eid=${encodeURIComponent(entityId)}`}
-            className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase underline decoration-2 underline-offset-4 hover:text-mad-vermillion"
+            className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase underline decoration-2 underline-offset-4 hover:text-mad-vermillion"
           >
             Social connections
           </Link>
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <section className="grid shrink-0 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <MetricCard
           label="Raw API Cost (NZD)"
           value={formatNzd(summary.totalCostNzd)}
@@ -146,6 +270,7 @@ export function EntityMeteringDashboard({
         />
       </section>
 
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
       <section className="space-y-3">
         <h2 className="font-typewriter text-sm tracking-typewriter-tight uppercase">
           Cost Breakdown by Agent
@@ -170,7 +295,7 @@ export function EntityMeteringDashboard({
         </h2>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-            <p className="font-typewriter text-[0.6rem] tracking-widest text-neutral-500 uppercase">
+            <p className="font-typewriter text-[0.72rem] tracking-widest text-neutral-500 uppercase">
               Campaigns Generated vs Logged
             </p>
             <p className="mt-2 font-typewriter text-2xl text-mad-black">
@@ -185,7 +310,7 @@ export function EntityMeteringDashboard({
             </p>
           </div>
           <div className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm">
-            <p className="font-typewriter text-[0.6rem] tracking-widest text-neutral-500 uppercase">
+            <p className="font-typewriter text-[0.72rem] tracking-widest text-neutral-500 uppercase">
               Top Converting Hooks
             </p>
             {health.topHooks.length === 0 ? (
@@ -196,7 +321,7 @@ export function EntityMeteringDashboard({
               <ul className="mt-2 space-y-2">
                 {health.topHooks.map((hook) => (
                   <li key={hook.campaignId} className="text-sm">
-                    <span className="font-typewriter text-[0.65rem] text-mad-vermillion uppercase">
+                    <span className="font-typewriter text-[0.75rem] text-mad-vermillion uppercase">
                       {hook.roas.toFixed(2)}x ROAS
                     </span>
                     <p className="text-mad-black">{hook.spokenHook}</p>
@@ -208,102 +333,8 @@ export function EntityMeteringDashboard({
           </div>
         </div>
       </section>
+      </div>
 
-      <section className="space-y-3">
-        <h2 className="font-typewriter text-sm tracking-typewriter-tight uppercase">
-          Call Telemetry Log
-        </h2>
-        <div className="overflow-x-auto border-2 border-mad-black bg-mad-white shadow-keycap-sm">
-          <table className="w-full min-w-[56rem] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b-2 border-mad-black bg-mad-black text-mad-white">
-                <th className="px-3 py-2 font-typewriter text-[0.6rem] tracking-widest uppercase">
-                  Timestamp
-                </th>
-                <th className="px-3 py-2 font-typewriter text-[0.6rem] tracking-widest uppercase">
-                  Agent
-                </th>
-                <th className="px-3 py-2 font-typewriter text-[0.6rem] tracking-widest uppercase">
-                  Model
-                </th>
-                <th className="px-3 py-2 font-typewriter text-[0.6rem] tracking-widest uppercase">
-                  Prompt
-                </th>
-                <th className="px-3 py-2 font-typewriter text-[0.6rem] tracking-widest uppercase">
-                  Output
-                </th>
-                <th className="px-3 py-2 font-typewriter text-[0.6rem] tracking-widest uppercase">
-                  Speed
-                </th>
-                <th className="px-3 py-2 font-typewriter text-[0.6rem] tracking-widest uppercase">
-                  Cost NZD
-                </th>
-                <th className="px-3 py-2 font-typewriter text-[0.6rem] tracking-widest uppercase">
-                  Summary
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {logRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-3 py-6 text-center text-neutral-500"
-                  >
-                    No telemetry rows yet for this range.
-                  </td>
-                </tr>
-              ) : (
-                logRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b border-mad-black/20 align-top last:border-b-0"
-                  >
-                    <td className="px-3 py-2 whitespace-nowrap text-xs text-neutral-600">
-                      {formatCompactTime(row.created_at)}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="font-medium">{row.agent_label}</span>
-                      <span className="mt-0.5 block font-typewriter text-[0.55rem] text-neutral-500 uppercase">
-                        {row.agent_type}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs">
-                      {row.model_used}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {formatTokens(row.prompt_tokens)}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {formatTokens(row.completion_tokens)}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {formatLatency(row.duration_ms)}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                      {formatNzd(Number(row.raw_cost_nzd))}
-                    </td>
-                    <td className="max-w-[16rem] px-3 py-2 text-xs text-neutral-600">
-                      {row.summary || "—"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {canExpand ? (
-          <button
-            type="button"
-            onClick={() => setShowAllTelemetry((open) => !open)}
-            className="border-2 border-mad-black bg-mad-white px-3 py-1.5 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm transition hover:bg-mad-lime"
-          >
-            {showAllTelemetry
-              ? "Show less"
-              : `See more (${allLogRows.length - TELEMETRY_PREVIEW} more)`}
-          </button>
-        ) : null}
-      </section>
     </div>
   )
 }

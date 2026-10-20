@@ -53,7 +53,7 @@ function PhoneFrame({
           {children}
         </div>
       </div>
-      <p className="mt-2 text-center font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+      <p className="mt-2 text-center font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
         Channel mock · not live
       </p>
     </div>
@@ -63,7 +63,7 @@ function PhoneFrame({
 function StoryChrome({ children }: { children: ReactNode }) {
   return (
     <div className="relative flex h-full w-full flex-col">
-      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-3 pt-8 pb-2 text-[0.55rem] font-semibold text-white">
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-3 pt-8 pb-2 text-[0.7rem] font-semibold text-white">
         <span className="truncate">{HANDLE}</span>
         <span>···</span>
       </div>
@@ -84,14 +84,14 @@ function FeedChrome({
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto bg-white">
       <div className="flex shrink-0 items-center gap-2 border-b border-neutral-100 px-3 py-2">
-        <span className="flex size-7 items-center justify-center rounded-full bg-neutral-900 text-[0.6rem] font-bold text-white">
+        <span className="flex size-7 items-center justify-center rounded-full bg-neutral-900 text-[0.72rem] font-bold text-white">
           W
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[0.7rem] font-semibold text-neutral-900">
+          <p className="truncate text-[0.75rem] font-semibold text-neutral-900">
             {network === "facebook" ? BRAND : HANDLE}
           </p>
-          <p className="text-[0.55rem] text-neutral-500">
+          <p className="text-[0.7rem] text-neutral-500">
             {network === "facebook" ? "Sponsored · Whangārei" : "Whangārei"}
           </p>
         </div>
@@ -106,7 +106,7 @@ function FeedChrome({
         </div>
         <Bookmark className="size-4 text-neutral-900" />
       </div>
-      <p className="px-3 pb-3 text-[0.6rem] leading-relaxed text-neutral-800">
+      <p className="px-3 pb-3 text-[0.72rem] leading-relaxed text-neutral-800">
         <span className="font-semibold">{HANDLE} </span>
         {caption}
       </p>
@@ -126,7 +126,7 @@ function EmailChrome({
   return (
     <div className="mx-auto flex h-[568px] w-full max-w-[340px] flex-col overflow-hidden border-2 border-mad-black bg-[#f2f2f7] shadow-keycap">
       <div className="shrink-0 border-b border-neutral-200 bg-white px-4 pb-3 pt-10">
-        <p className="text-[0.6rem] font-medium tracking-wide text-neutral-500 uppercase">
+        <p className="text-[0.72rem] font-medium tracking-wide text-neutral-500 uppercase">
           Mail · sales blast
         </p>
         <p className="mt-1 line-clamp-2 text-sm font-semibold text-neutral-900">
@@ -139,12 +139,9 @@ function EmailChrome({
           {children}
           <div className="space-y-2 p-4">
             <p className="text-xs leading-relaxed text-neutral-600">{preview}</p>
-            <button
-              type="button"
-              className="w-full rounded-full bg-neutral-900 py-2.5 text-xs font-semibold text-white"
-            >
+            <div className="w-full cursor-default rounded-full bg-neutral-900 py-2.5 text-center text-xs font-semibold text-white">
               Shop this week&apos;s tag color
-            </button>
+            </div>
           </div>
         </div>
       </div>

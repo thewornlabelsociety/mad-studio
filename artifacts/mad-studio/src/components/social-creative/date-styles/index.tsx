@@ -25,7 +25,7 @@ export function DateBadge({
 
   const base = cn(
     "inline-flex max-w-full items-center justify-center text-center font-typewriter font-bold uppercase",
-    compact ? "text-[0.45rem] tracking-[0.12em]" : "text-[0.55rem] tracking-[0.16em]",
+    compact ? "text-[0.68rem] tracking-[0.12em]" : "text-[0.7rem] tracking-[0.16em]",
     className
   )
 

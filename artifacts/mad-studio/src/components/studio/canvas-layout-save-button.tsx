@@ -49,7 +49,7 @@ export function CanvasLayoutSaveButton({ busy = false, suggestedName, onSave }: 
   }
 
   const choice =
-    "flex-1 border-2 border-mad-black px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-wider uppercase"
+    "flex-1 border-2 border-mad-black px-3 py-2 font-typewriter text-[0.75rem] font-bold tracking-wider uppercase"
 
   return (
     <>
@@ -95,7 +95,7 @@ export function CanvasLayoutSaveButton({ busy = false, suggestedName, onSave }: 
             }}
           >
             <label className="grid gap-1.5">
-              <span className="font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+              <span className="font-typewriter text-[0.72rem] font-bold tracking-widest uppercase">
                 Name
               </span>
               <input
@@ -108,7 +108,7 @@ export function CanvasLayoutSaveButton({ busy = false, suggestedName, onSave }: 
               />
             </label>
             <fieldset className="grid gap-1.5">
-              <legend className="mb-1.5 font-typewriter text-[0.6rem] font-bold tracking-widest uppercase">
+              <legend className="mb-1.5 font-typewriter text-[0.72rem] font-bold tracking-widest uppercase">
                 Save as default for new posts?
               </legend>
               <div className="flex gap-2">
@@ -134,7 +134,7 @@ export function CanvasLayoutSaveButton({ busy = false, suggestedName, onSave }: 
               <button
                 type="submit"
                 disabled={!name.trim() || busy}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 bg-mad-black px-4 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 bg-mad-black px-4 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-40"
               >
                 <Save className="size-4" aria-hidden />
                 Save layout

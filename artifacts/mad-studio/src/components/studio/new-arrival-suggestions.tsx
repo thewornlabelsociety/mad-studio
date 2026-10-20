@@ -133,7 +133,7 @@ export function NewArrivalSuggestions({
     >
       <div className="flex items-end justify-between gap-2 border-b-2 border-mad-black/10 pb-1.5">
         <div>
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Suggested · new arrivals
           </p>
           <p className="text-xs text-neutral-600">
@@ -164,7 +164,7 @@ export function NewArrivalSuggestions({
           Library when stock comes in.
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-4">
+        <ul className="flex snap-x gap-3 overflow-x-auto pb-2">
           {rows.map((row) => {
             const Icon = FORMAT_ICONS[row.format]
             const active = row.item.id === activeItemId
@@ -176,11 +176,11 @@ export function NewArrivalSuggestions({
               <li
                 key={row.item.id}
                 className={cn(
-                  "flex flex-col border-2 border-mad-black bg-mad-white",
+                  "flex w-44 shrink-0 snap-start flex-col border-2 border-mad-black bg-mad-white",
                   active && "ring-2 ring-mad-vermillion ring-offset-1"
                 )}
               >
-                <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
+                <div className="relative h-36 overflow-hidden bg-neutral-100">
                   {cover.kind === "video" ? (
                     <video
                       src={cover.url}
@@ -199,13 +199,13 @@ export function NewArrivalSuggestions({
                   )}
                   <span
                     title={row.reason}
-                    className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider uppercase"
+                    className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider uppercase"
                   >
                     <Icon className="size-3" aria-hidden />
                     {SUGGESTED_FORMAT_LABELS[row.format]}
                   </span>
                   {row.media.length > 1 ? (
-                    <span className="absolute right-1.5 bottom-1.5 bg-mad-black/75 px-1.5 py-0.5 font-typewriter text-[0.5rem] font-bold text-mad-white">
+                    <span className="absolute right-1.5 bottom-1.5 bg-mad-black/75 px-1.5 py-0.5 font-typewriter text-[0.68rem] font-bold text-mad-white">
                       {row.media.length}
                     </span>
                   ) : null}
@@ -215,11 +215,11 @@ export function NewArrivalSuggestions({
                     {row.item.title}
                   </p>
                   {facts ? (
-                    <p className="line-clamp-1 text-[0.7rem] text-neutral-600">
+                    <p className="line-clamp-1 text-[0.75rem] text-neutral-600">
                       {facts}
                     </p>
                   ) : null}
-                  <p className="line-clamp-2 text-[0.65rem] leading-snug text-neutral-500">
+                  <p className="line-clamp-2 text-[0.72rem] leading-snug text-neutral-500" title={row.reason}>
                     {row.reason}
                   </p>
                   <button
@@ -227,7 +227,7 @@ export function NewArrivalSuggestions({
                     disabled={disabled}
                     onClick={() => use(row)}
                     className={cn(
-                      "mt-auto border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase disabled:opacity-40",
+                      "mt-auto border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase disabled:opacity-40",
                       active
                         ? "bg-mad-lime text-mad-black"
                         : "bg-mad-black text-mad-white hover:bg-mad-vermillion"

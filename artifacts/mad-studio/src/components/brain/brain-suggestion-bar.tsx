@@ -55,7 +55,7 @@ export function BrainSuggestionBar({
     <section className="border-2 border-mad-black bg-mad-white p-4 shadow-keycap-sm sm:p-5">
       <label
         htmlFor="brain-suggestion"
-        className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase"
+        className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase"
       >
         <Lightbulb className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
         Creative Direction & Seasonal Focus
@@ -79,7 +79,7 @@ export function BrainSuggestionBar({
           type="button"
           disabled={pending || !text.trim()}
           onClick={submit}
-          className="h-11 shrink-0 rounded-none border-2 border-mad-black bg-mad-black px-5 font-typewriter text-[0.7rem] tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
+          className="h-11 shrink-0 rounded-none border-2 border-mad-black bg-mad-black px-5 font-typewriter text-[0.75rem] tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
         >
           {pending ? (
             <>

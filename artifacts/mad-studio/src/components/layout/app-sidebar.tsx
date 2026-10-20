@@ -50,6 +50,7 @@ function NavIconLink({
   const link = (
     <Link
       href={item.href}
+      aria-label={item.label}
       className={cn(
         "flex items-center gap-3 rounded-lg transition-colors",
         expanded ? "px-3 py-2 text-sm" : "size-10 justify-center",
@@ -139,7 +140,7 @@ function SettingsMenu({
         align="end"
         className="min-w-[13rem] rounded-none border-2 border-mad-black shadow-keycap"
       >
-        <DropdownMenuLabel className="font-typewriter text-[0.55rem] tracking-widest uppercase">
+        <DropdownMenuLabel className="font-typewriter text-[0.7rem] tracking-widest uppercase">
           Set up once
         </DropdownMenuLabel>
         {items.map((item) => {

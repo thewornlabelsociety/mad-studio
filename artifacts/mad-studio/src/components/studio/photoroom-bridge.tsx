@@ -32,7 +32,7 @@ export function PhotoRoomBridge({ className, iconOnly = false }: Props) {
       type="button"
       onClick={openPhotoRoom}
       className={cn(
-        "inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-white font-typewriter text-[0.6rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime",
+        "inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-white font-typewriter text-[0.72rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime",
         className
       )}
     >

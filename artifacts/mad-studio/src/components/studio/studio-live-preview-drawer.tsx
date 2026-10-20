@@ -42,7 +42,7 @@ export function StudioLivePreviewDrawer({
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-200 px-4 py-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-neutral-500">
               Live preview
             </p>
             <p className="text-xs text-neutral-600">

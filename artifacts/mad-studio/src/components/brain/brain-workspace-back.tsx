@@ -27,7 +27,7 @@ export function BrainWorkspaceBack({ entityId }: BrainWorkspaceBackProps) {
     <button
       type="button"
       onClick={onBack}
-      className="inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm transition-colors hover:bg-mad-black hover:text-mad-white"
+      className="inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm transition-colors hover:bg-mad-black hover:text-mad-white"
     >
       <ArrowLeft className="size-3.5" aria-hidden />
       Back to workspace

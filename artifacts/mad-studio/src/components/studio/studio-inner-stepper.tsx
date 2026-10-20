@@ -49,7 +49,7 @@ export function StudioInnerStepper({ step, onStepChange, className }: Props) {
                   active ? "text-mad-black" : "text-neutral-400 hover:text-neutral-700"
                 )}
               >
-                <span className="block font-serif text-[10px] tracking-[0.16em] uppercase">
+                <span className="block font-serif text-[11.5px] tracking-[0.16em] uppercase">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <span
@@ -88,7 +88,7 @@ export function StudioInnerStepper({ step, onStepChange, className }: Props) {
         {activeSop ? (
           <div className="flex items-start gap-2 border-t border-neutral-200/70 py-2">
             <p className="min-w-0 flex-1 text-xs leading-snug text-neutral-600">
-              <span className="mr-2 font-serif text-[11px] tracking-[0.14em] text-neutral-400 uppercase">
+              <span className="mr-2 font-serif text-[12px] tracking-[0.14em] text-neutral-400 uppercase">
                 Note
               </span>
               {activeSop.hint}

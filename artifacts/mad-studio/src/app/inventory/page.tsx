@@ -107,7 +107,7 @@ export default async function InventoryPage({
     >
         <header className="mb-6 flex flex-col gap-4 border-b-2 border-mad-black pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
               Products &amp; media
             </p>
             <h1 className="font-typewriter text-2xl font-bold tracking-typewriter-tight text-mad-black uppercase">

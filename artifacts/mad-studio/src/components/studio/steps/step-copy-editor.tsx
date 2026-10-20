@@ -53,8 +53,8 @@ export function StepCopyEditor({
   const [ideasOpen, setIdeasOpen] = useState(wizardCompact)
 
   const labelClass = wizardCompact
-    ? "font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase"
-    : "text-[11px] font-medium tracking-[0.16em] text-neutral-500 uppercase"
+    ? "font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase"
+    : "text-[12px] font-medium tracking-[0.16em] text-neutral-500 uppercase"
 
   const textareaClass = wizardCompact
     ? "min-h-[7rem] w-full flex-1 resize-none border-2 border-mad-black bg-white px-3 py-2.5 text-base leading-relaxed focus:bg-mad-lime/10 focus:outline-none md:min-h-[6rem] md:text-sm"
@@ -69,8 +69,8 @@ export function StepCopyEditor({
     : "inline-flex items-center gap-1 rounded-full border border-mad-black bg-mad-lime px-3 py-1.5 text-xs font-semibold text-mad-black hover:bg-mad-black hover:text-white disabled:opacity-60"
 
   const secondaryBtnClass = wizardCompact
-    ? "inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2.5 py-2 text-[11px] font-bold tracking-wide uppercase hover:bg-neutral-100"
-    : "inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:border-neutral-400"
+    ? "inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-2.5 py-2 text-[12px] font-bold tracking-wide uppercase hover:bg-neutral-100"
+    : "inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[12px] font-medium text-neutral-700 hover:border-neutral-400"
 
   const captionBlock = (
     <div
@@ -88,7 +88,7 @@ export function StepCopyEditor({
           </label>
           <div className="flex flex-wrap items-center gap-2">
             {captionVariantLabel ? (
-              <span className="text-[11px] text-neutral-400">
+              <span className="text-[12px] text-neutral-400">
                 {captionVariantLabel}
               </span>
             ) : null}
@@ -107,7 +107,7 @@ export function StepCopyEditor({
                 type="button"
                 onClick={() => onEnhanceCaption()}
                 disabled={enhancingCaption}
-                className="inline-flex items-center gap-1 rounded-full border border-mad-black bg-mad-black px-2.5 py-1 text-[11px] font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
+                className="inline-flex items-center gap-1 rounded-full border border-mad-black bg-mad-black px-2.5 py-1 text-[12px] font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
               >
                 {enhancingCaption ? (
                   <Loader2 className="size-3 animate-spin" />
@@ -232,7 +232,7 @@ export function StepCopyEditor({
                       : "border-neutral-200 bg-white hover:border-neutral-400"
                   )}
                 >
-                  <span className="text-[10px] font-medium tracking-wide text-mad-vermillion uppercase">
+                  <span className="text-[11.5px] font-medium tracking-wide text-mad-vermillion uppercase">
                     {hook.label}
                   </span>
                   <span className="mt-0.5 block leading-snug text-neutral-800">
@@ -258,7 +258,7 @@ export function StepCopyEditor({
       >
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-mad-black/10 pb-3">
           <div className="min-w-0">
-            <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-black uppercase">
+            <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
               Caption
             </p>
             <p className="text-xs text-neutral-500">

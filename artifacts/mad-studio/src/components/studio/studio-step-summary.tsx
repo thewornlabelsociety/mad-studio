@@ -38,7 +38,7 @@ export function StudioStepSummary({
           <span className="mt-1 font-serif text-sm text-neutral-400">✓</span>
         )}
         <div className="min-w-0">
-          <p className="text-[11px] font-medium tracking-[0.16em] text-neutral-500 uppercase">
+          <p className="text-[12px] font-medium tracking-[0.16em] text-neutral-500 uppercase">
             {title}
           </p>
           <p className="mt-1 line-clamp-2 text-sm leading-snug text-neutral-700">

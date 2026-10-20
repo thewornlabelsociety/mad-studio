@@ -164,7 +164,7 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Core DNA · Live Sync
           </p>
           <h2 className="mt-1 font-typewriter text-sm font-bold tracking-typewriter-tight text-mad-black uppercase">
@@ -176,7 +176,7 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
             type="button"
             onClick={onResync}
             disabled={scraping || pending}
-            className="inline-flex items-center gap-2 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm hover:bg-mad-lime disabled:opacity-60"
+            className="inline-flex items-center gap-2 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm hover:bg-mad-lime disabled:opacity-60"
           >
             {scraping ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -199,7 +199,7 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
 
       {step === "source" || (step === "calibrated" && !hasCoreDna(entity)) ? (
         <section className="border-2 border-mad-black bg-mad-white p-6 shadow-keycap">
-          <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Step 01 // Locate the Source (Live Sync)
           </p>
           <h3 className="mt-2 font-typewriter text-lg font-bold tracking-typewriter-tight text-mad-black uppercase">
@@ -241,7 +241,7 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
       {(step === "proofing" || step === "calibrated") && displayDna ? (
         <section className="space-y-4">
           <div>
-            <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-vermillion uppercase">
+            <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-vermillion uppercase">
               {step === "proofing"
                 ? `Step 02 // Intel Proofing (${entity.name})`
                 : `Calibrated DNA // ${entity.name}`}
@@ -255,14 +255,14 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <article className="border-2 border-mad-black bg-mad-white p-5 shadow-keycap">
-              <div className="mb-3 inline-flex border border-mad-black bg-mad-lime px-2 py-0.5 font-typewriter text-[10px] font-bold tracking-wider text-mad-black uppercase">
+              <div className="mb-3 inline-flex border border-mad-black bg-mad-lime px-2 py-0.5 font-typewriter text-[11.5px] font-bold tracking-wider text-mad-black uppercase">
                 Brand Voice
               </div>
               <div className="flex flex-wrap gap-2">
                 {toneChips.map((chip) => (
                   <span
                     key={chip}
-                    className="border-2 border-mad-black bg-mad-white px-2.5 py-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase"
+                    className="border-2 border-mad-black bg-mad-white px-2.5 py-1.5 font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-black uppercase"
                   >
                     {chip}
                   </span>
@@ -274,7 +274,7 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
             </article>
 
             <article className="border-2 border-mad-black bg-mad-white p-5 shadow-keycap">
-              <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase">
+              <p className="font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase">
                 Visual Vibe
               </p>
               <p className="mt-3 text-sm leading-relaxed text-neutral-700">
@@ -282,7 +282,7 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
               </p>
               {isFudi ? (
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-neutral-500 uppercase">
+                  <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-neutral-500 uppercase">
                     Brand palette
                   </span>
                   {(
@@ -294,7 +294,7 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
                   ).map(([label, hex]) => (
                     <span
                       key={label}
-                      className="inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-white px-2 py-1 font-mono text-[0.6rem]"
+                      className="inline-flex items-center gap-1.5 border-2 border-mad-black bg-mad-white px-2 py-1 font-mono text-[0.72rem]"
                     >
                       <span
                         className="size-4 border border-mad-black"
@@ -344,7 +344,7 @@ export function DnaIntakeWizard({ entity }: DnaIntakeWizardProps) {
             <button
               type="button"
               onClick={() => setStep("source")}
-              className="border-2 border-mad-black bg-mad-white px-4 py-3 font-typewriter text-[0.65rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm hover:bg-mad-lime"
+              className="border-2 border-mad-black bg-mad-white px-4 py-3 font-typewriter text-[0.75rem] font-bold tracking-widest text-mad-black uppercase shadow-keycap-sm hover:bg-mad-lime"
             >
               Run Fresh Intake from New URL
             </button>

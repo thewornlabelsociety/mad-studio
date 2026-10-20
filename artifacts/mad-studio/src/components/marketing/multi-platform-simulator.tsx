@@ -1322,7 +1322,7 @@ export function MultiPlatformSimulator({
       !compact &&
       !(textOverlay.enabled && textOverlay.headline.trim()) ? (
         <div className="mt-2 space-y-1 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
-          <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <p className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
             Slide caption · {safeSlideIndex + 1}/{slides.length}
           </p>
           <textarea
@@ -1341,7 +1341,7 @@ export function MultiPlatformSimulator({
 
   const platformColumn = (
     <section className="min-w-0 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
-      <p className="mb-1.5 font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+      <p className="mb-1.5 font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
         Platform
       </p>
       <ul className="space-y-1">
@@ -1359,12 +1359,12 @@ export function MultiPlatformSimulator({
                     : "bg-mad-white text-mad-black hover:bg-mad-lime"
                 )}
               >
-                <span className="font-typewriter text-[0.65rem] font-bold tracking-wider uppercase">
+                <span className="font-typewriter text-[0.75rem] font-bold tracking-wider uppercase">
                   {option.label}
                 </span>
                 <span
                   className={cn(
-                    "font-typewriter text-[0.55rem] tracking-wide",
+                    "font-typewriter text-[0.7rem] tracking-wide",
                     active ? "text-mad-lime" : "text-neutral-500"
                   )}
                 >
@@ -1380,7 +1380,7 @@ export function MultiPlatformSimulator({
 
   const stylingColumn = (
     <section className="min-w-0 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
-      <p className="mb-1.5 font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+      <p className="mb-1.5 font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
         Styling
       </p>
 
@@ -1393,7 +1393,7 @@ export function MultiPlatformSimulator({
           />
         ) : null}
         <label className="grid gap-1">
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
             Story style
           </span>
           <Select
@@ -1423,7 +1423,7 @@ export function MultiPlatformSimulator({
             }}
             disabled={platform !== "ig_story"}
           >
-            <SelectTrigger className="h-8 rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.65rem] uppercase shadow-keycap-sm disabled:opacity-40">
+            <SelectTrigger className="h-8 rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.75rem] uppercase shadow-keycap-sm disabled:opacity-40">
               <SelectValue placeholder="Style" />
             </SelectTrigger>
             <SelectContent className="rounded-none border-2 border-mad-black">
@@ -1435,7 +1435,7 @@ export function MultiPlatformSimulator({
         </label>
 
         <label className="grid gap-1">
-          <span className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+          <span className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
             Canvas
           </span>
           <Select
@@ -1455,7 +1455,7 @@ export function MultiPlatformSimulator({
             }}
             disabled={platform !== "ig_story"}
           >
-            <SelectTrigger className="h-8 rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.65rem] uppercase shadow-keycap-sm disabled:opacity-40">
+            <SelectTrigger className="h-8 rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.75rem] uppercase shadow-keycap-sm disabled:opacity-40">
               <span
                 className="size-3 border border-mad-black"
                 style={{ background: canvasColor }}
@@ -1467,7 +1467,7 @@ export function MultiPlatformSimulator({
                 <SelectItem
                   key={preset.id}
                   value={preset.id}
-                  className="font-typewriter text-[0.65rem] uppercase"
+                  className="font-typewriter text-[0.75rem] uppercase"
                 >
                   <span
                     className="mr-1.5 inline-block size-3 border border-mad-black align-middle"
@@ -1478,7 +1478,7 @@ export function MultiPlatformSimulator({
               ))}
               <SelectItem
                 value="custom"
-                className="font-typewriter text-[0.65rem] uppercase"
+                className="font-typewriter text-[0.75rem] uppercase"
               >
                 Custom…
               </SelectItem>
@@ -1512,7 +1512,7 @@ export function MultiPlatformSimulator({
             }
             disabled={busy === "cutout" || platform !== "ig_story"}
             className={cn(
-              "inline-flex h-8 w-full items-center justify-center gap-1.5 border-2 border-mad-black px-2 font-typewriter text-[0.6rem] font-bold tracking-wider uppercase shadow-keycap-sm transition",
+              "inline-flex h-8 w-full items-center justify-center gap-1.5 border-2 border-mad-black px-2 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase shadow-keycap-sm transition",
               cutoutActive
                 ? "bg-mad-black text-mad-white"
                 : "bg-mad-white text-mad-black hover:bg-mad-lime",
@@ -1535,7 +1535,7 @@ export function MultiPlatformSimulator({
         ) : null}
 
         {platform !== "ig_story" ? (
-          <p className="font-typewriter text-[0.5rem] leading-relaxed tracking-wide text-neutral-500 uppercase">
+          <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wide text-neutral-500 uppercase">
             Story styles apply on IG Story
           </p>
         ) : null}
@@ -1557,7 +1557,7 @@ export function MultiPlatformSimulator({
       <div className="mt-2 flex w-full flex-col gap-2">
         {isVideo ? (
           <div className="space-y-1 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm">
-            <p className="font-typewriter text-[0.5rem] font-bold tracking-wider text-neutral-500 uppercase">
+            <p className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
               Video audio
             </p>
             <Select
@@ -1567,25 +1567,25 @@ export function MultiPlatformSimulator({
               }
               disabled={busy != null}
             >
-              <SelectTrigger className="h-9 w-full rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.55rem] uppercase shadow-keycap-sm">
+              <SelectTrigger className="h-9 w-full rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.7rem] uppercase shadow-keycap-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="rounded-none border-2 border-mad-black">
                 <SelectItem
                   value="preserve"
-                  className="font-typewriter text-[0.55rem] uppercase"
+                  className="font-typewriter text-[0.7rem] uppercase"
                 >
                   Keep original audio
                 </SelectItem>
                 <SelectItem
                   value="mute"
-                  className="font-typewriter text-[0.55rem] uppercase"
+                  className="font-typewriter text-[0.7rem] uppercase"
                 >
                   No audio (add music in-app)
                 </SelectItem>
               </SelectContent>
             </Select>
-            <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
+            <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
               {videoAudioMode === "mute"
                 ? "Applies to download and API publish — silent MP4 for TikTok, Reels, or Facebook."
                 : platform === "tiktok"
@@ -1600,7 +1600,7 @@ export function MultiPlatformSimulator({
               type="button"
               onClick={() => void onPublish()}
               disabled={busy != null}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-60"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-60"
             >
               {busy === "publish" ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -1609,7 +1609,7 @@ export function MultiPlatformSimulator({
               )}
               {publishCtaLabel.replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, "")}
             </button>
-            <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
+            <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
               {AUTOPILOT_SOP_HELPER}
             </p>
           </>
@@ -1621,7 +1621,7 @@ export function MultiPlatformSimulator({
               type="button"
               onClick={() => void onDownload()}
               disabled={busy != null}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-60"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-black font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion disabled:opacity-60"
             >
               {busy === "download" ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -1635,7 +1635,7 @@ export function MultiPlatformSimulator({
               onClick={() => void onCopyLink()}
               disabled={busy != null}
               className={cn(
-                "inline-flex min-h-9 w-full items-center justify-center gap-2 border-2 border-mad-black px-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors disabled:opacity-60",
+                "inline-flex min-h-9 w-full items-center justify-center gap-2 border-2 border-mad-black px-2 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors disabled:opacity-60",
                 copied
                   ? "animate-pulse bg-mad-lime text-mad-black"
                   : "bg-mad-vermillion text-mad-white hover:bg-mad-black"
@@ -1652,7 +1652,7 @@ export function MultiPlatformSimulator({
                 ? "Link copied — ready for IG sticker"
                 : `Copy link sticker URL (${linkStickerPath})`}
             </button>
-            <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
+            <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
               {DRAFT_DROP_SOP_HELPER}
             </p>
             {platform === "tiktok" ? (
@@ -1661,7 +1661,7 @@ export function MultiPlatformSimulator({
                   type="button"
                   onClick={() => void onPublish({ allowDraftDrop: true })}
                   disabled={busy != null}
-                  className="inline-flex h-9 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-white font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime disabled:opacity-60"
+                  className="inline-flex h-9 w-full items-center justify-center gap-2 border-2 border-mad-black bg-mad-white font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-lime disabled:opacity-60"
                 >
                   {busy === "publish" ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -1670,7 +1670,7 @@ export function MultiPlatformSimulator({
                   )}
                   Send via TikTok API
                 </button>
-                <p className="font-typewriter text-[0.48rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
+                <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wide text-neutral-500 normal-case">
                   {TIKTOK_API_SOP_HELPER}
                 </p>
               </>
@@ -1702,7 +1702,7 @@ export function MultiPlatformSimulator({
           }}
           disabled={platform !== "ig_story" || isVideo}
         >
-          <SelectTrigger className="h-8 min-w-[7rem] flex-1 rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.6rem] uppercase shadow-keycap-sm disabled:opacity-40">
+          <SelectTrigger className="h-8 min-w-[7rem] flex-1 rounded-none border-2 border-mad-black bg-mad-white font-typewriter text-[0.72rem] uppercase shadow-keycap-sm disabled:opacity-40">
             <span
               className="size-3 border border-mad-black"
               style={{ background: canvasColor }}
@@ -1714,7 +1714,7 @@ export function MultiPlatformSimulator({
               <SelectItem
                 key={preset.id}
                 value={preset.id}
-                className="font-typewriter text-[0.65rem] uppercase"
+                className="font-typewriter text-[0.75rem] uppercase"
               >
                 <span
                   className="mr-1.5 inline-block size-3 border border-mad-black align-middle"
@@ -1723,7 +1723,7 @@ export function MultiPlatformSimulator({
                 {preset.label}
               </SelectItem>
             ))}
-            <SelectItem value="custom" className="font-typewriter text-[0.65rem] uppercase">
+            <SelectItem value="custom" className="font-typewriter text-[0.75rem] uppercase">
               Custom…
             </SelectItem>
           </SelectContent>
@@ -1754,7 +1754,7 @@ export function MultiPlatformSimulator({
             }
             disabled={busy === "cutout" || platform !== "ig_story"}
             className={cn(
-              "inline-flex h-8 shrink-0 items-center gap-1 border-2 border-mad-black px-2 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase shadow-keycap-sm",
+              "inline-flex h-8 shrink-0 items-center gap-1 border-2 border-mad-black px-2 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm",
               cutoutActive
                 ? "bg-mad-black text-mad-white"
                 : "bg-mad-white text-mad-black hover:bg-mad-lime",
@@ -1807,10 +1807,10 @@ export function MultiPlatformSimulator({
                     : "bg-mad-white text-mad-black hover:bg-mad-lime"
                 )}
               >
-                <span className="font-typewriter text-[0.6rem] font-bold tracking-wider uppercase">
+                <span className="font-typewriter text-[0.72rem] font-bold tracking-wider uppercase">
                   {option.label}
                 </span>
-                <span className="font-typewriter text-[0.5rem] opacity-70">
+                <span className="font-typewriter text-[0.68rem] opacity-70">
                   {option.ratio}
                 </span>
               </button>
@@ -1875,10 +1875,10 @@ export function MultiPlatformSimulator({
                       : "bg-mad-white text-mad-black hover:bg-mad-lime"
                   )}
                 >
-                  <span className="font-typewriter text-[0.6rem] font-bold tracking-wider uppercase">
+                  <span className="font-typewriter text-[0.72rem] font-bold tracking-wider uppercase">
                     {option.label}
                   </span>
-                  <span className="font-typewriter text-[0.5rem] opacity-70">
+                  <span className="font-typewriter text-[0.68rem] opacity-70">
                     {option.ratio}
                   </span>
                 </button>
@@ -1941,7 +1941,7 @@ function StorySlideNav({
       >
         ›
       </button>
-      <span className="absolute bottom-3 left-1/2 z-50 -translate-x-1/2 border border-mad-black bg-mad-black/80 px-2 py-0.5 font-typewriter text-[0.5rem] font-bold text-mad-white">
+      <span className="absolute bottom-3 left-1/2 z-50 -translate-x-1/2 border border-mad-black bg-mad-black/80 px-2 py-0.5 font-typewriter text-[0.68rem] font-bold text-mad-white">
         {slideIndex + 1}/{slideCount}
       </span>
     </div>
@@ -1984,13 +1984,13 @@ function IgStoryChrome({
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-rose-400 text-[0.55rem] font-bold text-white">
+          <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-rose-400 text-[0.7rem] font-bold text-white">
             {handle.slice(0, 1).toUpperCase()}
           </span>
-          <span className="text-[0.7rem] font-semibold text-white drop-shadow">
+          <span className="text-[0.75rem] font-semibold text-white drop-shadow">
             @{handle}
           </span>
-          <span className="text-[0.65rem] text-white/70">2h ago</span>
+          <span className="text-[0.75rem] text-white/70">2h ago</span>
         </div>
       </div>
 
@@ -2004,7 +2004,7 @@ function IgStoryChrome({
       </div>
 
       <div className="relative z-10 flex h-[15%] min-h-[64px] shrink-0 items-center gap-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pt-4 pb-3">
-        <div className="flex-1 rounded-full border border-white/40 px-3 py-2 text-[0.7rem] text-white/80">
+        <div className="flex-1 rounded-full border border-white/40 px-3 py-2 text-[0.75rem] text-white/80">
           Send message…
         </div>
         <Heart className="size-5 shrink-0 text-white" />
@@ -2199,14 +2199,14 @@ function FeedChrome({
     <div className="flex w-full flex-col bg-white">
       {/* Top padding keeps the profile row clear of the phone's notch. */}
       <div className="flex shrink-0 items-center gap-2.5 border-b border-neutral-100 px-3 pt-9 pb-2">
-        <span className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-[0.65rem] font-bold text-white">
+        <span className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-[0.75rem] font-bold text-white">
           {brandName.slice(0, 1).toUpperCase()}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[0.75rem] font-semibold text-neutral-900">
             {network === "facebook" ? brandName : handle}
           </p>
-          <p className="text-[0.6rem] text-neutral-500">
+          <p className="text-[0.72rem] text-neutral-500">
             {network === "facebook" ? "Sponsored · Whangārei" : "Whangārei"}
           </p>
         </div>
@@ -2222,7 +2222,7 @@ function FeedChrome({
         <Bookmark className="size-5 text-neutral-900" />
       </div>
       <div className="shrink-0 space-y-0.5 px-3 pb-3">
-        <p className="whitespace-pre-wrap text-[0.65rem] leading-relaxed text-neutral-800">
+        <p className="whitespace-pre-wrap text-[0.75rem] leading-relaxed text-neutral-800">
           <span className="font-semibold text-neutral-900">
             {network === "facebook" ? brandName : handle}{" "}
           </span>
@@ -2279,7 +2279,7 @@ function VideoFill({
       <button
         type="button"
         onClick={() => setMuted((value) => !value)}
-        className="absolute right-2 bottom-2 z-30 border border-white/40 bg-black/55 px-2 py-0.5 font-typewriter text-[0.5rem] font-bold tracking-wider text-white uppercase"
+        className="absolute right-2 bottom-2 z-30 border border-white/40 bg-black/55 px-2 py-0.5 font-typewriter text-[0.68rem] font-bold tracking-wider text-white uppercase"
       >
         {muted ? "Sound off" : "Sound on"}
       </button>
@@ -2410,10 +2410,12 @@ function FeedMediaStage({
         ) : null}
 
         {/* Contain mode draws the overlay on the photo itself (above). */}
-        {mediaFit === "contain" &&
+        {/* No photo yet: nothing to put text on. */}
+        {slides.length === 0 ||
+        (mediaFit === "contain" &&
         slides[slideIndex] &&
         slides[slideIndex].type !== "video" &&
-        detectMediaKindFromUrl(slides[slideIndex].url) !== "video" ? null : (
+        detectMediaKindFromUrl(slides[slideIndex].url) !== "video") ? null : (
           <div
             className={cn(
               "absolute inset-0 z-20",
@@ -2426,7 +2428,7 @@ function FeedMediaStage({
 
         {showCarousel ? (
           <>
-            <span className="absolute top-2 right-2 z-30 border border-mad-black bg-mad-black px-2 py-0.5 font-typewriter text-[0.55rem] font-bold text-mad-white">
+            <span className="absolute top-2 right-2 z-30 border border-mad-black bg-mad-black px-2 py-0.5 font-typewriter text-[0.7rem] font-bold text-mad-white">
               {slideIndex + 1}/{slideCount}
             </span>
             <button
@@ -2521,7 +2523,7 @@ function TikTokChrome({
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-950" />
       )}
       {mediaType === "image" && mediaUrl ? (
-        <div className="pointer-events-none absolute top-3 left-3 z-20 rounded-full border border-white/30 bg-black/55 px-2 py-0.5 text-[0.6rem] font-medium text-white/95">
+        <div className="pointer-events-none absolute top-3 left-3 z-20 rounded-full border border-white/30 bg-black/55 px-2 py-0.5 text-[0.72rem] font-medium text-white/95">
           Photo preview · add motion in TikTok
         </div>
       ) : null}
@@ -2532,15 +2534,15 @@ function TikTokChrome({
       <div className="absolute top-1/3 right-3 z-10 flex flex-col items-center gap-4 text-white">
         <div className="flex flex-col items-center gap-1">
           <Heart className="size-7 fill-white" />
-          <span className="text-[0.6rem]">24.1K</span>
+          <span className="text-[0.72rem]">24.1K</span>
         </div>
         <div className="flex flex-col items-center gap-1">
           <MessageCircle className="size-7" />
-          <span className="text-[0.6rem]">312</span>
+          <span className="text-[0.72rem]">312</span>
         </div>
         <div className="flex flex-col items-center gap-1">
           <Bookmark className="size-7" />
-          <span className="text-[0.6rem]">Save</span>
+          <span className="text-[0.72rem]">Save</span>
         </div>
         <Disc3 className="size-8 animate-spin [animation-duration:4s]" />
       </div>
@@ -2573,7 +2575,7 @@ function EmailChrome({
   return (
     <div className="aspect-[9/16] w-full overflow-y-auto bg-[#f2f2f7]">
       <div className="border-b border-neutral-200 bg-white px-4 pb-3 pt-12">
-        <p className="text-[0.65rem] font-medium tracking-wide text-neutral-500 uppercase">
+        <p className="text-[0.75rem] font-medium tracking-wide text-neutral-500 uppercase">
           Inbox
         </p>
         <p className="mt-1 text-base font-semibold text-neutral-900">{subject}</p>
@@ -2604,12 +2606,10 @@ function EmailChrome({
         <div className="space-y-3 p-4">
           <p className="text-sm font-semibold text-neutral-900">{subject}</p>
           <p className="text-xs leading-relaxed text-neutral-600">{preview}</p>
-          <button
-            type="button"
-            className="w-full rounded-full bg-neutral-900 py-2.5 text-xs font-semibold text-white"
-          >
+          {/* Preview of the email button — not clickable here. */}
+          <div className="w-full cursor-default rounded-full bg-neutral-900 py-2.5 text-center text-xs font-semibold text-white">
             {cta}
-          </button>
+          </div>
         </div>
       </div>
     </div>

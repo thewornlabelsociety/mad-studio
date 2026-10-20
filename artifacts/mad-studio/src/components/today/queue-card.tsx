@@ -38,12 +38,12 @@ export function QueueCard({ view, entityId, brandName }: Props) {
             />
           )
         ) : (
-          <div className="flex size-full items-center justify-center font-typewriter text-[0.55rem] font-bold tracking-wider text-neutral-400 uppercase">
+          <div className="flex size-full items-center justify-center font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-400 uppercase">
             No media
           </div>
         )}
         {view.isVideo ? (
-          <span className="absolute bottom-1.5 left-1.5 border border-mad-black bg-mad-black px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold text-mad-white">
+          <span className="absolute bottom-1.5 left-1.5 border border-mad-black bg-mad-black px-1.5 py-0.5 font-typewriter text-[0.7rem] font-bold text-mad-white">
             <Play className="mr-1 inline size-2.5 fill-current align-[-1px]" aria-hidden />
             Reel
           </span>
@@ -57,7 +57,7 @@ export function QueueCard({ view, entityId, brandName }: Props) {
           </h2>
           <span
             className={cn(
-              "border border-mad-black px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider uppercase",
+              "border border-mad-black px-1.5 py-0.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase",
               view.channel === "tiktok"
                 ? "bg-mad-vermillion text-mad-white"
                 : "bg-mad-lime text-mad-black"
@@ -70,7 +70,7 @@ export function QueueCard({ view, entityId, brandName }: Props) {
             {view.channel === "tiktok" ? "TikTok" : "IG Story"}
           </span>
           {view.intakeBadge ? (
-            <span className="border border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
+            <span className="border border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase">
               <IntakeBadgeIcon
                 kind={view.intakeBadge.kind}
                 className="mr-1 inline size-3 align-[-2px]"
@@ -79,19 +79,19 @@ export function QueueCard({ view, entityId, brandName }: Props) {
             </span>
           ) : null}
           {view.fudiTrackLabel ? (
-            <span className="border border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.55rem] font-bold tracking-wider text-mad-black uppercase">
+            <span className="border border-mad-black bg-mad-white px-1.5 py-0.5 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase">
               {view.fudiTrackLabel}
             </span>
           ) : null}
         </div>
 
         <p className="text-sm leading-snug text-neutral-800">
-          <span className="font-typewriter text-[0.55rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-vermillion uppercase">
             Hook ·{" "}
           </span>
           {view.recommendedHook}
         </p>
-        <p className="font-typewriter text-[0.55rem] tracking-wider text-neutral-500 uppercase">
+        <p className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
           {brandName} · {view.item.status}
         </p>
       </div>
@@ -99,7 +99,7 @@ export function QueueCard({ view, entityId, brandName }: Props) {
       <div className="flex flex-col gap-2 sm:w-52">
         <Link
           href={studioHref}
-          className="inline-flex h-11 items-center justify-center gap-1.5 border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.65rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion"
+          className="inline-flex h-11 items-center justify-center gap-1.5 border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm transition hover:bg-mad-vermillion"
         >
           <Zap className="size-3.5" />
           Craft in Studio →

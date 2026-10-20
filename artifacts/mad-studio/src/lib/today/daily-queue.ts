@@ -17,6 +17,9 @@ export type TodayDeckCard = TodayQueueView & {
   queueId: string
 }
 
+/** null until checked: whether daily_queue has the columns this code uses. */
+let dailyQueueReady: boolean | null = null
+
 /** Today shows the newest drops to post, not the whole back catalogue. */
 const TODAY_DECK_SIZE = 24
 
@@ -73,6 +76,26 @@ export async function fetchPendingTodayDeck(input: {
 }): Promise<TodayDeckCard[]> {
   const { supabase, entityId, brandName, industry } = input
   const isFudi = isFudiStudioEntity({ name: brandName, industry })
+
+  // Some databases don't have the daily_queue columns yet. Check once, and
+  // use the intake list without retrying failing queries every visit.
+  if (dailyQueueReady === null) {
+    const { error: probeError } = await supabase
+      .from("daily_queue")
+      .select("marketing_entity_id")
+      .eq("entity_id", entityId)
+      .limit(1)
+    dailyQueueReady = !probeError
+  }
+  if (!dailyQueueReady) {
+    return fetchIntakeFallbackDeck({
+      supabase,
+      entityId,
+      brandName,
+      industry,
+      dismissedIds: new Set(),
+    })
+  }
 
   await syncDailyQueueFromIntake(supabase, entityId)
 

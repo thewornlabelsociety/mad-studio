@@ -87,7 +87,7 @@ export function StoryStylePreview({
         className
       )}
     >
-      <p className="font-typewriter text-[0.6rem] font-bold tracking-widest text-mad-vermillion uppercase">
+      <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
         Story styles
       </p>
 
@@ -96,7 +96,7 @@ export function StoryStylePreview({
           value={format}
           onValueChange={(value) => setFormat(value as StoryFormat)}
         >
-          <SelectTrigger className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.55rem] uppercase">
+          <SelectTrigger className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.7rem] uppercase">
             <LayoutTemplate className="size-3 opacity-70" />
             <SelectValue />
           </SelectTrigger>
@@ -113,7 +113,7 @@ export function StoryStylePreview({
           value={stylePreset}
           onValueChange={(value) => setStylePreset(value as StoryStylePreset)}
         >
-          <SelectTrigger className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.55rem] uppercase">
+          <SelectTrigger className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.7rem] uppercase">
             <Sparkles className="size-3 opacity-70" />
             <SelectValue />
           </SelectTrigger>
@@ -135,7 +135,7 @@ export function StoryStylePreview({
             setCanvasColor(preset.hex)
           }}
         >
-          <SelectTrigger className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.55rem] uppercase">
+          <SelectTrigger className="h-8 rounded-none border-2 border-mad-black font-typewriter text-[0.7rem] uppercase">
             <Palette className="size-3 opacity-70" />
             <span
               className="size-3 rounded-full border border-black/20"
@@ -156,7 +156,7 @@ export function StoryStylePreview({
           type="button"
           onClick={() => setFloatCutout((value) => !value)}
           className={cn(
-            "h-8 border-2 border-mad-black px-2 font-typewriter text-[0.5rem] font-bold uppercase",
+            "h-8 border-2 border-mad-black px-2 font-typewriter text-[0.68rem] font-bold uppercase",
             floatCutout ? "bg-mad-lime" : "bg-mad-white hover:bg-mad-lime"
           )}
         >
