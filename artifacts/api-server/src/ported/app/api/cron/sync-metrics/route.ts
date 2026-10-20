@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "crypto"
-import { NextResponse } from "next/server"
+import { HttpResponse as NextResponse } from "@server/http-response"
 
 import type { Json } from "@/lib/database.types"
 import { fetchMediaInsights } from "@/lib/social/meta-publisher"

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse as NextResponse } from "@server/http-response"
 
 import { generateObjectWithFallback } from "@/lib/ai/orchestrator"
 import { resolveIndustryProfile } from "@/lib/brands/industry-templates"

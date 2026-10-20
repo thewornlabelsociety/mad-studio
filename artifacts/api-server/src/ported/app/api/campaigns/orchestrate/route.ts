@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse as NextResponse } from "@server/http-response"
 import { z } from "zod"
 
 import { orchestrateProgramByAutonomy } from "@/lib/campaigns/orchestrate-program"

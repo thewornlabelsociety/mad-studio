@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse as NextResponse } from "@server/http-response"
 
 import { generateCampaignPackCore } from "@/lib/campaigns/generate-campaign-pack-core"
 import { generatePackRequestSchema } from "@/lib/campaigns/pack-schema"

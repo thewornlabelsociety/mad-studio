@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "crypto"
-import { NextResponse } from "next/server"
+import { HttpResponse as NextResponse } from "@server/http-response"
 
 import { recordCronHeartbeat } from "@/lib/cron/record-heartbeat"
 import { dispatchDueScheduledDrops } from "@/lib/inventory/dispatch-due"

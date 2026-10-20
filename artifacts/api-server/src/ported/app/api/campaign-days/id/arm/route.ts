@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse as NextResponse } from "@server/http-response"
 import { z } from "zod"
 
 import { armDayPosts } from "@/lib/campaigns/arm-program-day"
