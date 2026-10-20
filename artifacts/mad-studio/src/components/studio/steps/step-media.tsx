@@ -25,11 +25,14 @@ export type StepMediaBridgePayload = {
 
 type Props = {
   entityId: string
+  brandName?: string
+  industry?: string | null
   marketingEntityId?: string | null
   assets: MediaAsset[]
   activeId: string | null
   onAssetsChange: (assets: MediaAsset[]) => void
   onSelectMedia: (asset: MediaAsset) => void
+  onIntakeAssetsAdded?: (assets: MediaAsset[]) => void
   onVisualInspect?: (
     assetId: string,
     inspection: MediaVisualInspection | null
@@ -61,11 +64,14 @@ type Props = {
 
 export function StepMedia({
   entityId,
+  brandName,
+  industry = null,
   marketingEntityId = null,
   assets,
   activeId,
   onAssetsChange,
   onSelectMedia,
+  onIntakeAssetsAdded,
   onVisualInspect,
   bridgePayload,
   onFinishedRender,
@@ -92,11 +98,14 @@ export function StepMedia({
     >
       <MediaTray
         entityId={entityId}
+        brandName={brandName}
+        industry={industry}
         inventoryItemId={marketingEntityId}
         assets={assets}
         activeId={activeId}
         onAssetsChange={onAssetsChange}
         onSelectMedia={onSelectMedia}
+        onIntakeAssetsAdded={onIntakeAssetsAdded}
         onVisualInspect={onVisualInspect}
         disabled={disabled}
       />

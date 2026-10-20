@@ -34,7 +34,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 export const runtime = "nodejs"
-export const maxDuration = 60
+export const maxDuration = 180
 
 type DbClient =
   | Awaited<ReturnType<typeof createClient>>
@@ -751,11 +751,20 @@ export async function POST(request: Request) {
 
     let publishResult
     try {
+      const carouselUrls = (input.carouselUrls ?? [])
+        .map((url) => url.trim())
+        .filter((url) => /^https?:\/\//i.test(url))
+      const storyUrls = (input.storyUrls ?? [])
+        .map((url) => url.trim())
+        .filter((url) => /^https?:\/\//i.test(url))
+
       publishResult = await publishToMeta({
         connection,
         mediaUrl: metaMediaUrl,
         caption,
         placement,
+        carouselUrls: carouselUrls.length >= 2 ? carouselUrls : null,
+        storyUrls: storyUrls.length >= 2 ? storyUrls : null,
       })
     } catch (error) {
       const raw =

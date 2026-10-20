@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 
 type BaseProps = {
   entityId: string
+  brandName?: string
+  industry?: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
   /** After local upload from this drawer, refresh the grid. */
@@ -41,6 +43,8 @@ type Props = CarouselModeProps | AttachModeProps
 export function MediaLibraryDrawer(props: Props) {
   const {
     entityId,
+    brandName,
+    industry = null,
     open,
     onOpenChange,
     onUploadFiles,
@@ -56,7 +60,12 @@ export function MediaLibraryDrawer(props: Props) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const rows = await fetchEntityMediaLibrary(entityId)
+      const rows = await fetchEntityMediaLibrary(
+        entityId,
+        80,
+        brandName,
+        industry
+      )
       setItems(rows)
     } catch (error) {
       toast.error(
@@ -65,7 +74,7 @@ export function MediaLibraryDrawer(props: Props) {
     } finally {
       setLoading(false)
     }
-  }, [entityId])
+  }, [entityId, brandName, industry])
 
   useEffect(() => {
     if (!open) return
@@ -147,7 +156,7 @@ export function MediaLibraryDrawer(props: Props) {
           </SheetTitle>
           <p className="font-typewriter text-[0.68rem] leading-relaxed tracking-wider text-neutral-500 normal-case">
             {mode === "attach"
-              ? "Pick intake or uploaded entity media, or upload a new file — then add to your tray."
+              ? "Pick intake or uploaded entity media, or upload multiple files — then add to your tray."
               : "Recent entity media — multi-select up to 10 stills or clips, then build a feed carousel in the simulator."}
           </p>
           {onUploadFiles ? (
@@ -156,7 +165,7 @@ export function MediaLibraryDrawer(props: Props) {
               className="mt-2 inline-flex cursor-pointer items-center gap-1.5 border-2 border-mad-black bg-mad-lime px-2.5 py-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white"
             >
               <Upload className="size-3.5" />
-              Upload new file
+              Upload files
             </label>
           ) : null}
         </SheetHeader>

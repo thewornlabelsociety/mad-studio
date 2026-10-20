@@ -92,6 +92,8 @@ export type MetaPublishResult = {
   placement: PublishPlacement
   mediaId: string
   containerId?: string
+  /** Story sequence — one media id per frame, in tray order. */
+  mediaIds?: string[]
 }
 
 async function waitForInstagramContainer(input: {
@@ -393,6 +395,39 @@ export async function publishFacebookAlbumPost(input: {
   return { platform: "facebook", placement: "feed", mediaId: post.id }
 }
 
+/** Multi-select Story: one Graph publish per frame (viewers tap through in order). */
+export async function publishInstagramStorySequence(input: {
+  connection: SocialConnectionRow
+  mediaUrls: string[]
+}): Promise<MetaPublishResult> {
+  const urls = input.mediaUrls.slice(0, 10).filter(Boolean)
+  if (urls.length < 2) {
+    throw new Error("Story sequence needs at least two images.")
+  }
+
+  const mediaIds: string[] = []
+  for (const [index, mediaUrl] of urls.entries()) {
+    const result = await publishInstagramMedia({
+      connection: input.connection,
+      mediaUrl,
+      caption: "",
+      placement: "story",
+    })
+    mediaIds.push(result.mediaId)
+    if (index < urls.length - 1) {
+      await wait(800)
+    }
+  }
+
+  const last = mediaIds[mediaIds.length - 1]!
+  return {
+    platform: "instagram",
+    placement: "story",
+    mediaId: last,
+    mediaIds,
+  }
+}
+
 export async function publishToMeta(input: {
   connection: SocialConnectionRow
   mediaUrl: string
@@ -400,6 +435,8 @@ export async function publishToMeta(input: {
   placement: PublishPlacement
   /** 2–10 images to post as one feed carousel / multi-photo post. */
   carouselUrls?: string[] | null
+  /** 2–10 images → consecutive Instagram Story frames (tray order). */
+  storyUrls?: string[] | null
 }): Promise<MetaPublishResult> {
   const carousel =
     input.placement === "feed" &&
@@ -407,8 +444,20 @@ export async function publishToMeta(input: {
     input.carouselUrls.length >= 2
       ? input.carouselUrls.slice(0, 10)
       : null
+  const storySequence =
+    input.placement === "story" &&
+    input.storyUrls &&
+    input.storyUrls.length >= 2
+      ? input.storyUrls.slice(0, 10)
+      : null
 
   if (input.connection.platform === "instagram") {
+    if (storySequence) {
+      return publishInstagramStorySequence({
+        connection: input.connection,
+        mediaUrls: storySequence,
+      })
+    }
     if (carousel) {
       return publishInstagramCarousel({ ...input, mediaUrls: carousel })
     }

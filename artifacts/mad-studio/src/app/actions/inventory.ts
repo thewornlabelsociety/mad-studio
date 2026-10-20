@@ -125,6 +125,80 @@ export async function appendInventoryImage(input: {
   return { ok: true, data: { images: updated.images ?? images } }
 }
 
+export async function reorderInventoryImages(input: {
+  entityId: string
+  itemId: string
+  images: string[]
+}): Promise<InventoryActionResult<{ images: string[] }>> {
+  const next = input.images
+    .filter((url) => typeof url === "string" && /^https?:\/\//i.test(url.trim()))
+    .map((url) => url.trim())
+
+  if (new Set(next).size !== next.length) {
+    return { ok: false, error: "Duplicate image URLs in reorder." }
+  }
+
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error || !auth.user) {
+    return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+
+  const { data: row, error: fetchError } = await auth.supabase
+    .from("marketing_entities")
+    .select("id, images")
+    .eq("id", input.itemId)
+    .eq("entity_id", input.entityId)
+    .maybeSingle()
+
+  if (fetchError || !row) {
+    return { ok: false, error: fetchError?.message ?? "Inventory item not found." }
+  }
+
+  const existing = Array.isArray(row.images) ? (row.images as string[]) : []
+  if (next.length === 0) {
+    return { ok: true, data: { images: existing } }
+  }
+
+  const existingSet = new Set(existing)
+  if (!next.every((url) => existingSet.has(url))) {
+    return { ok: false, error: "Unknown image URL in reorder." }
+  }
+
+  // Keep any inventory images not currently in the tray (e.g. still uploading)
+  // after the reordered subset.
+  const nextSet = new Set(next)
+  const images = [
+    ...next,
+    ...existing.filter((url) => !nextSet.has(url)),
+  ]
+
+  const unchanged =
+    images.length === existing.length &&
+    images.every((url, index) => url === existing[index])
+  if (unchanged) {
+    return { ok: true, data: { images: existing } }
+  }
+
+  const { data: updated, error } = await auth.supabase
+    .from("marketing_entities")
+    .update({
+      images,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.itemId)
+    .eq("entity_id", input.entityId)
+    .select("images")
+    .single()
+
+  if (error || !updated) {
+    return { ok: false, error: error?.message ?? "Failed to reorder images." }
+  }
+
+  revalidatePath(`/inventory/${input.itemId}`)
+  revalidatePath("/inventory")
+  return { ok: true, data: { images: updated.images ?? images } }
+}
+
 export async function removeInventoryImage(input: {
   entityId: string
   itemId: string

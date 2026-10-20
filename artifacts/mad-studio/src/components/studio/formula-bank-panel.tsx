@@ -34,6 +34,10 @@ const SLOT_FIELDS: Record<
   cityArea: { label: "City / area", placeholder: "e.g. Whangārei" },
   interest: { label: "Interest", placeholder: "e.g. brunch" },
   painfulAction: { label: "Habit to stop", placeholder: "e.g. paying full retail" },
+  campaignLine: {
+    label: "Campaign line",
+    placeholder: "Your promo / carousel copy from Copy step",
+  },
 }
 import { cn } from "@/lib/utils"
 
@@ -117,7 +121,10 @@ export function FormulaBankPanel({
         </p>
         <p className="mt-1 text-xs text-neutral-600">
           Pre-calibrated hooks, visual beats, and CTAs — no AI tokens until you
-          choose full Generate.
+          choose full Generate. For multi-image brand promos, pick{" "}
+          <span className="font-semibold">Carousel / brand promo</span> (uses
+          your Copy spark, not item/size). Single consignment pieces use Just
+          Landed and the item fields.
         </p>
       </div>
 
@@ -215,7 +222,9 @@ export function FormulaBankPanel({
         className={cn(
           "w-full border-2 border-mad-black bg-mad-lime px-4 py-2 font-typewriter text-[0.75rem] font-bold tracking-widest uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white sm:w-auto"
         )}
-        onClick={() => onSlotsChange(defaultSlotsFromSpark(spark))}
+        onClick={() =>
+          onSlotsChange(defaultSlotsFromSpark(spark, { brandName: entity.name }))
+        }
       >
         Fill slots from spark
       </button>

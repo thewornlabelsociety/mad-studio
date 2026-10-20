@@ -11,6 +11,7 @@ import {
 } from "@/lib/inventory/optimization-tags"
 import { cleanHashtags, isCleanHashtag } from "@/lib/copy/caption-hygiene"
 import { requestFieldAssist } from "@/lib/studio/field-assist-client"
+import type { CarouselPackContext } from "@/lib/studio/carousel-pack-context"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -23,6 +24,7 @@ type Props = {
   listingVibe?: string | null
   visualDescription?: string | null
   bannedTagSeeds?: string[]
+  carouselPackContext?: CarouselPackContext | null
   onTagsChange: (tags: string[]) => void
   className?: string
 }
@@ -37,6 +39,7 @@ export function OptimizationTagsEditor({
   listingVibe = null,
   visualDescription = null,
   bannedTagSeeds = [],
+  carouselPackContext = null,
   onTagsChange,
   className,
 }: Props) {
@@ -118,6 +121,21 @@ export function OptimizationTagsEditor({
         visualDescription,
         listingVibe,
         existingTags: tags,
+        wizard: carouselPackContext?.isCarousel
+          ? {
+              stillPhotoCount: carouselPackContext.photoCount,
+              carouselSlides: carouselPackContext.slides.map((row) => ({
+                index: row.index,
+                brand: row.brand,
+                vibe: row.vibe,
+                listingLine: row.listingLine,
+                visualSummary: row.visualSummary,
+              })),
+              carouselBrands: carouselPackContext.brands,
+              carouselVibes: carouselPackContext.vibes,
+              carouselEditorSummary: carouselPackContext.editorSummary,
+            }
+          : undefined,
       })
       const incoming = cleanHashtags(result.tags ?? [], {
         max: OPTIMIZATION_TAG_MAX,

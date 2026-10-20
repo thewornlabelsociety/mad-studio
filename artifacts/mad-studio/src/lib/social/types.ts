@@ -34,6 +34,10 @@ export const socialPublishRequestSchema = z.object({
   placement: publishPlacementSchema.optional().default("feed"),
   caption: z.string().max(2200).optional(),
   mediaUrl: z.string().min(1).max(4000).optional(),
+  /** 2–10 feed carousel slides (Instagram feed / Facebook album). */
+  carouselUrls: z.array(z.string().min(1).max(4000)).min(2).max(10).optional(),
+  /** 2–10 consecutive Instagram Story frames. */
+  storyUrls: z.array(z.string().min(1).max(4000)).min(2).max(10).optional(),
   destinationUrl: z.string().max(4000).optional().nullable(),
   connectionId: z.string().uuid().optional().nullable(),
   /** Preferred trackable slug seed, e.g. fudi-bao or partner-venue. */

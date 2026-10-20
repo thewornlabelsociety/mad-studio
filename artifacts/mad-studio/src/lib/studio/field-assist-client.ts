@@ -2,6 +2,14 @@ export type FieldAssistField = "hook" | "caption" | "tags"
 
 import { readJsonBody } from "@/lib/http/safe-json"
 
+export type FieldAssistCarouselSlide = {
+  index: number
+  brand?: string | null
+  vibe?: string | null
+  listingLine?: string | null
+  visualSummary?: string | null
+}
+
 export type FieldAssistWizardContext = {
   listingVibe?: string | null
   dropKind?: string | null
@@ -13,6 +21,13 @@ export type FieldAssistWizardContext = {
   concreteFeatures?: string[]
   onCanvasHeadline?: string | null
   onCanvasSubhead?: string | null
+  audienceToneCue?: string | null
+  postFocusLabel?: string | null
+  stillPhotoCount?: number
+  carouselSlides?: FieldAssistCarouselSlide[]
+  carouselBrands?: string[]
+  carouselVibes?: string[]
+  carouselEditorSummary?: string | null
 }
 
 export async function requestFieldAssist(input: {

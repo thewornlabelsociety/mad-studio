@@ -52,6 +52,7 @@ import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
 import { trackableUrl, type VideoAudioMode } from "@/lib/social/types"
 import { isFudiStudioEntity } from "@/lib/studio/fudi-tracks"
 import {
+  CANVAS_MEDIA_FRAME_ATTR,
   CanvasTextOverlayEditor,
   CanvasTextOverlayLayer,
 } from "@/components/studio/canvas-text-overlay"
@@ -99,6 +100,8 @@ export type SimulatorContent = {
   stickerLabel?: string
   emailSubject?: string
   emailPreview?: string
+  /** VIP email body (plain text in preview). */
+  emailBody?: string
 }
 
 const PLATFORM_OPTIONS: Array<{
@@ -118,8 +121,8 @@ const PLATFORM_OPTIONS: Array<{
   {
     id: "ig_feed",
     label: "IG Feed",
-    dimensions: "1080 × 1350",
-    ratio: "4:5",
+    dimensions: "1080 × 1080",
+    ratio: "1:1",
     aspect: "feed",
   },
   {
@@ -1055,12 +1058,19 @@ export function MultiPlatformSimulator({
     name: content.brandName,
     industry,
   })
-  /** FÜDI intake = full-bleed dish/reel stories, not consignment cutout cards. */
+  /**
+   * Branded story *card* (cutout + copy blocks) — not for multi-slide story
+   * carousels or plain full-bleed photos (Studio / promo stills).
+   */
   const useStoryCanvasForIg =
-    !isFudiEntity && (cutoutMode !== "original" || Boolean(item))
+    !isFudiEntity &&
+    Boolean(item) &&
+    cutoutMode !== "original" &&
+    !storyCarousel
 
   const isFeedPreview =
     platform === "ig_feed" || platform === "facebook"
+  const isEmailPreview = platform === "email"
 
   const stageAspectClass =
     isFeedPreview
@@ -1085,7 +1095,23 @@ export function MultiPlatformSimulator({
   })()
 
   const remotionAspect: "story" | "feed" = isFeedPreview ? "feed" : "story"
-  const remotionMediaFit: "cover" | "contain" = isFudiEntity ? "cover" : "contain"
+  /** IG Feed = 1:1 center crop. IG Story = full image on black (same file, no second upload). */
+  const feedFrameClass =
+    platform === "ig_feed" ? "aspect-square" : "aspect-[4/5]"
+  const feedMediaFit: "cover" | "contain" =
+    platform === "ig_feed"
+      ? "cover"
+      : isFudiEntity
+        ? "cover"
+        : "contain"
+  const storyMediaFit: "cover" | "contain" =
+    platform === "ig_story"
+      ? "contain"
+      : isFudiEntity
+        ? "cover"
+        : "contain"
+  const instagramFeedCover = platform === "ig_feed"
+  const remotionMediaFit = isFeedPreview ? feedMediaFit : storyMediaFit
   /** Studio wizard preview always uses DOM canvas text (WYSIWYG with Step 3). Remotion is for video playback / export only. */
   const remotionIncludeOverlays = false
   const usingRemotionForMedia = Boolean(
@@ -1146,7 +1172,7 @@ export function MultiPlatformSimulator({
           <div
             className={cn(
               "relative flex bg-black",
-              isFeedPreview
+              isFeedPreview || isEmailPreview
                 ? "min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 : canvasEditActive
                   ? "overflow-visible"
@@ -1161,29 +1187,44 @@ export function MultiPlatformSimulator({
                           ? "h-[472px]"
                           : "h-[622px]"
                     )
-                  : cn(
-                      "w-full items-center justify-center",
-                      lockedShellFluid
-                        ? "h-full min-h-0"
-                        : compact
-                          ? "h-[472px]"
-                          : "h-[622px]"
-                    )
+                  : isEmailPreview
+                    ? cn(
+                        "w-full items-stretch justify-start",
+                        lockedShellFluid
+                          ? "h-full min-h-0"
+                          : compact
+                            ? "h-[472px]"
+                            : "h-[622px]"
+                      )
+                    : cn(
+                        "w-full items-center justify-center",
+                        lockedShellFluid
+                          ? "h-full min-h-0"
+                          : compact
+                            ? "h-[472px]"
+                            : "h-[622px]"
+                      )
                 : "min-h-[280px] w-full items-center justify-center"
             )}
             style={{ borderRadius: 35 }}
           >
             <div
               className={cn(
-                "relative max-w-full",
+                "relative",
                 isFeedPreview
-                  ? "w-full shrink-0"
-                  : cn(
-                      "max-h-full",
-                      canvasEditActive ? "overflow-visible" : "overflow-hidden",
-                      stageAspectClass,
-                      lockedViewport ? "h-full w-auto" : "w-full"
-                    )
+                  ? "w-full max-w-full shrink-0"
+                  : isEmailPreview
+                    ? cn(
+                        "h-full min-h-0 w-full max-w-full shrink-0",
+                        canvasEditActive ? "overflow-visible" : "overflow-hidden"
+                      )
+                    : cn(
+                        canvasEditActive ? "overflow-visible" : "overflow-hidden",
+                        stageAspectClass,
+                        lockedViewport
+                          ? "aspect-[9/16] h-auto w-full max-h-full max-w-full shrink-0"
+                          : "w-full max-w-full"
+                      )
               )}
             >
               {platform === "ig_story" ? (
@@ -1208,7 +1249,7 @@ export function MultiPlatformSimulator({
                     {isVideo && mediaUrl ? (
                       <VideoFill
                         src={mediaUrl}
-                        fit={isFudiEntity ? "cover" : "contain"}
+                        fit={storyMediaFit}
                         remotionPreview={videoRemotionPreview}
                         mediaOverlay={canvasOverlayOnMedia}
                         allowCanvasOverflow={canvasEditActive}
@@ -1222,7 +1263,7 @@ export function MultiPlatformSimulator({
                             ? textOverlay.backdropColor
                             : null
                         }
-                        mediaFit={isFudiEntity ? "cover" : "contain"}
+                        mediaFit={storyMediaFit}
                         remotionPreview={imageRemotionPreview}
                         mediaOverlay={canvasOverlayOnMedia}
                         allowCanvasOverflow={canvasEditActive}
@@ -1268,12 +1309,14 @@ export function MultiPlatformSimulator({
                     onPrev={() => goSlide(-1)}
                     onNext={() => goSlide(1)}
                     showCarousel={feedCarousel}
+                    frameClassName={feedFrameClass}
                     canvasOverlay={canvasOverlayOnMedia}
                     canvasOverlayInteractive={canvasEditActive}
                     textOverlay={textOverlay}
                     spokenHook={spokenHook}
                     remotionIncludeOverlays={remotionDefersOverlays}
-                    mediaFit={remotionMediaFit}
+                    mediaFit={feedMediaFit}
+                    forceCover={instagramFeedCover}
                   />
                 </FeedChrome>
               ) : null}
@@ -1288,7 +1331,7 @@ export function MultiPlatformSimulator({
                     isVideo ? mediaUrl : imageForCanvas || mediaUrl
                   }
                   mediaType={isVideo ? "video" : "image"}
-                  mediaFit={isFudiEntity ? "cover" : "contain"}
+                  mediaFit={storyMediaFit}
                   remotionPreview={
                     isVideo ? videoRemotionPreview : imageRemotionPreview
                   }
@@ -1307,9 +1350,17 @@ export function MultiPlatformSimulator({
                     content.caption.slice(0, 90) ||
                     "View the piece"
                   }
-                  mediaUrl={mediaUrl}
+                  body={
+                    content.emailBody?.trim() ||
+                    content.caption.trim() ||
+                    "Your drop details will appear here after the pack is generated."
+                  }
+                  mediaUrl={
+                    isVideo ? mediaUrl : imageForCanvas || mediaUrl
+                  }
                   mediaType={isVideo ? "video" : "image"}
                   cta={content.stickerLabel || "Shop now"}
+                  mediaOverlay={canvasOverlayOnMedia}
                 />
               ) : null}
             </div>
@@ -1680,6 +1731,21 @@ export function MultiPlatformSimulator({
       </div>
     ) : null
 
+  const previewTrayHint =
+    lockedViewport && hidePlatformSwitcher
+      ? platform === "ig_story"
+        ? slides.length > 1
+          ? "Same tray for all channels. Confirm & post sends every slide as consecutive Story frames (tray order). Tap a slide to edit its Canvas text."
+          : "Same media tray for every channel. Story letterboxes non–9:16 art on black (no extra upload)."
+        : platform === "ig_feed"
+          ? slides.length > 1
+            ? "Feed carousel uses every tray image (1:1 crop). Story posts the same slides as consecutive frames."
+            : "Feed preview is a 1:1 center crop from this photo."
+          : platform === "email"
+            ? "Email mock — hero ~16:10, same baked photo as feed. Confirm & schedule shows exact outbound assets (1080px)."
+            : null
+      : null
+
   const stylingDock =
     previewMinimal || hideStylingDock
       ? null
@@ -1887,6 +1953,11 @@ export function MultiPlatformSimulator({
       </div>
       )}
       {phoneShell}
+      {previewTrayHint ? (
+        <p className="max-w-[min(100%,280px)] px-1 text-center text-[11px] leading-snug text-neutral-500">
+          {previewTrayHint}
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -1965,50 +2036,54 @@ function IgStoryChrome({
 }) {
   const segments = Math.max(slideCount, 1)
   return (
-    <div className="relative flex aspect-[9/16] h-full w-full flex-col overflow-hidden bg-neutral-950">
-      <div className="relative z-10 flex h-[15%] min-h-[72px] shrink-0 flex-col justify-end gap-2 px-3 pb-2">
-        <div className="flex gap-1">
-          {Array.from({ length: segments }).map((_, index) => (
-            <button
-              key={`seg-${index}`}
-              type="button"
-              aria-label={`Story slide ${index + 1}`}
-              disabled={!onSegmentSelect}
-              onClick={() => onSegmentSelect?.(index)}
-              className={cn(
-                "h-[2px] flex-1 rounded-full transition",
-                index === activeSlideIndex ? "bg-white" : "bg-white/35",
-                onSegmentSelect && "hover:bg-white/70"
-              )}
-            />
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-rose-400 text-[0.7rem] font-bold text-white">
-            {handle.slice(0, 1).toUpperCase()}
-          </span>
-          <span className="text-[0.75rem] font-semibold text-white drop-shadow">
-            @{handle}
-          </span>
-          <span className="text-[0.75rem] text-white/70">2h ago</span>
-        </div>
-      </div>
-
+    <div className="relative size-full overflow-hidden bg-neutral-950">
       <div
         className={cn(
-          "relative z-0 min-h-0 flex-1",
+          "absolute inset-0 z-0",
           allowMediaOverflow ? "overflow-visible" : "overflow-hidden"
         )}
       >
         {children}
       </div>
 
-      <div className="relative z-10 flex h-[15%] min-h-[64px] shrink-0 items-center gap-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pt-4 pb-3">
-        <div className="flex-1 rounded-full border border-white/40 px-3 py-2 text-[0.75rem] text-white/80">
-          Send message…
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/55 via-black/20 to-transparent px-3 pt-10 pb-16">
+        <div className="pointer-events-auto flex flex-col justify-end gap-2">
+          <div className="flex gap-1">
+            {Array.from({ length: segments }).map((_, index) => (
+              <button
+                key={`seg-${index}`}
+                type="button"
+                aria-label={`Story slide ${index + 1}`}
+                disabled={!onSegmentSelect}
+                onClick={() => onSegmentSelect?.(index)}
+                className={cn(
+                  "h-[2px] flex-1 rounded-full transition",
+                  index === activeSlideIndex ? "bg-white" : "bg-white/35",
+                  onSegmentSelect && "hover:bg-white/70"
+                )}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-rose-400 text-[0.7rem] font-bold text-white">
+              {handle.slice(0, 1).toUpperCase()}
+            </span>
+            <span className="text-[0.75rem] font-semibold text-white drop-shadow">
+              @{handle}
+            </span>
+            <span className="text-[0.75rem] text-white/70">2h ago</span>
+          </div>
         </div>
-        <Heart className="size-5 shrink-0 text-white" />
-        <Share2 className="size-5 shrink-0 text-white" />
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center gap-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pt-12 pb-3">
+        <div className="pointer-events-auto flex flex-1 items-center gap-2">
+          <div className="flex-1 rounded-full border border-white/40 px-3 py-2 text-[0.75rem] text-white/80">
+            Send message…
+          </div>
+          <Heart className="size-5 shrink-0 text-white" />
+          <Share2 className="size-5 shrink-0 text-white" />
+        </div>
       </div>
     </div>
   )
@@ -2019,7 +2094,8 @@ function StoryMediaStage({
   canvasColor,
   storyCanvas,
   useStoryCanvas,
-  mediaFit = "contain",
+  mediaFit = "cover",
+  forceCover = false,
   mediaOverlay = null,
   remotionPreview = null,
   allowCanvasOverflow = false,
@@ -2032,11 +2108,14 @@ function StoryMediaStage({
   storyCanvas: ReactNode
   useStoryCanvas: boolean
   mediaFit?: "cover" | "contain"
+  /** Instagram story: always center-crop to 9:16 (no blur letterboxing). */
+  forceCover?: boolean
   mediaOverlay?: ReactNode
   remotionPreview?: RemotionCanvasProps | null
   allowCanvasOverflow?: boolean
 }) {
   const overflowClass = allowCanvasOverflow ? "overflow-visible" : "overflow-hidden"
+  const fit: "cover" | "contain" = forceCover ? "cover" : mediaFit
 
   if (useStoryCanvas) {
     return (
@@ -2051,9 +2130,7 @@ function StoryMediaStage({
     return (
       <div
         className={cn("relative size-full", overflowClass)}
-        style={
-          mediaFit === "contain" ? { backgroundColor: canvasColor } : undefined
-        }
+        style={fit === "contain" ? { backgroundColor: canvasColor } : undefined}
       >
         <RemotionCanvas {...remotionPreview} />
         {mediaOverlay}
@@ -2061,44 +2138,41 @@ function StoryMediaStage({
     )
   }
 
-  if (mediaFit === "cover") {
+  if (fit === "cover") {
     return (
-      <div className={cn("relative size-full bg-black", overflowClass)}>
+      <div
+        className={cn("relative size-full min-h-0 min-w-0 bg-black", overflowClass)}
+        {...{ [CANVAS_MEDIA_FRAME_ATTR]: "" }}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
           alt=""
-          className="absolute inset-0 size-full object-cover"
+          draggable={false}
+          className="absolute inset-0 h-full w-full object-cover object-center"
         />
         {mediaOverlay}
       </div>
     )
   }
 
-  // With a backdrop the Story is baked full-bleed in that colour, edge to
-  // edge, so the preview shows exactly that. Otherwise Instagram fills the
-  // space around the photo itself (the blur here is preview-only).
+  // Story / TikTok: show the whole image (no stretch). Backdrop mode fills the frame colour.
   return (
     <div
-      className={cn("relative size-full", overflowClass)}
-      style={{ backgroundColor: backdropColor ?? canvasColor }}
+      className={cn("relative size-full bg-black", overflowClass)}
+      style={
+        backdropColor ? { backgroundColor: backdropColor } : undefined
+      }
+      {...{ [CANVAS_MEDIA_FRAME_ATTR]: "" }}
     >
-      {backdropColor ? null : (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={imageUrl}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-xl"
-        />
-      )}
-      <FittedImage
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         src={imageUrl}
-        padded={!backdropColor}
-        imageClassName={backdropColor ? undefined : "shadow-lg"}
-      >
-        {mediaOverlay}
-      </FittedImage>
+        alt=""
+        draggable={false}
+        className="absolute inset-0 h-full w-full object-contain object-center"
+      />
+      {mediaOverlay}
     </div>
   )
 }
@@ -2295,11 +2369,13 @@ function FeedMediaStage({
   onPrev,
   onNext,
   showCarousel,
+  frameClassName = "aspect-[4/5]",
   canvasOverlay = null,
   canvasOverlayInteractive = false,
   textOverlay,
   remotionIncludeOverlays,
   mediaFit,
+  forceCover = false,
 }: {
   slides: SimulatorCarouselItem[]
   slideIndex: number
@@ -2307,19 +2383,21 @@ function FeedMediaStage({
   onPrev: () => void
   onNext: () => void
   showCarousel: boolean
+  frameClassName?: string
   canvasOverlay?: ReactNode
   canvasOverlayInteractive?: boolean
   textOverlay: CanvasTextOverlayState
   spokenHook: string
   remotionIncludeOverlays: boolean
   mediaFit: "cover" | "contain"
+  /** Instagram feed: 1:1 center crop, edge to edge. */
+  forceCover?: boolean
 }) {
   const touchStartX = useRef<number | null>(null)
   const slideCount = slides.length
   const active = slides[slideIndex] ?? slides[0] ?? null
   const mediaUrl = active?.url ?? null
-  const trackWidthPercent = slideCount > 0 ? slideCount * 100 : 100
-  const slideWidthPercent = slideCount > 0 ? 100 / slideCount : 100
+  const fit: "cover" | "contain" = forceCover ? "cover" : mediaFit
 
   function onTouchStart(event: React.TouchEvent) {
     touchStartX.current = event.touches[0]?.clientX ?? null
@@ -2336,135 +2414,161 @@ function FeedMediaStage({
     else onNext()
   }
 
+  function renderSlideMedia(
+    slide: SimulatorCarouselItem,
+    overlayOnSlide: boolean
+  ) {
+    const kind =
+      slide.type === "video" ||
+      detectMediaKindFromUrl(slide.url) === "video"
+        ? "video"
+        : "image"
+    const overlayWrap = overlayOnSlide ? (
+      <div
+        className={cn(
+          "absolute inset-0 z-20",
+          canvasOverlayInteractive
+            ? "pointer-events-auto"
+            : "pointer-events-none"
+        )}
+      >
+        {canvasOverlay}
+      </div>
+    ) : null
+
+    if (kind === "video") {
+      return (
+        <RemotionCanvas
+          {...buildRemotionPreviewInput({
+            mediaUrl: slide.url,
+            mediaType: "video",
+            mediaFit: fit,
+            aspect: "feed",
+            textOverlay,
+            includeOverlays: remotionIncludeOverlays,
+          })}
+        />
+      )
+    }
+
+    if (fit === "contain") {
+      return (
+        <FittedImage src={slide.url}>
+          {overlayWrap}
+        </FittedImage>
+      )
+    }
+
+    return (
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={slide.url}
+          alt=""
+          className="absolute inset-0 size-full object-cover object-center"
+        />
+        {overlayWrap}
+      </>
+    )
+  }
+
   return (
     <div className="flex w-full flex-col">
       <div
-        className="relative aspect-[4/5] w-full shrink-0 overflow-hidden bg-neutral-100"
+        className={cn(
+          "relative isolate w-full shrink-0 overflow-hidden bg-neutral-950",
+          frameClassName
+        )}
+        {...{ [CANVAS_MEDIA_FRAME_ATTR]: "" }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {slideCount > 0 ? (
-          <div
-            className="flex h-full transition-transform duration-300 ease-out"
-            style={{
-              width: `${trackWidthPercent}%`,
-              transform: `translateX(-${(slideIndex / Math.max(slideCount, 1)) * 100}%)`,
-            }}
-          >
-            {slides.map((slide, index) => {
-              const kind =
-                slide.type === "video" ||
-                detectMediaKindFromUrl(slide.url) === "video"
-                  ? "video"
-                  : "image"
-              return (
+        <div className="absolute inset-0 size-full overflow-hidden">
+          {slideCount > 0
+            ? slides.map((slide, index) => (
                 <div
                   key={slide.id ?? slide.url}
-                  className="relative h-full shrink-0 overflow-hidden bg-neutral-950"
-                  style={{ width: `${slideWidthPercent}%` }}
-                >
-                  {kind === "video" ? (
-                    <RemotionCanvas
-                      {...buildRemotionPreviewInput({
-                        mediaUrl: slide.url,
-                        mediaType: "video",
-                        mediaFit,
-                        aspect: "feed",
-                        textOverlay,
-                        includeOverlays: remotionIncludeOverlays,
-                      })}
-                    />
-                  ) : mediaFit === "contain" ? (
-                    <FittedImage src={slide.url}>
-                      {index === slideIndex ? (
-                        <div
-                          className={cn(
-                            "absolute inset-0 z-20",
-                            canvasOverlayInteractive
-                              ? "pointer-events-auto"
-                              : "pointer-events-none"
-                          )}
-                        >
-                          {canvasOverlay}
-                        </div>
-                      ) : null}
-                    </FittedImage>
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={slide.url}
-                      alt=""
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        ) : null}
-
-        {!mediaUrl && slideCount === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-neutral-400">
-            Add media
-          </div>
-        ) : null}
-
-        {/* Contain mode draws the overlay on the photo itself (above). */}
-        {/* No photo yet: nothing to put text on. */}
-        {slides.length === 0 ||
-        (mediaFit === "contain" &&
-        slides[slideIndex] &&
-        slides[slideIndex].type !== "video" &&
-        detectMediaKindFromUrl(slides[slideIndex].url) !== "video") ? null : (
-          <div
-            className={cn(
-              "absolute inset-0 z-20",
-              canvasOverlayInteractive ? "pointer-events-auto" : "pointer-events-none"
-            )}
-          >
-            {canvasOverlay}
-          </div>
-        )}
-
-        {showCarousel ? (
-          <>
-            <span className="absolute top-2 right-2 z-30 border border-mad-black bg-mad-black px-2 py-0.5 font-typewriter text-[0.7rem] font-bold text-mad-white">
-              {slideIndex + 1}/{slideCount}
-            </span>
-            <button
-              type="button"
-              aria-label="Previous slide"
-              onClick={onPrev}
-              className="absolute top-1/2 left-1 z-30 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white/95 font-typewriter text-xs font-bold text-mad-black shadow-keycap-sm transition hover:bg-mad-lime"
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              aria-label="Next slide"
-              onClick={onNext}
-              className="absolute top-1/2 right-1 z-30 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white/95 font-typewriter text-xs font-bold text-mad-black shadow-keycap-sm transition hover:bg-mad-lime"
-            >
-              ›
-            </button>
-            <div className="absolute inset-x-0 bottom-2 z-30 flex justify-center gap-1.5">
-              {slides.map((slide, index) => (
-                <button
-                  key={slide.id ?? slide.url}
-                  type="button"
-                  aria-label={`Go to slide ${index + 1}`}
-                  onClick={() => onSlideIndexChange(index)}
                   className={cn(
-                    "size-2.5 rounded-full border border-mad-black transition",
+                    "absolute inset-0 overflow-hidden bg-neutral-950 transition-opacity duration-300",
                     index === slideIndex
-                      ? "scale-110 bg-mad-lime"
-                      : "bg-mad-white/70 hover:bg-mad-white"
+                      ? "z-10 opacity-100"
+                      : "pointer-events-none z-0 opacity-0"
                   )}
-                />
-              ))}
+                  aria-hidden={index !== slideIndex}
+                >
+                  {renderSlideMedia(slide, index === slideIndex)}
+                </div>
+              ))
+            : null}
+
+          {!mediaUrl && slideCount === 0 ? (
+            <div className="absolute inset-0 flex items-center justify-center text-xs text-neutral-400">
+              Add media
             </div>
-          </>
-        ) : null}
+          ) : null}
+
+          {/* Still images draw the overlay on the slide above; video uses the frame. */}
+          {slides.length === 0 ||
+          (() => {
+            const slide = slides[slideIndex]
+            if (!slide) return true
+            const isVideo =
+              slide.type === "video" ||
+              detectMediaKindFromUrl(slide.url) === "video"
+            return !isVideo
+          })() ? null : (
+            <div
+              className={cn(
+                "absolute inset-0 z-20",
+                canvasOverlayInteractive
+                  ? "pointer-events-auto"
+                  : "pointer-events-none"
+              )}
+            >
+              {canvasOverlay}
+            </div>
+          )}
+
+          {showCarousel ? (
+            <>
+              <span className="absolute top-2 right-2 z-30 border border-mad-black bg-mad-black px-2 py-0.5 font-typewriter text-[0.7rem] font-bold text-mad-white">
+                {slideIndex + 1}/{slideCount}
+              </span>
+              <button
+                type="button"
+                aria-label="Previous slide"
+                onClick={onPrev}
+                className="absolute top-1/2 left-1 z-30 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white/95 font-typewriter text-xs font-bold text-mad-black shadow-keycap-sm transition hover:bg-mad-lime"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label="Next slide"
+                onClick={onNext}
+                className="absolute top-1/2 right-1 z-30 flex size-8 -translate-y-1/2 items-center justify-center border-2 border-mad-black bg-mad-white/95 font-typewriter text-xs font-bold text-mad-black shadow-keycap-sm transition hover:bg-mad-lime"
+              >
+                ›
+              </button>
+              <div className="absolute inset-x-0 bottom-2 z-30 flex justify-center gap-1.5">
+                {slides.map((slide, index) => (
+                  <button
+                    key={slide.id ?? slide.url}
+                    type="button"
+                    aria-label={`Go to slide ${index + 1}`}
+                    onClick={() => onSlideIndexChange(index)}
+                    className={cn(
+                      "size-2.5 rounded-full border border-mad-black transition",
+                      index === slideIndex
+                        ? "scale-110 bg-mad-lime"
+                        : "bg-mad-white/70 hover:bg-mad-white"
+                    )}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
     </div>
   )
@@ -2561,54 +2665,69 @@ function EmailChrome({
   brandName,
   subject,
   preview,
+  body,
   mediaUrl,
   mediaType,
   cta,
+  mediaOverlay = null,
 }: {
   brandName: string
   subject: string
   preview: string
+  body: string
   mediaUrl: string | null
   mediaType: "image" | "video"
   cta: string
+  mediaOverlay?: ReactNode
 }) {
   return (
-    <div className="aspect-[9/16] w-full overflow-y-auto bg-[#f2f2f7]">
-      <div className="border-b border-neutral-200 bg-white px-4 pb-3 pt-12">
+    <div className="flex size-full min-h-0 flex-col bg-[#f2f2f7]">
+      <div className="shrink-0 border-b border-neutral-200 bg-white px-4 pb-3 pt-10">
         <p className="text-[0.75rem] font-medium tracking-wide text-neutral-500 uppercase">
-          Inbox
+          Inbox · VIP
         </p>
-        <p className="mt-1 text-base font-semibold text-neutral-900">{subject}</p>
-        <p className="mt-0.5 text-xs text-neutral-500">
-          {brandName} · {preview}
+        <p className="mt-1.5 text-xs text-neutral-600">
+          <span className="font-semibold text-neutral-900">From:</span> {brandName}
         </p>
+        <p className="mt-1 text-base font-semibold leading-snug text-neutral-900">
+          {subject}
+        </p>
+        <p className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{preview}</p>
       </div>
-      <div className="m-3 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-        {mediaUrl && mediaType === "video" ? (
-          <video
-            src={mediaUrl}
-            className="aspect-[16/10] w-full object-cover"
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
-        ) : mediaUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={mediaUrl}
-            alt=""
-            className="aspect-[16/10] w-full object-cover"
-          />
-        ) : (
-          <div className="aspect-[16/10] bg-neutral-100" />
-        )}
-        <div className="space-y-3 p-4">
-          <p className="text-sm font-semibold text-neutral-900">{subject}</p>
-          <p className="text-xs leading-relaxed text-neutral-600">{preview}</p>
-          {/* Preview of the email button — not clickable here. */}
-          <div className="w-full cursor-default rounded-full bg-neutral-900 py-2.5 text-center text-xs font-semibold text-white">
-            {cta}
+      <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
+        <div className="m-3 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+          <div
+            className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-neutral-900"
+            {...{ [CANVAS_MEDIA_FRAME_ATTR]: "" }}
+          >
+            {mediaUrl && mediaType === "video" ? (
+              <video
+                src={mediaUrl}
+                className="absolute inset-0 size-full object-cover object-center"
+                autoPlay
+                loop
+                muted
+                playsInline
+              />
+            ) : mediaUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={mediaUrl}
+                alt=""
+                className="absolute inset-0 size-full object-cover object-center"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-neutral-100" />
+            )}
+            {mediaOverlay}
+          </div>
+          <div className="space-y-3 p-4">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-800">
+              {body}
+            </p>
+            <div className="w-full cursor-default rounded-full bg-neutral-900 py-2.5 text-center text-xs font-semibold text-white">
+              {cta}
+            </div>
           </div>
         </div>
       </div>

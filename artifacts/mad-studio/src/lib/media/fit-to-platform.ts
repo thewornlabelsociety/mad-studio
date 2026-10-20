@@ -24,6 +24,14 @@ export const FEED_SHAPE: PlatformShape = {
   maxRatio: 0.8,
 }
 
+/** Instagram square feed posts: 1:1, 1080×1080 — filled with center crop (no stretch). */
+export const SQUARE_FEED_SHAPE: PlatformShape = {
+  width: 1080,
+  height: 1080,
+  minRatio: 1,
+  maxRatio: 1,
+}
+
 /** Stories, Reels covers and TikTok: 9:16 full screen, 1080×1920. */
 export const STORY_SHAPE: PlatformShape = {
   width: 1080,
@@ -124,4 +132,36 @@ export async function fitImageToShape(input: {
   ctx.drawImage(bitmap, (W - w) / 2, (H - h) / 2, w, h)
 
   return uploadCanvasImage(canvas, input.entityId, "platform-fit.png")
+}
+
+/** Fill the frame edge-to-edge with a center crop — same as CSS `object-fit: cover`. */
+export async function fitImageToShapeCover(input: {
+  entityId: string
+  sourceUrl: string
+  shape: PlatformShape
+}): Promise<string> {
+  const bitmap = await createImageBitmap(
+    await loadImageBlob(input.sourceUrl, input.entityId)
+  )
+  const { width: W, height: H } = input.shape
+  if (
+    bitmap.width === W &&
+    bitmap.height === H &&
+    fitsShape(bitmap.width / bitmap.height, input.shape)
+  ) {
+    return input.sourceUrl
+  }
+
+  const canvas = document.createElement("canvas")
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext("2d")
+  if (!ctx) throw new Error("Canvas unavailable.")
+
+  const scale = Math.max(W / bitmap.width, H / bitmap.height)
+  const dw = bitmap.width * scale
+  const dh = bitmap.height * scale
+  ctx.drawImage(bitmap, (W - dw) / 2, (H - dh) / 2, dw, dh)
+
+  return uploadCanvasImage(canvas, input.entityId, "platform-fit-cover.png")
 }

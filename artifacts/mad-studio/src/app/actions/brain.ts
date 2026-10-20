@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { assertBrainEntityAccess } from "@/lib/brain/entity-access"
+import { enrichSegmentForSave } from "@/lib/brain/audience-segment-display"
 import {
   guessDocType,
   type QuoteSource,
@@ -48,6 +49,40 @@ async function assertCanEdit(entityId: string) {
   }
 
   return { supabase, user, error: null as null }
+}
+
+const MAX_AUDIENCE_SEGMENTS = 5
+
+function parseAudienceSegmentsFromJson(raw: Json | null | undefined): AudienceSegment[] {
+  const segmentsRaw = Array.isArray(raw) ? raw : []
+  return segmentsRaw
+    .map((segment) => audienceSegmentSchema.safeParse(segment))
+    .filter((result) => result.success)
+    .map((result) => result.data)
+}
+
+function validateAudienceSegmentsInput(
+  segments: AudienceSegment[]
+): { ok: true; data: AudienceSegment[] } | { ok: false; error: string } {
+  const parsed = segments.map((segment) => audienceSegmentSchema.safeParse(segment))
+  const invalidCount = parsed.filter((result) => !result.success).length
+  if (invalidCount > 0) {
+    return {
+      ok: false,
+      error: `${invalidCount} segment(s) could not be saved — check segment names and required fields.`,
+    }
+  }
+  const audiences = parsed.map((result) => result.data!)
+  if (audiences.length === 0) {
+    return { ok: false, error: "Add at least one audience segment with a name." }
+  }
+  if (audiences.length > MAX_AUDIENCE_SEGMENTS) {
+    return {
+      ok: false,
+      error: `Maximum ${MAX_AUDIENCE_SEGMENTS} audience segments per brand.`,
+    }
+  }
+  return { ok: true, data: audiences }
 }
 
 function revalidateBrain(entityId: string) {
@@ -116,7 +151,8 @@ export async function saveCanvasLayouts(input: {
 export async function saveEntityDna(input: {
   entityId: string
   brandIdentity: BrandIdentity
-  audienceSegments: AudienceSegment[]
+  /** Omit when updating brand identity only — keeps existing segments in the DB. */
+  audienceSegments?: AudienceSegment[]
   industry?: string
   businessModel?: string
 }): Promise<ActionResult> {
@@ -125,18 +161,36 @@ export async function saveEntityDna(input: {
     return { ok: false, error: "Brand identity is incomplete." }
   }
 
-  const audiences = input.audienceSegments
-    .map((segment) => audienceSegmentSchema.safeParse(segment))
-    .filter((result) => result.success)
-    .map((result) => result.data)
-
-  if (audiences.length === 0) {
-    return { ok: false, error: "Add at least one audience segment." }
-  }
-
   const auth = await assertCanEdit(input.entityId)
   if (auth.error) {
     return { ok: false, error: auth.error }
+  }
+
+  const { data: row, error: readError } = await auth.supabase
+    .from("entities")
+    .select("audience_segments")
+    .eq("id", input.entityId)
+    .single()
+
+  if (readError || !row) {
+    return { ok: false, error: readError?.message ?? "Entity not found." }
+  }
+
+  let audiences: AudienceSegment[]
+  if (input.audienceSegments !== undefined) {
+    const validated = validateAudienceSegmentsInput(input.audienceSegments)
+    if (!validated.ok) {
+      return validated
+    }
+    audiences = validated.data
+  } else {
+    audiences = parseAudienceSegmentsFromJson(row.audience_segments)
+    if (audiences.length === 0) {
+      return {
+        ok: false,
+        error: "Add at least one audience segment under Brain → Audiences.",
+      }
+    }
   }
 
   const layouts = await currentCanvasLayouts(auth.supabase, input.entityId)
@@ -160,6 +214,55 @@ export async function saveEntityDna(input: {
 
   revalidateBrain(input.entityId)
   return { ok: true }
+}
+
+/** Persist audience rows only — does not re-send brand identity from the client. */
+export async function saveAudienceSegments(input: {
+  entityId: string
+  audienceSegments: AudienceSegment[]
+}): Promise<ActionResult<{ segments: AudienceSegment[] }>> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error) {
+    return { ok: false, error: auth.error }
+  }
+
+  const enriched = input.audienceSegments.map(enrichSegmentForSave)
+  const validated = validateAudienceSegmentsInput(enriched)
+  if (!validated.ok) {
+    return validated
+  }
+
+  const { data: updated, error } = await auth.supabase
+    .from("entities")
+    .update({
+      audience_segments: validated.data as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.entityId)
+    .select("audience_segments")
+    .single()
+
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+  if (!updated) {
+    return {
+      ok: false,
+      error: "Audience save failed — no rows updated. Check edit access for this brand.",
+    }
+  }
+
+  const persisted = parseAudienceSegmentsFromJson(updated.audience_segments)
+  if (persisted.length !== validated.data.length) {
+    return {
+      ok: false,
+      error:
+        "Save did not fully persist — one or more segments failed validation when read back.",
+    }
+  }
+
+  revalidateBrain(input.entityId)
+  return { ok: true, data: { segments: persisted } }
 }
 
 export async function saveVisualPresets(input: {

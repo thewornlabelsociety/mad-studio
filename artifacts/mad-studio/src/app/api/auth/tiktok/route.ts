@@ -35,19 +35,8 @@ export async function GET(request: NextRequest) {
   }
 
   const params = request.nextUrl.searchParams
-  let entityId = params.get("entityId")?.trim() || null
-  if (!entityId) {
-    const brand = params.get("brand")?.toLowerCase().includes("fudi")
-      ? "%fudi%"
-      : "%worn%"
-    const { data: entity } = await supabase
-      .from("entities")
-      .select("id")
-      .ilike("name", brand)
-      .limit(1)
-      .maybeSingle()
-    entityId = entity?.id ?? null
-  }
+  const entityId = params.get("entityId")?.trim() || null
+  // Require explicit entity — never fall back to FÜDI/Worn name matching.
   if (!entityId) return settingsRedirect(request, "tiktok_error", "brand")
 
   const { data: canManage } = await supabase.rpc("has_entity_access", {
@@ -71,6 +60,9 @@ export async function GET(request: NextRequest) {
   authorize.searchParams.set("response_type", "code")
   authorize.searchParams.set("redirect_uri", tiktokRedirectUri())
   authorize.searchParams.set("state", state)
+  // Force TikTok account picker — without this, browser SSO reuses the last
+  // logged-in brand account (often FÜDI) when reconnecting Worn Label.
+  authorize.searchParams.set("disable_auto_auth", "1")
 
   const response = NextResponse.redirect(authorize)
   response.cookies.set(TIKTOK_STATE_COOKIE, JSON.stringify({ state, entityId }), {

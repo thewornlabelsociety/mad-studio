@@ -1,14 +1,6 @@
 import { z } from "zod"
 
-/** Mirrors MAD Studio FÜDI drop kind ids (see mad-studio `lib/today/agenda.ts`). */
-export type FudiDropKind =
-  | "foodie_post"
-  | "eatery_spotlight"
-  | "platform_promo"
-  | "dish_drop"
-  | "live_deal"
-  | "event"
-  | "pantry"
+import type { FudiDropKind } from "@/lib/today/agenda"
 
 export const mapIntentAvailableOptionsSchema = z.object({
   dropTypes: z
@@ -51,6 +43,12 @@ export const mapIntentRequestSchema = z.object({
   aestheticTags: z.array(z.string().max(80)).max(12).default([]),
   concreteFeatures: z.array(z.string().max(120)).max(16).default([]),
   optionSource: mapIntentOptionSourceSchema,
+  /** Retail focus: only map pillar/vibe — skip persona/hook/cta in the handler. */
+  retailTopicOnly: z.boolean().optional(),
+  audienceToneCue: z.string().max(400).optional(),
+  postFocusLabel: z.string().max(120).optional(),
+  stillPhotoCount: z.number().int().min(0).max(20).optional(),
+  brandProfileId: z.string().max(40).optional(),
 })
 
 /** Model output — string label per dropdown (or Custom… + custom* companion). */
@@ -62,6 +60,14 @@ export const mapIntentModelSchema = z.object({
   hookBlueprint: z.string(),
   cta: z.string(),
   customDropType: z.string().optional().nullable(),
+  customListingVibe: z.string().optional().nullable(),
+  customContentPillar: z.string().optional().nullable(),
+})
+
+/** Retail / fashion — topic line only (operator sets tone & hooks manually). */
+export const mapIntentRetailTopicSchema = z.object({
+  listingVibe: z.string(),
+  contentPillar: z.string(),
   customListingVibe: z.string().optional().nullable(),
   customContentPillar: z.string().optional().nullable(),
 })
@@ -144,14 +150,7 @@ function pickIdByLabel(
   for (const label of labels) {
     if (label.toLowerCase() === lower) return labelToId[label] ?? fallbackId
   }
-  for (const label of labels) {
-    if (
-      label.toLowerCase().includes(lower) ||
-      lower.includes(label.toLowerCase())
-    ) {
-      return labelToId[label] ?? fallbackId
-    }
-  }
+  // No substring guessing — wrong persona/hook matches were a common failure mode.
   return fallbackId
 }
 

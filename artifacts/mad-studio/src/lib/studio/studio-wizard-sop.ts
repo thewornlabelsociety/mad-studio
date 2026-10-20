@@ -26,16 +26,18 @@ export const STUDIO_WIZARD_STEP_SOP: Record<
     hint: "Add at least one still or reel from the library or upload — preview starts on Intent.",
     checklist: [
       "Open Add → pick intake or uploads (carousel = 2+ stills).",
-      "Select the hero clip in the tray; use CapCut / PhotoRoom if you need an edit.",
+      "Select the hero clip in the tray; drag thumbnails to set carousel order; use CapCut / PhotoRoom if you need an edit.",
       "Optional: transparent cutout for Story before you leave Media.",
     ],
   },
   [WORKBENCH_STEP_INTENT]: {
-    hint: "Lock drop type, vibe, pillar, persona, hook blueprint, and CTA — channels come on Schedule.",
+    hint: "Audience tone + post focus + what it is about (retail). FÜDI: drop type & vibe. Hook/CTA on Schedule.",
     checklist: [
-      "Set FÜDI drop type or listing vibe (Custom if needed).",
-      "Pick content pillar and audience persona from Brain DNA.",
-      "Choose hook blueprint + conversion CTA — they feed Copy and formulas.",
+      "Pick audience tone (who you are talking to).",
+      "Pick post focus chips (e.g. Drive Sales vs Build Hype).",
+      "Set what the post is about — entity content pillar or custom line.",
+      "FÜDI: drop type and listing vibe. Optional: expand Advanced for persona/hook/CTA.",
+      "Formula hook + CTA: Schedule step when you render a $0 pack.",
     ],
   },
   [WORKBENCH_STEP_CANVAS]: {

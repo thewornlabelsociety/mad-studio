@@ -25,6 +25,7 @@ import {
 } from "@/components/studio/review-before-schedule"
 import { brandSwatches, resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { SchedulerChannel } from "@/lib/scheduling/brain-timing"
+import { stripMarkdown } from "@/lib/scheduling/pack-payload"
 import { IntentMatrix } from "@/components/studio/intent-matrix"
 import { PackResultsEditor } from "@/components/studio/pack-results-editor"
 import { CompactChannelRail } from "@/components/studio/compact-channel-rail"
@@ -57,6 +58,7 @@ import {
   canvasOverlayHasDecor,
   normalizeCanvasTextOverlay,
   DEFAULT_CANVAS_TEXT_OVERLAY,
+  canvasOverlayWithoutCopy,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
 import {
@@ -72,7 +74,19 @@ import { OptimizationTagsEditor } from "@/components/inventory/optimization-tags
 import {
   buildStudioOptimizationTags,
   mergeCaptionWithTags,
+  OPTIMIZATION_TAG_MAX,
 } from "@/lib/inventory/optimization-tags"
+import {
+  listingCaptionForPost,
+  listingTagsForPost,
+  mergeTagSuggestions,
+  mergeTrayIntakeCaptions,
+} from "@/lib/studio/intake-listing-copy"
+import {
+  buildCarouselPackContext,
+  mergedCarouselVision,
+} from "@/lib/studio/carousel-pack-context"
+import { sanitizeBrandName } from "@/lib/copy/caption-hygiene"
 import type { MediaKind } from "@/lib/media/kind"
 import { Button } from "@/components/ui/button"
 import {
@@ -104,6 +118,7 @@ import {
   type ChannelSlot,
 } from "@/lib/scheduling/brain-timing"
 import {
+  AUDIENCE_TONE_META,
   audienceToneCue,
   type AudienceTone,
 } from "@/lib/studio/audience-tone"
@@ -127,6 +142,11 @@ import {
 } from "@/lib/studio/fudi-tracks"
 import { FormulaBankPanel } from "@/components/studio/formula-bank-panel"
 import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
+import {
+  objectiveForIntentChip,
+  personaForAudienceTone,
+  studioTargetGoal,
+} from "@/lib/studio/intent-focus"
 import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
 import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import type { CanvasItemFacts } from "@/components/studio/canvas-text-overlay"
@@ -138,6 +158,7 @@ import {
   defaultLayoutOverlay,
   layoutFromOverlay,
   layoutWantsBackdrop,
+  type LayoutWordingMode,
   type SavedCanvasLayout,
 } from "@/lib/studio/canvas-layouts"
 import { saveCanvasLayouts } from "@/lib/actions"
@@ -225,7 +246,16 @@ export function StudioWorkspace({
       ),
     [studioPresets.intentChips]
   )
-  const [objective, setObjective] = useState(objectives[0] ?? "")
+  const [objective, setObjective] = useState(() =>
+    objectiveForIntentChip(
+      resolveIndustryProfile({
+        name: activeEntity.name,
+        industry: activeEntity.industry,
+      }).id,
+      studioPresets.intentChips[0]?.id ?? "drive_sales",
+      studioPresets.intentChips[0]?.label ?? "Drive Sales"
+    )
+  )
   const brandProfileId = resolveIndustryProfile({
     name: activeEntity.name,
     industry: activeEntity.industry,
@@ -276,10 +306,6 @@ export function StudioWorkspace({
     () => activeEntity.brand_identity.canvas_layouts ?? []
   )
   const [layoutsBusy, setLayoutsBusy] = useState(false)
-  const defaultLayout = useMemo(
-    () => defaultLayoutOverlay(canvasLayouts),
-    [canvasLayouts]
-  )
   const [lastOverlayStyle, setLastOverlayStyle] =
     useState<CanvasTextOverlayState>(() => {
       const fromDefault = defaultLayoutOverlay(
@@ -307,11 +333,8 @@ export function StudioWorkspace({
   // or cutout — those belong to that slide's own item.
   const freshOverlayFor = (key: string): CanvasTextOverlayState => {
     const item = slideFacts[key]
-    return {
+    return canvasOverlayWithoutCopy({
       ...lastOverlayStyle,
-      // A default layout's starter wording carries onto new slides.
-      headline: defaultLayout?.headline ?? "",
-      subhead: defaultLayout?.subhead ?? "",
       tagBrand: item?.brand ?? "",
       tagSize: item?.size ?? "",
       tagPrice: item?.price ?? "",
@@ -319,7 +342,7 @@ export function StudioWorkspace({
       backdropEnabled: false,
       cutoutUrl: "",
       cutoutSourceUrl: "",
-    }
+    })
   }
   const textOverlay: CanvasTextOverlayState =
     slideOverlays[overlayKey] ?? freshOverlayFor(overlayKey)
@@ -367,6 +390,32 @@ export function StudioWorkspace({
 
   const selectedPersona =
     personas.find((persona) => persona.id === personaId) ?? personas[0] ?? null
+  const resolvedPersona =
+    selectedPersona ?? personaForAudienceTone(audienceTone, personas)
+  const resolvedFocusChip = useMemo(
+    () =>
+      consumerIntentChips.find((chip) => chip.id === intentChipId) ??
+      studioPresets.intentChips[0] ??
+      null,
+    [consumerIntentChips, intentChipId, studioPresets.intentChips]
+  )
+  const packTargetGoal = useMemo(() => {
+    if (isFudi) return `${objective} — ${toneGoalSuffix}`
+    if (!resolvedFocusChip) return `${objective} — ${toneGoalSuffix}`
+    return studioTargetGoal({
+      chip: resolvedFocusChip,
+      contentPillar,
+      audienceToneCue: toneGoalSuffix,
+      profileId: brandProfileId,
+    })
+  }, [
+    isFudi,
+    objective,
+    toneGoalSuffix,
+    resolvedFocusChip,
+    contentPillar,
+    brandProfileId,
+  ])
 
   const activeForecastingTag = useMemo(
     () =>
@@ -419,8 +468,35 @@ export function StudioWorkspace({
   function onIntentChipSelect(chip: StudioIntentChip) {
     setIntentChipId(chip.id)
     setIntent(chip.intent)
+    setObjective(
+      objectiveForIntentChip(brandProfileId, chip.id, chip.label)
+    )
     applySparkDispatchChannels({ intentChipId: chip.id, hookId: chip.id })
   }
+
+  useEffect(() => {
+    const profile = resolveIndustryProfile({
+      name: activeEntity.name,
+      industry: activeEntity.industry,
+    })
+    setContentPillar((current) => {
+      if (current.trim()) return current
+      const fromEntity = activeEntity.content_pillars?.[0]?.trim()
+      if (fromEntity) return fromEntity
+      return profile.contentPillars[0] ?? ""
+    })
+  }, [activeEntity.id, activeEntity.content_pillars, activeEntity.industry, activeEntity.name])
+
+  useEffect(() => {
+    const trimmed = rawSpark.trim()
+    if (!trimmed) return
+    setFormulaSlots((prev) => ({
+      ...prev,
+      campaignLine: prev.campaignLine.trim() ? prev.campaignLine : trimmed,
+      item: prev.item.trim() ? prev.item : trimmed.slice(0, 80),
+      brand: prev.brand.trim() ? prev.brand : activeEntity.name,
+    }))
+  }, [rawSpark, activeEntity.name])
 
   const sparkLength = rawSpark.length
   const showStudio = Boolean(preview && pack)
@@ -452,15 +528,45 @@ export function StudioWorkspace({
     activeEntity.industry,
     visualInspection,
   ])
+  const carouselPackContext = useMemo(
+    () =>
+      buildCarouselPackContext({
+        assets: mediaAssets,
+        slideFacts,
+      }),
+    [mediaAssets, slideFacts]
+  )
+  const carouselMergedVision = useMemo(
+    () =>
+      mergedCarouselVision({
+        assets: mediaAssets,
+        activeDescription: visualInspection?.visualDescription ?? null,
+      }),
+    [mediaAssets, visualInspection?.visualDescription]
+  )
+  const trayIntakeTagSuggestions = useMemo(
+    () =>
+      mergeTagSuggestions(
+        ...mediaAssets.map((row) => row.intakeTags ?? []),
+        ...carouselPackContext.brands.map(
+          (brand) => sanitizeBrandName(brand) || brand
+        ),
+        ...carouselPackContext.vibes
+      ),
+    [mediaAssets, carouselPackContext.brands, carouselPackContext.vibes]
+  )
   const suggestedOptimizationTags = useMemo(
     () =>
-      buildStudioOptimizationTags({
-        brandName: activeEntity.name,
-        industry: activeEntity.industry,
-        listingVibe: postIntent.listingVibe || null,
-        titleHint: workbenchHeadline || rawSpark.slice(0, 80),
-        aestheticSlugs: visualInspection?.aestheticTags ?? [],
-      }),
+      mergeTagSuggestions(
+        buildStudioOptimizationTags({
+          brandName: activeEntity.name,
+          industry: activeEntity.industry,
+          listingVibe: postIntent.listingVibe || null,
+          titleHint: workbenchHeadline || rawSpark.slice(0, 80),
+          aestheticSlugs: visualInspection?.aestheticTags ?? [],
+        }),
+        trayIntakeTagSuggestions
+      ).slice(0, OPTIMIZATION_TAG_MAX + 4),
     [
       activeEntity.name,
       activeEntity.industry,
@@ -468,7 +574,31 @@ export function StudioWorkspace({
       workbenchHeadline,
       rawSpark,
       visualInspection?.aestheticTags,
+      trayIntakeTagSuggestions,
     ]
+  )
+
+  const applyIntakeFromTray = useCallback(
+    (assets: MediaAsset[], options?: { forceCaption?: boolean }) => {
+      const mergedCaption = mergeTrayIntakeCaptions(
+        assets.map((row) => row.intakeCaption)
+      )
+      if (
+        mergedCaption &&
+        (options?.forceCaption || rawSpark.trim().length < 8)
+      ) {
+        setRawSpark(mergedCaption.slice(0, RAW_SPARK_MAX))
+      }
+      const trayTags = mergeTagSuggestions(
+        ...assets.map((row) => row.intakeTags ?? [])
+      )
+      if (trayTags.length === 0) return
+      setOptimizationTags((current) => {
+        if (current.length > 0 && !options?.forceCaption) return current
+        return trayTags.slice(0, OPTIMIZATION_TAG_MAX)
+      })
+    },
+    [rawSpark]
   )
 
   const liveRedirectSlugSeed = useMemo(() => {
@@ -612,7 +742,19 @@ export function StudioWorkspace({
             rows.length === 1 && format === "carousel" ? media : media.slice(0, 1)
           chosen.forEach((m, index) => {
             const id = `team-${row.item.id}-${index}`
-            assets.push({ id, url: m.url, publicUrl: m.url, type: m.kind })
+            assets.push({
+              id,
+              url: m.url,
+              publicUrl: m.url,
+              type: m.kind,
+              marketingEntityId: row.item.id,
+              intakeCaption: listingCaptionForPost(row.item),
+              intakeTags: listingTagsForPost({
+                item: row.item,
+                brandName: activeEntity.name,
+                industry: activeEntity.industry,
+              }),
+            })
             facts[id] = row.facts
           })
         }
@@ -622,6 +764,7 @@ export function StudioWorkspace({
         }
         const tray = assets.slice(0, 10)
         onMediaAssetsChange(tray)
+        applyIntakeFromTray(tray, { forceCaption: true })
         setActiveMediaId(tray[0].id)
         setSlideFacts(facts)
         setSimPlatform(format === "story" ? "ig_story" : "ig_feed")
@@ -641,11 +784,17 @@ export function StudioWorkspace({
   }, [rehydrating])
 
   function applyNewArrival(suggestion: NewArrivalSuggestion) {
+    const intake = {
+      marketingEntityId: suggestion.item.id,
+      intakeCaption: suggestion.intakeCaption,
+      intakeTags: suggestion.intakeTags,
+    }
     const all: MediaAsset[] = suggestion.media.map((row, index) => ({
       id: `arrival-${suggestion.item.id}-${index}`,
       url: row.url,
       publicUrl: row.url,
       type: row.kind,
+      ...intake,
     }))
     const firstVideo = all.find((row) => row.type === "video")
     const firstPhoto = all.find((row) => row.type !== "video") ?? all[0]
@@ -671,6 +820,7 @@ export function StudioWorkspace({
     const next = append ? [...existing, ...fresh].slice(0, 10) : chosen
     const added = next.filter((row) => !append || fresh.includes(row))
     onMediaAssetsChange(next)
+    applyIntakeFromTray(next, { forceCaption: true })
     setActiveMediaId(added[0]?.id ?? next[0].id)
     setSimPlatform(
       next.length >= 2
@@ -821,7 +971,11 @@ export function StudioWorkspace({
     )
   }
 
-  function applyLayout(layoutId: string, scope: "slide" | "all") {
+  function applyLayout(
+    layoutId: string,
+    scope: "slide" | "all",
+    wording: LayoutWordingMode = "keep-slide"
+  ) {
     const layout = canvasLayouts.find((row) => row.id === layoutId)
     if (!layout) return
     const photos = mediaAssets.filter((row) => row.type !== "video")
@@ -830,6 +984,7 @@ export function StudioWorkspace({
         ? photos.map((row) => row.id)
         : [overlayKey]
     const brandLogo = brandVisualPresets.logo_url ?? ""
+    let lastApplied: CanvasTextOverlayState | null = null
     setSlideOverlays((all) => {
       const next = { ...all }
       for (const id of ids) {
@@ -837,18 +992,24 @@ export function StudioWorkspace({
         const applied = applyLayoutToOverlay({
           layout,
           slide: { ...slide, logoUrl: brandLogo || slide.logoUrl },
+          wording,
         })
         // Backdrop needs this photo's own cutout; that's made below.
         next[id] = {
           ...applied,
           backdropEnabled: applied.backdropEnabled && Boolean(slide.cutoutUrl),
         }
+        lastApplied = next[id]!
       }
       return next
     })
-    setLastOverlayStyle(normalizeCanvasTextOverlay(layout.overlay))
+    if (lastApplied) {
+      setLastOverlayStyle(canvasOverlayWithoutCopy(lastApplied))
+    }
     toast.success(
-      `"${layout.name}" applied to ${ids.length === 1 ? "this slide" : `all ${ids.length} slides`}`
+      wording === "keep-slide"
+        ? `"${layout.name}" style applied to ${ids.length === 1 ? "this slide" : `${ids.length} slides`} — your words kept.`
+        : `"${layout.name}" applied to ${ids.length === 1 ? "this slide" : `${ids.length} slides`}.`
     )
     if (layoutWantsBackdrop(layout)) {
       const look = normalizeCanvasTextOverlay(layout.overlay)
@@ -885,8 +1046,12 @@ export function StudioWorkspace({
       url: item.url,
       publicUrl: item.url,
       type: item.kind,
+      marketingEntityId: item.marketingEntityId,
+      intakeCaption: item.intakeCaption ?? null,
+      intakeTags: item.intakeTags ?? null,
     }))
     onMediaAssetsChange(assets)
+    applyIntakeFromTray(assets, { forceCaption: true })
     setActiveMediaId(assets[0]?.id ?? null)
     if (assets.length >= 2) {
       setSimPlatform("ig_feed")
@@ -1268,11 +1433,13 @@ export function StudioWorkspace({
       cta,
       slots: formulaSlots,
       spark,
+      brandFallback: activeEntity.name,
       campaignTitle:
-        [formulaSlots.brand, formulaSlots.item]
+        [formulaSlots.brand, formulaSlots.campaignLine || formulaSlots.item]
           .map((part) => part.trim())
           .filter(Boolean)
-          .join(" ") || undefined,
+          .join(" — ")
+          .slice(0, 80) || undefined,
     })
 
     setPack(withStudioTags(nextPack))
@@ -1305,12 +1472,14 @@ export function StudioWorkspace({
       setSystemError("RAW SPARK TOO SHORT. Give the multiplexer a real event.")
       return
     }
-    if (!objective) {
-      setSystemError("OBJECTIVE REQUIRED. Select a target from the Intent Matrix.")
+    if (!resolvedFocusChip) {
+      setSystemError("Pick a post focus on Intent (e.g. Drive Sales or Build Hype).")
       return
     }
-    if (!selectedPersona) {
-      setSystemError("PERSONA REQUIRED. Add audience DNA in Brain Lab first.")
+    if (!resolvedPersona) {
+      setSystemError(
+        "Add audience segments in Brain, or use the default Worn Label personas."
+      )
       return
     }
 
@@ -1322,8 +1491,8 @@ export function StudioWorkspace({
         body: JSON.stringify({
           entityId: activeEntity.id,
           eventDescription: spark,
-          targetGoal: `${objective} — ${toneGoalSuffix}`,
-          personaName: selectedPersona.name,
+          targetGoal: packTargetGoal,
+          personaName: resolvedPersona.name,
           intent,
           attachedImageUrl: apiImageUrl,
           fudiTrack: isFudi ? fudiTrack : null,
@@ -1372,8 +1541,8 @@ export function StudioWorkspace({
           mediaUrl: nextMedia,
           eventDescription: spark,
           intent,
-          objective,
-          personaName: selectedPersona.name,
+          objective: packTargetGoal,
+          personaName: resolvedPersona.name,
           fudiTrack: isFudi ? fudiTrack : null,
         })
         syncPackUrl(nextCampaignId)
@@ -1398,8 +1567,8 @@ export function StudioWorkspace({
       const result = await saveCampaign({
         entityId: activeEntity.id,
         eventDescription: rawSpark.trim(),
-        targetGoal: `${objective} — ${toneGoalSuffix}`,
-        targetSegment: selectedPersona?.name ?? null,
+        targetGoal: packTargetGoal,
+        targetSegment: resolvedPersona?.name ?? null,
         pack,
         status,
         mediaUrl: apiImageUrl,
@@ -1426,8 +1595,8 @@ export function StudioWorkspace({
         mediaUrl: studioMediaUrl,
         eventDescription: rawSpark.trim(),
         intent,
-        objective,
-        personaName: selectedPersona?.name ?? null,
+        objective: packTargetGoal,
+        personaName: resolvedPersona?.name ?? null,
         fudiTrack: isFudi ? fudiTrack : null,
       })
       syncPackUrl(result.campaignId)
@@ -1444,8 +1613,8 @@ export function StudioWorkspace({
       const result = await dispatchCampaignPack({
         entityId: activeEntity.id,
         eventDescription: rawSpark.trim(),
-        targetGoal: `${objective} — ${toneGoalSuffix}`,
-        targetSegment: selectedPersona?.name ?? null,
+        targetGoal: packTargetGoal,
+        targetSegment: resolvedPersona?.name ?? null,
         pack,
         status: "published",
         mediaUrl: apiImageUrl,
@@ -1499,7 +1668,8 @@ export function StudioWorkspace({
 
   function onArmPack(
     mediaByChannel?: MediaByChannel,
-    carouselUrls?: string[] | null
+    carouselUrls?: string[] | null,
+    storyUrls?: string[] | null
   ) {
     const blocker = armBlocker()
     if (blocker || !pack || !apiImageUrl) {
@@ -1513,8 +1683,8 @@ export function StudioWorkspace({
       const saved = await saveCampaign({
         entityId: activeEntity.id,
         eventDescription: rawSpark.trim(),
-        targetGoal: `${objective} — ${toneGoalSuffix}`,
-        targetSegment: selectedPersona?.name ?? null,
+        targetGoal: packTargetGoal,
+        targetSegment: resolvedPersona?.name ?? null,
         pack,
         status: "draft",
         mediaUrl: apiImageUrl,
@@ -1539,6 +1709,7 @@ export function StudioWorkspace({
         mediaUrl: apiImageUrl,
         mediaByChannel: mediaByChannel ?? null,
         carouselUrls: carouselUrls ?? null,
+        storyUrls: storyUrls ?? null,
         slugSeed: liveRedirectSlugSeed,
       })
       setArming(false)
@@ -1661,6 +1832,20 @@ export function StudioWorkspace({
   const simulatorContent = useMemo(() => {
     const usePackInPreview =
       Boolean(pack && showStudio && workbenchStep === WORKBENCH_STEP_CHANNELS)
+    const captionBody = rawSpark.trim()
+    const headlineLine =
+      workbenchHeadline.trim() ||
+      captionBody.split(/\n/)[0]?.trim().slice(0, 120) ||
+      activeEntity.name
+    const emailFields = pack
+      ? {
+          emailSubject: pack.email_drop.subject_line,
+          emailPreview:
+            pack.email_drop.preview_text ||
+            stripMarkdown(pack.email_drop.body_markdown).slice(0, 120),
+          emailBody: stripMarkdown(pack.email_drop.body_markdown),
+        }
+      : {}
     if (usePackInPreview && pack) {
       return {
         brandName: activeEntity.name,
@@ -1676,15 +1861,9 @@ export function StudioWorkspace({
           studioMediaUrl && /^https?:\/\//i.test(studioMediaUrl)
             ? studioMediaUrl
             : null,
-        emailSubject: pack.email_drop.subject_line,
-        emailPreview: pack.email_drop.preview_text,
+        ...emailFields,
       }
     }
-    const captionBody = rawSpark.trim()
-    const headlineLine =
-      workbenchHeadline.trim() ||
-      captionBody.split(/\n/)[0]?.trim().slice(0, 120) ||
-      activeEntity.name
     return {
       brandName: activeEntity.name,
       headline: headlineLine,
@@ -1695,6 +1874,7 @@ export function StudioWorkspace({
         studioMediaUrl && /^https?:\/\//i.test(studioMediaUrl)
           ? studioMediaUrl
           : null,
+      ...emailFields,
     }
   }, [
     activeEntity.name,
@@ -1716,10 +1896,15 @@ export function StudioWorkspace({
     mediaAssets.length > 0
       ? `Media attached · ${mediaAssets.length} asset${mediaAssets.length === 1 ? "" : "s"}`
       : "No media yet"
-  const intentStepSummary =
-    contentPillar.trim() || personaId
-      ? `${contentPillar.trim() || "Pillar"} · ${selectedPersona?.name ?? "Persona"}`
-      : "Intent & DNA"
+  const intentStepSummary = (() => {
+    const tone = AUDIENCE_TONE_META[audienceTone].short
+    const focus = resolvedFocusChip?.label ?? "Post focus"
+    const topic = contentPillar.trim()
+    if (!topic && !resolvedFocusChip) return "Intent & DNA"
+    return topic
+      ? `${tone} · ${focus} · ${topic.slice(0, 40)}${topic.length > 40 ? "…" : ""}`
+      : `${tone} · ${focus}`
+  })()
   const canvasStepSummary = (() => {
     const parts: string[] = []
     if (textOverlay.enabled && textOverlay.headline.trim()) {
@@ -1803,7 +1988,14 @@ export function StudioWorkspace({
               headline={workbenchHeadline}
               caption={rawSpark}
               listingVibe={postIntent.listingVibe || null}
-              visualDescription={visualInspection?.visualDescription ?? null}
+              visualDescription={
+                carouselPackContext.isCarousel
+                  ? carouselMergedVision.visualDescription ||
+                    visualInspection?.visualDescription ||
+                    null
+                  : visualInspection?.visualDescription ?? null
+              }
+              carouselPackContext={carouselPackContext}
               onTagsChange={setOptimizationTags}
             />
           ) : null
@@ -1826,35 +2018,27 @@ export function StudioWorkspace({
         }}
         topSlot={
           !isFudi ? (
-            <div className="space-y-3">
-              <IntentMatrix
-                brandProfileId={brandProfileId}
-                audienceTone={audienceTone}
-                onAudienceToneChange={setAudienceTone}
-                intentChips={consumerIntentChips}
-                intentChipId={intentChipId}
-                onIntentChipSelect={onIntentChipSelect}
-                outputFormats={fudiTrackPresets?.outputFormats ?? []}
-              />
-              <label className="grid gap-1.5">
-                <span className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
-                  Objective
-                </span>
-                <Select value={objective} onValueChange={setObjective}>
-                  <SelectTrigger className="w-full rounded-none border-2 border-mad-black text-sm shadow-keycap-sm">
-                    <SelectValue placeholder="Select objective" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-none border-2 border-mad-black">
-                    {objectives.map((item) => (
-                      <SelectItem key={item} value={item}>
-                        {item}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
-            </div>
+            <IntentMatrix
+              brandProfileId={brandProfileId}
+              audienceTone={audienceTone}
+              onAudienceToneChange={setAudienceTone}
+              intentChips={consumerIntentChips}
+              intentChipId={intentChipId}
+              onIntentChipSelect={onIntentChipSelect}
+              outputFormats={fudiTrackPresets?.outputFormats ?? []}
+            />
           ) : null
+        }
+        intentFieldSet={isFudi ? "full" : "focus"}
+        audienceToneCue={toneGoalSuffix}
+        postFocusLabel={resolvedFocusChip?.label ?? null}
+        stillPhotoCount={
+          mediaAssets.filter((row) => row.type !== "video").length
+        }
+        brandProfileId={brandProfileId}
+        carouselPackContext={carouselPackContext}
+        carouselMergedVision={
+          carouselMergedVision.visualDescription || null
         }
         footerSlot={null}
         canvasSlot={
@@ -2046,6 +2230,8 @@ export function StudioWorkspace({
             suggestionsSlot={
               <NewArrivalSuggestions
                 entityId={activeEntity.id}
+                brandName={activeEntity.name}
+                industry={activeEntity.industry}
                 isFashion={isFashionBrand}
                 onUse={applyNewArrival}
                 disabled={multiplexing || pending || rehydrating}
@@ -2055,6 +2241,9 @@ export function StudioWorkspace({
             activeId={activeMediaId}
             onAssetsChange={onMediaAssetsChange}
             onSelectMedia={onSelectStudioMedia}
+            brandName={activeEntity.name}
+            industry={activeEntity.industry}
+            onIntakeAssetsAdded={(added) => applyIntakeFromTray(added)}
             onVisualInspect={onVisualInspect}
             bridgePayload={{
               spokenHook: workbenchHeadline.trim() || rawSpark.trim().slice(0, 120),
@@ -2269,8 +2458,8 @@ export function StudioWorkspace({
                 brandName={activeEntity.name}
                 entityId={activeEntity.id}
                 eventDescription={rawSpark.trim()}
-                targetGoal={objective}
-                targetSegment={selectedPersona?.name ?? null}
+                targetGoal={packTargetGoal}
+                targetSegment={resolvedPersona?.name ?? null}
                 mediaUrl={studioMediaUrl}
                 mediaAssets={mediaAssets}
                 activeMedia={activeMedia}
@@ -2325,8 +2514,8 @@ export function StudioWorkspace({
             }))
             .filter((slide) => /^https?:\/\//i.test(slide.url))}
           onDropChannel={dropChannel}
-          onConfirm={(mediaByChannel, carouselUrls) =>
-            onArmPack(mediaByChannel, carouselUrls)
+          onConfirm={(mediaByChannel, carouselUrls, storyUrls) =>
+            onArmPack(mediaByChannel, carouselUrls, storyUrls)
           }
           confirming={arming}
         />
@@ -2334,6 +2523,8 @@ export function StudioWorkspace({
 
       <MediaLibraryDrawer
         entityId={activeEntity.id}
+        brandName={activeEntity.name}
+        industry={activeEntity.industry}
         open={mediaLibraryOpen}
         onOpenChange={setMediaLibraryOpen}
         onBuildCarousel={mountMediaLibraryCarousel}

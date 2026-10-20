@@ -189,10 +189,16 @@ export function SocialConnectionsPanel({
       }
       setConnections((rows) =>
         rows.map((row) =>
-          row.id === current.id ? { ...row, is_active: false } : row
+          row.platform === platform && row.is_active
+            ? { ...row, is_active: false }
+            : row
         )
       )
-      toast.success("Connection deactivated.")
+      toast.success(
+        platform === "tiktok"
+          ? "TikTok disconnected. Click Connect again — pick the Worn Label / brand account (not FÜDI). Use a private window if TikTok skips the login screen."
+          : "Connection deactivated."
+      )
       router.refresh()
     })
   }

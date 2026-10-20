@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-14j"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-21e"
 
 export type HelpSop = {
   title: string
@@ -214,9 +214,14 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         description: "Link uses /studio?eid=&itemId= for drop-scoped pack generation.",
       },
       {
+        name: "Website listing copy → Studio",
+        description:
+          "Photos pulled from the website (new arrivals, media library, Today build) carry the listing **description** and saved **copy_draft** into Studio. **Copy** prefills from that text (multi-item carousels join unique blocks). **Hashtags** chips include per-listing suggested tags (brand, garment, vibe from each row). Canvas tags still come from brand/size/price per slide. Prefer editing intake copy over Intent AI for Worn Label promos.",
+      },
+      {
         name: "Drop workbench (Media step)",
         description:
-          "Drop workbench: Phone preview keeps the same on-image text styling from Canvas through Copy and Schedule (photo + your font/color/tilt overlay). Hook and caption stay in the Copy fields, not burned on the photo unless Canvas text is enabled. Copy step tilt chips (−12° … +12°) and Canvas drag handles style text that bakes into the PNG on Save/Arm. **Clear on-image text** removes baked layers; re-save or download again for clean media. Story/TikTok download exports the source photo (plus Canvas text if enabled), not a phone-screenshot with extra words.",
+          "Drop workbench: New posts start with **no on-image words** — add headline/subhead only on **Canvas** (Words tab). Default brand layouts apply font/placement/shadow style only until you type on Canvas or **Apply layout** for saved starter wording. Hook and caption stay on **Copy**; they do not bake onto the photo unless you set Canvas text. Phone preview keeps Canvas styling through Copy and Schedule. **Clear on-image text** removes baked layers; re-save or download again for clean media.",
       },
     ],
     sop: {
@@ -239,6 +244,11 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Core DNA",
         description: "Tone, segments, value props; feeds Studio and pack generation.",
+      },
+      {
+        name: "Audiences → forecasting tag",
+        description:
+          "Brain → **Audiences** → expand a segment → edit fields (each row needs a **segment name**). **Quick add** presets match the **active brand** (Worn Label vs FÜDI vs generic). Click **[ Save all audiences ]** — saves only audience rows (not brand identity). Max 5 segments; toast shows errors if save fails. Edit **Forecasting & analytics tag** (slug, no #). Studio uses the tag for the **Audience persona** on Intent.",
       },
       {
         name: "Memory vault",
@@ -355,12 +365,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Intent step (Step 2)",
         description:
-          "FÜDI drop type and listing vibe use dropdowns with a Custom… option (free-text when custom). Content pillar, persona, hook blueprint, and CTA are dropdowns tied to Brain DNA — no channel-hint pills on Intent; pick channels on Schedule.",
+          "Retail/fashion: **Audience tone**, **Post focus** chips (Drive Sales, Build Hype, etc.), and **What is this post about?** (entity content pillars — defaults from brand profile). No separate Objective dropdown — AI target is built from focus + pillar + tone. Hook blueprint and CTA move to **Schedule** (formula bank); expand **Optional** on Intent if you need persona overrides. FÜDI keeps drop type, vibe, and full DNA dropdowns.",
       },
       {
         name: "Auto-suggest intent from media",
         description:
-          "On Step 2, Auto-Suggest Intent from Media maps drop type, vibe, pillar, persona, hook, and CTA from your attached image or reel (Gemini). If Step 1 vision has not run yet, the button inspects the public media URL on click. AI-filled dropdowns show a sparkle icon; change any field manually to override or pick Custom… for free text.",
+          "Optional on Intent. **Retail:** only suggests **What is this post about?** (pillar) from vision — it does not change audience tone, hook, or CTA. **FÜDI:** maps drop type, vibe, pillar, persona, hook, and CTA. Uses brand profile rules and your selected tone/focus; exact label matching (no fuzzy guess). Always review before continuing — AI is often wrong on promos and carousels.",
       },
       {
         name: "In-flow wizard SOP",
@@ -370,12 +380,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Copy step",
         description:
-          "Single card: caption beside optional opening line. **Suggest with AI** (caption only) runs vision + Intent + Canvas context — not for hooks. **Opening lines from Brain** are deterministic chips from media/intent (tap to apply). **Hashtags · Meta & TikTok** sits at the bottom of the card: suggested chips (brand, locality, vibe, vision tags), **AI suggest**, and a custom hashtag field (max 8). Tags append to the caption in the preview and are saved into the pack on Generate. TikTok preview shows still photos too (labelled *Photo preview*); TikTok API posting still needs a video. Formula bank is on Schedule.",
+          "Single card: caption beside optional opening line. **Carousels (2+ stills):** **Suggest with AI** and **Hashtags · AI suggest** use every slide — brands/vibes/listing copy from intake + merged vision per inspected photo — to write one overall edit caption and tags for all designers in the tray (not only the selected thumbnail). **Opening lines from Brain** are generic entity hooks; for carousels prefer your intake caption or AI caption over a single-item hook. Brain DNA (tone, forbidden words) shapes AI but you do not train carousel logic separately — link each slide to its listing (library / new arrivals) so brands and website copy flow in.",
       },
       {
         name: "Formula bank ($0 render)",
         description:
-          "Schedule step (before generate): pick hook, visual direction, and CTA presets; fill bracket slots. **Render formula pack** builds the 5-piece pack locally with no Gemini tokens.",
+          "Schedule step (before generate): pick hook, visual direction, and CTA presets; fill bracket slots. Worn Label defaults to **Carousel / brand promo** for multi-image campaigns (campaign line = Copy spark; brand prefills from entity name). Inventory hooks (Just Landed, size, prices) are for single-piece posts. **Render formula pack** builds the 5-piece pack locally with no Gemini tokens. Review blocks only missing **prices**; other unfilled slots warn but still allow preview/export.",
       },
       {
         name: "AI pack (Gemini)",
@@ -389,12 +399,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Media library & carousel",
         description:
-          "Media tray **Add** opens the entity media library (intake + uploads with [ FÜDI App ] / [ Upload ] badges). Select one or more → **Add to tray**, or **Upload new file** in the drawer. With multiple tray items, **IG Story** preview supports tap left/right on the phone, ‹ › arrows, progress-bar segments, and keyboard ← →; selection stays in sync with the tray. IG Feed uses carousel arrows when 2+ slides.",
+          "Media tray **Upload** picks multiple PNG/JPG/WEBP/MP4/MOV from your device (or drag onto the tray). **Library** opens entity media (intake + uploads with [ FÜDI App ] / [ Upload ] badges) — multi-select → **Add to tray**, or **Upload files** in the drawer. With 2+ tray items, **drag thumbnails** to change carousel order (numbered 1, 2, 3…); when the tray is linked to an inventory item, that order is saved on the item’s `images` list. **One tray for all channels**. **IG Feed** / **Facebook**: 2–10 stills → one **carousel** (1:1 center crop per slide). **IG Story**: 2–10 stills → **consecutive Story frames** in tray order (viewers tap through — same as multi-select in the Instagram app). Each slide keeps its own Canvas text when you arm from **Review**. Single-photo Story still letterboxes non–9:16 art on black. **IG Story** preview supports tap left/right, ‹ ›, progress segments, and keyboard ← →.",
       },
       {
         name: "On-canvas text styler",
         description:
-          "Canvas step: three columns — on-image copy, position & scale (alignment, size, tilt), typography (font, color, shadow). Drag the tight dashed box on Live preview. Below that, **Add on your phone after publish** lists native-only features (link sticker, music, poll, location, mentions, collab) plus **Copy link for sticker** when a trackable URL is set. Plain baked text only — no fake stickers in export.",
+          "Canvas step: three columns — on-image copy, position & scale (alignment, size, tilt), typography (font, color, shadow). Drag the tight dashed box on Live preview. **Saved layouts:** style the slide, then **Save** (beside Live preview) to store fonts, placement, tags, logo, backdrop, and optional starter headline/subhead on the brand. **Apply style** merges a saved layout onto the current slide without replacing words you already typed; **+ saved text** fills blank headline/subhead from the layout. Star a layout to use its styling on new posts (words still start empty until Canvas). Below that, **Add on your phone after publish** lists native-only features (link sticker, music, poll, location, mentions, collab) plus **Copy link for sticker** when a trackable URL is set. Plain baked text only — no fake stickers in export.",
       },
       {
         name: "CapCut bridge",
@@ -524,7 +534,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "TikTok",
         description:
-          "Settings → Connect with TikTok (Login Kit). OAuth stores access_token, refresh_token, and token_expires_at on social_connections. Env: TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI. Cron: GET/POST /api/cron/refresh-tiktok-tokens with Authorization Bearer CRON_SECRET (refresh when expiry is within 6h). Publish also refreshes inline when needed. Direct Post: .mp4/.mov via /api/media/proxy; Schedule **Video audio** (mute vs keep) runs ffmpeg on the API host before any platform pull. Unaudited apps: SELF_ONLY. Webhook fallback if no OAuth.",
+          "Settings → Social (with the correct brand selected) → Connect with TikTok. OAuth is **per entity** — Worn Label and FÜDI each keep their own connection. Connect forces TikTok’s account picker (`disable_auto_auth`) so the browser does not silently reuse the last TikTok login (often FÜDI). Disconnect deactivates all TikTok rows for that brand. Env: TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI. Cron: refresh-tiktok-tokens. Direct Post + Video audio as before; unaudited apps: SELF_ONLY.",
       },
       {
         name: "Outbound webhook",
@@ -535,10 +545,11 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       title: "Connect social accounts for publishing",
       audience: "Entity manager",
       steps: [
-        "Settings → Social → Connect with Meta for IG Feed / Facebook autopilot.",
-        "Connect with TikTok for Direct Post (video .mp4/.mov); Test Connection after OAuth.",
-        "Verify TikTok URL prefix / media proxy on madstudio.nz in the TikTok developer portal.",
-        "Studio Schedule → video: set **Video audio** (keep vs off) for FÜDI and other brands; download + link sticker for phone drop, or **Send via TikTok API** / autopilot Meta when connected.",
+        "Confirm the top-bar brand is the one you want (e.g. Worn Label Society), then Settings → Social.",
+        "Connect with Meta for IG Feed / Facebook autopilot.",
+        "Connect with TikTok — pick that brand’s TikTok account (not FÜDI). If TikTok skips login, use a private window or log out of TikTok in the browser, then Connect again.",
+        "Test Connection after OAuth. To switch accounts: Disconnect → Connect again and choose the other TikTok user.",
+        "Studio Schedule → video: set **Video audio** (keep vs off); download + link sticker for phone drop, or **Send via TikTok API** / autopilot Meta when connected.",
       ],
     },
   },

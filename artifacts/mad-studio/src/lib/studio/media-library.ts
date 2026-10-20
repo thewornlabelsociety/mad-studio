@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/client"
 import { detectMediaKindFromUrl } from "@/lib/media/kind"
+import { mapMarketingEntityRow } from "@/lib/inventory/types"
+import {
+  listingCaptionForPost,
+  listingTagsForPost,
+} from "@/lib/studio/intake-listing-copy"
 
 export type MediaLibraryOrigin = "fudi_intake" | "upload"
 
@@ -11,6 +16,8 @@ export type MediaLibraryItem = {
   sourceTitle: string
   marketingEntityId: string
   updatedAt: string
+  intakeCaption?: string
+  intakeTags?: string[]
 }
 
 const FUDI_SOURCE_TABLES = new Set([
@@ -45,12 +52,16 @@ function resolveOrigin(copyDraft: unknown, websiteItemId: string): MediaLibraryO
 
 export async function fetchEntityMediaLibrary(
   entityId: string,
-  limit = 80
+  limit = 80,
+  brandName?: string,
+  industry?: string | null
 ): Promise<MediaLibraryItem[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("marketing_entities")
-    .select("id, title, website_item_id, images, copy_draft, updated_at")
+    .select(
+      "id, entity_id, website_item_id, title, brand, price, description, images, status, metrics, scheduled_at, channels, copy_draft, published_media_ids, trackable_slug, published_at, created_at, updated_at"
+    )
     .eq("entity_id", entityId)
     .order("updated_at", { ascending: false })
     .limit(limit)
@@ -63,6 +74,22 @@ export async function fetchEntityMediaLibrary(
   for (const row of data ?? []) {
     const images = Array.isArray(row.images) ? row.images : []
     const origin = resolveOrigin(row.copy_draft, row.website_item_id ?? "")
+    let intakeCaption: string | undefined
+    let intakeTags: string[] | undefined
+    try {
+      const entity = mapMarketingEntityRow(row)
+      intakeCaption = listingCaptionForPost(entity) || undefined
+      if (brandName) {
+        intakeTags = listingTagsForPost({
+          item: entity,
+          brandName,
+          industry,
+        })
+      }
+    } catch {
+      intakeCaption = undefined
+      intakeTags = undefined
+    }
     for (const raw of images) {
       if (typeof raw !== "string" || !/^https?:\/\//i.test(raw.trim())) continue
       const url = raw.trim()
@@ -77,6 +104,8 @@ export async function fetchEntityMediaLibrary(
         sourceTitle: row.title?.trim() || "Untitled drop",
         marketingEntityId: row.id,
         updatedAt: row.updated_at ?? new Date().toISOString(),
+        intakeCaption,
+        intakeTags,
       })
     }
   }

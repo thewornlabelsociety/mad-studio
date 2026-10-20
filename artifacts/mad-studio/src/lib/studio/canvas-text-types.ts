@@ -295,7 +295,7 @@ export const DEFAULT_CANVAS_TEXT_OVERLAY: CanvasTextOverlayState = {
 
   color: "#FFFFFF",
 
-  shadow: "hard",
+  shadow: "none",
 
   highlight: "none",
 
@@ -458,6 +458,18 @@ export function clearCanvasTextOverlay(): CanvasTextOverlayState {
   }
 }
 
+/** Typography and placement only — no baked headline/subhead until Canvas. */
+export function canvasOverlayWithoutCopy(
+  overlay: CanvasTextOverlayState
+): CanvasTextOverlayState {
+  return normalizeCanvasTextOverlay({
+    ...overlay,
+    enabled: false,
+    headline: "",
+    subhead: "",
+  })
+}
+
 /** Drop ghost on-image text synced from caption/hook by mistake. */
 export function reconcileUnwantedCanvasTextOverlay(
   overlay: CanvasTextOverlayState,
@@ -602,7 +614,8 @@ export function normalizeCanvasTextOverlay(
 
     color: str("color", "#FFFFFF"),
 
-    shadow: (str("shadow", "hard") as CanvasTextShadow) || "hard",
+    shadow: (str("shadow", DEFAULT_CANVAS_TEXT_OVERLAY.shadow) as CanvasTextShadow) ||
+      DEFAULT_CANVAS_TEXT_OVERLAY.shadow,
 
     highlight: "none",
 

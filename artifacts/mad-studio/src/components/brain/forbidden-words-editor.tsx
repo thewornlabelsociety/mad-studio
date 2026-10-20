@@ -48,7 +48,6 @@ export function ForbiddenWordsEditor({ entity }: Props) {
           ...entity.brand_identity,
           forbidden_words: words,
         },
-        audienceSegments: entity.audience_segments,
         industry: entity.industry,
       })
       if (!result.ok) {

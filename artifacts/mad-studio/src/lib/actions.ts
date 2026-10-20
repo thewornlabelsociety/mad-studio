@@ -37,6 +37,8 @@ export const claimFirstOrgAdmin = async (...args: any[]) => {
   window.dispatchEvent(new Event("mad:refresh"))
 }
 export const saveEntityDna = (...args: any[]) => action("saveEntityDna", ...args)
+export const saveAudienceSegments = (...args: any[]) =>
+  action("saveAudienceSegments", ...args)
 export const saveVisualPresets = (...args: any[]) => action("saveVisualPresets", ...args)
 export const saveCanvasLayouts = (...args: any[]) => action("saveCanvasLayouts", ...args)
 export const commitScrapedDna = (...args: any[]) => action("commitScrapedDna", ...args)
@@ -60,6 +62,8 @@ export const getLatestStudioDraft = (...args: any[]) => action("getLatestStudioD
 export const saveCampaign = (...args: any[]) => action("saveCampaign", ...args)
 export const dispatchCampaignPack = (...args: any[]) => action("dispatchCampaignPack", ...args)
 export const appendInventoryImage = (...args: any[]) => action("appendInventoryImage", ...args)
+export const reorderInventoryImages = (...args: any[]) =>
+  action("reorderInventoryImages", ...args)
 export const removeInventoryImage = (...args: any[]) => action("removeInventoryImage", ...args)
 export const removeInventoryItem = (...args: any[]) => action("removeInventoryItem", ...args)
 export const approveMarketingEntity = (...args: any[]) => action("approveMarketingEntity", ...args)

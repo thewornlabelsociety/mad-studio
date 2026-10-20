@@ -92,6 +92,8 @@ export async function publishCampaignToSocials(
     placement: "feed" | "story"
     /** 2+ images → one feed carousel / multi-photo post. */
     carouselUrls?: string[] | null
+    /** 2+ images → consecutive Instagram Story frames. */
+    storyUrls?: string[] | null
   }
 ): Promise<CampaignPublishResult> {
   return postToPublishRoute(ctx, {
@@ -103,6 +105,10 @@ export async function publishCampaignToSocials(
     carouselUrls:
       input.placement === "feed" && (input.carouselUrls?.length ?? 0) >= 2
         ? input.carouselUrls
+        : undefined,
+    storyUrls:
+      input.placement === "story" && (input.storyUrls?.length ?? 0) >= 2
+        ? input.storyUrls
         : undefined,
     caption: input.caption,
     destinationUrl: input.destinationUrl ?? null,

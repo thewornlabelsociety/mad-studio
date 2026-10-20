@@ -1,8 +1,13 @@
 import type { SavedCanvasLayout } from "@/lib/entities/dna-schema"
 import {
+  canvasOverlayHasDecor,
+  canvasOverlayWithoutCopy,
   normalizeCanvasTextOverlay,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
+
+/** How saved headline/subhead interact with the slide you're editing. */
+export type LayoutWordingMode = "keep-slide" | "fill-empty"
 
 export type { SavedCanvasLayout }
 
@@ -34,25 +39,44 @@ export function layoutFromOverlay(
 export function applyLayoutToOverlay(input: {
   layout: SavedCanvasLayout
   slide: CanvasTextOverlayState
+  /** keep-slide = style only, never replace words already on this slide */
+  wording?: LayoutWordingMode
 }): CanvasTextOverlayState {
-  const { layout, slide } = input
+  const { layout, slide, wording = "keep-slide" } = input
   const look = normalizeCanvasTextOverlay(layout.overlay)
-  return normalizeCanvasTextOverlay({
+  const slideNorm = normalizeCanvasTextOverlay(slide)
+
+  const headline =
+    wording === "keep-slide"
+      ? slideNorm.headline
+      : slideNorm.headline.trim()
+        ? slideNorm.headline
+        : look.headline
+  const subhead =
+    wording === "keep-slide"
+      ? slideNorm.subhead
+      : slideNorm.subhead.trim()
+        ? slideNorm.subhead
+        : look.subhead
+
+  const merged = normalizeCanvasTextOverlay({
     ...look,
-    enabled: true,
-    headline: slide.headline.trim() ? slide.headline : look.headline,
-    subhead: slide.subhead.trim() ? slide.subhead : look.subhead,
+    headline,
+    subhead,
     tagNewLabel: look.tagNewLabel,
-    tagBrand: slide.tagBrand,
-    tagSize: slide.tagSize,
-    tagPrice: slide.tagPrice,
-    tagVibe: slide.tagVibe,
-    cutoutUrl: slide.cutoutUrl,
-    cutoutSourceUrl: slide.cutoutSourceUrl,
-    // Logo comes from the brand, so a layout saved before a logo change
-    // still shows the current one.
-    logoUrl: slide.logoUrl || look.logoUrl,
+    tagBrand: slideNorm.tagBrand,
+    tagSize: slideNorm.tagSize,
+    tagPrice: slideNorm.tagPrice,
+    tagVibe: slideNorm.tagVibe,
+    cutoutUrl: slideNorm.cutoutUrl,
+    cutoutSourceUrl: slideNorm.cutoutSourceUrl,
+    logoUrl: slideNorm.logoUrl || look.logoUrl,
+    backdropEnabled:
+      look.backdropEnabled && Boolean(slideNorm.cutoutUrl),
   })
+
+  const enabled = canvasOverlayHasDecor({ ...merged, enabled: true })
+  return { ...merged, enabled }
 }
 
 /** Starting point for a new post when a default layout is set. */
@@ -61,17 +85,19 @@ export function defaultLayoutOverlay(
 ): CanvasTextOverlayState | null {
   const layout = layouts?.find((row) => row.isDefault)
   if (!layout) return null
-  return normalizeCanvasTextOverlay({
-    ...layout.overlay,
-    tagBrand: "",
-    tagSize: "",
-    tagPrice: "",
-    tagVibe: "",
-    cutoutUrl: "",
-    cutoutSourceUrl: "",
-    // Backdrop needs each photo cut out first; it's switched on when applied.
-    backdropEnabled: false,
-  })
+  return canvasOverlayWithoutCopy(
+    normalizeCanvasTextOverlay({
+      ...layout.overlay,
+      tagBrand: "",
+      tagSize: "",
+      tagPrice: "",
+      tagVibe: "",
+      cutoutUrl: "",
+      cutoutSourceUrl: "",
+      // Backdrop needs each photo cut out first; it's switched on when applied.
+      backdropEnabled: false,
+    })
+  )
 }
 
 export function layoutWantsBackdrop(layout: SavedCanvasLayout): boolean {

@@ -40,7 +40,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 export const runtime = "nodejs"
-export const maxDuration = 60
+export const maxDuration = 180
 
 type DbClient =
   | Awaited<ReturnType<typeof createClient>>
@@ -774,34 +774,55 @@ export async function POST(request: Request) {
       metaMediaUrl = prepared.url
     }
 
+    async function ensureStillUrls(urls: string[]): Promise<string[]> {
+      const out: string[] = []
+      for (const slideUrl of urls) {
+        if (isPublishVideoUrl(slideUrl)) {
+          throw new Error(
+            "Multi-image posts with video aren't supported yet — use photos only."
+          )
+        }
+        const ensured = await ensurePublicMediaUrl({
+          mediaUrl: slideUrl,
+          entityId: entity.id,
+        })
+        out.push(ensured.url)
+      }
+      return out
+    }
+
     // Feed carousels: every slide must be a public still Meta can fetch.
     let carouselUrls: string[] | null = null
     if (input.carouselUrls?.length && placement === "feed") {
-      carouselUrls = []
-      for (const slideUrl of input.carouselUrls) {
-        if (isPublishVideoUrl(slideUrl)) {
-          return HttpResponse.json(
-            { error: "Carousels with video aren't supported yet — use photos only." },
-            { status: 400 }
-          )
-        }
-        try {
-          const ensured = await ensurePublicMediaUrl({
-            mediaUrl: slideUrl,
-            entityId: entity.id,
-          })
-          carouselUrls.push(ensured.url)
-        } catch (error) {
-          return HttpResponse.json(
-            {
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Every carousel slide must be a public HTTPS image.",
-            },
-            { status: 400 }
-          )
-        }
+      try {
+        carouselUrls = await ensureStillUrls(input.carouselUrls)
+      } catch (error) {
+        return HttpResponse.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Every carousel slide must be a public HTTPS image.",
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    let storyUrls: string[] | null = null
+    if (input.storyUrls?.length && placement === "story") {
+      try {
+        storyUrls = await ensureStillUrls(input.storyUrls)
+      } catch (error) {
+        return HttpResponse.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Every Story frame must be a public HTTPS image.",
+          },
+          { status: 400 }
+        )
       }
     }
 
@@ -813,6 +834,7 @@ export async function POST(request: Request) {
         caption,
         placement,
         carouselUrls,
+        storyUrls,
       })
     } catch (error) {
       const raw =

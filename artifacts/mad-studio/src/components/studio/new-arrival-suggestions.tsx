@@ -29,6 +29,8 @@ const FORMAT_ICONS: Record<SuggestedFormat, typeof Film> = {
 
 type Props = {
   entityId: string
+  brandName: string
+  industry?: string | null
   isFashion: boolean
   /** Loads the arrival; returns what to say and how to take it back out. */
   onUse: (
@@ -43,6 +45,8 @@ type Props = {
 /** Unposted new arrivals, each with the format that suits it best. */
 export function NewArrivalSuggestions({
   entityId,
+  brandName,
+  industry = null,
   isFashion,
   onUse,
   activeItemId = null,
@@ -57,13 +61,21 @@ export function NewArrivalSuggestions({
     setLoading(true)
     setError(null)
     try {
-      setRows(await fetchNewArrivalSuggestions({ entityId, isFashion, limit: 24 }))
+      setRows(
+        await fetchNewArrivalSuggestions({
+          entityId,
+          brandName,
+          industry,
+          isFashion,
+          limit: 24,
+        })
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't load new arrivals.")
     } finally {
       setLoading(false)
     }
-  }, [entityId, isFashion])
+  }, [entityId, brandName, industry, isFashion])
 
   useEffect(() => {
     void load()

@@ -8,13 +8,14 @@ import {
   useState,
   type DragEvent,
 } from "react"
-import { Eye, Loader2, Play, Plus, X } from "lucide-react"
+import { Eye, GripVertical, Loader2, Play, Plus, Upload, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
 import {
   appendInventoryImage,
   removeInventoryImage,
+  reorderInventoryImages,
 } from "@/lib/actions"
 import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import {
@@ -42,6 +43,12 @@ export type MediaAsset = {
   uploading?: boolean
   inspecting?: boolean
   visualInspection?: MediaVisualInspection | null
+  /** marketing_entities row when pulled from website / intake library. */
+  marketingEntityId?: string | null
+  /** Listing / website description for this slide's source item. */
+  intakeCaption?: string | null
+  /** Suggested discovery tags from that listing (no #). */
+  intakeTags?: string[] | null
 }
 
 export type ActiveMedia = {
@@ -56,10 +63,14 @@ const MAX_VIDEO_BYTES = 80 * 1024 * 1024
 
 type Props = {
   entityId: string
+  brandName?: string
+  industry?: string | null
   assets: MediaAsset[]
   activeId: string | null
   onAssetsChange: (assets: MediaAsset[]) => void
   onSelectMedia: (asset: MediaAsset) => void
+  /** Fired when library items with website copy are added to the tray. */
+  onIntakeAssetsAdded?: (assets: MediaAsset[]) => void
   /** Fired when vision inspect completes for an asset. */
   onVisualInspect?: (
     assetId: string,
@@ -142,10 +153,13 @@ export const mediaAssetsFromUrls = mediaAssetsFromImageUrls
 
 export function MediaTray({
   entityId,
+  brandName,
+  industry = null,
   assets,
   activeId,
   onAssetsChange,
   onSelectMedia,
+  onIntakeAssetsAdded,
   onVisualInspect,
   inventoryItemId = null,
   disabled = false,
@@ -155,8 +169,11 @@ export function MediaTray({
   const inputRef = useRef<HTMLInputElement>(null)
   const objectUrlsRef = useRef<Set<string>>(new Set())
   const assetsRef = useRef(assets)
-  const [dragging, setDragging] = useState(false)
+  const [fileDragging, setFileDragging] = useState(false)
+  const [dragAssetId, setDragAssetId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const reorderDirtyRef = useRef(false)
 
   useEffect(() => {
     assetsRef.current = assets
@@ -330,6 +347,9 @@ export function MediaTray({
           url,
           publicUrl: url,
           type: item.kind,
+          marketingEntityId: item.marketingEntityId,
+          intakeCaption: item.intakeCaption ?? null,
+          intakeTags: item.intakeTags ?? null,
         })
       }
 
@@ -342,6 +362,9 @@ export function MediaTray({
       assetsRef.current = next
       onAssetsChange(next)
       onSelectMedia(additions[0]!)
+      if (additions.some((row) => row.intakeCaption?.trim())) {
+        onIntakeAssetsAdded?.(additions)
+      }
 
       for (const asset of additions) {
         if (
@@ -411,10 +434,93 @@ export function MediaTray({
     toast.success("Media removed.")
   }
 
-  function onDrag(event: DragEvent, active: boolean) {
+  function isFileDrag(event: DragEvent) {
+    return Array.from(event.dataTransfer?.types ?? []).includes("Files")
+  }
+
+  function onFileDrag(event: DragEvent, active: boolean) {
+    if (!isFileDrag(event)) return
     event.preventDefault()
     event.stopPropagation()
-    if (!disabled) setDragging(active)
+    if (!disabled) setFileDragging(active)
+  }
+
+  const persistImageOrder = useCallback(
+    async (list: MediaAsset[]) => {
+      if (!inventoryItemId) return
+      const images = list
+        .filter((row) => row.type === "image")
+        .map((row) => (row.publicUrl || row.url).trim())
+        .filter((url) => /^https?:\/\//i.test(url))
+      if (images.length < 2) return
+
+      const result = await reorderInventoryImages({
+        entityId,
+        itemId: inventoryItemId,
+        images,
+      })
+      if (!result.ok) {
+        toast.warning(result.error)
+      }
+    },
+    [entityId, inventoryItemId]
+  )
+
+  function moveAssetBefore(fromId: string, toId: string) {
+    if (fromId === toId) return
+    const list = [...assetsRef.current]
+    const from = list.findIndex((row) => row.id === fromId)
+    const to = list.findIndex((row) => row.id === toId)
+    if (from < 0 || to < 0 || from === to) return
+    const [item] = list.splice(from, 1)
+    if (!item) return
+    list.splice(to, 0, item)
+    assetsRef.current = list
+    onAssetsChange(list)
+    reorderDirtyRef.current = true
+  }
+
+  function onAssetDragStart(event: DragEvent, asset: MediaAsset) {
+    if (disabled || asset.uploading || asset.inspecting) {
+      event.preventDefault()
+      return
+    }
+    event.stopPropagation()
+    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("text/mad-media-asset", asset.id)
+    event.dataTransfer.setData("text/plain", asset.id)
+    setDragAssetId(asset.id)
+    setDropTargetId(null)
+    reorderDirtyRef.current = false
+  }
+
+  function onAssetDragOver(event: DragEvent, targetId: string) {
+    if (isFileDrag(event)) return
+    if (!dragAssetId || dragAssetId === targetId) return
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = "move"
+    if (dropTargetId !== targetId) setDropTargetId(targetId)
+  }
+
+  function onAssetDrop(event: DragEvent, targetId: string) {
+    if (isFileDrag(event)) return
+    event.preventDefault()
+    event.stopPropagation()
+    const fromId =
+      event.dataTransfer.getData("text/mad-media-asset") ||
+      event.dataTransfer.getData("text/plain") ||
+      dragAssetId
+    if (fromId) moveAssetBefore(fromId, targetId)
+    setDropTargetId(null)
+  }
+
+  async function onAssetDragEnd() {
+    setDragAssetId(null)
+    setDropTargetId(null)
+    if (!reorderDirtyRef.current) return
+    reorderDirtyRef.current = false
+    await persistImageOrder(assetsRef.current)
   }
 
   const activeAsset =
@@ -431,7 +537,9 @@ export function MediaTray({
           Media tray
         </p>
         <p className="font-typewriter text-[0.7rem] font-bold tracking-wider text-neutral-500 uppercase">
-          PNG · JPG · WEBP · MP4 · MOV
+          {assets.length >= 2
+            ? "Drag to reorder · multi-upload OK"
+            : "Drop or upload multiple · PNG · JPG · WEBP · MP4 · MOV"}
         </p>
       </div>
 
@@ -458,29 +566,53 @@ export function MediaTray({
       <div
         className={cn(
           "flex gap-2 overflow-x-auto border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm",
-          dragging && "bg-mad-lime/40"
+          fileDragging && "bg-mad-lime/40"
         )}
-        onDragEnter={(event) => onDrag(event, true)}
-        onDragOver={(event) => onDrag(event, true)}
-        onDragLeave={(event) => onDrag(event, false)}
+        onDragEnter={(event) => onFileDrag(event, true)}
+        onDragOver={(event) => onFileDrag(event, true)}
+        onDragLeave={(event) => onFileDrag(event, false)}
         onDrop={(event) => {
-          onDrag(event, false)
+          if (!isFileDrag(event)) return
+          onFileDrag(event, false)
           void handleFiles(event.dataTransfer.files)
         }}
       >
-        {assets.map((asset) => {
+        {assets.map((asset, index) => {
           const active = asset.id === activeId
+          const canDrag =
+            !disabled && !asset.uploading && !asset.inspecting && assets.length >= 2
+          const isDragging = dragAssetId === asset.id
+          const isDropTarget = dropTargetId === asset.id && dragAssetId !== asset.id
           return (
-            <div key={asset.id} className="group relative shrink-0">
+            <div
+              key={asset.id}
+              className={cn(
+                "group relative shrink-0",
+                isDragging && "opacity-40",
+                isDropTarget && "ring-2 ring-mad-lime ring-offset-1"
+              )}
+              onDragOver={(event) => onAssetDragOver(event, asset.id)}
+              onDrop={(event) => onAssetDrop(event, asset.id)}
+            >
               <button
                 type="button"
+                draggable={canDrag}
+                onDragStart={(event) => onAssetDragStart(event, asset)}
+                onDragEnd={() => void onAssetDragEnd()}
                 onClick={() => onSelectMedia(asset)}
                 disabled={disabled}
+                title={canDrag ? "Drag to change carousel order" : undefined}
+                aria-label={
+                  canDrag
+                    ? `Media ${index + 1} of ${assets.length}. Drag to reorder.`
+                    : `Media ${index + 1}`
+                }
                 className={cn(
                   "relative size-16 overflow-hidden border-2 border-mad-black bg-neutral-200 transition",
                   active
                     ? "ring-2 ring-mad-vermillion ring-offset-1"
-                    : "opacity-80 hover:opacity-100"
+                    : "opacity-80 hover:opacity-100",
+                  canDrag && "cursor-grab active:cursor-grabbing"
                 )}
               >
                 {asset.type === "video" ? (
@@ -490,7 +622,7 @@ export function MediaTray({
                       muted
                       playsInline
                       preload="metadata"
-                      className="size-full object-cover"
+                      className="size-full object-cover pointer-events-none"
                     />
                     <span className="absolute right-1 bottom-1 flex size-5 items-center justify-center border border-mad-black bg-mad-black text-mad-lime">
                       <Play className="size-3 fill-current" aria-label="Video" />
@@ -501,9 +633,23 @@ export function MediaTray({
                   <img
                     src={asset.url}
                     alt=""
-                    className="size-full object-cover"
+                    draggable={false}
+                    className="size-full object-cover pointer-events-none"
                   />
                 )}
+                {assets.length >= 2 ? (
+                  <span className="absolute bottom-1 left-1 border border-mad-black bg-mad-white px-1 font-typewriter text-[0.65rem] font-bold text-mad-black">
+                    {index + 1}
+                  </span>
+                ) : null}
+                {canDrag ? (
+                  <span
+                    className="absolute top-1 right-1 flex size-4 items-center justify-center border border-mad-black bg-mad-white/90 text-mad-black opacity-0 transition group-hover:opacity-100"
+                    aria-hidden
+                  >
+                    <GripVertical className="size-2.5" />
+                  </span>
+                ) : null}
                 {asset.uploading || asset.inspecting ? (
                   <span className="absolute inset-0 flex items-center justify-center bg-mad-white/80">
                     <Loader2 className="size-4 animate-spin text-mad-black" />
@@ -531,7 +677,23 @@ export function MediaTray({
         <button
           type="button"
           disabled={disabled}
+          onClick={() => inputRef.current?.click()}
+          title="Upload one or more files from your device"
+          className={cn(
+            "flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 border-2 border-dashed border-mad-black bg-mad-white font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase transition hover:bg-mad-lime",
+            disabled && "pointer-events-none opacity-50"
+          )}
+        >
+          <Upload className="size-4" />
+          <span className="text-[0.7rem] font-medium tracking-wide uppercase">
+            Upload
+          </span>
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
           onClick={() => setLibraryOpen(true)}
+          title="Pick from entity media library"
           className={cn(
             "flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 border-2 border-dashed border-mad-black bg-mad-lime font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase transition hover:bg-mad-black hover:text-mad-white",
             disabled && "pointer-events-none opacity-50"
@@ -539,7 +701,7 @@ export function MediaTray({
         >
           <Plus className="size-4" />
           <span className="text-[0.7rem] font-medium tracking-wide uppercase">
-            Add
+            Library
           </span>
         </button>
       </div>
@@ -559,6 +721,8 @@ export function MediaTray({
 
       <MediaLibraryDrawer
         entityId={entityId}
+        brandName={brandName}
+        industry={industry}
         open={libraryOpen}
         onOpenChange={setLibraryOpen}
         mode="attach"

@@ -8,6 +8,7 @@ import { cleanHashtags } from "@/lib/copy/caption-hygiene"
 import { scrubAgencyLeak } from "@/lib/inventory/context-hooks"
 import { OPTIMIZATION_TAG_MAX } from "@/lib/inventory/optimization-tags"
 import { repairFudiCaptionDoubling } from "@/lib/inventory/sop"
+import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 import { createClient } from "@/lib/supabase/server"
 
 export const runtime = "nodejs"
@@ -25,6 +26,24 @@ const wizardContextSchema = z
     concreteFeatures: z.array(z.string().max(120)).max(12).optional(),
     onCanvasHeadline: z.string().max(200).optional().nullable(),
     onCanvasSubhead: z.string().max(200).optional().nullable(),
+    audienceToneCue: z.string().max(400).optional().nullable(),
+    postFocusLabel: z.string().max(120).optional().nullable(),
+    stillPhotoCount: z.number().int().min(0).max(20).optional(),
+    carouselSlides: z
+      .array(
+        z.object({
+          index: z.number().int().min(1).max(20),
+          brand: z.string().max(120).optional().nullable(),
+          vibe: z.string().max(120).optional().nullable(),
+          listingLine: z.string().max(600).optional().nullable(),
+          visualSummary: z.string().max(800).optional().nullable(),
+        })
+      )
+      .max(10)
+      .optional(),
+    carouselBrands: z.array(z.string().max(80)).max(12).optional(),
+    carouselVibes: z.array(z.string().max(80)).max(12).optional(),
+    carouselEditorSummary: z.string().max(2000).optional().nullable(),
   })
   .optional()
 
@@ -34,7 +53,7 @@ const bodySchema = z.object({
   field: z.enum(["hook", "caption", "tags"]),
   headline: z.string().max(500),
   caption: z.string().max(4000),
-  visualDescription: z.string().max(2000).optional().nullable(),
+  visualDescription: z.string().max(8000).optional().nullable(),
   listingVibe: z.string().max(120).optional().nullable(),
   existingTags: z.array(z.string().max(40)).max(20).optional(),
   wizard: wizardContextSchema,
@@ -105,13 +124,40 @@ export async function POST(request: Request) {
     }
 
     const entity = parseStudioEntity(entityRow)
+    const profile = resolveIndustryProfile({
+      name: entity.name,
+      industry: entity.industry,
+    })
 
     if (field === "tags") {
+      const carousel =
+        (wiz.carouselSlides?.length ?? 0) >= 2 ||
+        (wiz.stillPhotoCount ?? 0) >= 2
       const prompt = [
         `Brand: ${entity.name} (${entity.industry}).`,
-        "Suggest Instagram / TikTok discovery hashtags for this post.",
+        carousel
+          ? "This is an Instagram CAROUSEL — suggest discovery hashtags for the whole edit, not one SKU."
+          : "Suggest Instagram / TikTok discovery hashtags for this post.",
         "Return lowercase tokens without # — letters and numbers only, 2–30 chars each.",
         `Provide ${OPTIMIZATION_TAG_MAX} tags max, mix brand, locality, product, and search intent.`,
+        carousel && wiz.carouselBrands?.length
+          ? `Include tag tokens for these designers when valid (no spaces): ${wiz.carouselBrands.join(", ")}`
+          : "",
+        carousel && wiz.carouselVibes?.length
+          ? `Fashion vibes across slides: ${wiz.carouselVibes.join(", ")}`
+          : "",
+        carousel && wiz.carouselEditorSummary
+          ? wiz.carouselEditorSummary
+          : "",
+        carousel && wiz.carouselSlides?.length
+          ? "Slides:\n" +
+            wiz.carouselSlides
+              .map(
+                (row) =>
+                  `- Slide ${row.index}: ${[row.brand, row.vibe].filter(Boolean).join(" · ") || "item"}${row.listingLine ? ` — ${row.listingLine.slice(0, 100)}` : ""}`
+              )
+              .join("\n")
+          : "",
         "Do not repeat tags already selected.",
         listingVibe ? `Listing vibe: ${listingVibe}` : "",
         visualDescription ? `Visual: ${visualDescription}` : "",
@@ -170,9 +216,22 @@ export async function POST(request: Request) {
     const wiz = wizard ?? {}
     const resolvedListingVibe = listingVibe ?? wiz.listingVibe ?? null
 
+    const isCarousel =
+      (wiz.carouselSlides?.length ?? 0) >= 2 ||
+      (wiz.stillPhotoCount ?? 0) >= 2
+
     const prompt = [
       `Brand: ${entity.name} (${entity.industry}).`,
-      "Generate 3 alternate Instagram/Facebook caption bodies for this exact post.",
+      isCarousel
+        ? "Generate 3 alternate Instagram/Facebook captions for this CAROUSEL (one caption for the whole post)."
+        : "Generate 3 alternate Instagram/Facebook caption bodies for this exact post.",
+      isCarousel
+        ? [
+            "Describe the overall mood and styling story across ALL slides — a curated Shop-by-Vibe / edit tone.",
+            "Reference the mix of pieces and designers listed below; do not write as if only the first photo exists.",
+            "Invite a swipe-through; avoid single-item 'just landed' copy unless only one item is listed.",
+          ].join(" ")
+        : "",
       "Ground copy in the visual inspection and wizard intent below — do not invent prices, SKUs, or offers.",
       "NEVER repeat the opening line / hook verbatim as the first sentence of the caption.",
       "Do not duplicate text burned on the image (on-canvas headline/subhead) unless rephrasing naturally in the caption body.",
@@ -197,6 +256,30 @@ export async function POST(request: Request) {
       wiz.onCanvasSubhead?.trim()
         ? `On-image subhead: ${wiz.onCanvasSubhead.trim()}`
         : "",
+      wiz.audienceToneCue?.trim()
+        ? `Audience tone (match this voice): ${wiz.audienceToneCue.trim()}`
+        : "",
+      wiz.postFocusLabel?.trim()
+        ? `Post focus: ${wiz.postFocusLabel.trim()}`
+        : "",
+      wiz.stillPhotoCount != null && wiz.stillPhotoCount >= 2
+        ? `Carousel / multi-image promo (${wiz.stillPhotoCount} stills) — write collection/brand copy, not a single SKU with size unless visible.`
+        : "",
+      isCarousel && wiz.carouselEditorSummary
+        ? `Carousel pack summary:\n${wiz.carouselEditorSummary}`
+        : "",
+      isCarousel && wiz.carouselSlides?.length
+        ? [
+            "Per slide (brand / vibe / listing):",
+            ...wiz.carouselSlides.map(
+              (row) =>
+                `Slide ${row.index}: brand=${row.brand ?? "—"} vibe=${row.vibe ?? "—"}${row.listingLine ? ` copy="${row.listingLine.slice(0, 160)}"` : ""}${row.visualSummary ? ` look="${row.visualSummary.slice(0, 120)}"` : ""}`
+            ),
+          ].join("\n")
+        : "",
+      isCarousel && wiz.carouselBrands?.length
+        ? `Designers in this post: ${wiz.carouselBrands.join(", ")}`
+        : "",
       `Opening line / Story hook (operator field): ${headline || "(none yet)"}`,
       `Current caption draft: ${caption || "(empty)"}`,
     ]
@@ -208,14 +291,20 @@ export async function POST(request: Request) {
       schema: copyResultSchema,
       schemaName: "StudioFieldAssist",
       schemaDescription: "Field-level creative variations for studio customize",
-      temperature: 0.65,
+      temperature: 0.4,
       maxOutputTokens: 700,
       system: [
         `You write social copy alternates for "${entity.name}".`,
-        `Tone: ${entity.brand_identity.tone || "direct"}.`,
-        `Forbidden: ${(entity.brand_identity.forbidden_words ?? []).join(", ") || "(none)"}.`,
+        `Tone: ${entity.brand_identity.tone || profile.tone || "direct"}.`,
+        profile.multiplexerBias
+          ? `Brand rules: ${profile.multiplexerBias}`
+          : "",
+        `Forbidden words/phrases: ${(entity.brand_identity.forbidden_words ?? []).join(", ") || "(none)"}.`,
+        "Stay faithful to the visual inspection — do not invent brands, sizes, prices, or offers.",
         "Return JSON only — variations array of strings, no markdown fences.",
-      ].join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n"),
       prompt,
     })
 

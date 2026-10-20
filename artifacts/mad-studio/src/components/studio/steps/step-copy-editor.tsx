@@ -28,6 +28,7 @@ type Props = {
   /** Studio Copy step — card chrome, viewport-fit layout. */
   wizardCompact?: boolean
   className?: string
+  photoCount?: number
 }
 
 export function StepCopyEditor({
@@ -49,6 +50,7 @@ export function StepCopyEditor({
   tagsSlot = null,
   wizardCompact = false,
   className,
+  photoCount = 1,
 }: Props) {
   const [ideasOpen, setIdeasOpen] = useState(wizardCompact)
 
@@ -155,8 +157,8 @@ export function StepCopyEditor({
       ) : null}
       {!wizardCompact ? (
         <p className="text-xs leading-relaxed text-neutral-500">
-          The phone preview uses this text for Feed and Facebook. Story and TikTok
-          use the opening line below on the canvas when set.
+          The phone preview uses this text in the caption area for Feed and Facebook.
+          Words baked onto the photo are added only on the Canvas step.
         </p>
       ) : null}
     </div>
@@ -181,8 +183,8 @@ export function StepCopyEditor({
       />
       {wizardCompact ? (
         <p className="text-xs leading-snug text-neutral-500">
-          Pick a Brain hook below — not a second AI pass. Story & TikTok use this
-          line when set.
+          Pick a Brain hook below — not a second AI pass. This is spoken / caption
+          copy, not on-image text (use Canvas for that).
         </p>
       ) : null}
     </div>
@@ -265,7 +267,9 @@ export function StepCopyEditor({
               {captionVariantLabel
                 ? `${captionVariantLabel} · `
                 : null}
-              Suggest with AI uses your photo + Intent + Canvas text
+              {photoCount >= 2
+                ? "Carousel: AI uses every slide’s brand, vibe & listing copy — not just the selected thumb"
+                : "Suggest with AI drafts from your photo + Intent — pick a variation; edit before posting"}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">

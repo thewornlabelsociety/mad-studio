@@ -9,6 +9,10 @@ import { extractSizeLabel } from "@/lib/marketing/story-presets"
 import { readTodayDeckDismissStatus } from "@/lib/today/today-deck-dismiss"
 import { patchDropWorkbenchDraft } from "@/lib/actions"
 import { createClient } from "@/lib/supabase/client"
+import {
+  listingCaptionForPost,
+  listingTagsForPost,
+} from "@/lib/studio/intake-listing-copy"
 
 const ITEM_SELECT =
   "id, entity_id, website_item_id, title, brand, price, description, images, status, metrics, scheduled_at, channels, copy_draft, published_media_ids, trackable_slug, published_at, created_at, updated_at"
@@ -22,6 +26,8 @@ export type NewArrivalSuggestion = {
   /** Why this format, in a few words. */
   reason: string
   facts: CanvasItemFacts
+  intakeCaption: string
+  intakeTags: string[]
 }
 
 export const SUGGESTED_FORMAT_LABELS: Record<SuggestedFormat, string> = {
@@ -98,6 +104,8 @@ function mediaOf(item: MarketingEntity): NewArrivalSuggestion["media"] {
  */
 export async function fetchNewArrivalSuggestions(input: {
   entityId: string
+  brandName: string
+  industry?: string | null
   isFashion: boolean
   limit?: number
 }): Promise<NewArrivalSuggestion[]> {
@@ -128,6 +136,12 @@ export async function fetchNewArrivalSuggestions(input: {
         media,
         ...suggestFormat({ media, isFashion: input.isFashion }),
         facts: itemFactsFor(item, input.isFashion),
+        intakeCaption: listingCaptionForPost(item),
+        intakeTags: listingTagsForPost({
+          item,
+          brandName: input.brandName,
+          industry: input.industry,
+        }),
       }
     })
     .filter((row) => row.media.length > 0)

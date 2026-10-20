@@ -17,6 +17,11 @@ export async function requestMapIntentFromMedia(input: {
   aestheticTags?: string[]
   concreteFeatures?: string[]
   optionSource: MapIntentOptionSource
+  retailTopicOnly?: boolean
+  audienceToneCue?: string
+  postFocusLabel?: string
+  stillPhotoCount?: number
+  brandProfileId?: string
 }): Promise<MapIntentResult> {
   const response = await fetch("/api/brain/map-intent", {
     method: "POST",
@@ -28,6 +33,11 @@ export async function requestMapIntentFromMedia(input: {
       aestheticTags: input.aestheticTags ?? [],
       concreteFeatures: input.concreteFeatures ?? [],
       optionSource: input.optionSource,
+      retailTopicOnly: input.retailTopicOnly,
+      audienceToneCue: input.audienceToneCue,
+      postFocusLabel: input.postFocusLabel,
+      stillPhotoCount: input.stillPhotoCount,
+      brandProfileId: input.brandProfileId,
     }),
   })
   const parsed = await readJsonBody<{ error?: string } & Partial<MapIntentResult>>(
@@ -38,12 +48,12 @@ export async function requestMapIntentFromMedia(input: {
   if (!response.ok) {
     throw new Error(payload.error ?? "Could not map intent from media.")
   }
+  if (!payload.listingVibe || !payload.contentPillar) {
+    throw new Error("Incomplete intent mapping response.")
+  }
   if (
-    !payload.listingVibe ||
-    !payload.contentPillar ||
-    !payload.personaId ||
-    !payload.hookBlueprintId ||
-    !payload.ctaId
+    !input.retailTopicOnly &&
+    (!payload.personaId || !payload.hookBlueprintId || !payload.ctaId)
   ) {
     throw new Error("Incomplete intent mapping response.")
   }

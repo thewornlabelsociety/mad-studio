@@ -3,14 +3,21 @@
 import { useEffect, useState } from "react"
 import { LayoutTemplate, Loader2, Star, Trash2 } from "lucide-react"
 
-import type { SavedCanvasLayout } from "@/lib/studio/canvas-layouts"
+import type {
+  LayoutWordingMode,
+  SavedCanvasLayout,
+} from "@/lib/studio/canvas-layouts"
 import { cn } from "@/lib/utils"
 
 type Props = {
   layouts: SavedCanvasLayout[]
   photoCount: number
   busy?: boolean
-  onApply: (layoutId: string, scope: "slide" | "all") => void
+  onApply: (
+    layoutId: string,
+    scope: "slide" | "all",
+    wording: LayoutWordingMode
+  ) => void
   onSetDefault: (layoutId: string | null) => void
   onDelete: (layoutId: string) => void
   className?: string
@@ -40,17 +47,40 @@ export function CanvasLayoutsBar({
     setSelectedId(layouts.find((row) => row.isDefault)?.id ?? layouts[0]?.id ?? "")
   }, [layouts, selectedId])
 
-  if (layouts.length === 0) return null
   const selected = layouts.find((row) => row.id === selectedId) ?? null
+
+  if (layouts.length === 0) {
+    return (
+      <section
+        aria-label="Saved layouts"
+        className={cn(
+          "space-y-1.5 border-2 border-mad-black bg-mad-lime/20 p-3",
+          className
+        )}
+      >
+        <p className="inline-flex items-center gap-1.5 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
+          <LayoutTemplate className="size-4" aria-hidden />
+          Saved layouts
+        </p>
+        <p className="text-xs leading-relaxed text-neutral-700">
+          Style this slide (Words, tags, logo, backdrop), then click{" "}
+          <strong className="font-semibold">Save</strong> beside{" "}
+          <strong className="font-semibold">Live preview</strong> to store fonts,
+          placement, and optional starter headline/subhead for reuse.
+        </p>
+      </section>
+    )
+  }
 
   return (
     <section
       aria-label="Saved layouts"
       className={cn(
-        "flex flex-wrap items-center gap-2 border-2 border-mad-black bg-mad-white p-2",
+        "space-y-2 border-2 border-mad-black bg-mad-white p-2",
         className
       )}
     >
+      <div className="flex flex-wrap items-center gap-2">
       <span className="inline-flex items-center gap-1.5 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
         <LayoutTemplate className="size-4" aria-hidden />
         Layouts
@@ -71,19 +101,28 @@ export function CanvasLayoutsBar({
       <button
         type="button"
         disabled={!selected || busy}
-        onClick={() => selected && onApply(selected.id, "slide")}
+        onClick={() => selected && onApply(selected.id, "slide", "keep-slide")}
         className={cn(btn, "bg-mad-black text-mad-white hover:bg-mad-vermillion")}
       >
-        Apply
+        Apply style
+      </button>
+      <button
+        type="button"
+        disabled={!selected || busy}
+        onClick={() => selected && onApply(selected.id, "slide", "fill-empty")}
+        title="Use saved headline/subhead only where this slide has none"
+        className={cn(btn, "bg-mad-white hover:bg-mad-lime")}
+      >
+        + saved text
       </button>
       {photoCount > 1 ? (
         <button
           type="button"
           disabled={!selected || busy}
-          onClick={() => selected && onApply(selected.id, "all")}
+          onClick={() => selected && onApply(selected.id, "all", "keep-slide")}
           className={cn(btn, "bg-mad-white hover:bg-mad-lime")}
         >
-          Apply to all {photoCount}
+          Style all {photoCount}
         </button>
       ) : null}
       <button
@@ -112,6 +151,14 @@ export function CanvasLayoutsBar({
         <Trash2 className="size-3.5" aria-hidden />
       </button>
       {busy ? <Loader2 className="size-4 animate-spin text-neutral-500" aria-label="Saving" /> : null}
+      </div>
+      <p className="font-typewriter text-[0.68rem] leading-snug tracking-wide text-neutral-500 normal-case">
+        <strong className="font-bold text-mad-black">Apply style</strong> keeps
+        this slide&apos;s on-image words and item tags — it adds fonts, placement,
+        logo, and tag styling from the layout.{" "}
+        <strong className="font-bold text-mad-black">+ saved text</strong> fills
+        blank headline/subhead from the layout.
+      </p>
     </section>
   )
 }

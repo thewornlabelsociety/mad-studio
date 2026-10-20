@@ -67,6 +67,7 @@ The RPC action names and original argument order are:
 | `isCurrentUserOrgAdmin` | `organizationId` |
 | `claimFirstOrgAdmin` | none |
 | `saveEntityDna` | `input` |
+| `saveAudienceSegments` | `input` |
 | `saveVisualPresets` | `input` |
 | `commitScrapedDna` | `input` |
 | `resyncDnaFromWebsite` | `entityId` |

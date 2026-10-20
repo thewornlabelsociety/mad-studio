@@ -63,7 +63,8 @@ function inferPrimaryFeature(segment: AudienceSegment): PrimaryFeature {
   const blob = `${segment.desire} ${segment.pain} ${segment.trigger}`.toLowerCase()
   if (/tap|table menu|nfc|pay at the table|table tap/.test(blob)) return "FÜDI Tap"
   if (/event|weekend|ticket|tour|rsvp/.test(blob)) return "Events"
-  if (/pantry|marketplace|maker|local hands/.test(blob)) return "Marketplace"
+  if (/pantry|marketplace|maker|local hands|consign|wardrobe|closet|pre-?loved|luxury fashion/.test(blob))
+    return "Marketplace"
   if (/deal|mid-?week|drop|special|perk/.test(blob)) return "Deals"
   return inferKind(segment) === "b2b" ? "FÜDI Tap" : "Deals"
 }
@@ -205,9 +206,10 @@ export function enrichSegmentForSave(segment: AudienceSegment): AudienceSegment 
                 return "tiktok"
             }
           }),
-    forecasting_tag:
+    forecasting_tag: (
       segment.forecasting_tag?.trim() ||
-      ui.forecastingTag.replace(/^#/, ""),
+      ui.forecastingTag.replace(/^#/, "")
+    ).replace(/^#/, ""),
     conversion_goal: segment.conversion_goal?.trim() || ui.conversionGoal,
   }
 }

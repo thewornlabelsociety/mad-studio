@@ -67,6 +67,8 @@ export async function armCampaignMultiChannelDispatch(input: {
   mediaByChannel?: Partial<Record<SchedulerChannel, string>> | null
   /** 2–10 slides posted as one carousel on Instagram feed and Facebook. */
   carouselUrls?: string[] | null
+  /** 2–10 slides posted as consecutive Instagram Story frames (tray order). */
+  storyUrls?: string[] | null
   destinationUrl?: string | null
   slugSeed?: string | null
 }): Promise<ActionResult<ArmDispatchResult>> {
@@ -103,13 +105,22 @@ export async function armCampaignMultiChannelDispatch(input: {
   const carouselUrls = (input.carouselUrls ?? [])
     .map((url) => url.trim())
     .filter(Boolean)
+  const storyUrls = (input.storyUrls ?? [])
+    .map((url) => url.trim())
+    .filter(Boolean)
   if (carouselUrls.length === 1 || carouselUrls.length > 10) {
-    return { ok: false, error: "A carousel needs 2 to 10 photos." }
+    return { ok: false, error: "A feed carousel needs 2 to 10 photos." }
   }
-  if (carouselUrls.some((url) => !/^https?:\/\//i.test(url))) {
+  if (storyUrls.length === 1 || storyUrls.length > 10) {
+    return { ok: false, error: "A Story sequence needs 2 to 10 photos." }
+  }
+  if (
+    carouselUrls.some((url) => !/^https?:\/\//i.test(url)) ||
+    storyUrls.some((url) => !/^https?:\/\//i.test(url))
+  ) {
     return {
       ok: false,
-      error: "Every carousel photo must be a public https URL — finish uploading first.",
+      error: "Every photo must be a public https URL — finish uploading first.",
     }
   }
   const carouselFor = (channel: SchedulerChannel) =>
@@ -117,6 +128,8 @@ export async function armCampaignMultiChannelDispatch(input: {
     (channel === "instagram_feed" || channel === "facebook")
       ? carouselUrls
       : null
+  const storyFor = (channel: SchedulerChannel) =>
+    storyUrls.length >= 2 && channel === "instagram_story" ? storyUrls : null
 
   if (slots.some((slot) => slot.channel === "tiktok")) {
     const tiktokMediaError = tikTokMediaGuardError(mediaFor("tiktok"))
@@ -174,9 +187,13 @@ export async function armCampaignMultiChannelDispatch(input: {
         payload: {
           ...packPayloadFor(slot.channel, input.pack, {
             ...base,
-            media_url: carouselFor(slot.channel)?.[0] ?? mediaFor(slot.channel),
+            media_url:
+              storyFor(slot.channel)?.[0] ??
+              carouselFor(slot.channel)?.[0] ??
+              mediaFor(slot.channel),
           }),
           media_urls: carouselFor(slot.channel),
+          story_urls: storyFor(slot.channel),
         } as Json,
         created_by: auth.user.id,
       }))

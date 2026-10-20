@@ -120,6 +120,15 @@ export async function GET(request: NextRequest) {
       data?: { user?: { display_name?: string } }
     } | null
     const displayName = userData?.data?.user?.display_name || "TikTok Account"
+    const now = new Date().toISOString()
+
+    // One active TikTok per brand — clear siblings before upsert (same as manual upsert).
+    await supabase
+      .from("social_connections")
+      .update({ is_active: false, updated_at: now })
+      .eq("entity_id", saved.entityId)
+      .eq("platform", "tiktok")
+      .eq("is_active", true)
 
     const { error: saveError } = await supabase.from("social_connections").upsert(
       {
@@ -134,7 +143,7 @@ export async function GET(request: NextRequest) {
             ? tokenExpiresAtFromExpiresIn(parsedTokens.expiresIn)
             : null,
         is_active: true,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       },
       { onConflict: "entity_id,platform,account_id" }
     )

@@ -4,7 +4,7 @@ import { mergeCaptionWithTags } from "@/lib/inventory/optimization-tags"
 import type { SchedulerChannel } from "@/lib/scheduling/brain-timing"
 import type { ScheduledPostPayload } from "@/lib/scheduling/process-scheduled-posts"
 
-function stripMarkdown(value: string): string {
+export function stripMarkdown(value: string): string {
   return value
     .replace(/^#+\s*/gm, "")
     .replace(/\*\*(.*?)\*\*/g, "$1")

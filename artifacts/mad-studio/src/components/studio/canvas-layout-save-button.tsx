@@ -83,8 +83,12 @@ export function CanvasLayoutSaveButton({ busy = false, suggestedName, onSave }: 
               Save layout
             </DialogTitle>
             <DialogDescription>
-              Keeps fonts, colours, sizes, positions, tags, logo and backdrop.
-              Each post still uses its own photos, words and item details.
+              Saves everything on Canvas now: fonts, colours, sizes, positions,
+              tag toggles, logo, backdrop, and your headline/subhead as{" "}
+              <strong>starter text</strong> for future posts. Photos and per-item
+              tag values (brand, size, price) stay unique on each drop — use{" "}
+              <strong>Apply style</strong> on a layout to merge styling onto the
+              current slide without replacing words you already typed.
             </DialogDescription>
           </DialogHeader>
           <form

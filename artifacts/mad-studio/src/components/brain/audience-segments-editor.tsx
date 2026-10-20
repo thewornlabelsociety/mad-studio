@@ -1,15 +1,15 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import { ChevronDown, Loader2, Plus, Trash2 } from "lucide-react"
-import { useRouter } from "@/lib/next-compat"
 import { toast } from "sonner"
 
-import { saveEntityDna } from "@/lib/actions"
+import { saveAudienceSegments } from "@/lib/actions"
 import {
   enrichSegmentForSave,
   resolveAudienceSegmentUi,
 } from "@/lib/brain/audience-segment-display"
+import { audienceSegmentPresetsForEntity } from "@/lib/brain/audience-segment-presets"
 import type { StudioEntityDna } from "@/lib/campaigns/entity-dna"
 import type { AudienceSegment } from "@/lib/entities/dna-schema"
 import {
@@ -19,68 +19,7 @@ import {
 } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 
-const SEGMENT_PRESETS: AudienceSegment[] = [
-  {
-    name: "Unified Local Food Enthusiasts",
-    role: "Local diners & weekend planners",
-    audience_type: "b2c",
-    age_bracket: "18–34",
-    primary_feature: "Deals",
-    target_channels: ["tiktok", "instagram_story"],
-    forecasting_tag: "consumer_spontaneous_drops",
-    conversion_goal: "App Search & Table Tap",
-    pain:
-      "Fragmented platform overload: bouncing between Google (outdated PDF menus), Instagram (non-shoppable photos), Facebook (buried flyers), and UberEats (marked-up fees). Disjointed apps cluttered with non-food noise.",
-    desire:
-      "One single place for everything local food: visual dish feeds, live mid-week deals, weekend event tickets, pantry marketplace, and instant tap-and-pay at the table.",
-    trigger:
-      "A concrete dish drop, limited deal, or weekend event from a venue they trust — surfaced on one map.",
-    winning_rebuttal:
-      "Stop app-hopping. FÜDI puts every dish, drop, event, and table menu in your town onto one live map.",
-  },
-  {
-    name: "18–27 Gen Z Quick Casual",
-    role: "Students & young professionals",
-    audience_type: "b2c",
-    age_bracket: "18–27",
-    primary_feature: "Deals",
-    target_channels: ["tiktok", "instagram_story"],
-    forecasting_tag: "consumer_spontaneous_drops",
-    conversion_goal: "App Search & Table Tap",
-    pain: "Decision fatigue on where to eat or shop on a budget",
-    desire: "Fast discovery, aesthetic vibes, honest value",
-    trigger: "Midweek lunch or late-night scroll",
-    winning_rebuttal: "Show real plates, real prices, zero corporate fluff",
-  },
-  {
-    name: "28–42 Food Enthusiasts & Date Nights",
-    role: "Curated millennial diners or shoppers",
-    audience_type: "b2c",
-    age_bracket: "28–42",
-    primary_feature: "Events",
-    target_channels: ["instagram_feed", "facebook"],
-    forecasting_tag: "consumer_weekend_events",
-    conversion_goal: "Event RSVP & map saves",
-    pain: "Tired of generic chains and bait-and-switch promos",
-    desire: "Editorial quality, story, and a reason to share",
-    trigger: "Weekend plans or special occasion",
-    winning_rebuttal: "Lead with craft, provenance, and limited drops",
-  },
-  {
-    name: "35–60+ Local Community",
-    role: "Neighbourhood regulars and loyal locals",
-    audience_type: "b2c",
-    age_bracket: "35–60+",
-    primary_feature: "Events",
-    target_channels: ["facebook", "instagram_feed"],
-    forecasting_tag: "consumer_weekend_events",
-    conversion_goal: "Event RSVP & map saves",
-    pain: "Hard to trust noisy social ads and hidden fees",
-    desire: "Warm, clear details — hours, location, who runs the place",
-    trigger: "Community events, school holidays, local news",
-    winning_rebuttal: "Plain language, familiar faces, Facebook-friendly clarity",
-  },
-]
+const MAX_AUDIENCE_SEGMENTS = 5
 
 function emptySegment(): AudienceSegment {
   return {
@@ -93,19 +32,37 @@ function emptySegment(): AudienceSegment {
   }
 }
 
+function segmentsFromEntity(entity: StudioEntityDna): AudienceSegment[] {
+  return entity.audience_segments.length > 0
+    ? entity.audience_segments
+    : [emptySegment()]
+}
+
 type Props = {
   entity: StudioEntityDna
 }
 
 export function AudienceSegmentsEditor({ entity }: Props) {
-  const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [segments, setSegments] = useState<AudienceSegment[]>(
-    entity.audience_segments.length > 0
-      ? entity.audience_segments
-      : [emptySegment()]
+  const [segments, setSegments] = useState<AudienceSegment[]>(() =>
+    segmentsFromEntity(entity)
   )
+  const [dirty, setDirty] = useState(false)
   const [openKeys, setOpenKeys] = useState<Set<string>>(() => new Set())
+  const segmentPresets = useMemo(
+    () =>
+      audienceSegmentPresetsForEntity({
+        name: entity.name,
+        industry: entity.industry,
+      }),
+    [entity.name, entity.industry]
+  )
+
+  useEffect(() => {
+    setSegments(segmentsFromEntity(entity))
+    setDirty(false)
+    setOpenKeys(new Set())
+  }, [entity.id])
 
   function segmentKey(segment: AudienceSegment, index: number) {
     return `${index}-${segment.name || "new"}`
@@ -121,6 +78,7 @@ export function AudienceSegmentsEditor({ entity }: Props) {
   }
 
   function patchSegment(index: number, patch: Partial<AudienceSegment>) {
+    setDirty(true)
     setSegments((prev) =>
       prev.map((row, i) => (i === index ? { ...row, ...patch } : row))
     )
@@ -129,31 +87,78 @@ export function AudienceSegmentsEditor({ entity }: Props) {
   function addPreset(preset: AudienceSegment) {
     setSegments((prev) => {
       if (prev.some((row) => row.name === preset.name)) return prev
-      return [...prev, preset]
+      if (prev.length >= MAX_AUDIENCE_SEGMENTS) {
+        toast.error(
+          `Maximum ${MAX_AUDIENCE_SEGMENTS} audience segments. Remove one or save before adding.`
+        )
+        return prev
+      }
+      const next = [...prev, preset]
+      const newIndex = next.length - 1
+      setOpenKeys((keys) => new Set(keys).add(segmentKey(preset, newIndex)))
+      return next
     })
+    setDirty(true)
+  }
+
+  function addEmptySegment() {
+    setSegments((prev) => {
+      if (prev.length >= MAX_AUDIENCE_SEGMENTS) {
+        toast.error(
+          `Maximum ${MAX_AUDIENCE_SEGMENTS} audience segments. Remove one or save before adding.`
+        )
+        return prev
+      }
+      const draft = emptySegment()
+      const newIndex = prev.length
+      setOpenKeys((keys) => new Set(keys).add(segmentKey(draft, newIndex)))
+      return [...prev, draft]
+    })
+    setDirty(true)
   }
 
   function onSave() {
     const cleaned = segments
       .filter((row) => row.name.trim().length > 0)
       .map(enrichSegmentForSave)
+    const skipped = segments.length - cleaned.length
     if (cleaned.length === 0) {
       toast.error("Add at least one audience segment with a name.")
       return
     }
+    if (cleaned.length > MAX_AUDIENCE_SEGMENTS) {
+      toast.error(
+        `Maximum ${MAX_AUDIENCE_SEGMENTS} audience segments. Remove extras before saving.`
+      )
+      return
+    }
     startTransition(async () => {
-      const result = await saveEntityDna({
-        entityId: entity.id,
-        brandIdentity: entity.brand_identity,
-        audienceSegments: cleaned,
-        industry: entity.industry,
-      })
-      if (!result.ok) {
-        toast.error(result.error)
-        return
+      try {
+        const result = await saveAudienceSegments({
+          entityId: entity.id,
+          audienceSegments: cleaned,
+        })
+        if (!result.ok) {
+          toast.error(result.error)
+          return
+        }
+        const persisted = result.data?.segments ?? cleaned
+        setSegments(persisted)
+        setDirty(false)
+        if (skipped > 0) {
+          toast.warning(
+            `Saved ${persisted.length} segment(s). ${skipped} unnamed row(s) were not saved — add a segment name and save again.`
+          )
+        } else {
+          toast.success(`Saved ${persisted.length} audience segment(s).`)
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Audience save failed. Check that the API server is running."
+        )
       }
-      toast.success("Audience segments saved.")
-      router.refresh()
     })
   }
 
@@ -168,22 +173,33 @@ export function AudienceSegmentsEditor({ entity }: Props) {
         </h3>
         <p className="mt-1 text-xs text-neutral-600">
           One authoritative list — expand a row to edit pains, hooks, and
-          forecasting tags for Studio dispatch.
+          forecasting tags. Every segment needs a{" "}
+          <span className="font-semibold">segment name</span> before save (up to{" "}
+          {MAX_AUDIENCE_SEGMENTS} per brand). Use{" "}
+          <span className="font-semibold">Save all audiences</span> after adding
+          rows — other Brain saves no longer wipe unsaved segments.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {SEGMENT_PRESETS.map((preset) => (
-          <button
-            key={preset.name}
-            type="button"
-            onClick={() => addPreset(preset)}
-            className="border-2 border-mad-black bg-[#CCFF00]/40 px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase hover:bg-[#CCFF00]"
-          >
-            + {preset.name}
-          </button>
-        ))}
-      </div>
+      {segmentPresets.length > 0 ? (
+        <div className="space-y-1.5">
+          <p className="font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
+            Quick add · {entity.name}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {segmentPresets.map((preset) => (
+              <button
+                key={preset.name}
+                type="button"
+                onClick={() => addPreset(preset)}
+                className="border-2 border-mad-black bg-[#CCFF00]/40 px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-black uppercase hover:bg-[#CCFF00]"
+              >
+                + {preset.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <ul className="space-y-2">
         {segments.map((segment, index) => {
@@ -264,11 +280,12 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                         <button
                           type="button"
                           aria-label="Remove segment"
-                          onClick={() =>
+                          onClick={() => {
+                            setDirty(true)
                             setSegments((prev) =>
                               prev.filter((_, i) => i !== index)
                             )
-                          }
+                          }}
                           className="border border-mad-black p-1 hover:bg-mad-vermillion hover:text-white"
                         >
                           <Trash2 className="size-3.5" />
@@ -377,14 +394,34 @@ export function AudienceSegmentsEditor({ entity }: Props) {
                       </label>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 border-t border-mad-black/20 pt-4">
+                    <label className="grid gap-1 border-t border-mad-black/20 pt-4">
                       <span className="font-typewriter text-[0.7rem] tracking-wider text-neutral-500 uppercase">
                         Forecasting &amp; analytics tag
                       </span>
-                      <code className="border-2 border-mad-black bg-neutral-100 px-2 py-1 font-mono text-xs">
-                        {ui.forecastingTag}
-                      </code>
-                    </div>
+                      <p className="text-xs text-neutral-600">
+                        Ledger / campaign grouping slug (letters, numbers,
+                        underscores). Saved campaigns from Studio attach this
+                        when that persona is selected. Leave blank to auto-fill
+                        on save:{" "}
+                        <span className="font-mono text-[0.7rem]">
+                          {ui.forecastingTag.replace(/^#/, "")}
+                        </span>
+                      </p>
+                      <input
+                        value={segment.forecasting_tag ?? ""}
+                        onChange={(event) =>
+                          patchSegment(index, {
+                            forecasting_tag: event.target.value
+                              .replace(/^#/, "")
+                              .replace(/[^a-zA-Z0-9_]/g, "_")
+                              .slice(0, 48),
+                          })
+                        }
+                        className="w-full max-w-md border-2 border-mad-black px-2 py-1.5 font-mono text-sm"
+                        placeholder={ui.forecastingTag.replace(/^#/, "")}
+                        spellCheck={false}
+                      />
+                    </label>
 
                     <button
                       type="button"
@@ -405,14 +442,23 @@ export function AudienceSegmentsEditor({ entity }: Props) {
         })}
       </ul>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2 border-t border-mad-black/20 pt-4">
         <button
           type="button"
-          onClick={() => setSegments((prev) => [...prev, emptySegment()])}
+          onClick={addEmptySegment}
           className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-white px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase hover:bg-[#CCFF00]"
         >
           <Plus className="size-3.5" />
           Add segment
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={onSave}
+          className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
+        >
+          {pending ? <Loader2 className="size-3.5 animate-spin" /> : null}
+          [ Save all audiences ]
         </button>
       </div>
     </section>

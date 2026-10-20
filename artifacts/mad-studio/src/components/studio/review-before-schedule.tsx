@@ -21,9 +21,10 @@ import {
 } from "@/lib/media/bake-canvas-text"
 import { canvasBackdropOn, canvasTextOnly } from "@/lib/studio/canvas-text-types"
 import {
-  FEED_SHAPE,
+  SQUARE_FEED_SHAPE,
   STORY_SHAPE,
   fitImageToShape,
+  fitImageToShapeCover,
 } from "@/lib/media/fit-to-platform"
 import { buildBasicStoryModel } from "@/lib/marketing/story-presets"
 import {
@@ -34,7 +35,10 @@ import {
 } from "@/lib/scheduling/brain-timing"
 import { packPayloadFor } from "@/lib/scheduling/pack-payload"
 import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
-import { unfilledFormulaSlots } from "@/lib/studio/formula-bank"
+import {
+  partitionFormulaSlotGaps,
+  unfilledFormulaSlots,
+} from "@/lib/studio/formula-bank"
 import type { CanvasTextOverlayState } from "@/lib/studio/canvas-text-types"
 import {
   imageAspectRatio,
@@ -65,18 +69,28 @@ type Props = {
   /**
    * Every photo in the tray, in order, with that photo's own on-image text.
    * With 2+, Instagram feed and Facebook post them as one carousel (each slide
-   * baked with its own text); Story / TikTok / email post the selected photo.
+   * baked with its own text); Story posts every tray still as consecutive
+   * frames when 2+; TikTok / email use the selected photo.
    */
   carouselSlides?: Array<{
     url: string
     overlay: CanvasTextOverlayState | null
   }>
   onDropChannel: (channel: SchedulerChannel) => void
-  onConfirm: (mediaByChannel: MediaByChannel, carouselUrls: string[] | null) => void
+  onConfirm: (
+    mediaByChannel: MediaByChannel,
+    carouselUrls: string[] | null,
+    storyUrls: string[] | null
+  ) => void
   confirming: boolean
 }
 
-type Artwork = { feed: string; story: string; slides: string[] }
+type Artwork = {
+  feed: string
+  story: string
+  slides: string[]
+  storySlides: string[]
+}
 
 const CAROUSEL_CHANNELS: SchedulerChannel[] = ["instagram_feed", "facebook"]
 const CAROUSEL_MAX = 10
@@ -88,9 +102,9 @@ const HASHTAG_LIMIT = 30
 const FRAME: Record<SchedulerChannel, string> = {
   instagram_story: "aspect-[9/16]",
   tiktok: "aspect-[9/16]",
-  instagram_feed: "aspect-[4/5]",
+  instagram_feed: "aspect-square",
   facebook: "aspect-[4/5]",
-  email: "aspect-[4/5]",
+  email: "aspect-[16/10]",
 }
 
 function channelNote(channel: SchedulerChannel): {
@@ -101,7 +115,7 @@ function channelNote(channel: SchedulerChannel): {
     case "instagram_story":
       return {
         auto: true,
-        text: "Posts automatically, without a link sticker — Instagram doesn't let apps add them. For a shop link, use the Story maker in Library and post from your phone.",
+        text: "Posts automatically as consecutive Story frames when the tray has 2+ photos (same order as the carousel). No link sticker via API — add links on your phone if needed.",
       }
     case "tiktok":
       return {
@@ -130,9 +144,15 @@ function problemsFor(input: {
     blocking.push("This time has passed — pick a new time on the Schedule step.")
   }
   const gaps = unfilledFormulaSlots(caption)
-  if (gaps.length) {
+  const formulaGaps = partitionFormulaSlotGaps(gaps)
+  if (formulaGaps.blocking.length) {
     blocking.push(
-      `Fill in ${gaps.join(", ")} in the formula fields (or Fine-tune) before posting.`
+      `Fill in ${formulaGaps.blocking.join(", ")} in the formula fields (or Fine-tune) before posting.`
+    )
+  }
+  if (formulaGaps.warnings.length) {
+    warnings.push(
+      `Formula placeholders ${formulaGaps.warnings.join(", ")} — OK for preview; fill on Schedule (Formula bank) or Fine-tune before a live post.`
     )
   }
   if (channel === "tiktok" && input.mediaUrl) {
@@ -229,21 +249,16 @@ export function ReviewBeforeSchedule({
           sourceUrl: photoUrl,
           overlay: textOverlay,
         })
-        // Fit to each platform's shape for you — nothing is cropped off.
-        const backdropFill = canvasBackdropOn(textOverlay)
-          ? textOverlay.backdropColor
-          : null
-        const feed = await fitImageToShape({
+        const feed = await fitImageToShapeCover({
           entityId,
           sourceUrl: baked,
-          shape: FEED_SHAPE,
-          fillColor: backdropFill,
+          shape: SQUARE_FEED_SHAPE,
         })
         let story = await fitImageToShape({
           entityId,
           sourceUrl: baked,
           shape: STORY_SHAPE,
-          fillColor: backdropFill,
+          fillColor: "#000000",
         })
         if (renderStoryCard) {
           // Let the offscreen card's images finish loading before capture.
@@ -267,9 +282,27 @@ export function ReviewBeforeSchedule({
             overlay: canvasTextOnly(textOverlay),
           })
         }
-        // Each slide gets its own Canvas text baked in, then every slide is
-        // fitted to the same 4:5 shape (Instagram needs carousels to match).
+        // Each slide gets its own Canvas text baked in, then fitted to 1:1
+        // (carousels must share one aspect ratio on Instagram).
         const slides = isCarousel
+          ? await Promise.all(
+              carouselSlides.map(async (slide) => {
+                const bakedSlide = slide.overlay
+                  ? await bakeCanvasTextOnImage({
+                      entityId,
+                      sourceUrl: slide.url,
+                      overlay: slide.overlay,
+                    })
+                  : slide.url
+                return fitImageToShapeCover({
+                  entityId,
+                  sourceUrl: bakedSlide,
+                  shape: SQUARE_FEED_SHAPE,
+                })
+              })
+            )
+          : []
+        const storySlides = isCarousel
           ? await Promise.all(
               carouselSlides.map(async (slide) => {
                 const bakedSlide = slide.overlay
@@ -282,23 +315,20 @@ export function ReviewBeforeSchedule({
                 return fitImageToShape({
                   entityId,
                   sourceUrl: bakedSlide,
-                  shape: FEED_SHAPE,
-                  fillColor:
-                    slide.overlay && canvasBackdropOn(slide.overlay)
-                      ? slide.overlay.backdropColor
-                      : null,
+                  shape: STORY_SHAPE,
+                  fillColor: "#000000",
                 })
               })
             )
-          : []
+          : [story]
         const [feedAspect, storyAspect, ...perSlide] = await Promise.all([
           imageAspectRatio(feed),
-          story === feed ? Promise.resolve(null) : imageAspectRatio(story),
+          imageAspectRatio(storySlides[0] ?? story),
           ...slides.map((url) => imageAspectRatio(url)),
         ])
         if (cancelled) return
         preparedKey.current = inputsKey
-        setArtwork({ feed, story, slides })
+        setArtwork({ feed, story, slides, storySlides })
         setSlideAspects(perSlide)
         setAspects({ feed: feedAspect, story: story === feed ? feedAspect : storyAspect })
       } catch (cause) {
@@ -328,9 +358,11 @@ export function ReviewBeforeSchedule({
     () =>
       slots.map((slot) => {
         const mediaUrl = artwork
-          ? slot.channel === "instagram_story" || slot.channel === "tiktok"
-            ? artwork.story
-            : artwork.feed
+          ? slot.channel === "instagram_story"
+            ? artwork.storySlides[0] ?? artwork.story
+            : slot.channel === "tiktok"
+              ? artwork.story
+              : artwork.feed
           : null
         const payload = packPayloadFor(slot.channel, pack, {
           media_url: mediaUrl,
@@ -350,13 +382,15 @@ export function ReviewBeforeSchedule({
           slot,
         })
         const slides =
-          isCarousel && CAROUSEL_CHANNELS.includes(slot.channel) && artwork
-            ? artwork.slides
-            : null
+          isCarousel && slot.channel === "instagram_story" && artwork
+            ? artwork.storySlides
+            : isCarousel && CAROUSEL_CHANNELS.includes(slot.channel) && artwork
+              ? artwork.slides
+              : null
         if (slides) {
           if (slides.length > CAROUSEL_MAX) {
             problems.blocking.push(
-              `${slides.length} photos — carousels take at most ${CAROUSEL_MAX}.`
+              `${slides.length} photos — ${slot.channel === "instagram_story" ? "Story sequences" : "Carousels"} take at most ${CAROUSEL_MAX}.`
             )
           }
           if (slot.channel === "instagram_feed") {
@@ -369,9 +403,9 @@ export function ReviewBeforeSchedule({
               )
             }
           }
-        } else if (isCarousel && slot.channel !== "email") {
+        } else if (isCarousel && slot.channel === "tiktok") {
           problems.warnings.push(
-            `Only the selected photo posts here — ${CHANNEL_META[slot.channel].short} doesn't take carousels from the app.`
+            `Only the selected photo posts here — TikTok doesn't take carousels from the app.`
           )
         }
         return {
@@ -399,10 +433,13 @@ export function ReviewBeforeSchedule({
     for (const card of cards) {
       if (card.mediaUrl) mediaByChannel[card.slot.channel] = card.mediaUrl
     }
-    const carouselUrls = cards.some((card) => card.slides)
-      ? artwork.slides
-      : null
-    onConfirm(mediaByChannel, carouselUrls)
+    const carouselUrls =
+      isCarousel && artwork.slides.length >= 2 ? artwork.slides : null
+    const storyUrls =
+      isCarousel && artwork.storySlides.length >= 2
+        ? artwork.storySlides
+        : null
+    onConfirm(mediaByChannel, carouselUrls, storyUrls)
   }
 
   return (
@@ -463,7 +500,7 @@ export function ReviewBeforeSchedule({
                       <img
                         src={card.mediaUrl}
                         alt={`${CHANNEL_META[card.slot.channel].label} artwork`}
-                        className="size-full object-contain"
+                        className="size-full object-cover object-center"
                       />
                     ) : (
                       <Loader2 className="size-5 animate-spin text-neutral-400" />
@@ -473,7 +510,9 @@ export function ReviewBeforeSchedule({
                     {card.slides ? (
                       <div className="mb-2">
                         <p className="mb-1 text-[0.75rem] font-semibold tracking-wide text-neutral-500 uppercase">
-                          Carousel · {card.slides.length} photos
+                          {card.slot.channel === "instagram_story"
+                            ? `Story sequence · ${card.slides.length} frames`
+                            : `Carousel · ${card.slides.length} photos`}
                         </p>
                         <div className="flex gap-1 overflow-x-auto">
                           {card.slides.map((url, index) => (

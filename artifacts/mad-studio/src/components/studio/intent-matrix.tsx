@@ -68,7 +68,11 @@ export function IntentMatrix({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-1.5">
+        <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
+          Post focus
+        </p>
+        <div className="grid grid-cols-2 gap-2">
         {intentChips.map((chip) => {
           const active = intentChipId === chip.id
           return (
@@ -87,6 +91,7 @@ export function IntentMatrix({
             </button>
           )
         })}
+        </div>
       </div>
 
       {outputFormats.length > 0 ? (

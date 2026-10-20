@@ -63,36 +63,54 @@ export function InventoryImageDropzone({
   const [dragging, setDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
 
-  const handleFile = useCallback(
-    async (file: File | null | undefined) => {
-      if (!file || disabled) return
-
-      if (!ACCEPTED.includes(file.type)) {
-        toast.error("Use PNG, JPG, or WEBP only.")
-        return
-      }
-      if (file.size > MAX_BYTES) {
-        toast.error("Image must be under 8MB.")
-        return
-      }
+  const handleFiles = useCallback(
+    async (fileList: FileList | File[] | null | undefined) => {
+      if (!fileList || disabled) return
+      const files = Array.from(fileList)
+      if (files.length === 0) return
 
       setUploading(true)
+      let added = 0
+      let latestImages: string[] | null = null
       try {
-        const publicUrl = await uploadInventoryImage(entityId, itemId, file)
-        const result = await appendInventoryImage({
-          entityId,
-          itemId,
-          imageUrl: publicUrl,
-        })
-        if (!result.ok) {
-          throw new Error(result.error)
+        for (const file of files) {
+          if (!ACCEPTED.includes(file.type)) {
+            toast.error(`${file.name || "File"}: use PNG, JPG, or WEBP only.`)
+            continue
+          }
+          if (file.size > MAX_BYTES) {
+            toast.error(`${file.name || "File"}: must be under 8MB.`)
+            continue
+          }
+
+          const publicUrl = await uploadInventoryImage(entityId, itemId, file)
+          const result = await appendInventoryImage({
+            entityId,
+            itemId,
+            imageUrl: publicUrl,
+          })
+          if (!result.ok) {
+            throw new Error(result.error)
+          }
+          latestImages = result.data.images
+          added += 1
         }
-        onChange(result.data.images)
-        toast.success("Supplementary image attached.")
+
+        if (latestImages) {
+          onChange(latestImages)
+        }
+        if (added === 0) {
+          toast.message("No images were uploaded.")
+        } else if (added === 1) {
+          toast.success("Supplementary image attached.")
+        } else {
+          toast.success(`Attached ${added} images.`)
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Image upload failed."
         toast.error(message)
+        if (latestImages) onChange(latestImages)
       } finally {
         setUploading(false)
         if (inputRef.current) inputRef.current.value = ""
@@ -167,7 +185,7 @@ export function InventoryImageDropzone({
           event.preventDefault()
           event.stopPropagation()
           setDragging(false)
-          void handleFile(event.dataTransfer.files?.[0])
+          void handleFiles(event.dataTransfer.files)
         }}
         className={cn(
           "flex min-h-[6rem] cursor-pointer flex-col items-center justify-center gap-2 border-2 border-dashed border-mad-black bg-mad-white px-3 py-4 text-center transition-colors",
@@ -183,7 +201,7 @@ export function InventoryImageDropzone({
         <span className="font-typewriter text-[0.75rem] font-bold tracking-wider text-mad-black uppercase">
           {uploading
             ? "Uploading…"
-            : "+ Click or drag item photo here (PNG, JPG, WEBP)"}
+            : "+ Click or drag photos here (PNG, JPG, WEBP · multiple OK)"}
         </span>
       </label>
 
@@ -192,10 +210,11 @@ export function InventoryImageDropzone({
         id={inputId}
         type="file"
         accept="image/png,image/jpeg,image/webp"
+        multiple
         className="sr-only"
         disabled={disabled || uploading}
         onChange={(event) => {
-          void handleFile(event.target.files?.[0])
+          void handleFiles(event.target.files)
         }}
       />
     </div>

@@ -18,6 +18,8 @@ export type ScheduledPostPayload = {
   media_url?: string | null
   /** Feed carousel slides (Instagram feed, Facebook); media_url is slide 1. */
   media_urls?: string[] | null
+  /** Instagram Story sequence (2–10 frames); media_url is frame 1. */
+  story_urls?: string[] | null
   destination_url?: string | null
   slug_seed?: string | null
 }
@@ -74,6 +76,12 @@ async function dispatchRow(
           typeof url === "string" && /^https?:\/\//i.test(url.trim())
       )
     : []
+  const storyUrls = Array.isArray(payload.story_urls)
+    ? payload.story_urls.filter(
+        (url): url is string =>
+          typeof url === "string" && /^https?:\/\//i.test(url.trim())
+      )
+    : []
 
   switch (row.platform) {
     case "instagram_story":
@@ -81,6 +89,7 @@ async function dispatchRow(
         ...base,
         platform: "instagram",
         placement: "story",
+        storyUrls: storyUrls.length >= 2 ? storyUrls : null,
       })
     case "instagram_feed":
       return publishCampaignToSocials(ctx, {

@@ -27,6 +27,7 @@ import {
   requestMapIntentFromMedia,
 } from "@/lib/studio/map-intent-client"
 import type { IntentAiSuggestedField } from "@/lib/studio/map-intent"
+import type { CarouselPackContext } from "@/lib/studio/carousel-pack-context"
 
 import type { PostIntentState } from "@/lib/inventory/post-intent"
 
@@ -40,7 +41,6 @@ import {
   CanvasTextOverlayEditor,
   type CanvasItemFacts,
 } from "@/components/studio/canvas-text-overlay"
-import { OnScreenTextPanel } from "@/components/studio/on-screen-text-panel"
 
 import {
 
@@ -237,6 +237,18 @@ type Props = {
 
   enhancingCaption?: boolean
 
+  /** Retail/fashion: audience + topic only; hook/CTA live on Schedule formula bank. */
+  intentFieldSet?: "full" | "focus"
+
+  audienceToneCue?: string
+  postFocusLabel?: string | null
+  stillPhotoCount?: number
+  brandProfileId?: string | null
+
+  carouselPackContext?: CarouselPackContext | null
+  /** Vision merged across all tray stills (when inspected). */
+  carouselMergedVision?: string | null
+
 }
 
 
@@ -410,6 +422,16 @@ export function StepCustomize({
 
   enhancingCaption = false,
 
+  intentFieldSet = "full",
+
+  audienceToneCue = "",
+  postFocusLabel = null,
+  stillPhotoCount = 1,
+  brandProfileId = null,
+
+  carouselPackContext = null,
+  carouselMergedVision = null,
+
 }: Props) {
 
   const [assistField, setAssistField] = useState<"caption" | null>(null)
@@ -417,6 +439,7 @@ export function StepCustomize({
   const [captionVariations, setCaptionVariations] = useState<string[]>([])
 
   const [intentMapBusy, setIntentMapBusy] = useState(false)
+  const [intentAdvancedOpen, setIntentAdvancedOpen] = useState(false)
   const [aiSuggested, setAiSuggested] = useState<
     Partial<Record<IntentAiSuggestedField, boolean>>
   >({})
@@ -437,13 +460,16 @@ export function StepCustomize({
     resolveIndustryProfile({ name: entity.name, industry: entity.industry }).id
   )
 
+  const industryProfile = resolveIndustryProfile({
+    name: entity.name,
+    industry: entity.industry,
+  })
   const pillars =
-
     entity.content_pillars.length > 0
-
       ? entity.content_pillars
-
-      : ["Brand story", "Product drop", "Community"]
+      : industryProfile.contentPillars.length > 0
+        ? industryProfile.contentPillars
+        : ["Brand story", "Product drop", "Community"]
 
   // Same list as the Schedule formula panel (they share the chosen CTA).
   const ctas = resolveConversionActions(
@@ -559,7 +585,13 @@ export function StepCustomize({
       toast.message("Attach media on Step 1 (upload must finish) first.")
       return
     }
-    if (personas.length === 0 || bank.hook_styles.length === 0 || ctas.length === 0) {
+    const retailTopicOnly = intentFieldSet === "focus" && !isFudi
+    if (
+      !retailTopicOnly &&
+      (personas.length === 0 ||
+        bank.hook_styles.length === 0 ||
+        ctas.length === 0)
+    ) {
       toast.error("Add personas, hook blueprints, and CTAs in Brain DNA first.")
       return
     }
@@ -572,6 +604,11 @@ export function StepCustomize({
         activeBrand: entity.name,
         aestheticTags: vision.aestheticTags,
         concreteFeatures: vision.concreteFeatures,
+        retailTopicOnly,
+        audienceToneCue: audienceToneCue.trim() || undefined,
+        postFocusLabel: postFocusLabel?.trim() || undefined,
+        stillPhotoCount,
+        brandProfileId: brandProfileId ?? undefined,
         optionSource: {
           dropTypes: isFudi
             ? FUDI_DROP_KIND_OPTIONS.map((row) => ({
@@ -590,26 +627,34 @@ export function StepCustomize({
         },
       })
 
-      onPostIntentChange({
-        ...postIntent,
-        dropKind: result.dropKind,
-        channelHint: result.dropTypeCustom ?? "",
-        listingVibe: result.listingVibe,
-      })
+      if (isFudi) {
+        onPostIntentChange({
+          ...postIntent,
+          dropKind: result.dropKind,
+          channelHint: result.dropTypeCustom ?? "",
+          listingVibe: result.listingVibe,
+        })
+      }
       setPillarCustom(result.contentPillarIsCustom)
       onContentPillarChange?.(result.contentPillar)
-      onPersonaIdChange?.(result.personaId)
-      onHookBlueprintIdChange?.(result.hookBlueprintId)
-      onCtaIdChange?.(result.ctaId)
+      if (!retailTopicOnly) {
+        onPersonaIdChange?.(result.personaId)
+        onHookBlueprintIdChange?.(result.hookBlueprintId)
+        onCtaIdChange?.(result.ctaId)
+      }
       setAiSuggested({
         dropType: isFudi,
-        listingVibe: true,
+        listingVibe: !retailTopicOnly,
         pillar: true,
-        persona: true,
-        hookBlueprint: true,
-        cta: true,
+        persona: !retailTopicOnly,
+        hookBlueprint: !retailTopicOnly,
+        cta: !retailTopicOnly,
       })
-      toast.success("Intent mapped from media — override any dropdown as needed.")
+      toast.success(
+        retailTopicOnly
+          ? "Suggested topic from media — check “What is this post about?” and edit if needed."
+          : "Intent mapped from media — review each field before continuing."
+      )
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Auto-suggest failed."
@@ -645,6 +690,10 @@ export function StepCustomize({
     setAssistField("caption")
     try {
       const vision = await resolveVisionForIntentMap()
+      const visualDescription =
+        carouselPackContext?.isCarousel && carouselMergedVision?.trim()
+          ? carouselMergedVision.trim()
+          : vision.visualDescription
       const persona = personas.find((row) => row.id === personaId)
       const hookBlueprint = bank.hook_styles.find(
         (row) => row.id === hookBlueprintId
@@ -656,7 +705,7 @@ export function StepCustomize({
         field: "caption",
         headline,
         caption,
-        visualDescription: vision.visualDescription,
+        visualDescription,
         listingVibe: postIntent.listingVibe?.trim() || null,
         wizard: {
           listingVibe: postIntent.listingVibe?.trim() || null,
@@ -671,11 +720,26 @@ export function StepCustomize({
             ? textOverlay.headline
             : null,
           onCanvasSubhead: textOverlay.enabled ? textOverlay.subhead : null,
+          audienceToneCue: audienceToneCue.trim() || null,
+          postFocusLabel: postFocusLabel?.trim() || null,
+          stillPhotoCount,
+          carouselSlides: carouselPackContext?.slides.map((row) => ({
+            index: row.index,
+            brand: row.brand,
+            vibe: row.vibe,
+            listingLine: row.listingLine,
+            visualSummary: row.visualSummary,
+          })),
+          carouselBrands: carouselPackContext?.brands,
+          carouselVibes: carouselPackContext?.vibes,
+          carouselEditorSummary: carouselPackContext?.editorSummary ?? null,
         },
       })
       setCaptionVariations(result.variations)
       toast.success(
-        `${result.variations.length} caption option(s) from your media & intent — tap to apply.`
+        carouselPackContext?.isCarousel
+          ? `${result.variations.length} carousel caption option(s) — whole-edit tone, all designers considered.`
+          : `${result.variations.length} caption option(s) from your media & intent — tap to apply.`
       )
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "AI assist failed.")
@@ -691,6 +755,7 @@ export function StepCustomize({
   const showCanvas = phase === "all" || phase === "canvas"
   const showCopy = phase === "all" || phase === "copy"
   const isIntentWizard = phase === "intent"
+  const intentFocus = intentFieldSet === "focus" && !isFudi
   const isCanvasWizard = phase === "canvas"
   const isCopyWizard = phase === "copy"
   // Every wizard step shows the same "N · Step" header.
@@ -727,15 +792,27 @@ export function StepCustomize({
     >
       {showIntent ? (
         <div className={isIntentWizard ? "shrink-0" : "space-y-1"}>
+          {intentFocus ? (
+            <p className="mb-1.5 text-xs leading-relaxed text-neutral-600">
+              AI suggestions are optional and often wrong for promos — set tone
+              and focus yourself, then use the button below only to guess a{" "}
+              <span className="font-semibold">topic</span> from your photo.
+            </p>
+          ) : null}
           <button
             type="button"
             disabled={!canAutoSuggestIntent || intentMapBusy}
             onClick={() => void runIntentAutoSuggest()}
             className={cn(
-              "flex w-full items-center justify-center gap-2 border-2 border-mad-black px-3 font-typewriter font-bold tracking-wide uppercase shadow-keycap-sm transition",
+              "flex w-full items-center justify-center gap-2 border-2 border-mad-black px-3 font-typewriter font-bold tracking-wide uppercase transition",
               isIntentWizard ? "py-2.5 text-sm" : "py-2 text-[0.7rem]",
+              intentFocus
+                ? "shadow-none"
+                : "shadow-keycap-sm",
               canAutoSuggestIntent
-                ? "bg-mad-lime text-mad-black hover:bg-mad-black hover:text-mad-white disabled:opacity-60"
+                ? intentFocus
+                  ? "bg-white text-mad-black hover:bg-mad-lime/40 disabled:opacity-60"
+                  : "bg-mad-lime text-mad-black hover:bg-mad-black hover:text-mad-white disabled:opacity-60"
                 : "cursor-not-allowed bg-neutral-100 text-neutral-400"
             )}
           >
@@ -747,7 +824,9 @@ export function StepCustomize({
             ) : (
               <>
                 <Brain className="size-4" aria-hidden />
-                Auto-Suggest Intent from Media
+                {intentFocus
+                  ? "Optional · suggest topic from media"
+                  : "Auto-Suggest Intent from Media"}
               </>
             )}
           </button>
@@ -783,19 +862,36 @@ export function StepCustomize({
         />
       ) : null}
 
+      {showIntent && intentFocus ? (
+        <p className="mt-2 text-xs leading-relaxed text-neutral-600">
+          Pick who you are talking to above, then what this post is about for{" "}
+          {entity.name}. Hook style and CTA are on{" "}
+          <span className="font-semibold">Schedule</span> when you render a pack.
+        </p>
+      ) : null}
+
       {showIntent ? (
       <div
         className={cn(
           "grid min-w-0 sm:[&>*]:min-w-0",
-          isIntentWizard
-            ? "mt-2.5 gap-2.5 sm:grid-cols-2 xl:grid-cols-4"
-            : "gap-2 sm:grid-cols-2"
+          intentFocus
+            ? "mt-2.5 gap-2.5"
+            : isIntentWizard
+              ? "mt-2.5 gap-2.5 sm:grid-cols-2 xl:grid-cols-4"
+              : "gap-2 sm:grid-cols-2"
         )}
       >
 
-        <label className="grid min-w-0 gap-1.5">
+        <label
+          className={cn(
+            "grid min-w-0 gap-1.5",
+            intentFocus && "sm:col-span-full"
+          )}
+        >
 
-          <span className={intentFieldLabel}>Content pillar / vibe</span>
+          <span className={intentFieldLabel}>
+            {intentFocus ? "What is this post about?" : "Content pillar / vibe"}
+          </span>
 
           <Select
             value={pillarSelectValue}
@@ -842,8 +938,18 @@ export function StepCustomize({
           ) : null}
         </label>
 
+        {intentFocus && !intentAdvancedOpen ? (
+          <button
+            type="button"
+            className="border-2 border-dashed border-mad-black/40 px-3 py-2 text-left font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-600 uppercase hover:border-mad-black hover:bg-mad-lime/30 sm:col-span-full"
+            onClick={() => setIntentAdvancedOpen(true)}
+          >
+            Optional: persona, hook blueprint, CTA
+          </button>
+        ) : null}
 
-
+        {intentFocus && !intentAdvancedOpen ? null : (
+        <>
         <label className="grid min-w-0 gap-1.5">
 
           <span className={intentFieldLabel}>Audience persona</span>
@@ -948,6 +1054,8 @@ export function StepCustomize({
             </Select>
           )}
         </label>
+        </>
+        )}
 
       </div>
       ) : null}
@@ -986,6 +1094,7 @@ export function StepCustomize({
           <StepCopyEditor
             wizardCompact={isCopyWizard}
             className={isCopyWizard ? "min-h-0 flex-1" : undefined}
+            photoCount={stillPhotoCount}
             headline={headline}
             caption={caption}
             onHeadlineChange={commitHeadline}
@@ -1233,13 +1342,6 @@ export function StepCustomize({
           ) : null}
 
         </label>
-
-        {onTextOverlayChange ? (
-          <OnScreenTextPanel
-            value={textOverlay}
-            onChange={onTextOverlayChange}
-          />
-        ) : null}
 
       </div>
 

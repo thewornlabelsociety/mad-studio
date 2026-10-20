@@ -1,5 +1,4 @@
 import { z } from "zod"
-import { getRequestOrigin } from "@server/request-context"
 
 import {
   FUDI_ENTITY_ID,
@@ -35,13 +34,10 @@ export const socialPublishRequestSchema = z.object({
   placement: publishPlacementSchema.optional().default("feed"),
   caption: z.string().max(2200).optional(),
   mediaUrl: z.string().min(1).max(4000).optional(),
-  /** 2–10 images posted as one Instagram / Facebook feed carousel. */
-  carouselUrls: z
-    .array(z.string().min(1).max(4000))
-    .min(2)
-    .max(10)
-    .optional()
-    .nullable(),
+  /** 2–10 feed carousel slides (Instagram feed / Facebook album). */
+  carouselUrls: z.array(z.string().min(1).max(4000)).min(2).max(10).optional(),
+  /** 2–10 consecutive Instagram Story frames. */
+  storyUrls: z.array(z.string().min(1).max(4000)).min(2).max(10).optional(),
   destinationUrl: z.string().max(4000).optional().nullable(),
   connectionId: z.string().uuid().optional().nullable(),
   /** Preferred trackable slug seed, e.g. fudi-bao or partner-venue. */
@@ -147,7 +143,13 @@ export function isPublicHttpUrl(value: string): boolean {
 }
 
 export function siteOrigin(): string {
-  return getRequestOrigin()
+  const raw =
+    import.meta.env.VITE_SITE_URL?.trim() ||
+    "http://localhost:3000"
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    return raw.replace(/\/$/, "")
+  }
+  return `https://${raw.replace(/\/$/, "")}`
 }
 
 /** Public origin for /r/ short links (FÜDI consumer domain vs MAD Studio ops domain). */
@@ -197,7 +199,7 @@ export function createTrackableSlug(seed?: string): string {
 }
 
 export function metaGraphVersion(): string {
-  return process.env.META_GRAPH_API_VERSION?.trim() || "v21.0"
+  return import.meta.env.VITE_META_GRAPH_API_VERSION?.trim() || "v21.0"
 }
 
 export function metaGraphBase(): string {

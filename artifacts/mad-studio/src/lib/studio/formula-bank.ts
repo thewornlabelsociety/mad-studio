@@ -37,6 +37,8 @@ export type FormulaRenderSlots = {
   painfulAction: string
   cityArea: string
   interest: string
+  /** Full spark / promo line — used by brand & carousel hooks (no item/size). */
+  campaignLine: string
 }
 
 export const DEFAULT_FORMULA_BANK: FormulaBank = {
@@ -96,8 +98,26 @@ export const DEFAULT_FORMULA_BANK: FormulaBank = {
 export const WORN_LABEL_FORMULA_BANK: FormulaBank = {
   hook_styles: [
     {
+      id: "wls_carousel_promo",
+      label: "Carousel / brand promo",
+      template: "[Campaign line]",
+      weight: 10,
+    },
+    {
+      id: "wls_live_moment",
+      label: "Launch · we're live",
+      template: "WE'RE LIVE. [Campaign line]",
+      weight: 9,
+    },
+    {
+      id: "wls_brand_tease",
+      label: "Brand + campaign line",
+      template: "[Brand]: [Campaign line]",
+      weight: 8,
+    },
+    {
       id: "wls_just_landed",
-      label: "Just Landed / New In",
+      label: "Just Landed / New In (single piece)",
       template: "Just landed: [Brand] [Item], size [Size]. One of one.",
     },
     {
@@ -207,7 +227,11 @@ const SLOT_MAP: Record<string, keyof FormulaRenderSlots> = {
   "Painful Action": "painfulAction",
   "City/Area": "cityArea",
   Interest: "interest",
+  "Campaign line": "campaignLine",
 }
+
+/** Placeholders that must be filled before a live post (prices). Others warn only. */
+export const FORMULA_PRICE_PLACEHOLDERS = new Set(["[Price A]", "[Price B]"])
 
 export function sortFormulaBankByWeight(bank: FormulaBank): FormulaBank {
   const hook_styles = [...bank.hook_styles].sort(
@@ -377,11 +401,16 @@ export function fillFormulaTemplate(
  * unfilled slot stays as "[Price A]" so the review screen blocks it, instead
  * of a made-up price going out on a real post.
  */
-export function defaultSlotsFromSpark(spark: string): FormulaRenderSlots {
+export function defaultSlotsFromSpark(
+  spark: string,
+  options?: { brandName?: string }
+): FormulaRenderSlots {
   const trimmed = spark.trim()
+  const brand = options?.brandName?.trim() ?? ""
   return {
+    campaignLine: trimmed,
     item: trimmed.slice(0, 80),
-    brand: "",
+    brand,
     size: "",
     priceA: "",
     priceB: "",
@@ -394,7 +423,27 @@ export function defaultSlotsFromSpark(spark: string): FormulaRenderSlots {
 
 /** Unfilled "[Slot]" placeholders left in post copy. */
 export function unfilledFormulaSlots(text: string): string[] {
-  return [...new Set(text.match(/\[[A-Z][A-Za-z /]{0,30}\]/g) ?? [])]
+  const raw = [...new Set(text.match(/\[[A-Z][A-Za-z /]{0,30}\]/g) ?? [])]
+  return raw.filter((token) => {
+    const inner = token.slice(1, -1).trim()
+    return Boolean(SLOT_MAP[inner])
+  })
+}
+
+export function partitionFormulaSlotGaps(gaps: string[]): {
+  blocking: string[]
+  warnings: string[]
+} {
+  const blocking: string[] = []
+  const warnings: string[] = []
+  for (const gap of gaps) {
+    if (FORMULA_PRICE_PLACEHOLDERS.has(gap)) {
+      blocking.push(gap)
+    } else {
+      warnings.push(gap)
+    }
+  }
+  return { blocking, warnings }
 }
 
 /**
@@ -428,8 +477,16 @@ export function buildCampaignPackFromFormula(input: {
   slots: FormulaRenderSlots
   spark: string
   campaignTitle?: string
+  brandFallback?: string
 }): CampaignPack {
-  const spokenHook = fillFormulaTemplate(input.hook.template, input.slots)
+  const spark = input.spark.trim()
+  const slots: FormulaRenderSlots = {
+    ...input.slots,
+    campaignLine: input.slots.campaignLine.trim() || spark,
+    brand: input.slots.brand.trim() || input.brandFallback?.trim() || "",
+    item: input.slots.item.trim() || spark.slice(0, 80),
+  }
+  const spokenHook = fillFormulaTemplate(input.hook.template, slots)
   const onScreen = onScreenLine(spokenHook)
 
   // The visual cue is a filming note for the video script, not post copy.
@@ -437,14 +494,15 @@ export function buildCampaignPackFromFormula(input: {
     spokenHook,
     "",
     input.cta.action_text,
-    input.spark.trim() ? `\n${input.spark.trim()}` : "",
+    spark && !spokenHook.includes(spark) ? `\n${spark}` : "",
   ]
     .filter(Boolean)
     .join("\n")
 
   const title =
     input.campaignTitle?.trim() ||
-    input.slots.item.trim().slice(0, 60) ||
+    slots.campaignLine.trim().slice(0, 60) ||
+    slots.item.trim().slice(0, 60) ||
     "Formula campaign"
 
   return {
@@ -458,9 +516,10 @@ export function buildCampaignPackFromFormula(input: {
       spoken_hook: spokenHook.slice(0, 220),
       on_screen_text: onScreen || "SEE THIS NOW",
       search_keywords: [
-        input.slots.item,
-        input.slots.cityArea,
-        input.slots.interest,
+        slots.brand,
+        slots.item,
+        slots.cityArea,
+        slots.interest,
       ]
         .map((k) => k.trim())
         .filter(Boolean)
@@ -497,7 +556,7 @@ export function buildCampaignPackFromFormula(input: {
       // One word per tag (hashtags can't have spaces); brand-neutral extras.
       search_optimized_tags: [
         ...new Set(
-          [input.slots.brand, input.slots.item, input.slots.cityArea, "local", "newin"]
+          [slots.brand, slots.item, slots.cityArea, "local", "newin"]
             .map((tag) =>
               tag
                 .toLowerCase()

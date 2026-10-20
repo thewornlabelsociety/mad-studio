@@ -248,14 +248,29 @@ export async function deactivateSocialConnection(input: {
     return { ok: false, error: auth.error ?? "Unauthorized" }
   }
 
+  const { data: row, error: readError } = await auth.supabase
+    .from("social_connections")
+    .select("id, platform")
+    .eq("id", input.connectionId)
+    .eq("entity_id", input.entityId)
+    .maybeSingle()
+
+  if (readError || !row) {
+    return { ok: false, error: readError?.message ?? "Connection not found." }
+  }
+
+  const now = new Date().toISOString()
+  // Deactivate every active row for this platform on the entity so a leftover
+  // TikTok (e.g. FÜDI account previously saved under Worn Label) cannot reappear.
   const { error } = await auth.supabase
     .from("social_connections")
     .update({
       is_active: false,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
     })
-    .eq("id", input.connectionId)
     .eq("entity_id", input.entityId)
+    .eq("platform", row.platform)
+    .eq("is_active", true)
 
   if (error) {
     return { ok: false, error: error.message }
