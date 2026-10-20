@@ -277,6 +277,12 @@ importers:
       '@remotion/player':
         specifier: ^4.0.531
         version: 4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      html-to-image:
+        specifier: ^1.11.13
+        version: 1.11.13
+      jspdf:
+        specifier: ^3.0.1
+        version: 3.0.4
       remotion:
         specifier: ^4.0.531
         version: 4.0.531(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -434,15 +440,9 @@ importers:
       framer-motion:
         specifier: 'catalog:'
         version: 12.43.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      html-to-image:
-        specifier: ^1.11.13
-        version: 1.11.13
       input-otp:
         specifier: ^1.4.2
         version: 1.5.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      jspdf:
-        specifier: ^3.0.1
-        version: 3.0.4
       lucide-react:
         specifier: 'catalog:'
         version: 0.545.0(react@19.1.0)
