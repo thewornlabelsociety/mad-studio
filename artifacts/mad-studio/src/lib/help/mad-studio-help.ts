@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-21e"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-21f"
 
 export type HelpSop = {
   title: string
@@ -345,7 +345,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
     title: "Campaign Studio (Multiplexer)",
     route: "/studio",
     summary:
-      "Editorial Create layout: masthead + step rail, work column + **Live preview** column on desktop so Canvas and Copy update the phone while you edit.",
+      "Editorial Create layout: compact masthead + step rail, denser work column + narrower **Live preview** on desktop so Media/Intent/Canvas/Copy have more room to edit.",
     features: [
       {
         name: "Editorial Create layout",

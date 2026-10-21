@@ -27,21 +27,21 @@ export function StudioCreateChrome({
 
   return (
     <TooltipProvider delayDuration={250}>
-      <div className="relative w-full shrink-0 border-b border-neutral-200 bg-white px-4 py-1.5 lg:px-6 lg:py-2">
+      <div className="relative w-full shrink-0 border-b border-neutral-200 bg-white px-2.5 py-1 sm:px-3 lg:px-3 lg:py-1.5">
         <p
-          className="absolute right-4 top-2 font-serif text-sm tabular-nums text-neutral-400 lg:right-6"
+          className="absolute right-2.5 top-1.5 font-serif text-xs tabular-nums text-neutral-400 sm:right-3 lg:right-3"
           aria-label={`Step ${stepIndex} of ${STUDIO_WIZARD_STEPS.length}`}
         >
           {String(stepIndex).padStart(2, "0")} /{" "}
           {String(STUDIO_WIZARD_STEPS.length).padStart(2, "0")}
         </p>
 
-        <div className="flex flex-col gap-2 pr-14 sm:flex-row sm:items-center sm:gap-4 lg:gap-6 lg:pr-16">
-          <div className="min-w-0 shrink-0 sm:max-w-[9rem] lg:max-w-[11rem]">
-            <p className="truncate text-[11.5px] font-medium tracking-[0.18em] text-neutral-500 uppercase">
+        <div className="flex flex-col gap-1 pr-12 sm:flex-row sm:items-center sm:gap-3 lg:gap-4 lg:pr-14">
+          <div className="min-w-0 shrink-0 sm:max-w-[8rem] lg:max-w-[10rem]">
+            <p className="truncate text-[10.5px] font-medium tracking-[0.16em] text-neutral-500 uppercase">
               {brandName}
             </p>
-            <h1 className="brand-typewriter truncate text-lg leading-tight text-mad-black lg:text-xl">
+            <h1 className="brand-typewriter truncate text-base leading-tight text-mad-black lg:text-lg">
               {stepLabel}
             </h1>
           </div>

@@ -92,9 +92,10 @@ export function StepMedia({
   return (
     <StudioStepPanel
       fill
+      compactHeader
       kicker="I · Media"
       title="Photos, reels & library"
-      description="Attach stills or reels, pull from the brand library, or drop a finished render."
+      description="Attach stills or reels, open the brand library, or drop a finished render."
     >
       <MediaTray
         entityId={entityId}

@@ -2310,7 +2310,7 @@ export function StudioWorkspace({
             )}
           >
             {!showStudio ? (
-              <section className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto rounded-lg border border-neutral-200/80 bg-white p-5 shadow-sm md:p-6">
+              <section className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-lg border border-neutral-200/80 bg-white p-3 shadow-sm md:p-4">
                 <FormulaBankPanel
                   entity={activeEntity}
                   spark={rawSpark}

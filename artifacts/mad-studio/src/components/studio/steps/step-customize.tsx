@@ -787,7 +787,7 @@ export function StepCustomize({
       }
       className={cn(
         "min-w-0",
-        isStepWizard && "p-4 md:p-5"
+        isStepWizard && "p-3 md:p-3.5"
       )}
     >
       {showIntent ? (
