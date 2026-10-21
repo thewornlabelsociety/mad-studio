@@ -60,6 +60,15 @@ export async function GET(request: Request) {
 
     let accountId = input.accountId?.trim() || ""
     let accessToken = input.accessToken?.trim() || ""
+    let tiktokRow: {
+      id: string
+      entity_id: string
+      account_id: string
+      account_name: string | null
+      access_token: string
+      refresh_token: string | null
+      token_expires_at: string | null
+    } | null = null
 
     if (!accountId || !accessToken) {
       let query = supabase
@@ -94,7 +103,7 @@ export async function GET(request: Request) {
       accountId = accountId || connection.account_id
       accessToken = accessToken || connection.access_token
       if (input.platform === "tiktok" && "refresh_token" in connection) {
-        const refreshed = await refreshTikTokConnectionIfNeeded(createAdminClient(), {
+        tiktokRow = {
           id: connection.id,
           entity_id: connection.entity_id,
           account_id: connection.account_id,
@@ -102,7 +111,11 @@ export async function GET(request: Request) {
           access_token: connection.access_token,
           refresh_token: connection.refresh_token,
           token_expires_at: connection.token_expires_at,
-        })
+        }
+        const refreshed = await refreshTikTokConnectionIfNeeded(
+          createAdminClient(),
+          tiktokRow
+        )
         if (refreshed.ok) {
           accessToken = refreshed.accessToken
         }
@@ -110,7 +123,32 @@ export async function GET(request: Request) {
     }
 
     if (input.platform === "tiktok") {
-      const verified = await verifyTikTokConnection({ accessToken, accountId })
+      let verified = await verifyTikTokConnection({ accessToken, accountId })
+      // Token may be revoked while token_expires_at still looks valid — force refresh once.
+      if (
+        !verified.ok &&
+        tiktokRow?.refresh_token &&
+        /expired|invalid|401/i.test(verified.error)
+      ) {
+        const forced = await refreshTikTokConnectionIfNeeded(
+          createAdminClient(),
+          tiktokRow,
+          { force: true }
+        )
+        if (forced.ok) {
+          accessToken = forced.accessToken
+          verified = await verifyTikTokConnection({ accessToken, accountId })
+        } else {
+          return HttpResponse.json(
+            {
+              ok: false,
+              status: "error",
+              message: forced.error,
+            },
+            { status: 401 }
+          )
+        }
+      }
       if (!verified.ok) {
         return HttpResponse.json(
           {

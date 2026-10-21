@@ -77,7 +77,7 @@ export async function resolveTikTokConnection(
 
   if (!data?.access_token?.trim()) return null
 
-  const fresh = await refreshTikTokConnectionIfNeeded(createAdminClient(), {
+  const row = {
     id: data.id,
     entity_id: data.entity_id,
     account_id: data.account_id,
@@ -85,23 +85,22 @@ export async function resolveTikTokConnection(
     access_token: data.access_token,
     refresh_token: data.refresh_token,
     token_expires_at: data.token_expires_at,
+  }
+  // Prefer a live refresh when we have a refresh_token — TikTok can revoke access
+  // while token_expires_at still looks valid (common after reconnect / account switch).
+  const fresh = await refreshTikTokConnectionIfNeeded(createAdminClient(), row, {
+    force: Boolean(data.refresh_token?.trim()),
   })
   if (!fresh.ok) {
     console.warn("[tiktok] token refresh before publish:", fresh.error)
-    if (
-      data.token_expires_at &&
-      Date.parse(data.token_expires_at) < Date.now()
-    ) {
-      return null
-    }
+    return null
   }
 
-  const accessToken = fresh.ok ? fresh.accessToken : data.access_token.trim()
   return {
     id: data.id,
     accountId: data.account_id,
     accountName: data.account_name,
-    accessToken,
+    accessToken: fresh.accessToken,
   }
 }
 

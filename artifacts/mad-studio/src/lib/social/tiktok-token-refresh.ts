@@ -183,12 +183,16 @@ export async function persistRefreshedTikTokTokens(
 
 export async function refreshTikTokConnectionIfNeeded(
   supabase: DbClient,
-  row: TikTokConnectionRow
+  row: TikTokConnectionRow,
+  options?: { force?: boolean }
 ): Promise<
   | { ok: true; refreshed: boolean; accessToken: string }
   | { ok: false; error: string }
 > {
-  if (!tiktokAccessTokenNeedsRefresh(row.token_expires_at)) {
+  if (
+    !options?.force &&
+    !tiktokAccessTokenNeedsRefresh(row.token_expires_at)
+  ) {
     return { ok: true, refreshed: false, accessToken: row.access_token.trim() }
   }
 
