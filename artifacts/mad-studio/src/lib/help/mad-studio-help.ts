@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-21f"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-21g"
 
 export type HelpSop = {
   title: string
@@ -59,7 +59,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Navigation",
         description:
-          "Icon rail on the left (desktop): grouped Workflow, Brand, and Settings links — hover for labels, or expand with the panel toggle at the bottom. Top bar: active brand switcher, Team SOP drawer, Account. Main canvas is full-width white; detail drawers (e.g. post inspect) slide in on the right when a screen supports them. On mobile, use Menu for the same links.",
+          "Icon rail on the left (desktop): Workflow links plus **Brand Brain**, **Team SOP**, and **Account** at the bottom — expand the rail for labels. Top bar: brand switcher only (keeps Studio tall). On mobile, use Menu for the same links.",
       },
     ],
     sop: {
@@ -345,12 +345,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
     title: "Campaign Studio (Multiplexer)",
     route: "/studio",
     summary:
-      "Editorial Create layout: compact masthead + step rail, denser work column + narrower **Live preview** on desktop so Media/Intent/Canvas/Copy have more room to edit.",
+      "Create layout: thin step pills (not a large brand title), wide work column, slim phone preview flush right. Canvas tools (Words / Tags / Logo / Style) sit on one compact row. Saved layouts chrome is hidden from the Canvas step.",
     features: [
       {
         name: "Editorial Create layout",
         description:
-          "Full-width step bar (brand, numbered steps, progress). On large screens, the active step card is on the left and a **Live preview** phone column stays open on the right — edit canvas text or copy and see the mock update immediately (drag on-image text on Canvas in the preview).",
+          "Thin numbered step pills under the brand switcher. Work column left, slim **Preview** phone flush right. Canvas: Words / Tags / Logo / Style on one toolbar row; edit and see the mock update immediately.",
       },
       {
         name: "Live preview drawer",
@@ -404,7 +404,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "On-canvas text styler",
         description:
-          "Canvas step: three columns — on-image copy, position & scale (alignment, size, tilt), typography (font, color, shadow). Drag the tight dashed box on Live preview. **Saved layouts:** style the slide, then **Save** (beside Live preview) to store fonts, placement, tags, logo, backdrop, and optional starter headline/subhead on the brand. **Apply style** merges a saved layout onto the current slide without replacing words you already typed; **+ saved text** fills blank headline/subhead from the layout. Star a layout to use its styling on new posts (words still start empty until Canvas). Below that, **Add on your phone after publish** lists native-only features (link sticker, music, poll, location, mentions, collab) plus **Copy link for sticker** when a trackable URL is set. Plain baked text only — no fake stickers in export.",
+          "Canvas step toolbar: **Words**, **Tags**, **Logo**, **Style** on one row (Clear / On beside them). Drag the dashed box on Preview. Below: native-only phone features (link sticker, music, poll) plus **Copy link for sticker** when a trackable URL is set. Plain baked text only — no fake stickers in export.",
       },
       {
         name: "CapCut bridge",

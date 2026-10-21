@@ -151,8 +151,6 @@ import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
 import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import type { CanvasItemFacts } from "@/components/studio/canvas-text-overlay"
 import { requestCutout } from "@/lib/media/request-cutout"
-import { CanvasLayoutsBar } from "@/components/studio/canvas-layouts-bar"
-import { CanvasLayoutSaveButton } from "@/components/studio/canvas-layout-save-button"
 import {
   applyLayoutToOverlay,
   defaultLayoutOverlay,
@@ -2042,17 +2040,7 @@ export function StudioWorkspace({
         }
         footerSlot={null}
         canvasSlot={
-          phase === "canvas" ? (
-            <div className="space-y-3">
-            <CanvasLayoutsBar
-              layouts={canvasLayouts}
-              photoCount={imageAssets.length}
-              busy={layoutsBusy || cutoutBusy}
-              onApply={applyLayout}
-              onSetDefault={setDefaultLayout}
-              onDelete={deleteLayout}
-            />
-            {imageAssets.length >= 2 ? (
+          phase === "canvas" && imageAssets.length >= 2 ? (
             <CanvasSlidePicker
               slides={imageAssets.map((asset) => {
                 const overlay =
@@ -2071,8 +2059,6 @@ export function StudioWorkspace({
                 if (asset) onSelectStudioMedia(asset)
               }}
             />
-            ) : null}
-            </div>
           ) : null
         }
       />
@@ -2111,15 +2097,7 @@ export function StudioWorkspace({
       <StudioSplitShell
         className="min-h-0 flex-1"
         showInlinePreview
-        previewActions={
-          workbenchStep === WORKBENCH_STEP_CANVAS ? (
-            <CanvasLayoutSaveButton
-              busy={layoutsBusy}
-              suggestedName={`Layout ${canvasLayouts.length + 1}`}
-              onSave={saveLayout}
-            />
-          ) : null
-        }
+        previewActions={null}
         previewDrawer={{
           open: previewDrawerOpen,
           onOpenChange: setPreviewDrawerOpen,

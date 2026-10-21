@@ -906,19 +906,23 @@ export function CanvasTextOverlayEditor({
     <section
       className={cn(
         wizardCompact
-          ? "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto"
+          ? "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
           : "space-y-2 border-2 border-mad-black bg-mad-white p-2 shadow-keycap-sm",
         className
       )}
     >
       {wizardCompact ? (
-        <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-2 bg-mad-white px-1 pb-2">
-          <div role="tablist" aria-label="Canvas tools" className="flex flex-wrap border-2 border-mad-black">
+        <div className="sticky top-0 z-10 -mx-1 flex flex-nowrap items-center gap-1.5 overflow-x-auto bg-mad-white px-1 pb-1.5">
+          <div
+            role="tablist"
+            aria-label="Canvas tools"
+            className="flex min-w-0 flex-1 flex-nowrap border-2 border-mad-black"
+          >
             {(
               [
                 { id: "words", label: "Words", icon: Type },
                 { id: "tags", label: "Tags", icon: Tags },
-                { id: "logo", label: "Logo & backdrop", icon: ImageIcon },
+                { id: "logo", label: "Logo", icon: ImageIcon },
                 { id: "style", label: "Style", icon: Palette },
               ] as const
             ).map((row) => {
@@ -929,28 +933,27 @@ export function CanvasTextOverlayEditor({
                   type="button"
                   role="tab"
                   aria-selected={tab === row.id}
+                  title={row.id === "logo" ? "Logo & backdrop" : row.label}
                   onClick={() => setTab(row.id)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 border-r-2 border-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-wider uppercase last:border-r-0",
-                    tab === row.id ? "bg-mad-black text-mad-white" : "bg-mad-white hover:bg-mad-lime"
+                    "inline-flex min-w-0 flex-1 items-center justify-center gap-1 border-r-2 border-mad-black px-1.5 py-1.5 font-typewriter text-[0.65rem] font-bold tracking-wider uppercase last:border-r-0 sm:px-2 sm:text-[0.7rem]",
+                    tab === row.id
+                      ? "bg-mad-black text-mad-white"
+                      : "bg-mad-white hover:bg-mad-lime"
                   )}
                 >
-                  <Icon className="size-3.5" aria-hidden />
-                  {row.label}
+                  <Icon className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{row.label}</span>
                 </button>
               )
             })}
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <span title={typeof tipsCopy === "string" ? tipsCopy : undefined} className="sr-only">
-              Tips
-            </span>
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               onClick={() => onChange(clearCanvasTextOverlay())}
               className={cn(
-                btnClass,
-                "hover:bg-mad-vermillion hover:text-mad-white"
+                "border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.65rem] font-bold tracking-wider uppercase hover:bg-mad-vermillion hover:text-mad-white"
               )}
             >
               Clear
@@ -959,7 +962,7 @@ export function CanvasTextOverlayEditor({
               type="button"
               onClick={() => patch({ enabled: !value.enabled })}
               className={cn(
-                btnClass,
+                "border-2 border-mad-black px-2 py-1.5 font-typewriter text-[0.65rem] font-bold tracking-wider uppercase",
                 value.enabled ? "bg-mad-black text-mad-white" : "bg-mad-white"
               )}
             >

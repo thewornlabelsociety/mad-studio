@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Link } from "wouter"
 import { PanelLeft, Settings } from "lucide-react"
 
@@ -33,6 +33,8 @@ type Props = {
   entities: AccessibleEntity[]
   activeEntityId: string | null
   className?: string
+  /** Brand Brain / SOP / Account — rendered above the collapse control. */
+  utilitySlot?: (expanded: boolean) => ReactNode
 }
 
 function NavIconLink({
@@ -170,7 +172,12 @@ function SettingsMenu({
   )
 }
 
-export function AppSidebar({ entities, activeEntityId, className }: Props) {
+export function AppSidebar({
+  entities,
+  activeEntityId,
+  className,
+  utilitySlot,
+}: Props) {
   const pathname = usePathname()
   const [expanded, setExpanded] = useState(false)
 
@@ -253,10 +260,15 @@ export function AppSidebar({ entities, activeEntityId, className }: Props) {
 
         <div
           className={cn(
-            "shrink-0 border-t border-neutral-200 p-2",
-            expanded ? "px-3" : "flex justify-center"
+            "shrink-0 space-y-1 border-t border-neutral-200 p-2",
+            expanded ? "px-3" : ""
           )}
         >
+          {utilitySlot ? (
+            <div className={cn(!expanded && "flex flex-col items-center")}>
+              {utilitySlot(expanded)}
+            </div>
+          ) : null}
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <button

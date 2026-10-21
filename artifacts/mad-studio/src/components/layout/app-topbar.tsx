@@ -122,6 +122,11 @@ export type TopbarProps = {
   centerSlot?: React.ReactNode
   /** Draft / studio actions rendered inside mobile Menu only (< md). */
   mobileMenuSlot?: React.ReactNode
+  /** Brand Brain / SOP / Account live in the left sidebar (desktop). */
+  utilitiesInSidebar?: boolean
+  onOpenBrain?: () => void
+  onOpenTeamSop?: () => void
+  brainOpen?: boolean
 }
 
 export function AppTopbar({
@@ -133,21 +138,27 @@ export function AppTopbar({
   teamSlot,
   centerSlot = null,
   mobileMenuSlot = null,
+  utilitiesInSidebar = false,
+  onOpenBrain,
+  onOpenTeamSop,
+  brainOpen = false,
 }: TopbarProps) {
   const pathname = usePathname()
-  const [sopSheetOpen, setSopSheetOpen] = useState(false)
+  const [localSopOpen, setLocalSopOpen] = useState(false)
+  const [localBrainOpen, setLocalBrainOpen] = useState(false)
   const entityQuery = activeEntityId
     ? `?eid=${encodeURIComponent(activeEntityId)}`
     : ""
 
   const navItems = useStudioNavLinks(entities, activeEntityId)
-  const [brainOpen, setBrainOpen] = useState(false)
   const activeEntity =
     entities.find((entity) => entity.id === activeEntityId) ?? null
+  const sopOpen = utilitiesInSidebar ? false : localSopOpen
+  const brainIsOpen = utilitiesInSidebar ? brainOpen : localBrainOpen
 
-  // Ctrl+B / Cmd+B opens the Brand Brain from any page.
+  // Ctrl+B when shell is not owning the drawer.
   useEffect(() => {
-    if (!activeEntity) return
+    if (!activeEntity || utilitiesInSidebar) return
     function onKeyDown(event: KeyboardEvent) {
       if (
         (event.ctrlKey || event.metaKey) &&
@@ -156,23 +167,32 @@ export function AppTopbar({
         event.key.toLowerCase() === "b"
       ) {
         event.preventDefault()
-        setBrainOpen((open) => !open)
+        setLocalBrainOpen((open) => !open)
       }
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [activeEntity])
+  }, [activeEntity, utilitiesInSidebar])
+
+  const openBrain = () => {
+    if (onOpenBrain) onOpenBrain()
+    else setLocalBrainOpen((open) => !open)
+  }
+  const openSop = () => {
+    if (onOpenTeamSop) onOpenTeamSop()
+    else setLocalSopOpen(true)
+  }
 
   const brainButton = (className?: string) =>
     activeEntity ? (
       <button
         type="button"
-        onClick={() => setBrainOpen((open) => !open)}
-        aria-pressed={brainOpen}
+        onClick={openBrain}
+        aria-pressed={brainIsOpen}
         title="Brand Brain (Ctrl+B)"
         className={cn(
           "inline-flex items-center gap-1.5 border-2 border-mad-black px-2.5 py-1.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm transition-colors hover:bg-mad-lime",
-          brainOpen ? "bg-mad-lime" : "bg-mad-white",
+          brainIsOpen ? "bg-mad-lime" : "bg-mad-white",
           className
         )}
       >
@@ -188,18 +208,22 @@ export function AppTopbar({
 
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200 bg-mad-white md:border-b">
-      <TeamSopGuideSheet open={sopSheetOpen} onOpenChange={setSopSheetOpen} />
-      {activeEntity ? (
-        <BrainDrawer
-          open={brainOpen}
-          onOpenChange={setBrainOpen}
-          entityId={activeEntity.id}
-          entityName={activeEntity.name}
-          industry={activeEntity.industry ?? ""}
-        />
+      {!utilitiesInSidebar ? (
+        <>
+          <TeamSopGuideSheet open={sopOpen} onOpenChange={setLocalSopOpen} />
+          {activeEntity ? (
+            <BrainDrawer
+              open={localBrainOpen}
+              onOpenChange={setLocalBrainOpen}
+              entityId={activeEntity.id}
+              entityName={activeEntity.name}
+              industry={activeEntity.industry ?? ""}
+            />
+          ) : null}
+        </>
       ) : null}
 
-      <div className="flex w-full items-center justify-between gap-2 px-2 py-2 md:hidden">
+      <div className="flex w-full items-center justify-between gap-2 px-2 py-1.5 md:hidden">
         <Link
           href={`/today${entityQuery}`}
           className="inline-flex shrink-0 items-center"
@@ -223,12 +247,17 @@ export function AppTopbar({
           organizationId={organizationId}
           teamSlot={teamSlot}
           mobileMenuSlot={mobileMenuSlot}
-          onOpenTeamSop={() => setSopSheetOpen(true)}
+          onOpenTeamSop={openSop}
           triggerLabel="Menu"
         />
       </div>
 
-      <div className="hidden w-full items-center justify-between gap-2 border-neutral-200 bg-mad-white py-2.5 pl-4 pr-4 md:flex lg:pr-5">
+      <div
+        className={cn(
+          "hidden w-full items-center justify-between gap-2 border-neutral-200 bg-mad-white md:flex",
+          utilitiesInSidebar ? "py-1.5 pl-3 pr-3" : "py-2.5 pl-4 pr-4 lg:pr-5"
+        )}
+      >
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <BrandSwitcher
             entities={entities}
@@ -240,33 +269,37 @@ export function AppTopbar({
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {brainButton()}
-          <TeamSopGuideDrawer className="hidden md:inline-flex" />
-          <AccountMenu
-            userEmail={userEmail}
-            isOrgAdmin={isOrgAdmin}
-            organizationId={organizationId}
-            teamSlot={teamSlot}
-          />
-        </div>
+        {!utilitiesInSidebar ? (
+          <div className="flex shrink-0 items-center gap-2">
+            {brainButton()}
+            <TeamSopGuideDrawer className="hidden md:inline-flex" />
+            <AccountMenu
+              userEmail={userEmail}
+              isOrgAdmin={isOrgAdmin}
+              organizationId={organizationId}
+              teamSlot={teamSlot}
+            />
+          </div>
+        ) : null}
       </div>
     </header>
   )
 }
 
-function AccountMenu({
+export function AccountMenu({
   userEmail,
   isOrgAdmin,
   organizationId,
   teamSlot,
   className,
+  iconOnly = false,
 }: {
   userEmail: string | null
   isOrgAdmin: boolean
   organizationId: string | null
   teamSlot?: React.ReactNode
   className?: string
+  iconOnly?: boolean
 }) {
   const [pending, startTransition] = useTransition()
 
@@ -278,11 +311,17 @@ function AccountMenu({
           size="sm"
           className={cn(
             "gap-1.5 rounded-none border-2 border-mad-black font-typewriter text-[0.72rem] uppercase shadow-keycap-sm",
+            iconOnly && "border-0 shadow-none hover:bg-neutral-200/80",
             className
           )}
+          aria-label="Account"
         >
-          <User className="size-3.5" />
-          Account
+          <User className="size-3.5 shrink-0" />
+          {iconOnly ? (
+            <span className="sr-only">Account</span>
+          ) : (
+            "Account"
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
