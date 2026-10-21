@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Link } from "wouter"
 import { PanelLeft, Settings } from "lucide-react"
 
-import { MadFavicon } from "@/components/brand/mad-logo"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -218,8 +217,6 @@ export function AppSidebar({
   const main = items.filter((item) => item.section === "main")
   const settings = items.filter((item) => item.section === "settings")
 
-  const homeHref = `/today${entityQuery}`
-
   return (
     <TooltipProvider>
       <aside
@@ -229,24 +226,8 @@ export function AppSidebar({
           className
         )}
       >
-        <div
-          className={cn(
-            "flex shrink-0 items-center py-3",
-            expanded ? "px-3" : "justify-center px-2"
-          )}
-        >
-          <Link href={homeHref} aria-label="MAD Studio home">
-            <MadFavicon
-              className={cn(
-                "border-2 border-mad-black transition-transform hover:scale-105",
-                expanded ? "size-9" : "size-8"
-              )}
-            />
-          </Link>
-        </div>
-
         <nav
-          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 pb-2"
+          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 pt-3 pb-2"
           aria-label="Studio"
         >
           <NavSection items={main} pathname={pathname} expanded={expanded} />

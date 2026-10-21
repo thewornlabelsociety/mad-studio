@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-21g"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-21h"
 
 export type HelpSop = {
   title: string
@@ -59,7 +59,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Navigation",
         description:
-          "Icon rail on the left (desktop): Workflow links plus **Brand Brain**, **Team SOP**, and **Account** at the bottom — expand the rail for labels. Top bar: brand switcher only (keeps Studio tall). On mobile, use Menu for the same links.",
+          "Icon rail on the left (desktop): Workflow links plus **Brand Brain**, **Team SOP**, and **Account** at the bottom — expand the rail for labels (no MAD square logo). Top bar: brand switcher only. On mobile, use Menu for the same links.",
       },
     ],
     sop: {

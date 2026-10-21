@@ -8,7 +8,6 @@ import { Brain, Check, ChevronsUpDown, Menu, Plus, User } from "lucide-react"
 
 import { setActiveEntity, signOut } from "@/lib/actions"
 import { useStudioNavLinks } from "@/components/layout/app-sidebar"
-import { MadFavicon } from "@/components/brand/mad-logo"
 import { BrainDrawer } from "@/components/brain/brain-drawer"
 import { TeamSopGuideDrawer, TeamSopGuideSheet } from "@/components/studio/sop-guide-drawer"
 import { Button } from "@/components/ui/button"
@@ -146,9 +145,6 @@ export function AppTopbar({
   const pathname = usePathname()
   const [localSopOpen, setLocalSopOpen] = useState(false)
   const [localBrainOpen, setLocalBrainOpen] = useState(false)
-  const entityQuery = activeEntityId
-    ? `?eid=${encodeURIComponent(activeEntityId)}`
-    : ""
 
   const navItems = useStudioNavLinks(entities, activeEntityId)
   const activeEntity =
@@ -224,18 +220,11 @@ export function AppTopbar({
       ) : null}
 
       <div className="flex w-full items-center justify-between gap-2 px-2 py-1.5 md:hidden">
-        <Link
-          href={`/today${entityQuery}`}
-          className="inline-flex shrink-0 items-center"
-          aria-label="MAD STUDIO home"
-        >
-          <MadFavicon className="size-8 border-2 border-mad-black" />
-        </Link>
-        <div className="flex min-w-0 flex-1 justify-center px-1">
+        <div className="flex min-w-0 flex-1">
           <BrandSwitcher
             entities={entities}
             activeEntityId={activeEntityId}
-            className="max-w-[min(100%,11rem)]"
+            className="max-w-[min(100%,14rem)]"
           />
         </div>
         {brainButton("h-8 px-2")}
