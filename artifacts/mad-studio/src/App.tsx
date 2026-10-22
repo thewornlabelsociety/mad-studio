@@ -21,6 +21,7 @@ import PrivacyPolicyPage from "@/app/privacy/page"
 import TermsOfServicePage from "@/app/terms/page"
 import HelpPage from "@/app/help/page"
 import PromoPage from "@/app/promo/page"
+import TemplatesPage from "@/app/templates/page"
 import { AuthForm } from "@/components/auth/auth-form"
 import { createClient } from "@/lib/supabase/client"
 import type { EmailOtpType } from "@supabase/supabase-js"
@@ -90,6 +91,7 @@ function AuthCallback() {
 const PAGE_TITLES: Array<[string, string]> = [
   ["/today", "Today"],
   ["/studio", "Create"],
+  ["/templates", "Templates"],
   ["/planner", "Calendar"],
   ["/campaigns", "Campaigns"],
   ["/promo", "Promo"],
@@ -123,6 +125,7 @@ function App() {
         <Route path="/privacy" component={PrivacyPolicyPage} />
         <Route path="/terms" component={TermsOfServicePage} />
         <Route path="/studio">{() => <PageLoader load={() => StudioPage({ searchParams: query() })} />}</Route>
+        <Route path="/templates">{() => <PageLoader load={() => TemplatesPage({ searchParams: query() })} />}</Route>
         <Route path="/today">{() => <PageLoader load={() => TodayPage({ searchParams: query() })} />}</Route>
         <Route path="/planner">{() => <PageLoader load={() => PlannerPage({ searchParams: query() })} />}</Route>
         <Route path="/promo">{() => <PageLoader load={() => PromoPage({ searchParams: query() })} />}</Route>

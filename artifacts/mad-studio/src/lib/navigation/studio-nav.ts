@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CircleHelp,
   FolderOpen,
+  LayoutTemplate,
   ListChecks,
   Share2,
   Sparkles,
@@ -103,6 +104,15 @@ export function buildStudioNavItems(input: {
       label: "Create",
       description: "Make a post",
       icon: Sparkles,
+      section: "main",
+    },
+    {
+      id: "templates",
+      href: `/templates${entityQuery}`,
+      match: "/templates",
+      label: "Templates",
+      description: "Brand templates & starters",
+      icon: LayoutTemplate,
       section: "main",
     },
     {

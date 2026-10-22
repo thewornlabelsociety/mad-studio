@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-23a"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-23b"
 
 export type HelpSop = {
   title: string
@@ -59,7 +59,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Navigation",
         description:
-          "Icon rail on the left (desktop): Workflow links plus **Brand Brain**, **Team SOP**, and **Account** at the bottom — expand the rail for labels (no MAD square logo). Top bar: brand switcher only. On mobile, use Menu for the same links.",
+          "Icon rail on the left (desktop): Today, Create, Templates, Calendar, Library, plus Settings (Brand Brain, Socials, Usage, Help). Expand the rail for labels. Top bar: brand switcher only. On mobile, use Menu for the same links.",
       },
     ],
     sop: {
@@ -342,47 +342,50 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
   },
   {
     id: "template-engine",
-    title: "Template Engine (foundation)",
+    title: "Template Centre",
+    route: "/templates",
     summary:
-      "Entity-owned templates forked from immutable platform starters. Phase 3B ships database + APIs only — Template Centre UI and autonomous generation land later.",
+      "Brand-owned templates and platform starters. Copy a starter → customize → Generate in Studio → Review → Approve → Schedule. Advanced Edit opens the full Create wizard.",
     features: [
+      {
+        name: "Template Centre UI",
+        description:
+          "Nav → Templates. My Templates (active brand only) and Starter Library. Filter by category. Amber **Demo data** banner means foundation tables are not available — mutations stay disabled. Green **Live brand data** means APIs hit MAD Supabase.",
+      },
       {
         name: "Platform starters",
         description:
-          "Shared `platform_template_defs` (new arrivals, promo, email, etc.). Authenticated users can read published starters; ordinary roles cannot edit them. Fork via POST /api/templates/fork.",
+          "Shared `platform_template_defs`. Read-only in the UI; Copy to brand calls POST /api/templates/fork (live only).",
       },
       {
         name: "Entity template instances",
         description:
-          "`entity_template_instances` are brand-scoped (entity_id required). List/create via /api/templates/instances?entityId=…; update/duplicate under /api/templates/instances/:id. Cross-brand reads and writes are rejected by RLS + server checks.",
+          "Edit creative instructions, formula hook, channels, surfaces, placeholders. Save version / activate / archive / duplicate via /api/templates/instances (live only). Cross-brand isolation enforced server-side.",
       },
       {
-        name: "Append-only versions",
+        name: "Generate → Schedule",
         description:
-          "Edits bump `version` and append `entity_template_versions` snapshots. Campaigns can store `template_instance_id`, `template_version_id`, and `template_generation_key` for exact attribution (nullable; existing generate/publish paths unchanged in 3B).",
-      },
-      {
-        name: "Creative recipes",
-        description:
-          "`entity_creative_recipes` stores remountable pack snapshots for a brand. API: GET/POST /api/templates/recipes. No recipe UI yet. Cross-entity campaign/template refs are rejected.",
+          "Generate in Studio opens Create with `prompt` + `templateInstanceId` (reuses CampaignPack). Review, approve, and schedule stay on existing Studio / Calendar flows — no second publishing engine.",
       },
     ],
     sop: {
-      title: "Apply template engine migration (non-prod first)",
-      audience: "Org admin / engineer",
+      title: "Use Template Centre (operator)",
+      audience: "Creator or entity manager",
       prerequisites: [
-        "MAD Studio Supabase project (never FÜDI)",
-        "Explicit approval before production",
+        "Signed in with the correct brand (?eid=)",
+        "Phase 3B migration applied for live save/fork (otherwise demo browse only)",
       ],
       steps: [
-        "Sign in and confirm the correct brand (?eid=) — templates are entity-isolated.",
-        "Review supabase/migrations/20261023_entity_template_engine.sql (additive only).",
-        "Apply on local/staging MAD Supabase only after approval; do not use FÜDI credentials.",
-        "Smoke-test GET /api/templates/starters and fork into the active entity.",
-        "Confirm Entity A cannot list Entity B instances; confirm starter rows unchanged after fork.",
+        "Open Templates from the left rail and confirm the brand name.",
+        "If you see Demo data, browse only — apply the MAD migration before saving.",
+        "Starter Library → Copy to brand (live) or open an existing My Template.",
+        "Edit instructions/channels → Save & activate.",
+        "Generate in Studio → finish Review → Approve → Schedule as usual.",
+        "Use Advanced Edit anytime for the full Create wizard.",
       ],
       tips: [
-        "Platform starter updates never silently rewrite existing entity instances — forks copy payload at fork time.",
+        "Never point MAD env at FÜDI. Template APIs write only to MAD Supabase.",
+        "Demo and live rows are never mixed in one load.",
       ],
     },
   },
