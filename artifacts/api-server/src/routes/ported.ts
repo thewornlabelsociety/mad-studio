@@ -44,6 +44,13 @@ import * as enhanceCaption from "../ported/app/api/inventory/enhance-caption/rou
 import * as fieldAssist from "../ported/app/api/ai/field-assist/route";
 import * as metaSentimentWebhook from "../ported/app/api/webhooks/meta-sentiment/route";
 import * as carouselSuggest from "../ported/app/api/ai/carousel-suggest/route";
+import * as templateStarters from "../ported/app/api/templates/starters/route";
+import * as templateFork from "../ported/app/api/templates/fork/route";
+import * as templateInstances from "../ported/app/api/templates/instances/route";
+import * as templateInstanceById from "../ported/app/api/templates/instances/id/route";
+import * as templateInstanceVersions from "../ported/app/api/templates/instances/id/versions/route";
+import * as templateInstanceDuplicate from "../ported/app/api/templates/instances/id/duplicate/route";
+import * as templateRecipes from "../ported/app/api/templates/recipes/route";
 import * as authCallback from "../ported/app/auth/callback/route";
 import * as authConfirm from "../ported/app/auth/confirm/route";
 import * as shortLink from "../ported/app/r/[slug]/route";
@@ -192,6 +199,22 @@ router.post("/api/webhooks/meta-sentiment", webHandler(method(metaSentimentWebho
 router.post("/api/inventory/enhance-caption", webHandler(method(enhanceCaption, "POST")));
 router.post("/api/ai/field-assist", webHandler(method(fieldAssist, "POST")));
 router.post("/api/ai/carousel-suggest", webHandler(method(carouselSuggest, "POST")));
+router.get("/api/templates/starters", webHandler(method(templateStarters, "GET"), false));
+router.post("/api/templates/fork", webHandler(method(templateFork, "POST")));
+router.get("/api/templates/instances", webHandler(method(templateInstances, "GET"), false));
+router.post("/api/templates/instances", webHandler(method(templateInstances, "POST")));
+router.get("/api/templates/instances/:id", webHandler(method(templateInstanceById, "GET"), false));
+router.patch("/api/templates/instances/:id", webHandler(method(templateInstanceById, "PATCH")));
+router.get(
+  "/api/templates/instances/:id/versions",
+  webHandler(method(templateInstanceVersions, "GET"), false),
+);
+router.post(
+  "/api/templates/instances/:id/duplicate",
+  webHandler(method(templateInstanceDuplicate, "POST")),
+);
+router.get("/api/templates/recipes", webHandler(method(templateRecipes, "GET"), false));
+router.post("/api/templates/recipes", webHandler(method(templateRecipes, "POST")));
 router.get("/auth/callback", webHandler(method(authCallback, "GET"), false));
 router.get("/auth/confirm", webHandler(method(authConfirm, "GET"), false));
 router.get("/r/:slug", webHandler(method(shortLink, "GET"), false));

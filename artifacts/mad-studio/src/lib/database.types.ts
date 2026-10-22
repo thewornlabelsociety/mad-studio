@@ -173,6 +173,9 @@ export type Database = {
           studio_context: Json
           target_goal: string
           target_segment: string | null
+          template_generation_key: string | null
+          template_instance_id: string | null
+          template_version_id: string | null
           title: string
           updated_at: string
           what_didnt_work: string | null
@@ -194,6 +197,9 @@ export type Database = {
           studio_context?: Json
           target_goal: string
           target_segment?: string | null
+          template_generation_key?: string | null
+          template_instance_id?: string | null
+          template_version_id?: string | null
           title: string
           updated_at?: string
           what_didnt_work?: string | null
@@ -215,6 +221,9 @@ export type Database = {
           studio_context?: Json
           target_goal?: string
           target_segment?: string | null
+          template_generation_key?: string | null
+          template_instance_id?: string | null
+          template_version_id?: string | null
           title?: string
           updated_at?: string
           what_didnt_work?: string | null
@@ -233,6 +242,20 @@ export type Database = {
             columns: ["entity_id"]
             isOneToOne: false
             referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_template_instance_id_fkey"
+            columns: ["template_instance_id"]
+            isOneToOne: false
+            referencedRelation: "entity_template_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_template_version_id_fkey"
+            columns: ["template_version_id"]
+            isOneToOne: false
+            referencedRelation: "entity_template_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -510,6 +533,232 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      entity_creative_recipes: {
+        Row: {
+          canvas_layout_id: string | null
+          channel_plan: Json
+          created_at: string
+          created_by: string | null
+          entity_id: string
+          formula_hook_id: string | null
+          id: string
+          name: string
+          pack_snapshot: Json
+          performance: Json
+          source_campaign_id: string | null
+          source_template_instance_id: string | null
+          source_template_version_id: string | null
+          status: string
+          text_overlay: Json | null
+          updated_at: string
+        }
+        Insert: {
+          canvas_layout_id?: string | null
+          channel_plan?: Json
+          created_at?: string
+          created_by?: string | null
+          entity_id: string
+          formula_hook_id?: string | null
+          id?: string
+          name: string
+          pack_snapshot?: Json
+          performance?: Json
+          source_campaign_id?: string | null
+          source_template_instance_id?: string | null
+          source_template_version_id?: string | null
+          status?: string
+          text_overlay?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          canvas_layout_id?: string | null
+          channel_plan?: Json
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string
+          formula_hook_id?: string | null
+          id?: string
+          name?: string
+          pack_snapshot?: Json
+          performance?: Json
+          source_campaign_id?: string | null
+          source_template_instance_id?: string | null
+          source_template_version_id?: string | null
+          status?: string
+          text_overlay?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_creative_recipes_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entity_template_instances: {
+        Row: {
+          canvas_layout_id: string | null
+          category: string
+          channel_plan: Json
+          created_at: string
+          created_by: string | null
+          creative_instructions: string
+          entity_id: string
+          formula_hook_id: string | null
+          id: string
+          name: string
+          parent_instance_id: string | null
+          payload: Json
+          performance: Json
+          placeholder_defaults: Json
+          source_def_id: string | null
+          status: string
+          story_style_preset: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          canvas_layout_id?: string | null
+          category: string
+          channel_plan?: Json
+          created_at?: string
+          created_by?: string | null
+          creative_instructions?: string
+          entity_id: string
+          formula_hook_id?: string | null
+          id?: string
+          name: string
+          parent_instance_id?: string | null
+          payload?: Json
+          performance?: Json
+          placeholder_defaults?: Json
+          source_def_id?: string | null
+          status?: string
+          story_style_preset?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          canvas_layout_id?: string | null
+          category?: string
+          channel_plan?: Json
+          created_at?: string
+          created_by?: string | null
+          creative_instructions?: string
+          entity_id?: string
+          formula_hook_id?: string | null
+          id?: string
+          name?: string
+          parent_instance_id?: string | null
+          payload?: Json
+          performance?: Json
+          placeholder_defaults?: Json
+          source_def_id?: string | null
+          status?: string
+          story_style_preset?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_template_instances_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entity_template_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entity_id: string
+          id: string
+          instance_id: string
+          snapshot: Json
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entity_id: string
+          id?: string
+          instance_id: string
+          snapshot: Json
+          version: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string
+          id?: string
+          instance_id?: string
+          snapshot?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_template_versions_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_template_versions_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "entity_template_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_template_defs: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          industry_tags: string[]
+          is_published: boolean
+          payload: Json
+          slug: string
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string
+          id?: string
+          industry_tags?: string[]
+          is_published?: boolean
+          payload?: Json
+          slug: string
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          industry_tags?: string[]
+          is_published?: boolean
+          payload?: Json
+          slug?: string
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
       }
       entity_media: {
         Row: {

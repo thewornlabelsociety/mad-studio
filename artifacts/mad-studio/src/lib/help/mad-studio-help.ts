@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-21h"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-23a"
 
 export type HelpSop = {
   title: string
@@ -337,6 +337,52 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       ],
       tips: [
         "Promo visuals use #09090B / #C5A880 tokens; listing Story previews still use the emerald obsidian shop-by-vibe theme.",
+      ],
+    },
+  },
+  {
+    id: "template-engine",
+    title: "Template Engine (foundation)",
+    summary:
+      "Entity-owned templates forked from immutable platform starters. Phase 3B ships database + APIs only — Template Centre UI and autonomous generation land later.",
+    features: [
+      {
+        name: "Platform starters",
+        description:
+          "Shared `platform_template_defs` (new arrivals, promo, email, etc.). Authenticated users can read published starters; ordinary roles cannot edit them. Fork via POST /api/templates/fork.",
+      },
+      {
+        name: "Entity template instances",
+        description:
+          "`entity_template_instances` are brand-scoped (entity_id required). List/create via /api/templates/instances?entityId=…; update/duplicate under /api/templates/instances/:id. Cross-brand reads and writes are rejected by RLS + server checks.",
+      },
+      {
+        name: "Append-only versions",
+        description:
+          "Edits bump `version` and append `entity_template_versions` snapshots. Campaigns can store `template_instance_id`, `template_version_id`, and `template_generation_key` for exact attribution (nullable; existing generate/publish paths unchanged in 3B).",
+      },
+      {
+        name: "Creative recipes",
+        description:
+          "`entity_creative_recipes` stores remountable pack snapshots for a brand. API: GET/POST /api/templates/recipes. No recipe UI yet. Cross-entity campaign/template refs are rejected.",
+      },
+    ],
+    sop: {
+      title: "Apply template engine migration (non-prod first)",
+      audience: "Org admin / engineer",
+      prerequisites: [
+        "MAD Studio Supabase project (never FÜDI)",
+        "Explicit approval before production",
+      ],
+      steps: [
+        "Sign in and confirm the correct brand (?eid=) — templates are entity-isolated.",
+        "Review supabase/migrations/20261023_entity_template_engine.sql (additive only).",
+        "Apply on local/staging MAD Supabase only after approval; do not use FÜDI credentials.",
+        "Smoke-test GET /api/templates/starters and fork into the active entity.",
+        "Confirm Entity A cannot list Entity B instances; confirm starter rows unchanged after fork.",
+      ],
+      tips: [
+        "Platform starter updates never silently rewrite existing entity instances — forks copy payload at fork time.",
       ],
     },
   },
