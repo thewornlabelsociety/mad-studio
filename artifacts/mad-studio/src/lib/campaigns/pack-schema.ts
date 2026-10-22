@@ -89,6 +89,8 @@ export const generatePackRequestSchema = z.object({
   visualDescription: z.string().max(4000).optional().nullable(),
   concreteFeatures: z.array(z.string().max(200)).max(20).optional().nullable(),
   aestheticTags: z.array(z.string().max(80)).max(12).optional().nullable(),
+  /** Optional entity-owned template — resolved server-side; never trusted from client payload alone. */
+  templateInstanceId: z.string().uuid().optional().nullable(),
 })
 
 export type GeneratePackRequest = z.infer<typeof generatePackRequestSchema>

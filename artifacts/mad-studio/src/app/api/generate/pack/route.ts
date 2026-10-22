@@ -108,9 +108,19 @@ export async function POST(request: Request) {
       attachedImageUrl: generated.attachedImageUrl,
       fudiTrack: generated.fudiTrack,
       redirectSlugSeed: generated.redirectSlugSeed,
+      reusedExistingCampaign: generated.reusedExistingCampaign ?? false,
+      templateAttribution: generated.templateAttribution ?? null,
     })
   } catch (error) {
-    const { message, status } = humanizeRouteError(error)
-    return NextResponse.json({ error: message }, { status })
+    const message =
+      error instanceof Error ? error.message : "Failed to generate campaign pack."
+    if (/cross-entity template/i.test(message)) {
+      return NextResponse.json({ error: message }, { status: 403 })
+    }
+    const humanized = humanizeRouteError(error)
+    return NextResponse.json(
+      { error: humanized.message },
+      { status: humanized.status }
+    )
   }
 }

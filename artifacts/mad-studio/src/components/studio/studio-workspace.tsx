@@ -266,6 +266,9 @@ export function StudioWorkspace({
   })
   const [personaId, setPersonaId] = useState(personas[0]?.id ?? "")
   const [rawSpark, setRawSpark] = useState("")
+  const [templateInstanceId, setTemplateInstanceId] = useState<string | null>(
+    null
+  )
   const [formulaHookId, setFormulaHookId] = useState<string | null>(null)
   const [formulaVisualId, setFormulaVisualId] = useState<string | null>(null)
   const [formulaCtaId, setFormulaCtaId] = useState<string | null>(null)
@@ -1320,6 +1323,18 @@ export function StudioWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeEntity.id])
 
+  // Template Centre handoff — keep instance id for server resolve (not just prompt text).
+  useEffect(() => {
+    const fromUrl = searchParams.get("templateInstanceId")?.trim() ?? ""
+    if (fromUrl && /^[0-9a-f-]{36}$/i.test(fromUrl)) {
+      setTemplateInstanceId(fromUrl)
+    }
+    const hookFromUrl = searchParams.get("formulaHookId")?.trim() ?? ""
+    if (hookFromUrl) {
+      setFormulaHookId(hookFromUrl)
+    }
+  }, [searchParams, activeEntity.id])
+
   // Planner day card + Brand Director handoff — seed spark from sessionStorage / URL.
   useEffect(() => {
     if (rehydrating) return
@@ -1356,6 +1371,7 @@ export function StudioWorkspace({
     if (fromUrl) {
       const params = new URLSearchParams(searchParams.toString())
       params.delete("prompt")
+      // Keep templateInstanceId / formulaHookId for generate wiring.
       router.replace(`/studio?${params.toString()}`, { scroll: false })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1497,6 +1513,7 @@ export function StudioWorkspace({
           visualDescription: visualInspection?.visualDescription ?? null,
           concreteFeatures: visualInspection?.concreteFeatures ?? null,
           aestheticTags: visualInspection?.aestheticTags ?? null,
+          templateInstanceId: templateInstanceId,
         }),
       })
       const payload = (await response.json()) as {
@@ -1506,11 +1523,16 @@ export function StudioWorkspace({
         attachedImageUrl?: string | null
         redirectSlugSeed?: string | null
         fudiTrack?: FudiAudienceTrack | null
+        reusedExistingCampaign?: boolean
         error?: string
       }
 
       if (!response.ok || !payload.pack) {
         throw new Error(payload.error ?? "SYSTEM HALTED. Multiplexer failed.")
+      }
+
+      if (payload.reusedExistingCampaign) {
+        toast.message("Reused existing campaign for this template generation key.")
       }
 
       const nextCampaignId =

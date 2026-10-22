@@ -287,6 +287,8 @@ export function buildCampaignPackPrompt(input: {
   aestheticTags?: string[] | null
   fudiTrack?: FudiAudienceTrack | null
   fudiRedirectSlugSeed?: string | null
+  /** Server-resolved brand template brief (optional). */
+  templateGuidance?: string | null
 }): string {
   const isFudi = isFudiHospitalityEntity({
     id: input.entity.id,
@@ -310,6 +312,9 @@ export function buildCampaignPackPrompt(input: {
     }),
     trackBlock ? `\n${trackBlock}` : "",
     slugLine ? `\n${slugLine}` : "",
+    input.templateGuidance?.trim()
+      ? `\n${input.templateGuidance.trim()}`
+      : "",
     ``,
     buildClientPersonaLayer(input),
   ]

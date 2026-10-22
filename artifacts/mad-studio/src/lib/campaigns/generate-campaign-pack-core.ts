@@ -13,7 +13,7 @@ import {
   type CampaignPack,
   type GeneratePackRequest,
 } from "@/lib/campaigns/pack-schema"
-import { buildStudioContext } from "@/lib/campaigns/pack-hydrate"
+import { buildStudioContext, campaignRowToPack } from "@/lib/campaigns/pack-hydrate"
 import { packToStudioPreview } from "@/lib/campaigns/studio-preview"
 import type { Json } from "@/lib/database.types"
 import { scrubAgencyLeak } from "@/lib/inventory/context-hooks"
@@ -22,6 +22,16 @@ import {
   buildFudiRedirectSlugSeed,
   type FudiAudienceTrack,
 } from "@/lib/studio/fudi-tracks"
+import {
+  TemplateIsolationError,
+  buildAttributionColumns,
+  buildTemplateGuidancePromptBlock,
+  findCampaignByGenerationKey,
+  isDuplicateGenerationError,
+  makeGenerationKeyForTemplate,
+  resolveTemplateForGeneration,
+  type ResolvedTemplateForGeneration,
+} from "@/lib/templates/template-generation"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 function shuffleTake<T>(items: T[], count: number): T[] {
@@ -41,6 +51,13 @@ export type GeneratedCampaignPack = {
   attachedImageUrl: string | null
   fudiTrack: FudiAudienceTrack | null
   redirectSlugSeed: string | null
+  /** Present when generation reused an idempotent template key. */
+  reusedExistingCampaign?: boolean
+  templateAttribution?: {
+    template_instance_id: string
+    template_version_id: string
+    template_generation_key: string
+  } | null
 }
 
 function scrubPack(object: CampaignPack): CampaignPack {
@@ -84,6 +101,7 @@ export async function generateCampaignPackCore(input: {
     visualDescription,
     concreteFeatures,
     aestheticTags,
+    templateInstanceId,
   } = input.data
 
   const visualDropUrl =
@@ -119,6 +137,71 @@ export async function generateCampaignPackCore(input: {
   }
 
   const entity = parseStudioEntity(entityRow)
+
+  let resolvedTemplate: ResolvedTemplateForGeneration | null = null
+  let generationKey: string | null = null
+  let templateGuidance: string | null = null
+  let templateAttribution: GeneratedCampaignPack["templateAttribution"] = null
+
+  if (templateInstanceId) {
+    try {
+      resolvedTemplate = await resolveTemplateForGeneration({
+        supabase: input.supabase,
+        entityId,
+        templateInstanceId,
+      })
+    } catch (error) {
+      if (error instanceof TemplateIsolationError) throw error
+      throw error
+    }
+    generationKey = makeGenerationKeyForTemplate({
+      entityId,
+      template: resolvedTemplate,
+      eventDescription,
+      targetGoal,
+      intent: activeIntent,
+      personaName,
+    })
+    templateGuidance = buildTemplateGuidancePromptBlock(resolvedTemplate)
+    templateAttribution = buildAttributionColumns(resolvedTemplate, generationKey)
+
+    const existing = await findCampaignByGenerationKey({
+      supabase: input.supabase,
+      entityId,
+      generationKey,
+    })
+    if (existing) {
+      const reusedPack = campaignRowToPack({
+        title: existing.title,
+        algorithmic_signals: existing.algorithmic_signals,
+        asset_pack: existing.asset_pack,
+      })
+      if (reusedPack) {
+        const fudiTrackEarly: FudiAudienceTrack | null = isFudiHospitalityEntity({
+          id: entity.id,
+          name: entity.name,
+          industry: entity.industry,
+        })
+          ? requestedFudiTrack === "partners"
+            ? "partners"
+            : "diners"
+          : null
+        return {
+          pack: scrubPack(reusedPack),
+          preview: packToStudioPreview(scrubPack(reusedPack), existing.id),
+          campaignId: existing.id,
+          intent: activeIntent,
+          attachedImageUrl: existing.media_url ?? visualDropUrl,
+          fudiTrack: fudiTrackEarly,
+          redirectSlugSeed: fudiTrackEarly
+            ? buildFudiRedirectSlugSeed(fudiTrackEarly, eventDescription)
+            : null,
+          reusedExistingCampaign: true,
+          templateAttribution,
+        }
+      }
+    }
+  }
 
   const fudiTrack: FudiAudienceTrack | null = isFudiHospitalityEntity({
     id: entity.id,
@@ -209,6 +292,7 @@ export async function generateCampaignPackCore(input: {
       aestheticTags: groundedTags,
       fudiTrack,
       fudiRedirectSlugSeed,
+      templateGuidance,
     }),
   })
   const durationMs = Date.now() - startTime
@@ -231,10 +315,13 @@ export async function generateCampaignPackCore(input: {
       has_visual_inspection: Boolean(groundedDescription),
       fudi_track: fudiTrack,
       redirect_slug_seed: fudiRedirectSlugSeed,
+      template_instance_id: resolvedTemplate?.instanceId ?? null,
+      template_version_id: resolvedTemplate?.versionId ?? null,
     },
   })
 
   let campaignId: string | null = null
+  let reusedExistingCampaign = false
   const shouldPersist = input.persistCampaign !== false
 
   if (shouldPersist) {
@@ -252,24 +339,91 @@ export async function generateCampaignPackCore(input: {
         fudiTrack,
       })
 
-      const { data: saved } = await input.supabase
+      const insertPayload = {
+        entity_id: entityId,
+        created_by: input.userId,
+        title: scrubbedPack.campaign_title,
+        target_goal: targetGoal,
+        target_segment: persona?.name ?? null,
+        status: "draft" as const,
+        algorithmic_signals: scrubbedPack.algorithmic_signals as unknown as Json,
+        asset_pack: packToAssetPack(scrubbedPack) as unknown as Json,
+        media_url: visualDropUrl,
+        studio_context: studioContext as unknown as Json,
+        ...(templateAttribution ?? {}),
+      }
+
+      const { data: saved, error: saveError } = await input.supabase
         .from("campaigns")
-        .insert({
-          entity_id: entityId,
-          created_by: input.userId,
-          title: scrubbedPack.campaign_title,
-          target_goal: targetGoal,
-          target_segment: persona?.name ?? null,
-          status: "draft",
-          algorithmic_signals: scrubbedPack.algorithmic_signals as unknown as Json,
-          asset_pack: packToAssetPack(scrubbedPack) as unknown as Json,
-          media_url: visualDropUrl,
-          studio_context: studioContext as unknown as Json,
-        })
+        .insert(insertPayload)
         .select("id")
         .single()
 
-      campaignId = saved?.id ?? null
+      if (saveError) {
+        if (
+          generationKey &&
+          isDuplicateGenerationError(saveError)
+        ) {
+          const existing = await findCampaignByGenerationKey({
+            supabase: input.supabase,
+            entityId,
+            generationKey,
+          })
+          if (existing) {
+            campaignId = existing.id
+            reusedExistingCampaign = true
+            const reusedPack = campaignRowToPack({
+              title: existing.title,
+              algorithmic_signals: existing.algorithmic_signals,
+              asset_pack: existing.asset_pack,
+            })
+            if (reusedPack) {
+              const scrubbedReuse = scrubPack(reusedPack)
+              return {
+                pack: scrubbedReuse,
+                preview: packToStudioPreview(scrubbedReuse, existing.id),
+                campaignId: existing.id,
+                intent: activeIntent,
+                attachedImageUrl: existing.media_url ?? visualDropUrl,
+                fudiTrack,
+                redirectSlugSeed: fudiRedirectSlugSeed,
+                reusedExistingCampaign: true,
+                templateAttribution,
+              }
+            }
+          }
+        }
+        // Attribution columns missing (pre-migration): retry without them once.
+        const missingAttribution =
+          saveError.message.toLowerCase().includes("template_instance_id") ||
+          saveError.message.toLowerCase().includes("template_generation_key") ||
+          saveError.message.toLowerCase().includes("template_version_id")
+        if (missingAttribution && templateAttribution) {
+          const { data: savedLegacy } = await input.supabase
+            .from("campaigns")
+            .insert({
+              entity_id: entityId,
+              created_by: input.userId,
+              title: scrubbedPack.campaign_title,
+              target_goal: targetGoal,
+              target_segment: persona?.name ?? null,
+              status: "draft",
+              algorithmic_signals:
+                scrubbedPack.algorithmic_signals as unknown as Json,
+              asset_pack: packToAssetPack(scrubbedPack) as unknown as Json,
+              media_url: visualDropUrl,
+              studio_context: studioContext as unknown as Json,
+            })
+            .select("id")
+            .single()
+          campaignId = savedLegacy?.id ?? null
+          templateAttribution = null
+        } else if (!campaignId) {
+          throw new Error(saveError.message)
+        }
+      } else {
+        campaignId = saved?.id ?? null
+      }
     }
   }
 
@@ -283,5 +437,7 @@ export async function generateCampaignPackCore(input: {
     attachedImageUrl: visualDropUrl,
     fudiTrack,
     redirectSlugSeed: fudiRedirectSlugSeed,
+    reusedExistingCampaign,
+    templateAttribution,
   }
 }

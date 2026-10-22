@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-23b"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-23c"
 
 export type HelpSop = {
   title: string
@@ -365,7 +365,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Generate → Schedule",
         description:
-          "Generate in Studio opens Create with `prompt` + `templateInstanceId` (reuses CampaignPack). Review, approve, and schedule stay on existing Studio / Calendar flows — no second publishing engine.",
+          "Generate in Studio opens Create with `templateInstanceId`. POST /api/generate/pack resolves the template server-side (entity check), injects creative instructions/channels/placeholders into the CampaignPack prompt with brand DNA, persists `template_*` attribution + generation key, and returns an existing draft on duplicate keys. Review → Approve → Schedule stay on Studio / Calendar — no second publishing engine.",
       },
     ],
     sop: {
