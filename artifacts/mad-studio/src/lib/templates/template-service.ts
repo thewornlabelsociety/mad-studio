@@ -544,6 +544,48 @@ export async function duplicateTemplateInstance(input: {
   return instance
 }
 
+/**
+ * Idempotent: older instances may exist without a row in entity_template_versions.
+ * Handoff and generate/pack require at least one snapshot.
+ */
+export async function ensureTemplateVersionSnapshot(input: {
+  supabase: Db
+  userId: string
+  entityId: string
+  instance: EntityTemplateInstance
+}): Promise<EntityTemplateVersion> {
+  const versions = await listTemplateVersions({
+    supabase: input.supabase,
+    userId: input.userId,
+    entityId: input.entityId,
+    instanceId: input.instance.id,
+  })
+  if (versions[0]) return versions[0]
+
+  const versionNumber = Math.max(1, input.instance.version ?? 1)
+  const { error } = await input.supabase.from("entity_template_versions").insert({
+    instance_id: input.instance.id,
+    entity_id: input.entityId,
+    version: versionNumber,
+    snapshot: buildVersionSnapshot(input.instance) as unknown as Json,
+    created_by: input.userId,
+  })
+  if (error && error.code !== "23505") {
+    throw new Error(error.message)
+  }
+
+  const after = await listTemplateVersions({
+    supabase: input.supabase,
+    userId: input.userId,
+    entityId: input.entityId,
+    instanceId: input.instance.id,
+  })
+  if (!after[0]) {
+    throw new Error("Could not create template version snapshot.")
+  }
+  return after[0]
+}
+
 export async function listTemplateVersions(input: {
   supabase: Db
   userId: string

@@ -22,6 +22,7 @@ import TermsOfServicePage from "@/app/terms/page"
 import HelpPage from "@/app/help/page"
 import PromoPage from "@/app/promo/page"
 import TemplatesPage from "@/app/templates/page"
+import WlsDailyStoryPage from "@/app/templates/wls-daily-story/page"
 import { AuthForm } from "@/components/auth/auth-form"
 import { createClient } from "@/lib/supabase/client"
 import type { EmailOtpType } from "@supabase/supabase-js"
@@ -126,6 +127,7 @@ function App() {
         <Route path="/terms" component={TermsOfServicePage} />
         <Route path="/studio">{() => <PageLoader load={() => StudioPage({ searchParams: query() })} />}</Route>
         <Route path="/templates">{() => <PageLoader load={() => TemplatesPage({ searchParams: query() })} />}</Route>
+        <Route path="/templates/wls-daily-story">{() => <PageLoader load={() => WlsDailyStoryPage({ searchParams: query() })} />}</Route>
         <Route path="/today">{() => <PageLoader load={() => TodayPage({ searchParams: query() })} />}</Route>
         <Route path="/planner">{() => <PageLoader load={() => PlannerPage({ searchParams: query() })} />}</Route>
         <Route path="/promo">{() => <PageLoader load={() => PromoPage({ searchParams: query() })} />}</Route>

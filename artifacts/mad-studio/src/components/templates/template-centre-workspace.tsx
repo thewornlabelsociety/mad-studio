@@ -48,6 +48,7 @@ import {
   buildStudioHandoffHref,
   categoryLabel,
 } from "@/lib/templates/template-handoff"
+import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 
 type TabId = "mine" | "starters"
 
@@ -59,6 +60,7 @@ type Props = {
 type EditorDraft = {
   name: string
   creative_instructions: string
+  default_studio_caption: string
   status: TemplateInstanceStatus
   formula_hook_id: string
   story_style_preset: string
@@ -72,6 +74,7 @@ function toDraft(instance: EntityTemplateInstance): EditorDraft {
   return {
     name: instance.name,
     creative_instructions: instance.creative_instructions,
+    default_studio_caption: instance.payload.default_studio_caption ?? "",
     status: instance.status,
     formula_hook_id: instance.formula_hook_id ?? "",
     story_style_preset: instance.story_style_preset ?? "",
@@ -279,6 +282,7 @@ export function TemplateCentreWorkspace({ entityId, entityName }: Props) {
           story_style_preset: draft.story_style_preset || null,
           canvas_layout_id: draft.canvas_layout_id || null,
           placeholders,
+          default_studio_caption: draft.default_studio_caption.trim() || undefined,
         },
       })
       toast.success(
@@ -342,6 +346,20 @@ export function TemplateCentreWorkspace({ entityId, entityName }: Props) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {isWornLabelFashionEntity({ name: entityName }) ? (
+            <Button
+              asChild
+              size="sm"
+              className="rounded-none border-2 border-mad-black bg-mad-black text-mad-white"
+            >
+              <Link
+                href={`/templates/wls-daily-story?eid=${encodeURIComponent(entityId)}`}
+              >
+                <Sparkles className="size-3.5" aria-hidden />
+                Daily Arrival Story
+              </Link>
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -617,6 +635,40 @@ export function TemplateCentreWorkspace({ entityId, entityName }: Props) {
                       }
                       className="rounded-none"
                     />
+                    <p className="text-xs text-neutral-500">
+                      Used for AI pack generation and as a fallback Studio brief
+                      when no default caption is set.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="tmpl-studio-caption">
+                      Default Create caption
+                    </Label>
+                    <Textarea
+                      id="tmpl-studio-caption"
+                      value={draft.default_studio_caption}
+                      disabled={!canMutate || busy}
+                      rows={4}
+                      placeholder="e.g. New arrivals just landed — tap through to shop ✨ Link in bio."
+                      onChange={(e) =>
+                        setDraft((d) =>
+                          d
+                            ? {
+                                ...d,
+                                default_studio_caption: e.target.value,
+                              }
+                            : d
+                        )
+                      }
+                      className="rounded-none"
+                    />
+                    <p className="text-xs text-neutral-500">
+                      Prefills the Copy step when you apply this template in
+                      Studio (Start from template, Generate in Studio, or Daily
+                      New Arrival Story). Overrides merged listing text when
+                      set.
+                    </p>
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">

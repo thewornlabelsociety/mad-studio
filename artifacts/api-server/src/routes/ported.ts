@@ -51,6 +51,11 @@ import * as templateInstanceById from "../ported/app/api/templates/instances/id/
 import * as templateInstanceVersions from "../ported/app/api/templates/instances/id/versions/route";
 import * as templateInstanceDuplicate from "../ported/app/api/templates/instances/id/duplicate/route";
 import * as templateRecipes from "../ported/app/api/templates/recipes/route";
+import * as wlsDailyStoryEnsure from "../ported/app/api/templates/wls-daily-story/ensure/route";
+import * as wlsDailyStoryEligible from "../ported/app/api/templates/wls-daily-story/eligible/route";
+import * as wlsDailyStorySaveDraft from "../ported/app/api/templates/wls-daily-story/save-draft/route";
+import * as wlsDailyStoryStudioSeed from "../ported/app/api/templates/wls-daily-story/studio-seed/route";
+import * as templateStudioHandoff from "../ported/app/api/templates/studio-handoff/route";
 import * as authCallback from "../ported/app/auth/callback/route";
 import * as authConfirm from "../ported/app/auth/confirm/route";
 import * as shortLink from "../ported/app/r/[slug]/route";
@@ -215,6 +220,26 @@ router.post(
 );
 router.get("/api/templates/recipes", webHandler(method(templateRecipes, "GET"), false));
 router.post("/api/templates/recipes", webHandler(method(templateRecipes, "POST")));
+router.post(
+  "/api/templates/wls-daily-story/ensure",
+  webHandler(method(wlsDailyStoryEnsure, "POST")),
+);
+router.get(
+  "/api/templates/wls-daily-story/eligible",
+  webHandler(method(wlsDailyStoryEligible, "GET"), false),
+);
+router.post(
+  "/api/templates/wls-daily-story/save-draft",
+  webHandler(method(wlsDailyStorySaveDraft, "POST")),
+);
+router.post(
+  "/api/templates/wls-daily-story/studio-seed",
+  webHandler(method(wlsDailyStoryStudioSeed, "POST")),
+);
+router.post(
+  "/api/templates/studio-handoff",
+  webHandler(method(templateStudioHandoff, "POST")),
+);
 router.get("/auth/callback", webHandler(method(authCallback, "GET"), false));
 router.get("/auth/confirm", webHandler(method(authConfirm, "GET"), false));
 router.get("/r/:slug", webHandler(method(shortLink, "GET"), false));

@@ -351,7 +351,7 @@ DROP TRIGGER IF EXISTS trg_template_version_entity_match
 CREATE TRIGGER trg_template_version_entity_match
   BEFORE INSERT OR UPDATE ON public.entity_template_versions
   FOR EACH ROW
-  EXECUTE FUNCTION public.enforce_template_version_entity_match();
+  EXECUTE PROCEDURE public.enforce_template_version_entity_match();
 
 CREATE OR REPLACE FUNCTION public.enforce_creative_recipe_same_entity()
 RETURNS trigger
@@ -405,7 +405,7 @@ DROP TRIGGER IF EXISTS trg_creative_recipe_same_entity
 CREATE TRIGGER trg_creative_recipe_same_entity
   BEFORE INSERT OR UPDATE ON public.entity_creative_recipes
   FOR EACH ROW
-  EXECUTE FUNCTION public.enforce_creative_recipe_same_entity();
+  EXECUTE PROCEDURE public.enforce_creative_recipe_same_entity();
 
 CREATE OR REPLACE FUNCTION public.enforce_campaign_template_attribution_entity()
 RETURNS trigger
@@ -448,7 +448,7 @@ CREATE TRIGGER trg_campaign_template_attribution_entity
   BEFORE INSERT OR UPDATE OF template_instance_id, template_version_id, entity_id
   ON public.campaigns
   FOR EACH ROW
-  EXECUTE FUNCTION public.enforce_campaign_template_attribution_entity();
+  EXECUTE PROCEDURE public.enforce_campaign_template_attribution_entity();
 
 -- ---------------------------------------------------------------------------
 -- 7) Seed generic platform starters (no brand-specific copy)

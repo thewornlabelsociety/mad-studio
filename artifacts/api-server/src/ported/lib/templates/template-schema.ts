@@ -48,6 +48,8 @@ export const templatePayloadSchema = z.object({
     })
     .optional(),
   pack_bias: z.string().max(1000).optional(),
+  /** Prefills Studio Copy when this template is applied (CTA / boilerplate). */
+  default_studio_caption: z.string().max(4000).optional(),
 })
 
 export type TemplatePayload = z.infer<typeof templatePayloadSchema>

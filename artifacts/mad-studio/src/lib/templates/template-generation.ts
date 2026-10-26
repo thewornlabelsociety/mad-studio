@@ -15,6 +15,7 @@ import {
   makeGenerationKeyForTemplate,
 } from "./template-generation-core.ts"
 import { entityTemplateInstanceSchema } from "./template-schema.ts"
+import { ensureTemplateVersionSnapshot } from "./template-service.ts"
 
 export type { ResolvedTemplateForGeneration }
 export {
@@ -35,6 +36,7 @@ export async function resolveTemplateForGeneration(input: {
   supabase: Db
   entityId: string
   templateInstanceId: string
+  userId?: string
 }): Promise<ResolvedTemplateForGeneration> {
   const { data: row, error } = await input.supabase
     .from("entity_template_instances")
@@ -95,6 +97,24 @@ export async function resolveTemplateForGeneration(input: {
     versionId = latest?.id ?? null
   }
 
+  if (!versionId && input.userId) {
+    await ensureTemplateVersionSnapshot({
+      supabase: input.supabase,
+      userId: input.userId,
+      entityId: input.entityId,
+      instance,
+    })
+    const { data: afterEnsure } = await input.supabase
+      .from("entity_template_versions")
+      .select("id, version, entity_id")
+      .eq("instance_id", instance.id)
+      .eq("entity_id", input.entityId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    versionId = afterEnsure?.id ?? null
+  }
+
   if (!versionId) {
     throw new Error(
       "Template version snapshot missing. Save the template once before generating."
@@ -125,6 +145,7 @@ export async function resolveTemplateForGeneration(input: {
     packBias: payload.pack_bias ?? null,
     surfaces: payload.surfaces,
     placeholders: payload.placeholders,
+    defaultStudioCaption: payload.default_studio_caption?.trim() || null,
   }
 }
 

@@ -18,6 +18,8 @@ export type ResolvedTemplateForGeneration = {
   packBias: string | null
   surfaces: string[]
   placeholders: string[]
+  /** When set, prefills Studio Copy on template handoff. */
+  defaultStudioCaption: string | null
 }
 
 /** Pure prompt block — must mention creative rules so generation can change. */
