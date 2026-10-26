@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-23c"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-26a"
 
 export type HelpSop = {
   title: string
@@ -127,7 +127,17 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Refresh / Pull feed",
         description:
-          "FÜDI: POST /api/intake/fudi-feed (read FÜDI Supabase tables fudi_deals, fudi_events, fudi_posts, marketplace_items, trails → MAD marketing_entities, latest 20 with image + title). Worn Label Society / fashion: POST /api/sync/pull-new-arrivals reads the brand website JSON catalog (default `entities.website_url` + `/api/public/marketplace/listings` and `/api/public/items`, or INVENTORY_FEED_URL / INVENTORY_FEED_URL_WORN_LABEL_SOCIETY). Only listings with live status (active/published) import; sold or delisted rows are skipped and stale unfeatured intake is removed on refresh. Toast shows the feed URL used. Dev-only INVENTORY_USE_DEMO_FEED=true injects a sample item — keep it false in production.",
+          "FÜDI: POST /api/intake/fudi-feed (read FÜDI Supabase tables fudi_deals, fudi_events, fudi_posts, marketplace_items, trails → MAD marketing_entities, latest 20 with image + title). Worn Label Society / fashion: POST /api/sync/pull-new-arrivals reads the brand website JSON catalog (default `entities.website_url` + `/api/public/marketplace/listings` and `/api/public/items`, or INVENTORY_FEED_URL / INVENTORY_FEED_URL_WORN_LABEL_SOCIETY). **New** website rows seed `copy_draft` from brand setting **Listing title** or **Website description** (`brand_identity.intake_caption_default`, default description). Repeat pulls reconcile listing fields without wiping operator `copy_draft` on existing rows. Toast shows imported / updated / marked-unavailable counts and the feed URL. Dev-only INVENTORY_USE_DEMO_FEED=true injects a sample item — keep it false in production.",
+      },
+      {
+        name: "Merchandiser — default & AI captions",
+        description:
+          "Today → Brain team → **Merchandiser** tab: choose **Default caption on pull** (title vs cleaned website description). Per drop: **Use default** (reseed `copy_draft`), **Generate** (vision inspect + POST /api/inventory/enhance-caption from listing facts), **Suggest new** (same with a fresh angle). Saved copy flows to Quick preview and Create Copy step.",
+      },
+      {
+        name: "Daily New Arrival Story (WLS)",
+        description:
+          "Worn Label Society only: **Daily New Arrival Story** on Today (desktop New drops toolbar + mobile under checklist) calls POST /api/templates/wls-daily-story/ensure then opens Create **Media** with `templateInstanceId` (no `itemId` — full StudioWorkspace, not per-item Library editor). A lime guidance strip under the step rail reminds you to pick up to five arrivals, review frames, and export the Story pack + shop links. Pick products in **Synced products**; same eligibility as Templates → Daily Arrival Story. Brain Team **Build** and New drops **Craft in Studio** (`itemId`) are unchanged.",
       },
       {
         name: "Intake cards",
@@ -169,7 +179,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Calendar day cards",
         description:
-          "After generation, each scheduled day shows a DRAFT card (phase title + shoot cue). Click for Hook / Vibe / Action detail; Craft in Studio opens /studio?eid=…&step=3 with the day’s creative angle pre-loaded (MAD Supabase only — not FÜDI).",
+          "After generation, each scheduled day shows a DRAFT card (phase title + shoot cue). Click for Hook / Vibe / Action detail; Craft in Studio opens /studio?eid=…&step=4 (Intent) with the day’s creative angle pre-loaded (MAD Supabase only — not FÜDI).",
       },
       {
         name: "Calendar canvas",
@@ -216,12 +226,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Website listing copy → Studio",
         description:
-          "Photos pulled from the website (new arrivals, media library, Today build) carry the listing **description** and saved **copy_draft** into Studio. **Copy** prefills from that text (multi-item carousels join unique blocks). **Hashtags** chips include per-listing suggested tags (brand, garment, vibe from each row). Canvas tags still come from brand/size/price per slide. Prefer editing intake copy over Intent AI for Worn Label promos.",
+          "Photos pulled from the website (new arrivals, media library, Today build) carry the listing **description** and saved **copy_draft** into Studio. **Copy** prefills a **readable caption** (catalog `Brand:` / `Size:` / `Condition:` dumps are stripped — those facts live on Canvas tags). Multi-item carousels join unique caption blocks. **Hashtags** chips include per-listing suggested tags. Canvas **Brand / Size / Price / Vibe** fill from each slide’s listing. Prefer editing intake copy over Intent AI for Worn Label promos.",
       },
       {
         name: "Drop workbench (Media step)",
         description:
-          "Drop workbench: New posts start with **no on-image words** — add headline/subhead only on **Canvas** (Words tab). Default brand layouts apply font/placement/shadow style only until you type on Canvas or **Apply layout** for saved starter wording. Hook and caption stay on **Copy**; they do not bake onto the photo unless you set Canvas text. Phone preview keeps Canvas styling through Copy and Schedule. **Clear on-image text** removes baked layers; re-save or download again for clean media.",
+          "Drop workbench: New posts start with **no on-image words** — add headline/subhead on **Canvas** (Words) and Brand/Size/Price/Vibe on **Tags**. On IG Story, Words/Tags paint **above** the Story card image, canvas colour, and phone chrome (Send bar) so they stay visible and draggable. Default brand layouts apply font/placement only until you type or **Apply layout**. Hook/caption stay on **Copy**. Phone preview keeps Canvas styling through Copy and Schedule.",
       },
     ],
     sop: {
@@ -360,12 +370,17 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Entity template instances",
         description:
-          "Edit creative instructions, formula hook, channels, surfaces, placeholders. Save version / activate / archive / duplicate via /api/templates/instances (live only). Cross-brand isolation enforced server-side.",
+          "Edit creative instructions, formula hook, channels, surfaces, placeholders. **Default Create caption** prefills Studio **Copy** when the template is applied (Start from template, Generate in Studio, Daily New Arrival Story) — use for a reusable New Arrival CTA; it overrides merged listing captions when set. Save version / activate / archive / duplicate via /api/templates/instances (live only). Cross-brand isolation enforced server-side.",
       },
       {
         name: "Generate → Schedule",
         description:
-          "Generate in Studio opens Create with `templateInstanceId`. POST /api/generate/pack resolves the template server-side (entity check), injects creative instructions/channels/placeholders into the CampaignPack prompt with brand DNA, persists `template_*` attribution + generation key, and returns an existing draft on duplicate keys. Review → Approve → Schedule stay on Studio / Calendar — no second publishing engine.",
+          "Generate in Studio opens Create **Media** (`step=2`) with `templateInstanceId`; POST /api/templates/studio-handoff applies the brief on load. POST /api/generate/pack still resolves the template for AI packs (entity check), injects creative instructions/channels/placeholders into the CampaignPack prompt with brand DNA, persists `template_*` attribution + generation key, and returns an existing draft on duplicate keys. Review → Approve → Schedule stay on Studio / Calendar — no second publishing engine.",
+      },
+      {
+        name: "WLS Daily New Arrival Story",
+        description:
+          "Worn Label Society only: Templates → Daily Arrival Story (`/templates/wls-daily-story`) or **Start from template** on Create Media. Set up template (POST /api/templates/wls-daily-story/ensure). Pick up to five **selectable** synced products (same policy as Create **Synced products** strip) → handoff via POST /api/templates/studio-handoff (or legacy studio-seed) seeds one editable Instagram Story frame per product on **Media**. Canvas step uses real photos, brand, verified AU size when synced, NZD price when present, and WLS cream/near-black defaults. Legacy single-product bake/download still on the template page. Copy product URL for phone link sticker — Meta Story API cannot add clickable stickers.",
       },
     ],
     sop: {
@@ -380,8 +395,9 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
         "If you see Demo data, browse only — apply the MAD migration before saving.",
         "Starter Library → Copy to brand (live) or open an existing My Template.",
         "Edit instructions/channels → Save & activate.",
-        "Generate in Studio → finish Review → Approve → Schedule as usual.",
+        "Generate in Studio → lands on Create **Media** with the template applied → finish Review → Approve → Schedule as usual.",
         "Use Advanced Edit anytime for the full Create wizard.",
+        "WLS: pick **Daily New Arrival Story** on Create Media or Templates → Daily Arrival Story → select up to five synced products → Story frames seed on Media (handoff API) → **Canvas** (per-frame ‹ ›) → **Intent** → Copy → Review → Schedule.",
       ],
       tips: [
         "Never point MAD env at FÜDI. Template APIs write only to MAD Supabase.",
@@ -394,12 +410,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
     title: "Campaign Studio (Multiplexer)",
     route: "/studio",
     summary:
-      "Create layout: thin step pills (not a large brand title), wide work column, slim phone preview flush right. Canvas tools (Words / Tags / Logo / Style) sit on one compact row. Saved layouts chrome is hidden from the Canvas step.",
+      "Create layout: step pills; preview channel pills sit **under the phone** on the right (Instagram Feed/Story, Facebook, TikTok, Email). **Worn Label Society:** product picking is the **Synced products** strip in the work column (defaults to **Fresh drops** — same pool as Today new drops; also All available / Not featured / Previously posted). **Sync** or Today **Refresh Feed** both POST pull-new-arrivals; Create refreshes the strip automatically when you return from Today or focus the tab. Newest shop stock sorts first. Suggested New Arrivals is hidden for WLS. Feed picks allow photo-only listings; Story sequences require a valid shop link.",
     features: [
       {
         name: "Editorial Create layout",
         description:
-          "Thin numbered step pills under the brand switcher. Work column left, slim **Preview** phone flush right. Canvas: Words / Tags / Logo / Style on one toolbar row; edit and see the mock update immediately.",
+          "Thin numbered step pills under the brand switcher: **1 Media → 2 Canvas → 3 Intent → 4 Copy → 5 Schedule** (URL ids `step=2`…`step=6`; Create opens Media at `step=2`). Work column left, slim **Preview** phone flush right. **Canvas** hosts **Story tools**: CapCut, PhotoRoom, **Cut out item**, and (after cutout) **Story card** background / size / position. **Media** is tray + library + finished-render drop, plus **Start from template** (active brand instances via GET /api/templates/instances; apply via POST /api/templates/studio-handoff). Logo tab still has cut-out-on-colour backdrop swatches for multi-slide.",
       },
       {
         name: "Live preview drawer",
@@ -412,7 +428,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
           "Under 1024px: single work column; **Preview** opens the drawer. Step tracker shows Step N of 5. Draft/SOP live in ☰ Menu.",
       },
       {
-        name: "Intent step (Step 2)",
+        name: "Intent step (after Canvas)",
         description:
           "Retail/fashion: **Audience tone**, **Post focus** chips (Drive Sales, Build Hype, etc.), and **What is this post about?** (entity content pillars — defaults from brand profile). No separate Objective dropdown — AI target is built from focus + pillar + tone. Hook blueprint and CTA move to **Schedule** (formula bank); expand **Optional** on Intent if you need persona overrides. FÜDI keeps drop type, vibe, and full DNA dropdowns.",
       },
@@ -429,7 +445,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Copy step",
         description:
-          "Single card: caption beside optional opening line. **Carousels (2+ stills):** **Suggest with AI** and **Hashtags · AI suggest** use every slide — brands/vibes/listing copy from intake + merged vision per inspected photo — to write one overall edit caption and tags for all designers in the tray (not only the selected thumbnail). **Opening lines from Brain** are generic entity hooks; for carousels prefer your intake caption or AI caption over a single-item hook. Brain DNA (tone, forbidden words) shapes AI but you do not train carousel logic separately — link each slide to its listing (library / new arrivals) so brands and website copy flow in.",
+          "Single card: caption beside optional opening line. **Carousels (2+ stills):** **Suggest with AI** and **Hashtags · AI suggest** use every slide — brands/vibes/listing copy from intake + merged vision per inspected photo — to write one overall edit caption and tags for all designers in the tray (not only the selected thumbnail). **Opening lines from Brain** stay as short hooks (or vision cues) — they do **not** re-append the listing caption / Brand·Size·Condition dump already in Copy. For carousels prefer intake or AI caption over a single-item hook. Brain DNA shapes AI; link each slide to its listing so brands and website copy flow in.",
       },
       {
         name: "Formula bank ($0 render)",
@@ -453,12 +469,17 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "On-canvas text styler",
         description:
-          "Canvas step toolbar: **Words**, **Tags**, **Logo**, **Style** on one row (Clear / On beside them). Drag the dashed box on Preview. Below: native-only phone features (link sticker, music, poll) plus **Copy link for sticker** when a trackable URL is set. Plain baked text only — no fake stickers in export.",
+          "Canvas step toolbar: **Words**, **Tags**, **Logo**, **Style** on one row (Clear / On beside them). Drag the dashed box on Preview. Tags paint **above** the photo and Story card in the phone mock (not behind the item). Ticking **Vibe** (or any tag) seeds placeholder text when the listing has no vibe yet — edit the field to your label. **WLS synced products:** title and listing details land in **Copy** (caption) by default; Canvas **Tags** still show brand / size / price on the image — **Words** stay empty until you add a hook. Below: native-only phone features (link sticker, music, poll) plus **Copy link for sticker** when a trackable URL is set. Plain baked text only — no fake stickers in export.",
       },
       {
         name: "CapCut bridge",
         description:
-          "Step 1 (video) and pack preview: **Edit reel in CapCut** copies hook/caption/script JSON and opens CapCut Web. Drop the finished MP4/MOV (or PNG/JPG) on **Drop finished render here** once — replaces active draft media and keeps hook, caption, and queue metadata.",
+          "Canvas **Story tools** and pack preview: **Edit reel in CapCut** copies hook/caption/script JSON and opens CapCut Web. Drop the finished MP4/MOV (or PNG/JPG) on Media **Drop finished render here** once — replaces active draft media and keeps hook, caption, and audio metadata.",
+      },
+      {
+        name: "Story tools (Canvas)",
+        description:
+          "On Canvas: CapCut, PhotoRoom, and **Cut out item** sit above Words/Tags/Logo. After cutout, **Story card** controls (background, item size, position) update the IG Story phone preview. Cutout prefers AI removal; white-studio photos can use the server fallback.",
       },
       {
         name: "Multi-channel scheduler",

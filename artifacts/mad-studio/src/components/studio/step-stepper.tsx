@@ -30,18 +30,18 @@ export const WORKBENCH_STEPS = [
     cue: "Upload & external edits",
   },
   {
-    id: WORKBENCH_STEP_INTENT,
-    key: "intent",
-    label: "Intent",
-    short: "Intent",
-    cue: "DNA & audience",
-  },
-  {
     id: WORKBENCH_STEP_CANVAS,
     key: "canvas",
     label: "Canvas",
     short: "Canvas",
     cue: "On-image text",
+  },
+  {
+    id: WORKBENCH_STEP_INTENT,
+    key: "intent",
+    label: "Intent",
+    short: "Intent",
+    cue: "DNA & audience",
   },
   {
     id: WORKBENCH_STEP_COPY,
