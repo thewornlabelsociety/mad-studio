@@ -6,7 +6,13 @@ import type { Json } from "@/lib/database.types"
 import { upsertDropCampaign } from "@/lib/campaigns/upsert-drop-campaign"
 import { mergeCaptionWithTags } from "@/lib/inventory/optimization-tags"
 import { mergeCopyDraftMetadata } from "@/lib/inventory/post-intent"
+import {
+  resolveIntakeCaptionDefaultSource,
+  seedIntakeCopyDraft,
+  type IntakeCaptionDefaultSource,
+} from "@/lib/inventory/intake-caption-default"
 import type { MarketingCopyDraft } from "@/lib/inventory/types"
+import type { BrandIdentity } from "@/lib/entities/dna-schema"
 import { FUDI_ENTITY_ID } from "@/lib/studio/fudi-platform"
 import {
   fudiCarouselTemplate,
@@ -591,6 +597,121 @@ function applyWorkbenchCopyDraft(
     next = mergeCopyDraftMetadata(next, input.metadata)
   }
   return next as Json
+}
+
+export async function updateIntakeCaptionDefault(input: {
+  entityId: string
+  source: IntakeCaptionDefaultSource
+}): Promise<InventoryActionResult<{ source: IntakeCaptionDefaultSource }>> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error || !auth.user) {
+    return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+
+  const { data: row, error: readError } = await auth.supabase
+    .from("entities")
+    .select("brand_identity")
+    .eq("id", input.entityId)
+    .single()
+
+  if (readError || !row) {
+    return { ok: false, error: readError?.message ?? "Entity not found." }
+  }
+
+  const current =
+    row.brand_identity &&
+    typeof row.brand_identity === "object" &&
+    !Array.isArray(row.brand_identity)
+      ? (row.brand_identity as Record<string, unknown>)
+      : {}
+
+  const { error } = await auth.supabase
+    .from("entities")
+    .update({
+      brand_identity: {
+        ...current,
+        intake_caption_default: input.source,
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.entityId)
+
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+
+  revalidatePath("/today")
+  revalidatePath("/studio")
+  return { ok: true, data: { source: input.source } }
+}
+
+export async function reseedDropIntakeCaption(input: {
+  entityId: string
+  itemId: string
+}): Promise<InventoryActionResult<{ headline: string; caption: string }>> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error || !auth.user) {
+    return { ok: false, error: auth.error ?? "Unauthorized" }
+  }
+
+  const [{ data: entityRow }, { data: itemRow }] = await Promise.all([
+    auth.supabase
+      .from("entities")
+      .select("brand_identity")
+      .eq("id", input.entityId)
+      .single(),
+    auth.supabase
+      .from("marketing_entities")
+      .select("id, title, brand, description")
+      .eq("id", input.itemId)
+      .eq("entity_id", input.entityId)
+      .single(),
+  ])
+
+  if (!entityRow || !itemRow) {
+    return { ok: false, error: "Listing not found." }
+  }
+
+  const brandIdentity =
+    entityRow.brand_identity &&
+    typeof entityRow.brand_identity === "object" &&
+    !Array.isArray(entityRow.brand_identity)
+      ? (entityRow.brand_identity as BrandIdentity)
+      : null
+  const source = resolveIntakeCaptionDefaultSource(brandIdentity)
+  const seeded = seedIntakeCopyDraft({
+    source,
+    title: itemRow.title,
+    brand: itemRow.brand,
+    description: itemRow.description,
+  })
+  const syncedAt = new Date().toISOString()
+
+  const { error } = await auth.supabase
+    .from("marketing_entities")
+    .update({
+      copy_draft: {
+        headline: seeded.headline,
+        caption: seeded.caption,
+        metadata: {
+          intake_caption_source: source,
+          intake_caption_seeded: true,
+          intake_caption_seeded_at: syncedAt,
+        },
+      },
+      updated_at: syncedAt,
+    })
+    .eq("id", input.itemId)
+    .eq("entity_id", input.entityId)
+
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+
+  revalidatePath("/today")
+  revalidatePath("/studio")
+  revalidatePath("/inventory")
+  return { ok: true, data: seeded }
 }
 
 export async function patchDropWorkbenchDraft(input: {

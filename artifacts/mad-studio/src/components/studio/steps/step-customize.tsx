@@ -35,6 +35,11 @@ import { stripDuplicateHookFromCaption } from "@/lib/inventory/sop"
 
 import { AutoTextarea } from "@/components/studio/auto-textarea"
 import { StepCopyEditor } from "@/components/studio/steps/step-copy-editor"
+import {
+  StoryCanvasTools,
+  type StoryCanvasToolsBridge,
+  type StoryCardControls,
+} from "@/components/studio/story-canvas-tools"
 import { StudioStepPanel } from "@/components/studio/studio-step-panel"
 
 import {
@@ -151,6 +156,18 @@ type Props = {
   onCutout?: (scope: "slide" | "all", on: boolean) => void | Promise<void>
   cutoutBusy?: boolean
   photoCount?: number
+  /** CapCut / PhotoRoom / Story cutout + card (Canvas step). */
+  storyTools?: {
+    bridge: StoryCanvasToolsBridge
+    cutoutActive: boolean
+    onCutoutToggle: () => void
+    onCutoutAll?: () => void
+    cutoutDisabled?: boolean
+    isVideo?: boolean
+    hasPhoto?: boolean
+    storyCard?: StoryCardControls | null
+    disabled?: boolean
+  } | null
 
   phase?: CustomizeWizardPhase
 
@@ -321,7 +338,7 @@ const PHASE_META: Record<
   },
   canvas: {
     step: "III · Canvas",
-    title: "On-image text",
+    title: "Story card & on-image text",
     subtitle: STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_CANVAS].hint,
   },
   copy: {
@@ -338,6 +355,7 @@ export function StepCustomize({
   onCutout,
   cutoutBusy = false,
   photoCount = 1,
+  storyTools = null,
 
   phase = "all",
 
@@ -1065,6 +1083,22 @@ export function StepCustomize({
       {showCanvas && onTextOverlayChange ? (
         <>
         {canvasSlot}
+        {isCanvasWizard && storyTools ? (
+          <div className="mb-2 shrink-0">
+            <StoryCanvasTools
+              bridge={storyTools.bridge}
+              cutoutActive={storyTools.cutoutActive}
+              cutoutBusy={cutoutBusy}
+              cutoutDisabled={storyTools.cutoutDisabled}
+              onCutoutToggle={storyTools.onCutoutToggle}
+              onCutoutAll={storyTools.onCutoutAll}
+              isVideo={storyTools.isVideo}
+              hasPhoto={storyTools.hasPhoto}
+              storyCard={storyTools.storyCard}
+              disabled={storyTools.disabled}
+            />
+          </div>
+        ) : null}
         <CanvasTextOverlayEditor
           wizardCompact={isCanvasWizard}
           className={isCanvasWizard ? "min-h-0 flex-1" : undefined}

@@ -4,10 +4,11 @@ import { Mail } from "lucide-react"
 import { SiFacebook, SiInstagram, SiTiktok } from "react-icons/si"
 
 import type { SimulatorPlatform } from "@/components/marketing/multi-platform-simulator"
+import type { StudioPreviewChannelId } from "@/components/studio/studio-preview-channels"
 import { cn } from "@/lib/utils"
 
 type Props = {
-  platform: SimulatorPlatform
+  platform: SimulatorPlatform | StudioPreviewChannelId
   className?: string
 }
 
@@ -29,6 +30,7 @@ export function PlatformChannelIcon({ platform, className }: Props) {
     case "ig_feed":
       return <SiInstagram className={iconClass} aria-hidden />
     case "facebook":
+    case "facebook_story":
       return <SiFacebook className={iconClass} aria-hidden />
     case "tiktok":
       return <SiTiktok className={iconClass} aria-hidden />
@@ -43,6 +45,6 @@ export const PLATFORM_CHANNEL_TITLES: Record<SimulatorPlatform, string> = {
   ig_story: "Instagram Story",
   ig_feed: "Instagram Feed",
   tiktok: "TikTok",
-  facebook: "Facebook Page",
-  email: "VIP Email",
+  facebook: "Facebook Feed",
+  email: "Email",
 }

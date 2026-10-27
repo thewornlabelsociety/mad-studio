@@ -14,13 +14,14 @@ test("default studio caption wins over creative instructions", () => {
   )
 })
 
-test("falls back to creative instructions then name", () => {
+test("does not leak operator creative_instructions into public caption", () => {
   assert.equal(
     resolveTemplateStudioCaption({
       defaultStudioCaption: "",
-      creativeInstructions: "Spotlight one hero piece.",
-      templateName: "New arrivals",
+      creativeInstructions:
+        "Daily New Arrival Instagram Story (1080×1920). Never invent stock.",
+      templateName: "WLS — Daily New Arrival Story",
     }),
-    "Spotlight one hero piece."
+    ""
   )
 })

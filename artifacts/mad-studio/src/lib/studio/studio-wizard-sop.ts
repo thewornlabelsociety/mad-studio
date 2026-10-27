@@ -23,7 +23,7 @@ export const STUDIO_WIZARD_STEP_SOP: Record<
   StudioWizardStepSop
 > = {
   [WORKBENCH_STEP_MEDIA]: {
-    hint: "Add at least one still or reel from the library or upload — preview starts on Intent.",
+    hint: "Add at least one still or reel from the library or upload — then polish on Canvas.",
     checklist: [
       "Open Add → pick intake or uploads (carousel = 2+ stills).",
       "Select the hero clip in the tray; drag thumbnails to set carousel order; use CapCut / PhotoRoom if you need an edit.",
@@ -41,12 +41,12 @@ export const STUDIO_WIZARD_STEP_SOP: Record<
     ],
   },
   [WORKBENCH_STEP_CANVAS]: {
-    hint: "Drag on-image text on the phone preview — caption and hooks are on Copy.",
+    hint: "Story tools (cutout, CapCut, PhotoRoom) + drag on-image text — caption on Copy.",
     checklist: [
+      "Use **Story tools**: CapCut, PhotoRoom, and **Cut out item** for IG Story.",
+      "After cutout, set Story card background, item size, and position.",
       "Move headline/subhead by dragging the dashed box on preview; corner handles rotate and scale.",
-      "Font, color, shadow, alignment, size, and tilt — plain text (no pill). Drag the dashed box on preview.",
-      "Review **Add on your phone after publish** — link, music, poll, location, mentions, collab (native only).",
-      "Keep lower third clear on Story/Reels if you will paste a link sticker.",
+      "Review **Add on your phone after publish** — link, music, poll (native only).",
     ],
   },
   [WORKBENCH_STEP_COPY]: {

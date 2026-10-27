@@ -1,6 +1,14 @@
 import { z } from "zod"
 
-import { readListingVibeFromMetrics } from "@/lib/inventory/listing-vibe"
+import {
+  readListingAvailability,
+  readListingCurrency,
+  readListingSyncedAt,
+  readListingUrl,
+  readVerifiedListingSize,
+  type ListingAvailability,
+} from "./listing-availability.ts"
+import { readListingVibeFromMetrics } from "./listing-vibe.ts"
 
 export const MARKETING_ENTITY_STATUSES = [
   "unfeatured",
@@ -77,6 +85,8 @@ export type MarketingCopyDraft = {
     today_deck_dismissed_at?: string | null
     /** Picked from Studio's new-arrival suggestions — hide it there. */
     studio_used_at?: string | null
+    /** WLS Daily New Arrival Story draft attribution (Checkpoint B). */
+    wls_daily_story?: unknown
   }
 }
 
@@ -99,6 +109,13 @@ export type MarketingEntity = {
   images: string[]
   status: MarketingEntityStatus
   metrics: MarketingEntityMetrics
+  /** Catalogue availability from last successful website sync (metrics). */
+  listing_availability: ListingAvailability
+  listing_synced_at: string | null
+  /** Explicit size from source listing — never a title heuristic. */
+  listing_size: string | null
+  listing_currency: string
+  listing_url: string | null
   /** Primary Shop-by-Vibe label from the source listing (website aesthetic). */
   vibe: string | null
   aesthetic_slugs: string[]
@@ -197,7 +214,8 @@ export function parseCopyDraft(value: unknown): MarketingCopyDraft {
   }
 }
 
-function parseCopyDraftMetadata(
+/** Preserves usage / dismiss / post fields across read→write cycles. */
+export function parseCopyDraftMetadata(
   value: unknown
 ): MarketingCopyDraft["metadata"] {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -223,6 +241,22 @@ function parseCopyDraftMetadata(
       ? record.story_template
       : undefined
   const cutout_url = str("cutout_url")
+  const origin = str("origin")
+  const sender = str("sender")
+  const auto_template = str("auto_template")
+  const today_deck_status =
+    record.today_deck_status === "skipped" ||
+    record.today_deck_status === "archived"
+      ? record.today_deck_status
+      : undefined
+  const today_deck_dismissed_at = str("today_deck_dismissed_at")
+  const studio_used_at = str("studio_used_at")
+  const canvas_text_overlay =
+    record.canvas_text_overlay !== undefined
+      ? record.canvas_text_overlay
+      : undefined
+  const wls_daily_story =
+    record.wls_daily_story !== undefined ? record.wls_daily_story : undefined
   if (
     !target_url &&
     !source_table &&
@@ -237,7 +271,15 @@ function parseCopyDraftMetadata(
     !post_description &&
     !post_description_approved_at &&
     !story_template &&
-    !cutout_url
+    !cutout_url &&
+    !origin &&
+    !sender &&
+    !auto_template &&
+    !today_deck_status &&
+    !today_deck_dismissed_at &&
+    !studio_used_at &&
+    canvas_text_overlay === undefined &&
+    wls_daily_story === undefined
   ) {
     return undefined
   }
@@ -250,12 +292,20 @@ function parseCopyDraftMetadata(
     drop_kind: drop_kind ?? null,
     channel_hint: channel_hint ?? null,
     listing_vibe: listing_vibe ?? null,
+    canvas_text_overlay,
     post_brand: post_brand ?? null,
     post_size: post_size ?? null,
     post_description: post_description ?? null,
     post_description_approved_at: post_description_approved_at ?? null,
     story_template: story_template ?? null,
     cutout_url: cutout_url ?? null,
+    origin: origin ?? null,
+    sender: sender ?? null,
+    auto_template: auto_template ?? null,
+    today_deck_status: today_deck_status ?? null,
+    today_deck_dismissed_at: today_deck_dismissed_at ?? null,
+    studio_used_at: studio_used_at ?? null,
+    wls_daily_story,
   }
 }
 
@@ -319,6 +369,11 @@ export function mapMarketingEntityRow(row: {
     images: Array.isArray(row.images) ? row.images : [],
     status: row.status as MarketingEntityStatus,
     metrics: parseMetrics(row.metrics),
+    listing_availability: readListingAvailability(row.metrics),
+    listing_synced_at: readListingSyncedAt(row.metrics),
+    listing_size: readVerifiedListingSize(row.metrics),
+    listing_currency: readListingCurrency(row.metrics),
+    listing_url: readListingUrl(row.metrics),
     vibe: listingVibe.vibe || descriptionVibe,
     aesthetic_slugs: listingVibe.aesthetic_slugs,
     scheduled_at: row.scheduled_at,

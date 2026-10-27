@@ -48,6 +48,8 @@ const actions: Record<string, (...args: any[]) => Promise<unknown>> = {
   scheduleMarketingEntity: inventory.scheduleMarketingEntity,
   saveDropDraft: inventory.saveDropDraft,
   patchDropWorkbenchDraft: inventory.patchDropWorkbenchDraft,
+  updateIntakeCaptionDefault: inventory.updateIntakeCaptionDefault,
+  reseedDropIntakeCaption: inventory.reseedDropIntakeCaption,
   createFudiFeedCarousel: inventory.createFudiFeedCarousel,
   armMultiChannelDispatch: inventory.armMultiChannelDispatch,
   repurposeMarketingEntity: inventory.repurposeMarketingEntity,

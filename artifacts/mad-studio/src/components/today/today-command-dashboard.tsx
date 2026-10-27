@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react"
 import { Link } from "wouter"
 
+import { DailyNewArrivalStoryButton } from "@/components/today/daily-new-arrival-story-button"
 import { PullNewArrivalsButton } from "@/components/inventory/pull-new-arrivals-button"
+import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { BrainEmblemLink } from "@/components/brand/brain-emblem"
 import { IntakeActionCard } from "@/components/today/intake-action-card"
 import { TodayChecklist } from "@/components/today/today-checklist"
@@ -20,6 +22,7 @@ import type { DispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { cn } from "@/lib/utils"
 import { PlatformIcon } from "@/components/ui/app-icons"
 import { BrainTeam } from "@/components/today/brain-team"
+import type { IntakeCaptionDefaultSource } from "@/lib/inventory/intake-caption-default"
 import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 
 export type ArmedTodayRow = {
@@ -43,6 +46,7 @@ type Props = {
   armedRows: ArmedTodayRow[]
   dispatchCronHealth?: DispatchCronHealth
   failedDispatchCount?: number
+  intakeCaptionDefault: IntakeCaptionDefaultSource
 }
 
 function formatTime(iso: string) {
@@ -66,6 +70,7 @@ export function TodayCommandDashboard({
   armedRows,
   dispatchCronHealth,
   failedDispatchCount = 0,
+  intakeCaptionDefault,
 }: Props) {
   const [queue, setQueue] = useState(initialQueue)
   const [preview, setPreview] = useState<TodayQueueView | null>(null)
@@ -76,6 +81,10 @@ export function TodayCommandDashboard({
   )
   const intakeMode = useMemo(
     () => resolveInventoryIntakeMode({ name: entityName, industry }),
+    [entityName, industry]
+  )
+  const isWls = useMemo(
+    () => isWornLabelFashionEntity({ name: entityName, industry }),
     [entityName, industry]
   )
 
@@ -178,6 +187,7 @@ export function TodayCommandDashboard({
           className="col-span-12 min-h-[24rem] lg:col-span-5 lg:min-h-0"
           entityId={entityId}
           websiteUrl={websiteUrl}
+          intakeCaptionDefault={intakeCaptionDefault}
           isFashion={
             resolveIndustryProfile({ name: entityName, industry }).id === "worn_label"
           }
@@ -204,9 +214,18 @@ export function TodayCommandDashboard({
                 intakeMode={intakeMode}
                 variant="agenda"
               />
+              <DailyNewArrivalStoryButton
+                entityId={entityId}
+                show={isWls}
+              />
               <Link
                 href={`/studio?eid=${encodeURIComponent(entityId)}&step=2&fresh=1`}
-                className="inline-flex h-10 items-center justify-center border-2 border-mad-black bg-mad-black px-3 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-white uppercase shadow-keycap-sm hover:bg-mad-vermillion"
+                className={cn(
+                  "inline-flex h-10 items-center justify-center border-2 border-mad-black px-3 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm",
+                  isWls
+                    ? "bg-mad-white text-mad-black hover:bg-mad-lime"
+                    : "bg-mad-black text-mad-white hover:bg-mad-vermillion"
+                )}
               >
                 New post
               </Link>

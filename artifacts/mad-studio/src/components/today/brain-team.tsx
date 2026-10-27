@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Link } from "wouter"
 import {
   ClipboardCheck,
@@ -22,6 +22,8 @@ import {
   type ArtDirectorFormat,
   type ArtDirectorPick,
 } from "@/lib/brain/team"
+import { IntakeCaptionMerchandiserTools } from "@/components/today/intake-caption-merchandiser-tools"
+import type { IntakeCaptionDefaultSource } from "@/lib/inventory/intake-caption-default"
 import type { MarketingEntity } from "@/lib/inventory/types"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +31,7 @@ type Props = {
   entityId: string
   websiteUrl?: string | null
   isFashion: boolean
+  intakeCaptionDefault: IntakeCaptionDefaultSource
   /** Newest unposted arrivals (Today's new drops). */
   items: MarketingEntity[]
   /** One role at a time in tabs, filling its column (desktop Today). */
@@ -119,25 +122,37 @@ export function BrainTeam({
   entityId,
   websiteUrl = null,
   isFashion,
+  intakeCaptionDefault,
   items,
   tabbed = false,
   className,
 }: Props) {
   const [tab, setTab] = useState<RoleTab>("art")
+  const [captionDefault, setCaptionDefault] =
+    useState<IntakeCaptionDefaultSource>(intakeCaptionDefault)
+  const [localItems, setLocalItems] = useState(items)
+
+  useEffect(() => {
+    setLocalItems(items)
+  }, [items])
+
+  useEffect(() => {
+    setCaptionDefault(intakeCaptionDefault)
+  }, [intakeCaptionDefault])
   const eid = encodeURIComponent(entityId)
   const report = useMemo(
     () =>
       merchandiserReport({
-        items,
+        items: localItems,
         entityId,
         websiteUrl,
         requireSize: isFashion,
       }),
-    [items, entityId, websiteUrl, isFashion]
+    [localItems, entityId, websiteUrl, isFashion]
   )
   const picks = useMemo(
-    () => artDirectorPicks({ items, isFashion, max: 5 }),
-    [items, isFashion]
+    () => artDirectorPicks({ items: localItems, isFashion, max: 5 }),
+    [localItems, isFashion]
   )
 
   const [copyPickId, setCopyPickId] = useState<string | null>(null)
@@ -196,7 +211,7 @@ export function BrainTeam({
     window.location.assign(studioHref(entityId, pick))
   }
 
-  if (items.length === 0) return null
+  if (localItems.length === 0) return null
 
   const tabs: Array<{ id: RoleTab; label: string; icon: typeof Palette }> = [
     { id: "merch", label: "Merchandiser", icon: ClipboardCheck },
@@ -251,7 +266,7 @@ export function BrainTeam({
             Today&apos;s suggestions
           </h2>
           <p className="mt-1 text-xs text-neutral-600">
-            From your newest {items.length} unposted arrivals — real photos and
+            From your newest {localItems.length} unposted arrivals — real photos and
             details only. Each suggestion says why.
           </p>
         </div>
@@ -314,6 +329,19 @@ export function BrainTeam({
               {report.findings.length - 5} more in the Library
             </Link>
           ) : null}
+          <IntakeCaptionMerchandiserTools
+            entityId={entityId}
+            defaultSource={captionDefault}
+            onDefaultSourceChange={setCaptionDefault}
+            items={localItems}
+            onItemPatched={(itemId, patch) =>
+              setLocalItems((current) =>
+                current.map((row) =>
+                  row.id === itemId ? { ...row, ...patch } : row
+                )
+              )
+            }
+          />
         </RoleCard>
 
         {/* Art director */}

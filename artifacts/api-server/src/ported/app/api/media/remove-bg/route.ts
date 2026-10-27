@@ -2,13 +2,15 @@ import { HttpResponse } from "@server/http-response"
 import { z } from "zod"
 
 import { createClient } from "@/lib/supabase/server"
+import { resolveRemoveBgSourceUrl } from "@/lib/media/resolve-remove-bg-source"
 import { fetchPublicImage } from "@/lib/media/safe-image-fetch"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
 
 const bodySchema = z.object({
-  imageUrl: z.string().url(),
+  /** Absolute HTTPS or same-origin `/api/media/image-proxy?url=…` from Studio tray. */
+  imageUrl: z.string().min(1),
   entityId: z.string().uuid(),
   /** Optional marketing entity id for path namespacing */
   itemId: z.string().uuid().optional().nullable(),
@@ -94,6 +96,21 @@ export async function POST(request: Request) {
 
     const { imageUrl, entityId, itemId } = parsed.data
 
+    let fetchUrl: string
+    try {
+      fetchUrl = resolveRemoveBgSourceUrl(imageUrl)
+    } catch (error) {
+      return HttpResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Invalid image URL for cutout.",
+        },
+        { status: 400 }
+      )
+    }
+
     const { data: canEdit, error: accessError } = await supabase.rpc(
       "has_entity_access",
       {
@@ -105,8 +122,37 @@ export async function POST(request: Request) {
       return HttpResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const source = await fetchPublicImage(imageUrl)
-    const pngBuffer = await removeNearWhiteBackground(source.bytes)
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim()
+    const cloudKey = process.env.CLOUDINARY_API_KEY?.trim()
+    const cloudSecret = process.env.CLOUDINARY_API_SECRET?.trim()
+
+    let pngBuffer: Buffer
+    let mode: "cloudinary" | "sharp_threshold" = "sharp_threshold"
+
+    if (cloudName && cloudKey && cloudSecret) {
+      try {
+        const auth = Buffer.from(`${cloudKey}:${cloudSecret}`).toString("base64")
+        const delivery = `https://res.cloudinary.com/${cloudName}/image/fetch/e_background_removal/${encodeURIComponent(fetchUrl)}`
+        const deliveryRes = await fetch(delivery, {
+          headers: { Authorization: `Basic ${auth}` },
+        })
+        if (!deliveryRes.ok) {
+          throw new Error(`Cloudinary ${deliveryRes.status}`)
+        }
+        pngBuffer = Buffer.from(await deliveryRes.arrayBuffer())
+        mode = "cloudinary"
+      } catch (error) {
+        console.warn(
+          "[remove-bg] Cloudinary failed, falling back to sharp:",
+          error
+        )
+        const source = await fetchPublicImage(fetchUrl)
+        pngBuffer = await removeNearWhiteBackground(source.bytes)
+      }
+    } else {
+      const source = await fetchPublicImage(fetchUrl)
+      pngBuffer = await removeNearWhiteBackground(source.bytes)
+    }
 
     const path = `cutouts/${entityId}/${itemId ?? "item"}/${Date.now()}-cutout.png`
     const { error: uploadError } = await supabase.storage
@@ -126,7 +172,7 @@ export async function POST(request: Request) {
 
     return HttpResponse.json({
       transparentUrl: publicUrl,
-      mode: "sharp_threshold",
+      mode,
     })
   } catch (error) {
     console.error("[media/remove-bg]", error)

@@ -1,4 +1,5 @@
 import type { CanvasItemFacts } from "@/components/studio/canvas-text-overlay"
+import { parseLabeledFields } from "@/lib/inventory/context-hooks"
 import {
   mapMarketingEntityRow,
   type MarketingEntity,
@@ -6,6 +7,7 @@ import {
 import { compareNewestArrival } from "@/lib/inventory/arrival-order"
 import { detectMediaKindFromUrl } from "@/lib/media/kind"
 import { extractSizeLabel } from "@/lib/marketing/story-presets"
+import { stripAuSizePrefix } from "@/lib/studio/canvas-size-tag-label"
 import { readTodayDeckDismissStatus } from "@/lib/today/today-deck-dismiss"
 import { patchDropWorkbenchDraft } from "@/lib/actions"
 import { createClient } from "@/lib/supabase/client"
@@ -13,6 +15,7 @@ import {
   listingCaptionForPost,
   listingTagsForPost,
 } from "@/lib/studio/intake-listing-copy"
+import { firstUsableProductImageUrl } from "@/lib/inventory/wls-product-eligibility"
 
 const ITEM_SELECT =
   "id, entity_id, website_item_id, title, brand, price, description, images, status, metrics, scheduled_at, channels, copy_draft, published_media_ids, trackable_slug, published_at, created_at, updated_at"
@@ -70,14 +73,78 @@ export function itemFactsFor(
   item: MarketingEntity,
   isFashion: boolean
 ): CanvasItemFacts {
+  // Website sync often leaves brand/size only in the description body
+  // ("Brand: Zimmermann · Size: 1") — Canvas tags must read those labels.
+  const labeled = parseLabeledFields(item.description ?? "")
   const brand =
-    item.copy_draft?.metadata?.post_brand?.trim() || item.brand?.trim() || null
+    item.copy_draft?.metadata?.post_brand?.trim() ||
+    item.brand?.trim() ||
+    labeled.brand?.trim() ||
+    null
+  const size = isFashion
+    ? (() => {
+        const raw =
+          item.listing_size?.trim() ||
+          item.copy_draft?.metadata?.post_size?.trim() ||
+          extractSizeLabel(item) ||
+          labeled.size?.trim() ||
+          ""
+        const stripped = raw ? stripAuSizePrefix(raw) : ""
+        return stripped ? stripped.toUpperCase() : null
+      })()
+    : null
   return {
     brand,
-    size: isFashion ? extractSizeLabel(item) : null,
+    size,
     price: priceText(item.price),
-    vibe: item.vibe ?? null,
+    vibe: item.vibe?.trim() || labeled.colour?.trim() || null,
     newLabel: isFashion ? "New consignment" : "Just in",
+  }
+}
+
+/**
+ * Fill Canvas Brand / Size / Price / Vibe from listing facts (description).
+ * Empty fields only — never overwrite what the operator already typed.
+ * Turns on tags that have a value so they show on the phone.
+ */
+export function overlayPatchFromItemFacts(input: {
+  facts: CanvasItemFacts
+  /** When true, also enable empty tag slots that now have a fact value. */
+  enableTags?: boolean
+}): {
+  tagBrand: string
+  tagSize: string
+  tagPrice: string
+  tagVibe: string
+  tagNewLabel: string
+  tagShowBrand?: boolean
+  tagShowSize?: boolean
+  tagShowPrice?: boolean
+  tagShowVibe?: boolean
+  enabled?: boolean
+} {
+  const brand = input.facts.brand?.trim() ?? ""
+  const size = input.facts.size?.trim() ?? ""
+  const price = input.facts.price?.trim() ?? ""
+  const vibe = input.facts.vibe?.trim() ?? ""
+  const newLabel = input.facts.newLabel?.trim() ?? ""
+  const enable = input.enableTags !== false
+  const hasAny = Boolean(brand || size || price || vibe)
+  return {
+    tagBrand: brand,
+    tagSize: size,
+    tagPrice: price,
+    tagVibe: vibe,
+    tagNewLabel: newLabel || "New consignment",
+    ...(enable
+      ? {
+          tagShowBrand: Boolean(brand),
+          tagShowSize: Boolean(size),
+          tagShowPrice: Boolean(price),
+          tagShowVibe: Boolean(vibe),
+          ...(hasAny ? { enabled: true } : null),
+        }
+      : null),
   }
 }
 
@@ -88,14 +155,57 @@ function priceText(price: number | null): string | null {
 }
 
 function mediaOf(item: MarketingEntity): NewArrivalSuggestion["media"] {
-  return item.images
-    .map((url) => url.trim())
-    .filter((url) => /^https?:\/\//i.test(url))
-    .slice(0, 10)
-    .map((url) => ({
-      url,
-      kind: detectMediaKindFromUrl(url) === "video" ? "video" : "image",
-    }))
+  const urls: string[] = []
+  for (const raw of item.images) {
+    const usable = firstUsableProductImageUrl([raw]) ?? raw.trim()
+    if (/^https?:\/\//i.test(usable)) urls.push(usable)
+  }
+  return urls.slice(0, 10).map((url) => ({
+    url,
+    kind: detectMediaKindFromUrl(url) === "video" ? "video" : "image",
+  }))
+}
+
+/** Rows eligible for the Suggested New Arrivals list (before photo/format mapping). */
+export function filterNewArrivalCatalogItems(
+  items: MarketingEntity[]
+): MarketingEntity[] {
+  return [...items]
+    .sort(compareNewestArrival)
+    .filter((item) => {
+      if (item.status !== "unfeatured") return false
+      const dismissed = readTodayDeckDismissStatus(item.copy_draft ?? null)
+      if (dismissed === "skipped" || dismissed === "archived") return false
+      return !item.copy_draft?.metadata?.studio_used_at
+    })
+}
+
+/** Map inventory rows to New Arrival suggestion cards (shared with parity tests). */
+export function mapNewArrivalSuggestions(input: {
+  items: MarketingEntity[]
+  brandName: string
+  industry?: string | null
+  isFashion: boolean
+  limit?: number
+}): NewArrivalSuggestion[] {
+  return filterNewArrivalCatalogItems(input.items)
+    .map((item) => {
+      const media = mediaOf(item)
+      return {
+        item,
+        media,
+        ...suggestFormat({ media, isFashion: input.isFashion }),
+        facts: itemFactsFor(item, input.isFashion),
+        intakeCaption: listingCaptionForPost(item),
+        intakeTags: listingTagsForPost({
+          item,
+          brandName: input.brandName,
+          industry: input.industry,
+        }),
+      }
+    })
+    .filter((row) => row.media.length > 0)
+    .slice(0, input.limit ?? 12)
 }
 
 /**
@@ -119,33 +229,13 @@ export async function fetchNewArrivalSuggestions(input: {
     .limit(500)
   if (error) throw new Error(error.message)
 
-  return (data ?? [])
-    .map((row) => mapMarketingEntityRow(row))
-    // Newest shop stock first, not the order things were imported.
-    .sort(compareNewestArrival)
-    .filter((item) => {
-      const dismissed = readTodayDeckDismissStatus(item.copy_draft ?? null)
-      if (dismissed === "skipped" || dismissed === "archived") return false
-      // Already picked from these suggestions (still in the media library).
-      return !item.copy_draft?.metadata?.studio_used_at
-    })
-    .map((item) => {
-      const media = mediaOf(item)
-      return {
-        item,
-        media,
-        ...suggestFormat({ media, isFashion: input.isFashion }),
-        facts: itemFactsFor(item, input.isFashion),
-        intakeCaption: listingCaptionForPost(item),
-        intakeTags: listingTagsForPost({
-          item,
-          brandName: input.brandName,
-          industry: input.industry,
-        }),
-      }
-    })
-    .filter((row) => row.media.length > 0)
-    .slice(0, input.limit ?? 12)
+  return mapNewArrivalSuggestions({
+    items: (data ?? []).map((row) => mapMarketingEntityRow(row)),
+    brandName: input.brandName,
+    industry: input.industry,
+    isFashion: input.isFashion,
+    limit: input.limit,
+  })
 }
 
 /** Mark an arrival as used (or not) so it leaves the suggestions list. */

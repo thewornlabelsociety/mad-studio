@@ -79,6 +79,10 @@ export const scheduleMarketingEntity = (...args: any[]) => action("scheduleMarke
 export const saveDropDraft = (...args: any[]) => action("saveDropDraft", ...args)
 export const patchDropWorkbenchDraft = (...args: any[]) =>
   action("patchDropWorkbenchDraft", ...args)
+export const updateIntakeCaptionDefault = (...args: any[]) =>
+  action("updateIntakeCaptionDefault", ...args)
+export const reseedDropIntakeCaption = (...args: any[]) =>
+  action("reseedDropIntakeCaption", ...args)
 export const createFudiFeedCarousel = (...args: any[]) =>
   action("createFudiFeedCarousel", ...args)
 export const armMultiChannelDispatch = (...args: any[]) => action("armMultiChannelDispatch", ...args)

@@ -38,6 +38,7 @@ import {
   CANVAS_TEXT_BG_PAD_Y,
   CANVAS_TAGS,
   canvasTagItems,
+  canvasTagPlaceholderText,
   isCanvasTagId,
   layerStylePatch,
   matchAllTagsPatch,
@@ -426,10 +427,13 @@ function CanvasTextBox({
   const font =
     CANVAS_TEXT_FONTS.find((row) => row.id === layer.fontId) ??
     CANVAS_TEXT_FONTS[0]
-  const fontSizePx =
-    frameWidthPx > 0 ? canvasTextFontSizePx(frameWidthPx, layer.fontScale) : null
-  const lineHeightPx =
-    fontSizePx != null ? canvasTextLineHeightPx(fontSizePx) : null
+  // Before ResizeObserver fires, use a phone-width fallback so Words/Tags are
+  // never painted at inherited 0/undefined size on a freshly mounted frame.
+  const fontSizePx = canvasTextFontSizePx(
+    frameWidthPx > 0 ? frameWidthPx : 240,
+    layer.fontScale
+  )
+  const lineHeightPx = canvasTextLineHeightPx(fontSizePx)
 
   return (
     <DraggableDecor
@@ -460,7 +464,7 @@ function CanvasTextBox({
         style={{
           ...font.style,
           color: layer.color,
-          fontSize: fontSizePx ?? undefined,
+          fontSize: fontSizePx,
           ...(layer.bgColor
             ? {
                 backgroundColor: layer.bgColor,
@@ -468,7 +472,7 @@ function CanvasTextBox({
               }
             : null),
           // Pixels — a bare number would be read as a multiplier.
-          lineHeight: lineHeightPx != null ? `${lineHeightPx}px` : undefined,
+          lineHeight: `${lineHeightPx}px`,
         }}
       >
         {layer.text}
@@ -526,6 +530,11 @@ type LayerProps = {
   renderCanvasText?: boolean
   /** Text boxes only — no backdrop or logo (Story card, video). */
   textOnly?: boolean
+  /**
+   * Keep Words/Tags/Logo; only drop the overlay backdrop (Story cutout already
+   * paints canvas colour under the subject).
+   */
+  stripBackdrop?: boolean
 }
 
 export function CanvasTextOverlayLayer({
@@ -536,9 +545,13 @@ export function CanvasTextOverlayLayer({
   onOverlayChange,
   renderCanvasText = true,
   textOnly = false,
+  stripBackdrop = false,
 }: LayerProps) {
-  const overlay =
-    textOnly || isVideo ? canvasTextOnly(rawOverlay) : rawOverlay
+  const overlay = (() => {
+    if (textOnly || isVideo) return canvasTextOnly(rawOverlay)
+    if (stripBackdrop) return { ...rawOverlay, backdropEnabled: false }
+    return rawOverlay
+  })()
   const frameRef = useRef<HTMLDivElement>(null)
   const overlayRef = useOverlayRef(rawOverlay)
   const [frameWidthPx, setFrameWidthPx] = useState(0)
@@ -576,23 +589,24 @@ export function CanvasTextOverlayLayer({
       ref={frameRef}
       {...{ [CANVAS_MEDIA_FRAME_ATTR]: "" }}
       className={cn(
-        "pointer-events-none absolute inset-0 z-20",
+        "pointer-events-none absolute inset-0 z-20 isolate",
         interactive ? "overflow-visible" : "overflow-hidden",
         className
       )}
       aria-hidden={!interactive}
     >
+      {/* Backdrop + cutout sit behind Words / Tags / Logo */}
       {canvasBackdropOn(overlay) ? (
         <div
           aria-hidden
-          className="absolute inset-0 overflow-hidden"
+          className="absolute inset-0 z-0 overflow-hidden"
           style={{ background: overlay.backdropColor }}
         >
           <img
             src={overlay.cutoutUrl}
             alt=""
             draggable={false}
-            className="absolute left-1/2 object-contain"
+            className="absolute left-1/2 z-0 object-contain"
             style={{
               width: `${overlay.subjectScale * 100}%`,
               height: `${overlay.subjectScale * 100}%`,
@@ -603,16 +617,23 @@ export function CanvasTextOverlayLayer({
         </div>
       ) : null}
       {canvasLogoOn(overlay) ? (
-        <CanvasLogoBox {...boxProps} selected={selected === "logo"} />
+        <div className="absolute inset-0 z-10">
+          <CanvasLogoBox {...boxProps} selected={selected === "logo"} />
+        </div>
       ) : null}
-      {layers.map((layer) => (
-        <CanvasTextBox
-          key={layer.id}
-          layer={layer}
-          {...boxProps}
-          selected={selected === layer.id}
-        />
-      ))}
+      {/* Words + tags always paint above backdrop, Story card, and phone chrome */}
+      {layers.length > 0 ? (
+        <div className="absolute inset-0 z-30">
+          {layers.map((layer) => (
+            <CanvasTextBox
+              key={layer.id}
+              layer={layer}
+              {...boxProps}
+              selected={selected === layer.id}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1022,15 +1043,18 @@ export function CanvasTextOverlayEditor({
                     const checked = event.target.checked
                     const current = value[row.text].trim()
                     const fact = itemFacts?.[row.fact]?.trim() ?? ""
-                    // A newly ticked tag drops in under the ones already showing.
                     const tag = CANVAS_TAGS.find((t) => t.show === row.show)!
+                    const placeholder =
+                      row.placeholder.replace(/^e\.g\.\s*/i, "").trim() ||
+                      canvasTagPlaceholderText(tag.id)
+                    // A newly ticked tag drops in under the ones already showing.
                     const shown = canvasTagItems(value)
                     const nextY = shown.length
                       ? Math.min(92, Math.max(...shown.map((t) => t.y)) + 9)
                       : 8
                     patch({
                       [row.show]: checked,
-                      [row.text]: current || fact,
+                      [row.text]: current || fact || (checked ? placeholder : ""),
                       ...(checked
                         ? {
                             enabled: true,

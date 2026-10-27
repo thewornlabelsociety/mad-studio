@@ -245,20 +245,32 @@ export function StepDock({
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => {
-              onNext()
-              window.scrollTo({ top: 0, behavior: "smooth" })
-            }}
-            disabled={nextDisabled || nextBusy}
-            className="inline-flex min-w-[9rem] items-center justify-center gap-2 rounded-sm bg-mad-black px-6 py-2.5 text-xs font-medium tracking-[0.12em] text-white uppercase hover:bg-neutral-800 disabled:opacity-40"
-          >
-            {nextBusy ? "Working…" : primary}
-            {!nextBusy && step !== WORKBENCH_STEP_CHANNELS ? (
-              <ArrowRight className="size-3.5" aria-hidden />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {onSaveDraft ? (
+              <button
+                type="button"
+                onClick={() => onSaveDraft()}
+                disabled={saveDraftBusy || nextBusy}
+                className="rounded-sm border border-neutral-300 bg-white px-4 py-2.5 text-xs font-medium tracking-wide text-mad-black uppercase hover:bg-neutral-50 disabled:opacity-40"
+              >
+                {saveDraftBusy ? "Saving…" : "Save draft"}
+              </button>
             ) : null}
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                onNext()
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }}
+              disabled={nextDisabled || nextBusy}
+              className="inline-flex min-w-[9rem] items-center justify-center gap-2 rounded-sm bg-mad-black px-6 py-2.5 text-xs font-medium tracking-[0.12em] text-white uppercase hover:bg-neutral-800 disabled:opacity-40"
+            >
+              {nextBusy ? "Working…" : primary}
+              {!nextBusy && step !== WORKBENCH_STEP_CHANNELS ? (
+                <ArrowRight className="size-3.5" aria-hidden />
+              ) : null}
+            </button>
+          </div>
         )}
       </div>
     </div>

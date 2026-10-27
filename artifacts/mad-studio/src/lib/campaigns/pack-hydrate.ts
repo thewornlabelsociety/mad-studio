@@ -8,6 +8,8 @@ import type { FudiAudienceTrack } from "@/lib/studio/fudi-tracks"
 
 export type StudioContextMetadata = {
   forecasting_tag?: string | null
+  /** Checkpoint 4 — multi-frame Story/Feed creative (opaque JSON; client validates). */
+  creative_sequence?: unknown
 }
 
 export type StudioContext = {
@@ -63,10 +65,20 @@ export function parseStudioContext(value: unknown): StudioContext | null {
     const metaRecord = metaRaw as Record<string, unknown>
     const forecastingTag =
       typeof metaRecord.forecasting_tag === "string"
-        ? metaRecord.forecasting_tag
+        ? metaRecord.forecasting_tag.trim()
         : null
-    if (forecastingTag?.trim()) {
-      metadata = { forecasting_tag: forecastingTag.trim() }
+    const creativeSequence =
+      metaRecord.creative_sequence &&
+      typeof metaRecord.creative_sequence === "object"
+        ? metaRecord.creative_sequence
+        : undefined
+    if (forecastingTag || creativeSequence !== undefined) {
+      metadata = {
+        ...(forecastingTag ? { forecasting_tag: forecastingTag } : {}),
+        ...(creativeSequence !== undefined
+          ? { creative_sequence: creativeSequence }
+          : {}),
+      }
     }
   }
 
@@ -87,6 +99,7 @@ export function buildStudioContext(input: {
   personaName?: string | null
   fudiTrack?: FudiAudienceTrack | null
   forecastingTag?: string | null
+  creativeSequence?: unknown
 }): StudioContext {
   const base: StudioContext = {
     event_description: input.eventDescription.slice(0, 500),
@@ -96,8 +109,13 @@ export function buildStudioContext(input: {
     fudi_track: input.fudiTrack ?? null,
   }
   const tag = input.forecastingTag?.trim()
-  if (tag) {
-    base.metadata = { forecasting_tag: tag }
+  const hasSequence =
+    input.creativeSequence !== undefined && input.creativeSequence !== null
+  if (tag || hasSequence) {
+    base.metadata = {
+      ...(tag ? { forecasting_tag: tag } : {}),
+      ...(hasSequence ? { creative_sequence: input.creativeSequence } : {}),
+    }
   }
   return base
 }

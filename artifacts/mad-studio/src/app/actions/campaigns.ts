@@ -34,6 +34,8 @@ export type SaveCampaignInput = {
   fudiTrack?: FudiAudienceTrack | null
   /** Written to studio_context.metadata.forecasting_tag for ledger grouping. */
   forecastingTag?: string | null
+  /** Checkpoint 4 — multi-frame creative sequence (studio_context.metadata). */
+  creativeSequence?: unknown
 }
 
 export type SaveCampaignResult =
@@ -253,13 +255,33 @@ export async function saveCampaign(
   const pack = packParsed.data
   const now = new Date().toISOString()
   const existingId = input.campaignId?.trim() || null
+  // When callers omit creativeSequence (legacy arm paths), keep the draft's
+  // multi-frame metadata instead of wiping studio_context.metadata.
+  let creativeSequence = input.creativeSequence
+  let forecastingTag = input.forecastingTag ?? null
+  if (existingId && creativeSequence === undefined) {
+    const { data: existing } = await auth.supabase
+      .from("campaigns")
+      .select("studio_context")
+      .eq("id", existingId)
+      .eq("entity_id", input.entityId)
+      .maybeSingle()
+    const prior = parseStudioContext(existing?.studio_context)
+    if (prior?.metadata?.creative_sequence !== undefined) {
+      creativeSequence = prior.metadata.creative_sequence
+    }
+    if (!forecastingTag?.trim() && prior?.metadata?.forecasting_tag) {
+      forecastingTag = prior.metadata.forecasting_tag
+    }
+  }
   const studioContext = buildStudioContext({
     eventDescription: input.eventDescription,
     intent: input.intent ?? "Drive Sales",
     objective: input.targetGoal,
     personaName: input.targetSegment,
     fudiTrack: input.fudiTrack ?? null,
-    forecastingTag: input.forecastingTag ?? null,
+    forecastingTag,
+    creativeSequence,
   })
 
   const contentFields = {

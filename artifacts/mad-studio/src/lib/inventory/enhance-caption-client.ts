@@ -6,6 +6,7 @@ export type EnhanceCaptionInput = {
   headline: string
   caption: string
   visualDescription?: string | null
+  regenerate?: boolean
 }
 
 export type EnhanceCaptionResult = {

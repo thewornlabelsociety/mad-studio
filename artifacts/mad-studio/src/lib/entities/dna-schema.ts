@@ -91,6 +91,10 @@ export const brandIdentitySchema = z.object({
     ),
   /** Saved Canvas layouts — set in Studio, never by website scraping. */
   canvas_layouts: z.array(canvasLayoutSchema).optional(),
+  /** Default caption when website sync creates a new marketing_entities row. */
+  intake_caption_default: z
+    .enum(["title", "listing_description"])
+    .optional(),
   formula_bank: z
     .object({
       hook_styles: z.array(

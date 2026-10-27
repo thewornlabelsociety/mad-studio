@@ -8,7 +8,10 @@ import type {
   StudioHookChip,
   StudioIntentChip,
 } from "@/lib/studio/entity-presets"
-import { scrubAgencyLeak } from "@/lib/inventory/context-hooks"
+import {
+  isCatalogMetadataDump,
+  scrubAgencyLeak,
+} from "@/lib/inventory/context-hooks"
 import { fudiPlatformDefinitionBlock } from "@/lib/studio/fudi-platform"
 
 export type FudiAudienceTrack = "diners" | "partners"
@@ -274,7 +277,9 @@ export function buildFudiTrackHookChips(input: {
 function softCue(value: string | null | undefined, max: number): string | null {
   const trimmed = value?.trim()
   if (!trimmed || trimmed.length < 8) return null
+  if (isCatalogMetadataDump(trimmed)) return null
   const bite = trimmed.split(/[.!?]/)[0]?.trim() || trimmed
+  if (isCatalogMetadataDump(bite)) return null
   return bite.slice(0, max).trim() || null
 }
 

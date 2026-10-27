@@ -76,6 +76,11 @@ import {
   pickDefaultVibeTag,
   resolveIndustryProfile,
 } from "@/lib/brands/industry-templates"
+import { brandSwatches, resolveVisualPresets } from "@/lib/brands/visual-presets"
+import {
+  itemFactsFor,
+  overlayPatchFromItemFacts,
+} from "@/lib/studio/new-arrival-suggestions"
 import { cleanHashtags, sanitizeItemTitle } from "@/lib/copy/caption-hygiene"
 import {
   buildContextAwareHooks,
@@ -321,6 +326,7 @@ export function InventoryItemDetail({
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false)
   const [previewDrawerOpen, setPreviewDrawerOpen] = useState(false)
   const [cutoutRequestId, setCutoutRequestId] = useState(0)
+  const [cutoutBusy, setCutoutBusy] = useState(false)
   const [contentPillar, setContentPillar] = useState("")
   const [hookBlueprintId, setHookBlueprintId] = useState<string | null>(null)
   const [ctaBlueprintId, setCtaBlueprintId] = useState<string | null>(null)
@@ -332,9 +338,47 @@ export function InventoryItemDetail({
     const saved = raw.metadata?.canvas_text_overlay
       ? normalizeCanvasTextOverlay(raw.metadata.canvas_text_overlay)
       : normalizeCanvasTextOverlay(null)
-    return reconcileUnwantedCanvasTextOverlay(saved, {
+    const reconciled = reconcileUnwantedCanvasTextOverlay(saved, {
       hook: item.copy_draft.headline ?? "",
       caption: item.copy_draft.caption ?? "",
+    })
+    // Seed Brand/Size/Price from listing description when those tags are empty.
+    const isFashion =
+      resolveIndustryProfile({ name: brandName, industry }).id === "worn_label"
+    const facts = itemFactsFor(item, isFashion)
+    const fromListing = overlayPatchFromItemFacts({ facts, enableTags: true })
+    const needsSeed =
+      !reconciled.tagBrand.trim() ||
+      !reconciled.tagSize.trim() ||
+      !reconciled.tagPrice.trim()
+    if (!needsSeed) return reconciled
+    return normalizeCanvasTextOverlay({
+      ...reconciled,
+      tagBrand: reconciled.tagBrand.trim() || fromListing.tagBrand,
+      tagSize: reconciled.tagSize.trim() || fromListing.tagSize,
+      tagPrice: reconciled.tagPrice.trim() || fromListing.tagPrice,
+      tagVibe: reconciled.tagVibe.trim() || fromListing.tagVibe,
+      tagNewLabel: reconciled.tagNewLabel.trim() || fromListing.tagNewLabel,
+      tagShowBrand:
+        reconciled.tagShowBrand ||
+        Boolean(!reconciled.tagBrand.trim() && fromListing.tagShowBrand),
+      tagShowSize:
+        reconciled.tagShowSize ||
+        Boolean(!reconciled.tagSize.trim() && fromListing.tagShowSize),
+      tagShowPrice:
+        reconciled.tagShowPrice ||
+        Boolean(!reconciled.tagPrice.trim() && fromListing.tagShowPrice),
+      tagShowVibe:
+        reconciled.tagShowVibe ||
+        Boolean(!reconciled.tagVibe.trim() && fromListing.tagShowVibe),
+      enabled:
+        reconciled.enabled ||
+        Boolean(
+          fromListing.tagShowBrand ||
+            fromListing.tagShowSize ||
+            fromListing.tagShowPrice ||
+            fromListing.tagShowVibe
+        ),
     })
   })
   const textOverlayPersistReady = useRef(false)
@@ -931,6 +975,14 @@ export function InventoryItemDetail({
   })()
   function renderDropCustomize(phase: CustomizeWizardPhase) {
     if (!entity) return null
+    const brandPresets = resolveVisualPresets({
+      brandName,
+      industry,
+      brandIdentity: entity.brand_identity,
+    })
+    const hasStillPhoto = Boolean(
+      activeMedia && activeMedia.type !== "video"
+    )
     return (
       <StepCustomize
         phase={phase}
@@ -938,6 +990,52 @@ export function InventoryItemDetail({
         entityId={entityId}
         marketingEntityId={item.id}
         isFudi={isFudi}
+        itemFacts={itemFactsFor(
+          item,
+          resolveIndustryProfile({ name: brandName, industry }).id ===
+            "worn_label"
+        )}
+        cutoutBusy={cutoutBusy}
+        storyTools={
+          phase === "canvas"
+            ? {
+                bridge: {
+                  spokenHook: draft.headline,
+                  onScreenHeadline: draft.headline,
+                  caption: draft.caption,
+                  destinationUrl: itemDestinationUrl,
+                  assetUrl: activeMedia?.url ?? selectedImageUrl ?? null,
+                },
+                cutoutActive: storyPreview.cutoutMode === "transparent",
+                onCutoutToggle,
+                isVideo: activeMedia?.type === "video",
+                hasPhoto: hasStillPhoto,
+                storyCard: {
+                  swatches: brandSwatches(brandPresets),
+                  background:
+                    storyPreview.canvasColor || brandPresets.canvas_color,
+                  onBackgroundChange: (hex) =>
+                    setStoryPreview((current) => ({
+                      ...current,
+                      canvasColor: hex,
+                      bgPresetId: "custom",
+                    })),
+                  scale: storyPreview.subjectScale ?? 1,
+                  onScaleChange: (subjectScale) =>
+                    setStoryPreview((current) => ({
+                      ...current,
+                      subjectScale,
+                    })),
+                  offsetY: storyPreview.subjectOffsetY ?? 0,
+                  onOffsetYChange: (subjectOffsetY) =>
+                    setStoryPreview((current) => ({
+                      ...current,
+                      subjectOffsetY,
+                    })),
+                },
+              }
+            : null
+        }
         vibeOptions={profile.vibeTags}
         postIntent={postIntent}
         onPostIntentChange={setPostIntent}
@@ -1015,20 +1113,11 @@ export function InventoryItemDetail({
 
   const wizardSteps = [
     WORKBENCH_STEP_MEDIA,
-    WORKBENCH_STEP_INTENT,
     WORKBENCH_STEP_CANVAS,
+    WORKBENCH_STEP_INTENT,
     WORKBENCH_STEP_COPY,
   ] as const
   const onWizardStep = step !== WORKBENCH_STEP_CHANNELS
-  const priorSummaryStep =
-    step === WORKBENCH_STEP_INTENT
-      ? WORKBENCH_STEP_MEDIA
-      : step === WORKBENCH_STEP_CANVAS
-        ? WORKBENCH_STEP_INTENT
-        : step === WORKBENCH_STEP_COPY
-          ? WORKBENCH_STEP_CANVAS
-          : null
-
   return (
     <div
       className={
@@ -1206,10 +1295,10 @@ export function InventoryItemDetail({
                 onNext={onNext}
                 nextLabel={
                   step === WORKBENCH_STEP_MEDIA
-                    ? "Continue to Intent"
-                    : step === WORKBENCH_STEP_INTENT
-                      ? "Continue to Canvas"
-                      : step === WORKBENCH_STEP_CANVAS
+                    ? "Continue to Canvas"
+                    : step === WORKBENCH_STEP_CANVAS
+                      ? "Continue to Intent"
+                      : step === WORKBENCH_STEP_INTENT
                         ? "Continue to Copy"
                         : step === WORKBENCH_STEP_COPY
                           ? "Continue to Schedule"
@@ -1254,6 +1343,7 @@ export function InventoryItemDetail({
                 onStoryPreviewChange={setStoryPreview}
                 hideStylingDock
                 externalCutoutRequestId={cutoutRequestId}
+                onCutoutBusyChange={setCutoutBusy}
                 textOverlay={textOverlay}
                 onTextOverlayChange={setTextOverlay}
                 textOverlayInteractive={step === WORKBENCH_STEP_CANVAS}
@@ -1277,19 +1367,18 @@ export function InventoryItemDetail({
             }
             controls={
               <div className="flex h-full min-h-0 flex-1 flex-col gap-2">
-                {priorSummaryStep === WORKBENCH_STEP_INTENT &&
-                step !== WORKBENCH_STEP_CANVAS ? (
-                  <StudioStepSummary
-                    title="Intent"
-                    summary={intentStepSummary}
-                    onEdit={() => setStep(WORKBENCH_STEP_INTENT)}
-                  />
-                ) : null}
-                {priorSummaryStep === WORKBENCH_STEP_CANVAS ? (
+                {step === WORKBENCH_STEP_INTENT || step === WORKBENCH_STEP_COPY ? (
                   <StudioStepSummary
                     title="Canvas"
                     summary={canvasStepSummary}
                     onEdit={() => setStep(WORKBENCH_STEP_CANVAS)}
+                  />
+                ) : null}
+                {step === WORKBENCH_STEP_COPY ? (
+                  <StudioStepSummary
+                    title="Intent"
+                    summary={intentStepSummary}
+                    onEdit={() => setStep(WORKBENCH_STEP_INTENT)}
                   />
                 ) : null}
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -1302,20 +1391,11 @@ export function InventoryItemDetail({
                     onAssetsChange={onMediaAssetsChange}
                     onSelectMedia={onSelectMedia}
                     onVisualInspect={onVisualInspect}
-                    bridgePayload={{
-                      spokenHook: draft.headline,
-                      onScreenHeadline: draft.headline,
-                      caption: draft.caption,
-                      destinationUrl: itemDestinationUrl,
-                    }}
                     onFinishedRender={onFinishedRender}
                     onOpenMediaLibrary={() => setMediaLibraryOpen(true)}
                     visualDescription={
                       visualInspection?.visualDescription ?? null
                     }
-                    cutoutActive={storyPreview.cutoutMode === "transparent"}
-                    onCutoutToggle={onCutoutToggle}
-                    cutoutDisabled={simPlatform !== "ig_story"}
                   />
                 ) : null}
                 {step === WORKBENCH_STEP_INTENT

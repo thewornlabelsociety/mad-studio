@@ -2,17 +2,34 @@ import {
   buildOptimizationTags,
   normalizeOptTag,
 } from "@/lib/inventory/optimization-tags"
+import {
+  isCatalogMetadataDump,
+  readableListingCaption,
+} from "@/lib/inventory/context-hooks"
 import type { MarketingEntity } from "@/lib/inventory/types"
 
-/** Post copy from intake — website description beats AI guesswork. */
+/**
+ * Post copy from intake. Website dumps that repeat Brand/Size/Condition are
+ * cleaned so Canvas tags own those facts and the caption stays readable.
+ */
 export function listingCaptionForPost(item: MarketingEntity): string {
   const meta = item.copy_draft?.metadata
   const fromApproved = meta?.post_description?.trim()
-  if (fromApproved) return fromApproved
+  if (fromApproved && !isCatalogMetadataDump(fromApproved)) {
+    return fromApproved
+  }
   const fromDraft = item.copy_draft?.caption?.trim()
-  if (fromDraft) return fromDraft
-  const fromWebsite = item.description?.trim()
-  if (fromWebsite) return fromWebsite
+  if (fromDraft && !isCatalogMetadataDump(fromDraft)) {
+    return fromDraft
+  }
+  // Approved/draft that is still a catalog dump → clean it.
+  const preferred = fromApproved || fromDraft || item.description?.trim() || ""
+  const cleaned = readableListingCaption({
+    title: item.title,
+    description: preferred || item.description,
+    brand: item.brand,
+  })
+  if (cleaned) return cleaned
   return item.title?.trim() ?? ""
 }
 

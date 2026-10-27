@@ -45,6 +45,8 @@ export type MediaAsset = {
   visualInspection?: MediaVisualInspection | null
   /** marketing_entities row when pulled from website / intake library. */
   marketingEntityId?: string | null
+  /** Exact product / listing URL for phone link-sticker handoff. */
+  destinationUrl?: string | null
   /** Listing / website description for this slide's source item. */
   intakeCaption?: string | null
   /** Suggested discovery tags from that listing (no #). */

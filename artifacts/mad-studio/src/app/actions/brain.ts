@@ -22,6 +22,7 @@ import {
 } from "@/lib/entities/dna-schema"
 import { z } from "zod"
 import type { Json } from "@/lib/database.types"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 type ActionResult<T = undefined> =
@@ -115,13 +116,25 @@ export async function saveCanvasLayouts(input: {
 }): Promise<ActionResult<{ layouts: SavedCanvasLayout[] }>> {
   const layouts = z.array(canvasLayoutSchema).max(40).safeParse(input.layouts)
   if (!layouts.success) {
-    return { ok: false, error: "Those layouts couldn't be saved." }
+    const detail = layouts.error.issues
+      .slice(0, 3)
+      .map((issue) => `${issue.path.join(".") || "layout"}: ${issue.message}`)
+      .join("; ")
+    return {
+      ok: false,
+      error: detail
+        ? `Those layouts couldn't be saved (${detail}).`
+        : "Those layouts couldn't be saved.",
+    }
   }
   const auth = await assertCanEdit(input.entityId)
   if (auth.error) {
     return { ok: false, error: auth.error }
   }
-  const { data: row, error: readError } = await auth.supabase
+  // Authz already checked; write with service role. entities often has no
+  // UPDATE RLS for creators, so the user client silently updates 0 rows.
+  const admin = createAdminClient()
+  const { data: row, error: readError } = await admin
     .from("entities")
     .select("brand_identity")
     .eq("id", input.entityId)
@@ -135,15 +148,26 @@ export async function saveCanvasLayouts(input: {
     !Array.isArray(row.brand_identity)
       ? (row.brand_identity as Record<string, unknown>)
       : {}
-  const { error } = await auth.supabase
+  const { data: updated, error } = await admin
     .from("entities")
     .update({
-      brand_identity: { ...current, canvas_layouts: layouts.data } as unknown as Json,
+      brand_identity: {
+        ...current,
+        canvas_layouts: layouts.data,
+      } as unknown as Json,
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.entityId)
+    .select("id")
+    .maybeSingle()
   if (error) {
     return { ok: false, error: error.message }
+  }
+  if (!updated?.id) {
+    return {
+      ok: false,
+      error: "Layout save did not update this brand — check you can edit it.",
+    }
   }
   return { ok: true, data: { layouts: layouts.data } }
 }

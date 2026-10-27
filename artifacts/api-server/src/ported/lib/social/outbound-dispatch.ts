@@ -76,6 +76,8 @@ function envFallbackConnection(
   entityId: string,
   platform: "instagram" | "facebook"
 ): SocialConnectionRow | null {
+  // WLS Page/IG env tokens must never publish for another brand (e.g. FÜDI).
+  if (entityId !== WLS_DEFAULT_ENTITY_ID) return null
   const token = process.env.META_ACCESS_TOKEN?.trim()
   if (!token) return null
 

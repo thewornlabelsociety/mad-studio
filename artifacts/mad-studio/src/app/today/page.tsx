@@ -18,8 +18,11 @@ import {
   resolveBrainDirective,
 } from "@/lib/today/agenda"
 import { readDispatchCronHealth } from "@/lib/cron/read-dispatch-health"
+import { resolveIntakeCaptionDefaultSource } from "@/lib/inventory/intake-caption-default"
 import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
+import { DailyNewArrivalStoryButton } from "@/components/today/daily-new-arrival-story-button"
 import { TodayActionDeck } from "@/components/today/action-deck"
+import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { TodayChecklist } from "@/components/today/today-checklist"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
@@ -77,6 +80,9 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     .maybeSingle()
 
   const entityDna = entityRow ? parseStudioEntity(entityRow) : null
+  const intakeCaptionDefault = resolveIntakeCaptionDefaultSource(
+    entityDna?.brand_identity ?? null
+  )
 
   const [
     { count: unfeaturedCountRaw },
@@ -190,6 +196,11 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       )
     : "Load Brand Brain to set seasonal focus."
 
+  const isWls = isWornLabelFashionEntity({
+    name: activeEntity.name,
+    industry: activeEntity.industry,
+  })
+
   return (
     <StudioAppShell
       entities={entities}
@@ -216,6 +227,11 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             newDropsHref="#todays-deck"
             className="mx-3 mt-3"
           />
+          {isWls ? (
+            <div className="mx-3 mt-2">
+              <DailyNewArrivalStoryButton entityId={activeEntityId} />
+            </div>
+          ) : null}
           <div id="todays-deck" className="scroll-mt-4">
           <TodayActionDeck
             entityId={activeEntityId}
@@ -241,6 +257,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             armedRows={armedRows}
             dispatchCronHealth={dispatchCronHealth}
             failedDispatchCount={failedDispatchCount}
+            intakeCaptionDefault={intakeCaptionDefault}
           />
         </div>
     </StudioAppShell>

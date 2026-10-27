@@ -6,12 +6,19 @@ import type { MultiplexerIntent } from "@/lib/campaigns/multiplexer"
 import { MULTIPLEXER_INTENTS } from "@/lib/campaigns/multiplexer"
 import type { FudiAudienceTrack } from "@/lib/studio/fudi-tracks"
 
+export type StudioContextMetadata = {
+  forecasting_tag?: string | null
+  /** Checkpoint 4 — multi-frame Story/Feed creative (opaque JSON; client validates). */
+  creative_sequence?: unknown
+}
+
 export type StudioContext = {
   event_description: string
   intent: MultiplexerIntent
   objective: string
   persona_name: string | null
   fudi_track: FudiAudienceTrack | null
+  metadata?: StudioContextMetadata
 }
 
 export type ActiveMultiplexerPackBuffer = {
@@ -19,6 +26,8 @@ export type ActiveMultiplexerPackBuffer = {
   entityId: string
   pack: CampaignPack
   mediaUrl: string | null
+  /** Every photo in a carousel draft (mediaUrl is the first). */
+  mediaUrls?: string[]
   eventDescription: string
   intent: MultiplexerIntent
   objective: string
@@ -63,12 +72,36 @@ export function parseStudioContext(value: unknown): StudioContext | null {
   const fudiTrack =
     trackRaw === "diners" || trackRaw === "partners" ? trackRaw : null
 
+  let metadata: StudioContextMetadata | undefined
+  const metaRaw = record.metadata
+  if (metaRaw && typeof metaRaw === "object") {
+    const metaRecord = metaRaw as Record<string, unknown>
+    const forecastingTag =
+      typeof metaRecord.forecasting_tag === "string"
+        ? metaRecord.forecasting_tag.trim()
+        : null
+    const creativeSequence =
+      metaRecord.creative_sequence &&
+      typeof metaRecord.creative_sequence === "object"
+        ? metaRecord.creative_sequence
+        : undefined
+    if (forecastingTag || creativeSequence !== undefined) {
+      metadata = {
+        ...(forecastingTag ? { forecasting_tag: forecastingTag } : {}),
+        ...(creativeSequence !== undefined
+          ? { creative_sequence: creativeSequence }
+          : {}),
+      }
+    }
+  }
+
   return {
     event_description: eventDescription,
     intent,
     objective,
     persona_name: personaName,
     fudi_track: fudiTrack,
+    ...(metadata ? { metadata } : {}),
   }
 }
 
@@ -78,14 +111,26 @@ export function buildStudioContext(input: {
   objective: string
   personaName?: string | null
   fudiTrack?: FudiAudienceTrack | null
+  forecastingTag?: string | null
+  creativeSequence?: unknown
 }): StudioContext {
-  return {
+  const base: StudioContext = {
     event_description: input.eventDescription.slice(0, 500),
     intent: input.intent,
     objective: input.objective,
     persona_name: input.personaName?.trim() || null,
     fudi_track: input.fudiTrack ?? null,
   }
+  const tag = input.forecastingTag?.trim()
+  const hasSequence =
+    input.creativeSequence !== undefined && input.creativeSequence !== null
+  if (tag || hasSequence) {
+    base.metadata = {
+      ...(tag ? { forecasting_tag: tag } : {}),
+      ...(hasSequence ? { creative_sequence: input.creativeSequence } : {}),
+    }
+  }
+  return base
 }
 
 /** Rebuild a CampaignPack from campaigns.asset_pack + algorithmic_signals + title. */
@@ -140,10 +185,7 @@ export function writeActiveMultiplexerBuffer(
   const storage = getBrowserLocalStorage()
   if (!storage) return
   try {
-    storage.setItem(
-      ACTIVE_MULTIPLEXER_PACK_KEY,
-      JSON.stringify(buffer)
-    )
+    storage.setItem(ACTIVE_MULTIPLEXER_PACK_KEY, JSON.stringify(buffer))
   } catch {
     /* quota / private mode */
   }

@@ -1,7 +1,11 @@
+import type { CanvasItemFacts } from "@/components/studio/canvas-text-overlay"
 import type { SavedCanvasLayout } from "@/lib/entities/dna-schema"
+import { overlayPatchFromItemFacts } from "@/lib/studio/new-arrival-suggestions"
 import {
   canvasOverlayHasDecor,
   canvasOverlayWithoutCopy,
+  canvasTagTogglesOn,
+  DEFAULT_CANVAS_TEXT_OVERLAY,
   normalizeCanvasTextOverlay,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
@@ -19,6 +23,7 @@ export type { SavedCanvasLayout }
 export function layoutFromOverlay(
   overlay: CanvasTextOverlayState
 ): Record<string, unknown> {
+  const normalized = normalizeCanvasTextOverlay(overlay)
   const {
     tagBrand: _brand,
     tagSize: _size,
@@ -27,8 +32,9 @@ export function layoutFromOverlay(
     cutoutUrl: _cutout,
     cutoutSourceUrl: _cutoutSource,
     ...layout
-  } = overlay
-  return layout
+  } = normalized
+  // Drop undefined / non-JSON values so Zod + Postgres JSONB never reject.
+  return JSON.parse(JSON.stringify(layout)) as Record<string, unknown>
 }
 
 /**
@@ -63,7 +69,9 @@ export function applyLayoutToOverlay(input: {
     ...look,
     headline,
     subhead,
-    tagNewLabel: look.tagNewLabel,
+    tagNewLabel: slideNorm.tagNewLabel.trim()
+      ? slideNorm.tagNewLabel
+      : look.tagNewLabel,
     tagBrand: slideNorm.tagBrand,
     tagSize: slideNorm.tagSize,
     tagPrice: slideNorm.tagPrice,
@@ -75,8 +83,33 @@ export function applyLayoutToOverlay(input: {
       look.backdropEnabled && Boolean(slideNorm.cutoutUrl),
   })
 
-  const enabled = canvasOverlayHasDecor({ ...merged, enabled: true })
-  return { ...merged, enabled }
+  // Style-only layouts (fonts/placement, tags off, no words yet) still need
+  // enabled so the next typed Word/Tag paints with this layout's look.
+  const hasLook =
+    canvasOverlayHasDecor({ ...merged, enabled: true }) ||
+    look.enabled ||
+    Boolean(look.headline.trim() || look.subhead.trim()) ||
+    canvasTagTogglesOn(look) ||
+    Boolean(look.logoEnabled && look.logoUrl)
+  return { ...merged, enabled: hasLook }
+}
+
+/**
+ * Slide state before merging a saved layout — listing tag *values* only, no
+ * auto toggles or stacked positions from freshOverlayFor / lastOverlayStyle.
+ */
+export function slideOverlayBeforeLayoutApply(input: {
+  slide?: CanvasTextOverlayState | null
+  facts?: CanvasItemFacts | null
+}): CanvasTextOverlayState {
+  if (input.slide) return normalizeCanvasTextOverlay(input.slide)
+  const listing = input.facts
+    ? overlayPatchFromItemFacts({ facts: input.facts, enableTags: false })
+    : {}
+  return normalizeCanvasTextOverlay({
+    ...DEFAULT_CANVAS_TEXT_OVERLAY,
+    ...listing,
+  })
 }
 
 /** Starting point for a new post when a default layout is set. */

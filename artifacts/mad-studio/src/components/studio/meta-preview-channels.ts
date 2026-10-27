@@ -11,5 +11,5 @@ export const META_PREVIEW_CHANNELS: Array<{
 }> = [
   { id: "ig_story", label: "Instagram Story" },
   { id: "ig_feed", label: "Instagram Feed" },
-  { id: "facebook", label: "Facebook Page" },
+  { id: "facebook", label: "Facebook Feed" },
 ]

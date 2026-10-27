@@ -18,6 +18,8 @@ export function normalizeOptTag(raw: string): string | null {
     .toLowerCase()
     .replace(/[^a-z0-9āēīōū]+/gi, "")
   if (cleaned.length < 2 || cleaned.length > 30) return null
+  // Prices / item codes ("$45.00" → "4500") are not search tags.
+  if (/^\d+$/.test(cleaned)) return null
   return cleaned
 }
 

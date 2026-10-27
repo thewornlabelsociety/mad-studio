@@ -13,6 +13,7 @@ import {
 } from "@/lib/marketing/story-presets"
 import type { LogoCorner, VisualPresets } from "@/lib/entities/dna-schema"
 import { cssFontStack } from "@/lib/brands/visual-presets"
+import { formatCanvasSizeTagLabel } from "@/lib/studio/canvas-size-tag-label"
 import { cn } from "@/lib/utils"
 
 export type CutoutMode = "original" | "css_blend" | "transparent"
@@ -116,6 +117,8 @@ export const StoryCanvas = forwardRef<HTMLDivElement, StoryCanvasProps>(
             cutoutMode={resolvedCutout}
             canvasColor={canvasColor}
             visualPresets={visualPresets}
+            subjectScale={subjectScale}
+            subjectOffsetY={subjectOffsetY}
           />
         ) : null}
         {showLogo && visualPresets?.logo_url ? (
@@ -304,7 +307,9 @@ function StoryCopyBlock({
   const category =
     model.productLabel ||
     conciseProductLabel(model.headline || model.title, model.designer)
-  const sizeLine = model.sizeLabel ? `Size ${model.sizeLabel}` : null
+  const sizeLine = model.sizeLabel
+    ? formatCanvasSizeTagLabel(model.sizeLabel)
+    : null
 
   return (
     <div className={cn("space-y-1 text-center", className)}>
@@ -464,7 +469,7 @@ function FullPage({
         ) : null}
         {model.sizeLabel ? (
           <p className="text-[0.75rem] tracking-[0.16em] uppercase opacity-80">
-            Size {model.sizeLabel}
+            {formatCanvasSizeTagLabel(model.sizeLabel)}
           </p>
         ) : null}
       </div>
@@ -483,11 +488,15 @@ function MagazineEditorial({
   cutoutMode,
   canvasColor,
   visualPresets,
+  subjectScale = 1,
+  subjectOffsetY = 0,
 }: {
   model: StoryCanvasModel
   cutoutMode: CutoutMode
   canvasColor?: string | null
   visualPresets?: VisualPresets | null
+  subjectScale?: number
+  subjectOffsetY?: number
 }) {
   const { canvas, text, accent } = resolveTheme(
     "magazine_editorial",
@@ -528,22 +537,30 @@ function MagazineEditorial({
           </div>
           {model.sizeLabel ? (
             <p className="text-[0.7rem] tracking-[0.14em] uppercase opacity-70">
-              Size {model.sizeLabel}
+              {formatCanvasSizeTagLabel(model.sizeLabel)}
             </p>
           ) : (
             <span />
           )}
         </div>
         <div
-          className={cn("relative", floating ? "p-3" : undefined)}
+          className={cn("relative overflow-hidden", floating ? "p-3" : undefined)}
           style={{ background: floating ? canvas : `${text}14` }}
         >
-          <ProductImage
-            src={model.imageUrl}
-            alt={model.title}
-            fit={floating ? "contain" : "cover"}
-            cutoutMode={cutoutMode}
-          />
+          <div
+            className="size-full"
+            style={{
+              transform: `translateY(${subjectOffsetY}%) scale(${subjectScale})`,
+              transformOrigin: "center center",
+            }}
+          >
+            <ProductImage
+              src={model.imageUrl}
+              alt={model.title}
+              fit={floating ? "contain" : "cover"}
+              cutoutMode={cutoutMode}
+            />
+          </div>
         </div>
       </div>
 

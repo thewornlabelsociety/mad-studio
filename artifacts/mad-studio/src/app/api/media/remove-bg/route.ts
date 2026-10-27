@@ -3,12 +3,13 @@ import sharp from "sharp"
 import { z } from "zod"
 
 import { createClient } from "@/lib/supabase/server"
+import { resolveRemoveBgSourceUrl } from "@/lib/media/resolve-remove-bg-source"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
 
 const bodySchema = z.object({
-  imageUrl: z.string().url(),
+  imageUrl: z.string().min(1),
   entityId: z.string().uuid(),
   /** Optional marketing entity id for path namespacing */
   itemId: z.string().uuid().optional().nullable(),
@@ -83,6 +84,21 @@ export async function POST(request: Request) {
 
     const { imageUrl, entityId, itemId } = parsed.data
 
+    let fetchUrl: string
+    try {
+      fetchUrl = resolveRemoveBgSourceUrl(imageUrl)
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Invalid image URL for cutout.",
+        },
+        { status: 400 }
+      )
+    }
+
     const { data: canEdit, error: accessError } = await supabase.rpc(
       "has_entity_access",
       {
@@ -105,7 +121,7 @@ export async function POST(request: Request) {
     if (cloudName && cloudKey && cloudSecret) {
       try {
         const auth = Buffer.from(`${cloudKey}:${cloudSecret}`).toString("base64")
-        const delivery = `https://res.cloudinary.com/${cloudName}/image/fetch/e_background_removal/${encodeURIComponent(imageUrl)}`
+        const delivery = `https://res.cloudinary.com/${cloudName}/image/fetch/e_background_removal/${encodeURIComponent(fetchUrl)}`
         const deliveryRes = await fetch(delivery, {
           headers: { Authorization: `Basic ${auth}` },
         })
@@ -120,7 +136,7 @@ export async function POST(request: Request) {
           "[remove-bg] Cloudinary failed, falling back to sharp:",
           error
         )
-        const source = await fetch(imageUrl)
+        const source = await fetch(fetchUrl)
         if (!source.ok) {
           return NextResponse.json(
             { error: "Could not fetch source image." },
@@ -132,7 +148,7 @@ export async function POST(request: Request) {
         )
       }
     } else {
-      const source = await fetch(imageUrl)
+      const source = await fetch(fetchUrl)
       if (!source.ok) {
         return NextResponse.json(
           { error: "Could not fetch source image." },

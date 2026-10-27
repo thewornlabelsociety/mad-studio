@@ -833,6 +833,7 @@ export async function POST(request: Request) {
         mediaUrl: metaMediaUrl,
         caption,
         placement,
+        mediaKind: isPublishVideoUrl(mediaUrl) ? "video" : undefined,
         carouselUrls,
         storyUrls,
       })

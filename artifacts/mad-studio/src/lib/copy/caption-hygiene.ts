@@ -176,9 +176,13 @@ function normalizeTag(raw: string): string {
     .replace(/[^a-z0-9āēīōū]+/gi, "")
 }
 
-/** Long numeric / hex tokens (listing IDs), not short years like 1905 or nz2024. */
+/**
+ * Prices ($45.00 → 4500), SKUs, and listing IDs — never discovery hashtags.
+ * Letter+year tags like nz2024 stay allowed.
+ */
 function isLikelySkuNumericTag(normalized: string): boolean {
-  if (/^\d{6,}$/.test(normalized)) return true
+  // Pure digits: "$45.00" / "45.00" normalize to "4500" or "45".
+  if (/^\d+$/.test(normalized)) return true
   if (/^[0-9a-f]{8,}$/i.test(normalized) && /\d/.test(normalized)) return true
   const digitCount = (normalized.match(/\d/g) ?? []).length
   return (

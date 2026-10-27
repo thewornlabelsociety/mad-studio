@@ -81,7 +81,7 @@ function splitAttrParts(text: string): string[] {
 function stripLabeledMeta(text: string): string {
   return text
     .replace(
-      /\b(Brand|Size|Condition|Material|Colour|Color|Category|Fabric)\s*:\s*[^·\-—|]*/gi,
+      /\b(Brand|Size|Condition|Material|Colour|Color|Category|Fabric|Vibe)\s*:\s*[^·\-—|]*/gi,
       ""
     )
     .replace(/\s*[·|]\s*/g, " · ")
@@ -156,6 +156,57 @@ function cleanProductTitle(title: string, brand: string): string {
   const garment = parts.find((part) => GARMENT_WORD.test(part))
   if (garment) return garment
   return parts[0] || title.trim()
+}
+
+export function isCatalogMetadataDump(text: string): boolean {
+  return isMetadataDump(text)
+}
+
+/** Human caption from title + description when feed has no ready copy. */
+export function readableListingCaption(
+  title: string | null | undefined,
+  description: string | null | undefined,
+  options?: { merchandiseSize?: string | null }
+): string {
+  const rawTitle = (title ?? "").trim()
+  const rawDesc = (description ?? "").trim()
+  if (!rawTitle && !rawDesc) return ""
+
+  const labeled = rawDesc ? parseLabeledFields(rawDesc) : {}
+  const brand = labeled.brand ? normalizeBrand(labeled.brand) : ""
+  const size =
+    (options?.merchandiseSize ?? labeled.size ?? "").trim() || null
+
+  const titleLooksLikeDump =
+    rawTitle.length > 0 && isMetadataDump(rawTitle)
+  const descLooksLikeDump =
+    rawDesc.length > 0 && isMetadataDump(rawDesc)
+
+  let productLine = ""
+  if (titleLooksLikeDump && brand) {
+    productLine = cleanProductTitle(rawTitle, brand)
+  } else if (rawTitle && !titleLooksLikeDump) {
+    productLine = cleanProductTitle(rawTitle, brand)
+  } else if (rawDesc && !descLooksLikeDump && !isMetadataDump(rawDesc)) {
+    productLine = stripLabeledMeta(rawDesc).slice(0, 120)
+  } else if (brand) {
+    productLine = cleanProductTitle(rawTitle || rawDesc, brand)
+  } else {
+    productLine = rawTitle || stripLabeledMeta(rawDesc).slice(0, 80)
+  }
+
+  productLine = productLine.replace(/\s{2,}/g, " ").trim()
+  if (!productLine) return rawTitle || rawDesc.slice(0, 160)
+
+  const bits: string[] = [productLine]
+  if (brand && !productLine.toLowerCase().includes(brand.toLowerCase())) {
+    bits.unshift(brand)
+  }
+  if (size && !productLine.toLowerCase().includes(size.toLowerCase())) {
+    bits.push(`Size ${size}`)
+  }
+
+  return bits.join(" · ").replace(/\s{2,}/g, " ").trim()
 }
 
 function pickFabric(

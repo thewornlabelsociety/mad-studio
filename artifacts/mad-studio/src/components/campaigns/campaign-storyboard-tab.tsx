@@ -45,7 +45,7 @@ function DayRow({
   onGenerate: (dayId: string) => void
   onArm: (dayId: string) => void
 }) {
-  const studioHref = `/studio?eid=${encodeURIComponent(entityId)}&step=3&programDayId=${encodeURIComponent(day.id)}`
+  const studioHref = `/studio?eid=${encodeURIComponent(entityId)}&step=4&programDayId=${encodeURIComponent(day.id)}`
   const canGenerate = day.status === "pending" || day.status === "failed"
   const canArm = day.status === "ready"
 

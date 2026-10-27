@@ -4,10 +4,21 @@ import {
   type InventoryIntakeMode,
 } from "@/lib/inventory/entity-intake"
 import {
+  classifyWornLabelAvailability,
+  withListingSyncMetrics,
+  type ListingAvailability,
+} from "@/lib/inventory/listing-availability"
+import {
   parseAestheticSlugs,
   resolveListingVibe,
-  withListingVibeMetrics,
 } from "@/lib/inventory/listing-vibe"
+import { resolveIntakeCaptionDefaultSource } from "@/lib/inventory/intake-caption-default"
+import {
+  buildArrivalInsertRow,
+  buildArrivalReconcilePatch,
+  type ArrivalReconcileInput,
+} from "@/lib/inventory/reconcile-arrival"
+import type { BrandIdentity } from "@/lib/entities/dna-schema"
 import { parsePrice } from "@/lib/inventory/types"
 import { metaGraphBase } from "@/lib/social/types"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -18,21 +29,53 @@ export type PulledArrival = {
   title: string
   brand: string | null
   price: number | null
+  currency: string | null
+  size: string | null
   description: string | null
   images: string[]
   vibe: string | null
   aesthetic_slugs: string[]
+  availability: ListingAvailability
+  listing_url: string | null
 }
 
 export type PullNewArrivalsResult = {
   imported: number
+  /** Existing rows refreshed from the catalogue. */
+  updated: number
   skipped: number
-  /** Unfeatured intake rows removed because they are no longer on the live catalog. */
+  /**
+   * Rows marked unavailable/sold in metrics because they left the catalogue.
+   * Records are never deleted on reconcile (preserves creative history).
+   * Kept as `pruned` for API backwards compatibility.
+   */
   pruned: number
   feedUrl: string
   items: Array<{ id: string; website_item_id: string; title: string }>
-  /** Feed responded OK but had zero live listings. */
+  /** Feed responded OK but had zero listings. */
   emptyFeed?: boolean
+}
+
+function toReconcileInput(item: PulledArrival): ArrivalReconcileInput {
+  return item
+}
+
+function defaultArrivalFields(
+  partial: Omit<
+    PulledArrival,
+    "currency" | "size" | "availability" | "listing_url"
+  > &
+    Partial<
+      Pick<PulledArrival, "currency" | "size" | "availability" | "listing_url">
+    >
+): PulledArrival {
+  return {
+    ...partial,
+    currency: partial.currency ?? "NZD",
+    size: partial.size ?? null,
+    availability: partial.availability ?? "available",
+    listing_url: partial.listing_url ?? null,
+  }
 }
 
 function stripHtml(input: string): string {
@@ -223,50 +266,27 @@ function buildDescription(parts: Array<string | null | undefined>): string | nul
   return cleaned.join(" · ").slice(0, 8000)
 }
 
-const WLS_LIVE_STATUSES = new Set(["active", "available", "published", "live"])
-
-function booleanField(
-  record: Record<string, unknown>,
-  ...keys: string[]
-): boolean {
-  for (const key of keys) {
-    const value = record[key]
-    if (value === true) return true
-    if (value === false) return false
-    if (value === 1 || value === "1" || value === "true") return true
-  }
-  return false
+/** @deprecated Use classifyWornLabelAvailability — kept for tests/callers. */
+export function isWornLabelListingLive(record: Record<string, unknown>): boolean {
+  return classifyWornLabelAvailability(record) === "available"
 }
 
-/** WLS storefront JSON — only intake listings that are still live for sale. */
-function isWornLabelListingLive(record: Record<string, unknown>): boolean {
-  const status = stringField(
+function listingUrlFromRecord(record: Record<string, unknown>): string | null {
+  const raw = stringField(
     record,
-    "status",
-    "listingStatus",
-    "listing_status"
-  )?.toLowerCase()
-  if (status && !WLS_LIVE_STATUSES.has(status)) return false
+    "url",
+    "listingUrl",
+    "listing_url",
+    "permalink",
+    "publicUrl",
+    "public_url"
+  )
+  return raw && /^https?:\/\//i.test(raw) ? raw : null
+}
 
-  if (
-    booleanField(record, "isSold", "is_sold", "sold", "soldOut", "sold_out")
-  ) {
-    return false
-  }
-
-  if (
-    stringField(record, "delistedAt", "delisted_at", "soldAt", "sold_at")
-  ) {
-    return false
-  }
-
-  const expiresAt = stringField(record, "expiresAt", "expires_at")
-  if (expiresAt) {
-    const expiresMs = Date.parse(expiresAt)
-    if (Number.isFinite(expiresMs) && expiresMs < Date.now()) return false
-  }
-
-  return true
+function currencyFromRecord(record: Record<string, unknown>): string | null {
+  const raw = stringField(record, "currency", "currencyCode", "currency_code")
+  return raw ? raw.toUpperCase() : "NZD"
 }
 
 function wornLabelStableItemId(record: Record<string, unknown>): string | null {
@@ -309,8 +329,6 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
       const record = asRecord(row)
       if (!record) return null
 
-      if (!isWornLabelListingLive(record)) return null
-
       const itemId = wornLabelStableItemId(record)
       const title =
         stringField(record, "listingTitle", "title", "itemName", "name") ??
@@ -326,15 +344,14 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
           "price"
         ) ?? null
 
+      const size = stringField(record, "size")
       const aesthetics = extractListingAesthetics(record)
       const description = buildDescription([
         stringField(record, "listingDescription", "description"),
         stringField(record, "brand")
           ? `Brand: ${stringField(record, "brand")}`
           : null,
-        stringField(record, "size")
-          ? `Size: ${stringField(record, "size")}`
-          : null,
+        size ? `Size: ${size}` : null,
         stringField(record, "condition")
           ? `Condition: ${stringField(record, "condition")}`
           : null,
@@ -346,16 +363,20 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
         aesthetics.vibe ? `Vibe: ${aesthetics.vibe}` : null,
       ])
 
-      return {
+      return defaultArrivalFields({
         website_item_id: itemId,
         title: title.slice(0, 500),
         brand: stringField(record, "brand"),
         price,
+        currency: currencyFromRecord(record),
+        size,
         description,
         images: collectImages(record),
         vibe: aesthetics.vibe,
         aesthetic_slugs: aesthetics.aesthetic_slugs,
-      } satisfies PulledArrival
+        availability: classifyWornLabelAvailability(record),
+        listing_url: listingUrlFromRecord(record),
+      })
     })
     .filter((item): item is PulledArrival => item != null)
 }
@@ -374,14 +395,12 @@ function parseWornLabelItems(payload: unknown): PulledArrival[] {
       const record = asRecord(row)
       if (!record) return null
 
-      if (!isWornLabelListingLive(record)) return null
-
       const id = wornLabelStableItemId(record)
       const title = stringField(record, "itemName", "title", "name")
       if (!id || !title) return null
 
-      const price =
-        numberField(record, "discountedPrice", "price") ?? null
+      const price = numberField(record, "discountedPrice", "price") ?? null
+      const size = stringField(record, "size")
 
       const aesthetics = extractListingAesthetics(record)
       const description = buildDescription([
@@ -389,24 +408,26 @@ function parseWornLabelItems(payload: unknown): PulledArrival[] {
         stringField(record, "brand")
           ? `Brand: ${stringField(record, "brand")}`
           : null,
-        stringField(record, "size")
-          ? `Size: ${stringField(record, "size")}`
-          : null,
+        size ? `Size: ${size}` : null,
         stringField(record, "category"),
         stringField(record, "colour", "color"),
         aesthetics.vibe ? `Vibe: ${aesthetics.vibe}` : null,
       ])
 
-      return {
+      return defaultArrivalFields({
         website_item_id: id,
         title: title.slice(0, 500),
         brand: stringField(record, "brand"),
         price,
+        currency: currencyFromRecord(record),
+        size,
         description,
         images: collectImages(record),
         vibe: aesthetics.vibe,
         aesthetic_slugs: aesthetics.aesthetic_slugs,
-      } satisfies PulledArrival
+        availability: classifyWornLabelAvailability(record),
+        listing_url: listingUrlFromRecord(record),
+      })
     })
     .filter((item): item is PulledArrival => item != null)
 }
@@ -445,17 +466,21 @@ function parseGenericProductsJson(payload: unknown): PulledArrival[] {
       const body = stringField(product, "body_html", "description")
       const aesthetics = extractListingAesthetics(product)
 
-      return {
+      return defaultArrivalFields({
         website_item_id: handle ?? id,
         title: title.slice(0, 500),
         brand:
           stringField(product, "vendor", "brand", "product_type") ?? null,
         price: priceRaw,
+        currency: currencyFromRecord(product),
+        size: stringField(product, "size"),
         description: body ? stripHtml(body).slice(0, 8000) : null,
         images: images.slice(0, 12),
         vibe: aesthetics.vibe,
         aesthetic_slugs: aesthetics.aesthetic_slugs,
-      } satisfies PulledArrival
+        availability: "available",
+        listing_url: listingUrlFromRecord(product),
+      })
     })
     .filter((item): item is PulledArrival => item != null)
 }
@@ -492,7 +517,7 @@ function parseFoodFeedPayload(payload: unknown): PulledArrival[] {
     const images = collectImages(record)
     if (images.length === 0) return []
 
-    const arrival: PulledArrival = {
+    const arrival = defaultArrivalFields({
       website_item_id: id.startsWith("fudi-") ? id : `fudi-${id}`,
       title: title.slice(0, 500),
       brand: stringField(record, "brand", "venue", "restaurant") ?? "FÜDI",
@@ -507,7 +532,8 @@ function parseFoodFeedPayload(payload: unknown): PulledArrival[] {
       images: images.slice(0, 12),
       vibe: null,
       aesthetic_slugs: [],
-    }
+      listing_url: listingUrlFromRecord(record),
+    })
     return [arrival]
   })
 }
@@ -535,11 +561,12 @@ function parseArrivalPayload(
 
 function wornLabelDemoArrivals(): PulledArrival[] {
   return [
-    {
+    defaultArrivalFields({
       website_item_id: "demo-zimmermann-linen-midi",
       title: "Zimmermann Linen Midi — Sample Size 1",
       brand: "Zimmermann",
       price: 890,
+      size: "1",
       description:
         "Archival linen midi in soft bone. Sample size 1, original tags retained. Ideal for ball season styling with clean lines and breathable fabric.",
       images: [
@@ -547,13 +574,13 @@ function wornLabelDemoArrivals(): PulledArrival[] {
       ],
       vibe: "Quiet Luxury",
       aesthetic_slugs: ["quiet-luxury"],
-    },
+    }),
   ]
 }
 
 function fudiDemoArrivals(): PulledArrival[] {
   return [
-    {
+    defaultArrivalFields({
       website_item_id: "demo-fudi-harvest-flatbread",
       title: "Friday Wood-Fired Harvest Flatbread",
       brand: "FÜDI Tap",
@@ -565,8 +592,8 @@ function fudiDemoArrivals(): PulledArrival[] {
       ],
       vibe: null,
       aesthetic_slugs: [],
-    },
-    {
+    }),
+    defaultArrivalFields({
       website_item_id: "demo-fudi-late-bite-bowl",
       title: "Late Bite Chili Crisp Bowl",
       brand: "FÜDI Tap",
@@ -578,7 +605,7 @@ function fudiDemoArrivals(): PulledArrival[] {
       ],
       vibe: null,
       aesthetic_slugs: [],
-    },
+    }),
   ]
 }
 
@@ -714,7 +741,7 @@ async function pullInstagramFeedArrivals(entityId: string): Promise<{
         120
       ) ?? `${brand} feed drop`
 
-    const arrival: PulledArrival = {
+    const arrival = defaultArrivalFields({
       website_item_id: `ig-${id}`,
       title,
       brand,
@@ -728,7 +755,9 @@ async function pullInstagramFeedArrivals(entityId: string): Promise<{
       images: [image],
       vibe: null,
       aesthetic_slugs: [],
-    }
+      listing_url: stringField(row, "permalink"),
+      availability: "available",
+    })
     return [arrival]
   })
 
@@ -740,17 +769,21 @@ async function pullInstagramFeedArrivals(entityId: string): Promise<{
   }
 }
 
-async function pruneStaleWebsiteIntake(input: {
+/**
+ * Mark catalogue-missing website intake as unavailable in metrics.
+ * Never deletes rows — preserves marketing history and creative assets.
+ */
+async function markStaleWebsiteIntakeUnavailable(input: {
   admin: ReturnType<typeof createAdminClient>
   entityId: string
-  liveWebsiteItemIds: Set<string>
+  seenWebsiteItemIds: Set<string>
+  syncedAt: string
 }): Promise<number> {
-  let pruned = 0
+  let marked = 0
   const { data: staleRows, error: staleError } = await input.admin
     .from("marketing_entities")
-    .select("id, website_item_id")
+    .select("id, website_item_id, metrics")
     .eq("entity_id", input.entityId)
-    .eq("status", "unfeatured")
     .not("website_item_id", "is", null)
 
   if (staleError) {
@@ -759,18 +792,39 @@ async function pruneStaleWebsiteIntake(input: {
 
   for (const row of staleRows ?? []) {
     const websiteItemId = row.website_item_id?.trim()
-    if (!websiteItemId || input.liveWebsiteItemIds.has(websiteItemId)) continue
-    const { error: deleteError } = await input.admin
-      .from("marketing_entities")
-      .delete()
-      .eq("id", row.id)
-    if (deleteError) {
-      throw new Error(deleteError.message)
+    if (!websiteItemId || input.seenWebsiteItemIds.has(websiteItemId)) continue
+
+    const currentMetrics =
+      row.metrics && typeof row.metrics === "object" && !Array.isArray(row.metrics)
+        ? ({ ...(row.metrics as Record<string, unknown>) } as Record<
+            string,
+            unknown
+          >)
+        : { views: 0, clicks: 0, sales: 0 }
+
+    if (currentMetrics.listing_availability === "unavailable") {
+      continue
     }
-    pruned += 1
+
+    const metrics = withListingSyncMetrics(currentMetrics, {
+      availability: "unavailable",
+      syncedAt: input.syncedAt,
+    })
+
+    const { error: updateError } = await input.admin
+      .from("marketing_entities")
+      .update({
+        metrics: metrics as Json,
+        updated_at: input.syncedAt,
+      })
+      .eq("id", row.id)
+    if (updateError) {
+      throw new Error(updateError.message)
+    }
+    marked += 1
   }
 
-  return pruned
+  return marked
 }
 
 export async function pullNewArrivalsForEntity(input: {
@@ -799,7 +853,7 @@ export async function pullNewArrivalsForEntity(input: {
 
   const { data: entity, error: entityError } = await supabase
     .from("entities")
-    .select("id, name, website_url, industry")
+    .select("id, name, website_url, industry, brand_identity")
     .eq("id", input.entityId)
     .maybeSingle()
 
@@ -811,6 +865,15 @@ export async function pullNewArrivalsForEntity(input: {
     name: entity.name,
     industry: entity.industry,
   })
+
+  const brandIdentity =
+    entity.brand_identity &&
+    typeof entity.brand_identity === "object" &&
+    !Array.isArray(entity.brand_identity)
+      ? (entity.brand_identity as BrandIdentity)
+      : null
+  const intakeCaptionDefault =
+    resolveIntakeCaptionDefaultSource(brandIdentity)
 
   let arrivals: PulledArrival[] = []
   let usedFeed = ""
@@ -902,10 +965,12 @@ export async function pullNewArrivalsForEntity(input: {
 
   if (arrivals.length === 0 && emptyFeedUrl) {
     const admin = createAdminClient()
-    const pruned = await pruneStaleWebsiteIntake({
+    const now = new Date().toISOString()
+    const pruned = await markStaleWebsiteIntakeUnavailable({
       admin,
       entityId: input.entityId,
-      liveWebsiteItemIds: new Set(),
+      seenWebsiteItemIds: new Set(),
+      syncedAt: now,
     })
     await supabase.from("activity_logs").insert({
       entity_id: input.entityId,
@@ -913,8 +978,10 @@ export async function pullNewArrivalsForEntity(input: {
       action: "pulled_new_arrivals",
       details: {
         imported: 0,
+        updated: 0,
         skipped: 0,
         pruned,
+        marked_unavailable: pruned,
         feed_url: emptyFeedUrl,
         intake_mode: intakeMode,
         empty_feed: true,
@@ -923,6 +990,7 @@ export async function pullNewArrivalsForEntity(input: {
     })
     return {
       imported: 0,
+      updated: 0,
       skipped: 0,
       pruned,
       feedUrl: emptyFeedUrl,
@@ -960,6 +1028,7 @@ export async function pullNewArrivalsForEntity(input: {
   const admin = createAdminClient()
   const now = new Date().toISOString()
   let imported = 0
+  let updated = 0
   let skipped = 0
   let pruned = 0
   const inserted: Array<{ id: string; website_item_id: string; title: string }> =
@@ -970,62 +1039,75 @@ export async function pullNewArrivalsForEntity(input: {
     !usedFeed.startsWith("demo://") &&
     !usedFeed.startsWith("instagram://")
   if (shouldReconcileIntake) {
-    pruned = await pruneStaleWebsiteIntake({
+    pruned = await markStaleWebsiteIntakeUnavailable({
       admin,
       entityId: input.entityId,
-      liveWebsiteItemIds: new Set(arrivals.map((row) => row.website_item_id)),
+      seenWebsiteItemIds: new Set(arrivals.map((row) => row.website_item_id)),
+      syncedAt: now,
     })
   }
 
   for (const item of arrivals) {
+    const incoming = toReconcileInput(item)
     const { data: existing } = await admin
       .from("marketing_entities")
-      .select("id, metrics")
+      .select("id, title, brand, price, description, images, metrics")
       .eq("entity_id", input.entityId)
       .eq("website_item_id", item.website_item_id)
       .maybeSingle()
 
     if (existing) {
-      // Backfill listing vibe on already-imported items without forcing a re-intake.
-      if (item.vibe || item.aesthetic_slugs.length > 0) {
-        const currentMetrics =
-          existing.metrics &&
-          typeof existing.metrics === "object" &&
-          !Array.isArray(existing.metrics)
-            ? (existing.metrics as Record<string, unknown>)
-            : { views: 0, clicks: 0, sales: 0 }
-        await admin
-          .from("marketing_entities")
-          .update({
-            metrics: withListingVibeMetrics(currentMetrics, {
-              vibe: item.vibe,
-              aesthetic_slugs: item.aesthetic_slugs,
-            }) as Json,
-            updated_at: now,
-          })
-          .eq("id", existing.id)
+      const { patch, changed } = buildArrivalReconcilePatch({
+        existing: {
+          id: existing.id,
+          title: existing.title,
+          brand: existing.brand,
+          price: existing.price == null ? null : Number(existing.price),
+          description: existing.description,
+          images: existing.images,
+          metrics: existing.metrics,
+        },
+        incoming,
+        syncedAt: now,
+      })
+
+      if (!changed) {
+        skipped += 1
+        continue
       }
-      skipped += 1
+
+      const { error: updateError } = await admin
+        .from("marketing_entities")
+        .update({
+          ...(patch.title !== undefined ? { title: patch.title } : {}),
+          ...(patch.brand !== undefined ? { brand: patch.brand } : {}),
+          ...(patch.price !== undefined ? { price: patch.price } : {}),
+          ...(patch.description !== undefined
+            ? { description: patch.description }
+            : {}),
+          ...(patch.images !== undefined ? { images: patch.images } : {}),
+          metrics: patch.metrics as Json,
+          updated_at: patch.updated_at,
+        })
+        .eq("id", existing.id)
+
+      if (updateError) {
+        throw new Error(updateError.message)
+      }
+      updated += 1
       continue
     }
 
     const { data, error } = await admin
       .from("marketing_entities")
-      .insert({
-        entity_id: input.entityId,
-        website_item_id: item.website_item_id,
-        title: item.title,
-        brand: item.brand,
-        price: item.price,
-        description: item.description,
-        images: item.images,
-        status: "unfeatured",
-        metrics: withListingVibeMetrics(
-          { views: 0, clicks: 0, sales: 0 },
-          { vibe: item.vibe, aesthetic_slugs: item.aesthetic_slugs }
-        ) as Json,
-        updated_at: now,
-      })
+      .insert(
+        buildArrivalInsertRow({
+          entityId: input.entityId,
+          incoming,
+          syncedAt: now,
+          intakeCaptionDefault,
+        }) as never
+      )
       .select("id, website_item_id, title")
       .single()
 
@@ -1037,14 +1119,23 @@ export async function pullNewArrivalsForEntity(input: {
     if (data) inserted.push(data)
   }
 
+  try {
+    const { syncDailyQueueFromIntake } = await import("@/lib/today/daily-queue")
+    await syncDailyQueueFromIntake(supabase, input.entityId)
+  } catch (queueError) {
+    console.warn("[pull-new-arrivals] daily_queue sync skipped:", queueError)
+  }
+
   await supabase.from("activity_logs").insert({
     entity_id: input.entityId,
     user_id: user.id,
     action: "pulled_new_arrivals",
     details: {
       imported,
+      updated,
       skipped,
       pruned,
+      marked_unavailable: pruned,
       feed_url: usedFeed,
       intake_mode: intakeMode,
       item_ids: inserted.map((row) => row.id),
@@ -1053,6 +1144,7 @@ export async function pullNewArrivalsForEntity(input: {
 
   return {
     imported,
+    updated,
     skipped,
     pruned,
     feedUrl: usedFeed,

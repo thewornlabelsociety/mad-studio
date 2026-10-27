@@ -1,4 +1,5 @@
 import { pickDefaultVibeTag, resolveIndustryProfile } from "@/lib/brands/industry-templates"
+import { formatCanvasSizeTagLabel } from "@/lib/studio/canvas-size-tag-label"
 import { sanitizeFudiDisplayTitle } from "@/lib/today/preview-copy"
 import { fudiIntakeTargetUrl } from "@/lib/inventory/fudi-feed"
 import {
@@ -250,7 +251,7 @@ export function buildStoryCanvasModel(input: {
   const specsParts = [
     designer.toUpperCase(),
     fabric ? fabric.toUpperCase() : titleShort.slice(0, 28),
-    sizeLabel ? `SZ ${sizeLabel}` : null,
+    sizeLabel ? formatCanvasSizeTagLabel(sizeLabel) : null,
     priceLabel !== "—" ? priceLabel : null,
   ].filter(Boolean)
 

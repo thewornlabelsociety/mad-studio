@@ -25,6 +25,7 @@ const bodySchema = z.object({
   headline: z.string().max(500),
   caption: z.string().max(4000),
   visualDescription: z.string().max(2000).optional().nullable(),
+  regenerate: z.boolean().optional(),
 })
 
 const enhanceResultSchema = z.object({
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       headline,
       caption,
       visualDescription,
+      regenerate = false,
     } = parsed.data
 
     const { data: canEdit, error: accessError } = await supabase.rpc(
@@ -105,7 +107,7 @@ export async function POST(request: Request) {
       schemaName: "InventoryCaptionEnhance",
       schemaDescription:
         "Polished social hook + caption for an inventory workbench drop",
-      temperature: 0.55,
+      temperature: regenerate ? 0.82 : 0.55,
       maxOutputTokens: 900,
       system: [
         `You polish Instagram/Facebook copy for "${entity.name}".`,
@@ -134,7 +136,9 @@ export async function POST(request: Request) {
         `Current hook: ${headline.trim() || "(empty)"}`,
         `Current caption: ${caption.trim() || "(empty)"}`,
         ``,
-        `Return an improved hook + caption ready to paste into the workbench.`,
+        regenerate
+          ? `Return a fresh alternative angle — different hook rhythm than before, same facts.`
+          : `Return an improved hook + caption ready to paste into the workbench.`,
       ]
         .filter(Boolean)
         .join("\n"),

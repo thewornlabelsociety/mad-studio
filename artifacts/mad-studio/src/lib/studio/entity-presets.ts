@@ -4,7 +4,10 @@ import {
 } from "@/lib/brands/industry-templates"
 import type { MultiplexerIntent } from "@/lib/campaigns/multiplexer"
 import type { AudienceSegment } from "@/lib/entities/dna-schema"
-import { scrubAgencyLeak } from "@/lib/inventory/context-hooks"
+import {
+  isCatalogMetadataDump,
+  scrubAgencyLeak,
+} from "@/lib/inventory/context-hooks"
 
 export type StudioIntentChip = {
   id: string
@@ -222,10 +225,13 @@ export function buildStudioHookChips(input: {
   concreteFeatures?: string[] | null
 }): StudioHookChip[] {
   const presets = resolveStudioPresets(input)
-  const textCue = softCue(input.sparkHint, 110)
+  // Fashion Copy already shows the listing caption — never append it to Brain
+  // opening lines (that was doubling Brand/Size/Condition dumps onto hooks).
+  const textCue =
+    presets.profileId === "worn_label" ? null : softCue(input.sparkHint, 110)
   const features = (input.concreteFeatures ?? [])
     .map((row) => softenFeature(row))
-    .filter(Boolean)
+    .filter((row) => row && !isCatalogMetadataDump(row))
     .slice(0, 4)
   const visualFallback = softCue(input.visualDescription, 110)
 
@@ -250,7 +256,11 @@ export function buildStudioHookChips(input: {
 function softCue(value: string | null | undefined, max: number): string | null {
   const trimmed = value?.trim()
   if (!trimmed || trimmed.length < 8) return null
+  // Intake captions are often "Title · Brand: X · Size: Y" — never weave those
+  // into Opening lines from Brain (they already sit in the caption box).
+  if (isCatalogMetadataDump(trimmed)) return null
   const bite = trimmed.split(/[.!?]/)[0]?.trim() || trimmed
+  if (isCatalogMetadataDump(bite)) return null
   return bite.slice(0, max).trim() || null
 }
 

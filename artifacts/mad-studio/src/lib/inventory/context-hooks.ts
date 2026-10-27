@@ -22,7 +22,7 @@ export type ContextHook = {
 }
 
 const META_LABEL =
-  /\b(Brand|Size|Condition|Material|Colour|Color|Category|Fabric)\s*:\s*/i
+  /\b(Brand|Size|Condition|Material|Colour|Color|Category|Fabric|Vibe)\s*:\s*/i
 
 const GARMENT_WORD =
   /\b(skirt|dress|coat|blazer|jean|trouser|pant|top|shirt|blouse|knit|jumper|sweater|jacket|bag|shoe|boot|heel|maxi|mini|midi|slip|tee|hoodie|short|romper|jumpsuit)\b/i
@@ -61,14 +61,22 @@ function ensurePeriod(text: string): string {
   return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`
 }
 
-/** Catalog sync often dumps "Brand: X · Size: Y · Condition:" into description. */
-function isMetadataDump(text: string): boolean {
+/**
+ * Catalog sync / intake captions often dump
+ * "T-Shirt - Brand - Cotton - L · Brand: X · Size: Y · Condition: …".
+ * Opening lines must never append that noise.
+ */
+export function isCatalogMetadataDump(text: string): boolean {
   const labeled = (text.match(META_LABEL) || []).length
   if (labeled >= 1) return true
   const parts = splitAttrParts(text)
   if (parts.length < 4) return false
   const shortTokens = parts.filter((part) => part.length <= 18).length
   return shortTokens / parts.length >= 0.6
+}
+
+function isMetadataDump(text: string): boolean {
+  return isCatalogMetadataDump(text)
 }
 
 function splitAttrParts(text: string): string[] {
@@ -78,10 +86,10 @@ function splitAttrParts(text: string): string[] {
     .filter(Boolean)
 }
 
-function stripLabeledMeta(text: string): string {
+export function stripLabeledMeta(text: string): string {
   return text
     .replace(
-      /\b(Brand|Size|Condition|Material|Colour|Color|Category|Fabric)\s*:\s*[^·\-—|]*/gi,
+      /\b(Brand|Size|Condition|Material|Colour|Color|Category|Fabric|Vibe)\s*:\s*[^·\-—|]*/gi,
       ""
     )
     .replace(/\s*[·|]\s*/g, " · ")
@@ -91,7 +99,50 @@ function stripLabeledMeta(text: string): string {
     .trim()
 }
 
-function parseLabeledFields(description: string): {
+/**
+ * Copy caption that reads easily — Brand / Size / Condition stay on Canvas tags,
+ * not repeated in the caption body.
+ */
+export function readableListingCaption(input: {
+  title?: string | null
+  description?: string | null
+  brand?: string | null
+}): string {
+  const brand = sanitizeBrandName(input.brand?.trim() || "") || ""
+  const raw =
+    input.description?.trim() ||
+    input.title?.trim() ||
+    ""
+  if (!raw) return ""
+
+  const scrubbed = scrubCopyMarkers(stripInternalMarkers(raw))
+  // Already a short prose line — keep it.
+  if (!isCatalogMetadataDump(scrubbed) && !META_LABEL.test(scrubbed)) {
+    return scrubbed
+  }
+
+  const stripped = stripLabeledMeta(scrubbed)
+  if (stripped && !isCatalogMetadataDump(stripped) && stripped.length >= 8) {
+    return stripped
+  }
+
+  const product = cleanProductTitle(
+    stripInternalMarkers(input.title?.trim() || stripped || raw),
+    brand
+  )
+  const labeled = parseLabeledFields(scrubbed)
+  const colour = labeled.colour?.trim()
+  const material = labeled.material?.trim()?.toLowerCase()
+  const parts = [colour, material, product || "piece"]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+  return toEditorialCase(parts)
+}
+
+/** Parse "Brand: X · Size: Y · …" dumps from website listing descriptions. */
+export function parseLabeledFields(description: string): {
   brand?: string
   size?: string
   condition?: string
@@ -105,26 +156,22 @@ function parseLabeledFields(description: string): {
     material?: string
     colour?: string
   } = {}
+  const nextLabel =
+    String.raw`(?=\s*(?:·|\||\b(?:Brand|Size|Condition|Material|Fabric|Colour|Color|Category|Vibe)\s*:)|$)`
   const patterns: Array<[keyof typeof out, RegExp]> = [
-    [
-      "brand",
-      /\bBrand\s*:\s*(.+?)(?=\s*(?:·|\||\b(?:Size|Condition|Material|Fabric|Colour|Color|Category)\s*:)|$)/i,
-    ],
-    [
-      "size",
-      /\bSize\s*:\s*(.+?)(?=\s*(?:·|\||\b(?:Brand|Condition|Material|Fabric|Colour|Color|Category)\s*:)|$)/i,
-    ],
+    ["brand", new RegExp(String.raw`\bBrand\s*:\s*(.+?)${nextLabel}`, "i")],
+    ["size", new RegExp(String.raw`\bSize\s*:\s*(.+?)${nextLabel}`, "i")],
     [
       "condition",
-      /\bCondition\s*:\s*(.+?)(?=\s*(?:·|\||\b(?:Brand|Size|Material|Fabric|Colour|Color|Category)\s*:)|$)/i,
+      new RegExp(String.raw`\bCondition\s*:\s*(.+?)${nextLabel}`, "i"),
     ],
     [
       "material",
-      /\b(?:Material|Fabric)\s*:\s*(.+?)(?=\s*(?:·|\||\b(?:Brand|Size|Condition|Colour|Color|Category)\s*:)|$)/i,
+      new RegExp(String.raw`\b(?:Material|Fabric)\s*:\s*(.+?)${nextLabel}`, "i"),
     ],
     [
       "colour",
-      /\b(?:Colour|Color)\s*:\s*(.+?)(?=\s*(?:·|\||\b(?:Brand|Size|Condition|Material|Fabric|Category)\s*:)|$)/i,
+      new RegExp(String.raw`\b(?:Colour|Color)\s*:\s*(.+?)${nextLabel}`, "i"),
     ],
   ]
   for (const [key, pattern] of patterns) {

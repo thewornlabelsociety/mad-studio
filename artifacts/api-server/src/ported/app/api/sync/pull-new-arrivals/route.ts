@@ -1,4 +1,4 @@
-import { HttpResponse } from "@server/http-response"
+import { NextResponse } from "next/server"
 
 import { pullNewArrivalsForEntity } from "@/lib/inventory/pull-arrivals"
 
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     if (!body.entityId || typeof body.entityId !== "string") {
-      return HttpResponse.json(
+      return NextResponse.json(
         { error: "entityId is required." },
         { status: 400 }
       )
@@ -25,28 +25,33 @@ export async function POST(request: Request) {
     })
 
     const pruned = result.pruned ?? 0
+    const updated = result.updated ?? 0
     const feedHint = result.feedUrl
       ? ` Source: ${result.feedUrl.replace(/^https?:\/\//, "").slice(0, 120)}`
       : ""
 
-    return HttpResponse.json({
+    return NextResponse.json({
       ok: true,
       imported: result.imported,
+      updated,
       skipped: result.skipped,
       pruned,
       feedUrl: result.feedUrl,
       items: result.items,
       emptyFeed: result.emptyFeed ?? false,
       message: result.emptyFeed
-        ? `No live listings on the brand website right now — intake cleared stale rows (${pruned} removed).${feedHint}`
-        : result.imported === 0 && pruned === 0
+        ? `No listings on the brand website right now — marked ${pruned} intake row${pruned === 1 ? "" : "s"} unavailable (records kept).${feedHint}`
+        : result.imported === 0 && updated === 0 && pruned === 0
           ? `No new arrivals — inventory already matches the live catalog.${feedHint}`
           : [
               result.imported > 0
                 ? `Imported ${result.imported} new arrival${result.imported === 1 ? "" : "s"}.`
                 : null,
+              updated > 0
+                ? `Updated ${updated} existing listing${updated === 1 ? "" : "s"}.`
+                : null,
               pruned > 0
-                ? `Removed ${pruned} sold or delisted drop${pruned === 1 ? "" : "s"} from intake.`
+                ? `Marked ${pruned} sold or delisted drop${pruned === 1 ? "" : "s"} unavailable (records kept).`
                 : null,
             ]
               .filter(Boolean)
@@ -61,6 +66,6 @@ export async function POST(request: Request) {
         : message.toLowerCase().includes("access")
           ? 403
           : 500
-    return HttpResponse.json({ error: message }, { status })
+    return NextResponse.json({ error: message }, { status })
   }
 }

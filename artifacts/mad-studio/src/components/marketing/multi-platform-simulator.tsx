@@ -62,6 +62,8 @@ import {
   DEFAULT_CANVAS_TEXT_OVERLAY,
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
+import { scrubInlineHashtags } from "@/lib/copy/caption-hygiene"
+import { mergeCaptionWithTags } from "@/lib/inventory/optimization-tags"
 import {
   bakeCanvasTextOnImage,
   canvasOverlayNeedsBake,
@@ -164,6 +166,10 @@ export type SimulatorCarouselItem = {
   url: string
   type?: "image" | "video"
   publicUrl?: string | null
+  /** Per-slide listing caption (multi-product Feed preview). */
+  intakeCaption?: string | null
+  /** Per-slide discovery tags without #. */
+  intakeTags?: string[] | null
 }
 
 export type StoryPreviewState = {
@@ -183,6 +189,8 @@ export const DEFAULT_STORY_PREVIEW: StoryPreviewState = {
   bgPresetId: "brand",
   cutoutMode: "original",
   cutoutImageUrl: null,
+  subjectScale: 1,
+  subjectOffsetY: 0,
 }
 
 type Props = {
@@ -234,6 +242,8 @@ type Props = {
   hideStylingDock?: boolean
   /** Increment to trigger subject isolation from outside the simulator. */
   externalCutoutRequestId?: number
+  /** Media step spinner — mirrors in-simulator cutout busy. */
+  onCutoutBusyChange?: (busy: boolean) => void
   /** Drag on-canvas text inside the media frame (Customize step). */
   textOverlayInteractive?: boolean
   /** Today quick preview — phone, platform pills, and action dock only. */
@@ -338,6 +348,7 @@ export function MultiPlatformSimulator({
   showTextStyler = false,
   hideStylingDock = false,
   externalCutoutRequestId = 0,
+  onCutoutBusyChange,
   textOverlayInteractive = false,
   previewMinimal = false,
   className,
@@ -427,6 +438,9 @@ export function MultiPlatformSimulator({
             url,
             type: row.type ?? detectMediaKindFromUrl(url),
             publicUrl: row.publicUrl ?? null,
+            // Keep listing copy so Feed carousel caption can follow the slide.
+            intakeCaption: row.intakeCaption ?? null,
+            intakeTags: row.intakeTags ?? null,
           }
         })
         .filter((row) => Boolean(row.url))
@@ -671,9 +685,11 @@ export function MultiPlatformSimulator({
   const shellMax = lockedViewport
     ? compact
       ? lockedShellFluid
-        ? // Size from the space the column actually has, not the window height,
-          // so the phone never runs under the channel buttons below it.
-          "h-full max-h-[720px] w-auto max-w-full shrink-0 aspect-[272/532]"
+        ? // Width-first in the preview column. Height-first (h-full + aspect)
+          // made the phone wider than the grid track and clipped ~½ of it.
+          // Never min-h-0 here — flex shrink + min-h-0 collapsed the aspect
+          // box to 0 and hid Words/Tags (absolute children contribute no height).
+          "relative mx-auto h-auto w-full max-h-full max-w-full shrink-0 aspect-[272/532]"
         : "h-[532px] w-[272px] shrink-0"
       : "h-[700px] w-[360px] shrink-0"
     : compact
@@ -696,6 +712,7 @@ export function MultiPlatformSimulator({
       return
     }
     setBusy("cutout")
+    onCutoutBusyChange?.(true)
     toast.message("Cutting out subject…")
     const ctx = actionContext
     const sourceUrl = source
@@ -718,7 +735,10 @@ export function MultiPlatformSimulator({
       return proxied.blob()
     }
 
-    async function serverFallback(): Promise<string | null> {
+    async function serverCutout(): Promise<{
+      url: string
+      mode: string
+    } | null> {
       try {
         const response = await fetch("/api/media/remove-bg", {
           method: "POST",
@@ -734,17 +754,25 @@ export function MultiPlatformSimulator({
           failures.push(`server: ${await readError(response)}`)
           return null
         }
-        const payload = (await response.json()) as { transparentUrl?: string }
-        return payload.transparentUrl ?? null
+        const payload = (await response.json()) as {
+          transparentUrl?: string
+          mode?: string
+        }
+        if (!payload.transparentUrl) return null
+        return {
+          url: payload.transparentUrl,
+          mode: payload.mode ?? "sharp_threshold",
+        }
       } catch (error) {
         failures.push(`server: ${errorText(error)}`)
         return null
       }
     }
 
-    function applyCutout(url: string) {
+    function applyCutout(url: string, note?: string) {
       patchPreview({ cutoutImageUrl: url, cutoutMode: "transparent" })
-      toast.success("Subject cut out.")
+      if (note) toast.success("Subject cut out.", { description: note })
+      else toast.success("Subject cut out.")
     }
 
     async function browserCutout(): Promise<string | null> {
@@ -781,12 +809,12 @@ export function MultiPlatformSimulator({
       return null
     }
 
-    // Server first (Cloudinary AI, or white-backdrop removal); the in-browser
-    // model is the fallback — it needs a large download and can fail to load.
+    // Cloudinary (server) is best when configured. White-threshold "success" on a
+    // dark/busy photo looks unchanged — prefer the in-browser model then.
     try {
-      const serverUrl = await serverFallback()
-      if (serverUrl) {
-        applyCutout(serverUrl)
+      const server = await serverCutout()
+      if (server?.mode === "cloudinary") {
+        applyCutout(server.url)
         return
       }
       const browserUrl = await browserCutout()
@@ -794,14 +822,21 @@ export function MultiPlatformSimulator({
         applyCutout(browserUrl)
         return
       }
+      if (server?.url) {
+        applyCutout(
+          server.url,
+          "White-backdrop cutout — best on studio-white photos. Dark backgrounds may look unchanged."
+        )
+        return
+      }
       console.warn("[cutout] failed:", failures)
-      // Show the original photo: the blend look hides dark items on dark canvases.
       patchPreview({ cutoutMode: "original", cutoutImageUrl: null })
       toast.error("Couldn't cut out this photo — showing the original.", {
         description: failures.join(" · ").slice(0, 240),
       })
     } finally {
       setBusy(null)
+      onCutoutBusyChange?.(false)
     }
   }
 
@@ -1059,13 +1094,15 @@ export function MultiPlatformSimulator({
     industry,
   })
   /**
-   * Branded story *card* (cutout + copy blocks) — not for multi-slide story
-   * carousels or plain full-bleed photos (Studio / promo stills).
+   * Library items → branded StoryCanvas. Studio drops (no item) use
+   * StoryMediaStage so Story card background / size / position hit the phone.
    */
   const useStoryCanvasForIg =
     !isFudiEntity &&
     Boolean(item) &&
     cutoutMode !== "original" &&
+    Boolean(preview.cutoutImageUrl) &&
+    Boolean(imageForCanvas) &&
     !storyCarousel
 
   const isFeedPreview =
@@ -1086,8 +1123,18 @@ export function MultiPlatformSimulator({
       ? textOverlay.headline.trim()
       : ""
   const feedPreviewCaption = (() => {
+    const activeSlide = slides[safeSlideIndex]
+    const slideCaption = activeSlide?.intakeCaption?.trim() || ""
+    // Multi-product Feed carousel: preview caption follows the slide you're on
+    // (Canvas tags / Words still update via tray selection). Publish still uses
+    // the single Copy field — this is preview-only.
+    if (feedCarousel && slides.length > 1 && slideCaption) {
+      return scrubInlineHashtags(
+        mergeCaptionWithTags(slideCaption, activeSlide?.intakeTags ?? [])
+      )
+    }
     const captionBody = content.caption.trim()
-    if (captionBody) return captionBody
+    if (captionBody) return scrubInlineHashtags(captionBody)
     if (canvasHeadlineLive) {
       return activeSlideText?.trim() || ""
     }
@@ -1144,8 +1191,13 @@ export function MultiPlatformSimulator({
       interactive={canvasEditActive}
       onOverlayChange={onTextOverlayChange ?? setTextOverlay}
       renderCanvasText={!remotionDefersOverlays}
-      // The Story card brings its own cutout and logo.
+      // Story card owns photo + logo + canvas colour. Cutout-only Story still
+      // needs the layout logo; only strip the overlay backdrop so it does not
+      // paint a second full-bleed colour over StoryMediaStage.
       textOnly={platform === "ig_story" && useStoryCanvasForIg}
+      stripBackdrop={
+        platform === "ig_story" && cutoutActive && !useStoryCanvasForIg
+      }
     />
   )
 
@@ -1153,17 +1205,30 @@ export function MultiPlatformSimulator({
     <div
       className={cn(
         lockedViewport ? "" : "transition-[max-width,width] duration-300 ease-out",
-        compact || lockedViewport ? "shrink-0" : "w-full",
+        lockedShellFluid
+          ? "relative min-h-0 min-w-0 max-w-full"
+          : compact || lockedViewport
+            ? "shrink-0"
+            : "w-full",
         shellMax
       )}
     >
-      <div className={cn("group relative", lockedShellFluid && "h-full")}>
+      <div
+        className={cn(
+          "group relative",
+          // Fill the aspect-ratio shell with a real box so % height / absolute
+          // canvas text overlays resolve (h-full on an aspect-only parent was 0).
+          lockedShellFluid && "absolute inset-0 flex min-h-0 w-full flex-col"
+        )}
+      >
         <div
           ref={captureRef}
           className={cn(
             "relative border-2 border-mad-black bg-[#0b0b0c] p-[9px] shadow-keycap",
-            lockedShellFluid && "flex h-full flex-col",
-            canvasEditActive ? "overflow-visible" : "overflow-hidden"
+            lockedShellFluid && "flex h-full min-h-0 w-full flex-1 flex-col",
+            // Keep the device frame clipped so a wide canvas never spills the
+            // preview column. Tag drag still works inside IgStoryChrome.
+            "overflow-hidden"
           )}
           style={{ borderRadius: 44 }}
         >
@@ -1182,7 +1247,7 @@ export function MultiPlatformSimulator({
                   ? cn(
                       "w-full items-stretch justify-start",
                       lockedShellFluid
-                        ? "h-full min-h-0"
+                        ? "h-full min-h-0 flex-1"
                         : compact
                           ? "h-[472px]"
                           : "h-[622px]"
@@ -1191,18 +1256,19 @@ export function MultiPlatformSimulator({
                     ? cn(
                         "w-full items-stretch justify-start",
                         lockedShellFluid
-                          ? "h-full min-h-0"
+                          ? "h-full min-h-0 flex-1"
                           : compact
                             ? "h-[472px]"
                             : "h-[622px]"
                       )
                     : cn(
-                        "w-full items-center justify-center",
+                        "w-full",
                         lockedShellFluid
-                          ? "h-full min-h-0"
-                          : compact
-                            ? "h-[472px]"
-                            : "h-[622px]"
+                          ? "h-full min-h-0 flex-1 items-stretch justify-center"
+                          : cn(
+                              "items-center justify-center",
+                              compact ? "h-[472px]" : "h-[622px]"
+                            )
                       )
                 : "min-h-[280px] w-full items-center justify-center"
             )}
@@ -1219,11 +1285,18 @@ export function MultiPlatformSimulator({
                         canvasEditActive ? "overflow-visible" : "overflow-hidden"
                       )
                     : cn(
+                        "relative min-h-0 w-full bg-neutral-950",
                         canvasEditActive ? "overflow-visible" : "overflow-hidden",
-                        stageAspectClass,
-                        lockedViewport
-                          ? "aspect-[9/16] h-auto w-full max-h-full max-w-full shrink-0"
-                          : "w-full max-w-full"
+                        // Shell already owns 9:16 — a nested aspect+h-auto stage
+                        // collapsed to 0 height and hid canvas text.
+                        lockedShellFluid
+                          ? "h-full"
+                          : lockedViewport
+                            ? cn(
+                                stageAspectClass,
+                                "aspect-[9/16] h-auto max-h-full max-w-full shrink-0"
+                              )
+                            : cn(stageAspectClass, "max-w-full")
                       )
               )}
             >
@@ -1232,15 +1305,16 @@ export function MultiPlatformSimulator({
                   handle={handle}
                   slideCount={slides.length}
                   activeSlideIndex={safeSlideIndex}
-                  allowMediaOverflow={canvasEditActive}
+                  canvasEditActive={canvasEditActive}
+                  canvasOverlay={canvasOverlayOnMedia}
                   onSegmentSelect={
-                    storyCarousel
+                    storyCarousel && !canvasEditActive
                       ? (index) => setSlideIndex(index)
                       : undefined
                   }
                 >
                   <StorySlideNav
-                    enabled={storyCarousel}
+                    enabled={storyCarousel && !canvasEditActive}
                     slideIndex={safeSlideIndex}
                     slideCount={slides.length}
                     onPrev={() => goSlide(-1)}
@@ -1251,7 +1325,6 @@ export function MultiPlatformSimulator({
                         src={mediaUrl}
                         fit={storyMediaFit}
                         remotionPreview={videoRemotionPreview}
-                        mediaOverlay={canvasOverlayOnMedia}
                         allowCanvasOverflow={canvasEditActive}
                       />
                     ) : imageForCanvas ? (
@@ -1265,8 +1338,10 @@ export function MultiPlatformSimulator({
                         }
                         mediaFit={storyMediaFit}
                         remotionPreview={imageRemotionPreview}
-                        mediaOverlay={canvasOverlayOnMedia}
                         allowCanvasOverflow={canvasEditActive}
+                        cutoutActive={cutoutActive}
+                        subjectScale={preview.subjectScale ?? 1}
+                        subjectOffsetY={preview.subjectOffsetY ?? 0}
                         storyCanvas={
                           <StoryCanvas
                             model={storyModel}
@@ -1328,12 +1403,16 @@ export function MultiPlatformSimulator({
                     activeSlideText || content.caption || content.headline
                   }
                   mediaUrl={
-                    isVideo ? mediaUrl : imageForCanvas || mediaUrl
+                    (isVideo ? mediaUrl : imageForCanvas || mediaUrl) ||
+                    content.imageUrl ||
+                    null
                   }
                   mediaType={isVideo ? "video" : "image"}
-                  mediaFit={storyMediaFit}
+                  mediaFit={
+                    isFudiEntity ? "cover" : storyMediaFit
+                  }
                   remotionPreview={
-                    isVideo ? videoRemotionPreview : imageRemotionPreview
+                    isVideo ? videoRemotionPreview : null
                   }
                   mediaOverlay={canvasOverlayOnMedia}
                 />
@@ -1921,7 +2000,7 @@ export function MultiPlatformSimulator({
     <div
       className={cn(
         "flex flex-col items-center gap-2",
-        lockedShellFluid && "h-full min-h-0",
+        lockedShellFluid && "h-full min-h-0 w-full max-w-full",
         className
       )}
     >
@@ -1953,6 +2032,10 @@ export function MultiPlatformSimulator({
       </div>
       )}
       {phoneShell}
+      {/* Fluid Studio preview omitted this dock — Canvas colour + cutout vanished. */}
+      {lockedShellFluid && stylingDock ? (
+        <div className="w-full max-w-full shrink-0">{stylingDock}</div>
+      ) : null}
       {previewTrayHint ? (
         <p className="max-w-[min(100%,280px)] px-1 text-center text-[11px] leading-snug text-neutral-500">
           {previewTrayHint}
@@ -2025,41 +2108,49 @@ function IgStoryChrome({
   slideCount = 1,
   activeSlideIndex = 0,
   onSegmentSelect,
-  allowMediaOverflow = false,
+  canvasEditActive = false,
+  canvasOverlay = null,
 }: {
   handle: string
   children: ReactNode
   slideCount?: number
   activeSlideIndex?: number
   onSegmentSelect?: (index: number) => void
-  allowMediaOverflow?: boolean
+  /** Canvas step: dim chrome, let tags/words receive pointers. */
+  canvasEditActive?: boolean
+  /**
+   * On-image words/tags/logo — painted ABOVE Story chrome so tags never sit
+   * under "Send message…". Media (children) stays below chrome.
+   */
+  canvasOverlay?: ReactNode
 }) {
   const segments = Math.max(slideCount, 1)
   return (
     <div className="relative size-full overflow-hidden bg-neutral-950">
-      <div
-        className={cn(
-          "absolute inset-0 z-0",
-          allowMediaOverflow ? "overflow-visible" : "overflow-hidden"
-        )}
-      >
-        {children}
-      </div>
+      {/* Photo / video only — under chrome */}
+      <div className="absolute inset-0 z-0 overflow-hidden">{children}</div>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/55 via-black/20 to-transparent px-3 pt-10 pb-16">
-        <div className="pointer-events-auto flex flex-col justify-end gap-2">
+        <div
+          className={cn(
+            "flex flex-col justify-end gap-2",
+            canvasEditActive ? "pointer-events-none" : "pointer-events-auto"
+          )}
+        >
           <div className="flex gap-1">
             {Array.from({ length: segments }).map((_, index) => (
               <button
                 key={`seg-${index}`}
                 type="button"
                 aria-label={`Story slide ${index + 1}`}
-                disabled={!onSegmentSelect}
+                disabled={!onSegmentSelect || canvasEditActive}
                 onClick={() => onSegmentSelect?.(index)}
                 className={cn(
                   "h-[2px] flex-1 rounded-full transition",
                   index === activeSlideIndex ? "bg-white" : "bg-white/35",
-                  onSegmentSelect && "hover:bg-white/70"
+                  onSegmentSelect &&
+                    !canvasEditActive &&
+                    "pointer-events-auto hover:bg-white/70"
                 )}
               />
             ))}
@@ -2076,8 +2167,13 @@ function IgStoryChrome({
         </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center gap-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pt-12 pb-3">
-        <div className="pointer-events-auto flex flex-1 items-center gap-2">
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center gap-2 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pt-12 pb-3",
+          canvasEditActive && "opacity-35"
+        )}
+      >
+        <div className="flex flex-1 items-center gap-2">
           <div className="flex-1 rounded-full border border-white/40 px-3 py-2 text-[0.75rem] text-white/80">
             Send message…
           </div>
@@ -2085,6 +2181,22 @@ function IgStoryChrome({
           <Share2 className="size-5 shrink-0 text-white" />
         </div>
       </div>
+
+      {/* Words / tags / logo — above media, chrome, and Story card image.
+          relative size-full host so CanvasTextOverlayLayer % positions and
+          ResizeObserver width resolve even when the layer is absolute. */}
+      {canvasOverlay ? (
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 z-40 isolate",
+            canvasEditActive ? "overflow-visible" : "overflow-hidden"
+          )}
+        >
+          <div className="relative size-full min-h-0 min-w-0">
+            {canvasOverlay}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -2100,6 +2212,9 @@ function StoryMediaStage({
   remotionPreview = null,
   allowCanvasOverflow = false,
   backdropColor = null,
+  cutoutActive = false,
+  subjectScale = 1,
+  subjectOffsetY = 0,
 }: {
   imageUrl: string
   canvasColor: string
@@ -2113,13 +2228,19 @@ function StoryMediaStage({
   mediaOverlay?: ReactNode
   remotionPreview?: RemotionCanvasProps | null
   allowCanvasOverflow?: boolean
+  /** Transparent PNG cutout — fill frame with story canvas colour + scale. */
+  cutoutActive?: boolean
+  subjectScale?: number
+  subjectOffsetY?: number
 }) {
   const overflowClass = allowCanvasOverflow ? "overflow-visible" : "overflow-hidden"
   const fit: "cover" | "contain" = forceCover ? "cover" : mediaFit
+  const frameFill =
+    backdropColor || (cutoutActive || fit === "contain" ? canvasColor : null)
 
   if (useStoryCanvas) {
     return (
-      <div className={cn("relative size-full", overflowClass)}>
+      <div className={cn("relative z-0 size-full", overflowClass)}>
         {storyCanvas}
         {mediaOverlay}
       </div>
@@ -2130,7 +2251,7 @@ function StoryMediaStage({
     return (
       <div
         className={cn("relative size-full", overflowClass)}
-        style={fit === "contain" ? { backgroundColor: canvasColor } : undefined}
+        style={frameFill ? { backgroundColor: frameFill } : undefined}
       >
         <RemotionCanvas {...remotionPreview} />
         {mediaOverlay}
@@ -2138,7 +2259,7 @@ function StoryMediaStage({
     )
   }
 
-  if (fit === "cover") {
+  if (fit === "cover" && !cutoutActive) {
     return (
       <div
         className={cn("relative size-full min-h-0 min-w-0 bg-black", overflowClass)}
@@ -2156,13 +2277,14 @@ function StoryMediaStage({
     )
   }
 
-  // Story / TikTok: show the whole image (no stretch). Backdrop mode fills the frame colour.
+  // Story cutout / contain: whole subject on the chosen canvas colour; scale/offset
+  // match Story card sliders when StoryCanvas isn't mounted.
+  const scale = Number.isFinite(subjectScale) ? subjectScale : 1
+  const offsetY = Number.isFinite(subjectOffsetY) ? subjectOffsetY : 0
   return (
     <div
-      className={cn("relative size-full bg-black", overflowClass)}
-      style={
-        backdropColor ? { backgroundColor: backdropColor } : undefined
-      }
+      className={cn("relative z-0 size-full overflow-hidden bg-black", overflowClass)}
+      style={frameFill ? { backgroundColor: frameFill } : undefined}
       {...{ [CANVAS_MEDIA_FRAME_ATTR]: "" }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2170,9 +2292,16 @@ function StoryMediaStage({
         src={imageUrl}
         alt=""
         draggable={false}
-        className="absolute inset-0 h-full w-full object-contain object-center"
+        className="absolute left-1/2 top-1/2 z-0 max-h-full max-w-full object-contain object-center"
+        style={{
+          width: `${Math.min(180, Math.max(40, scale * 100))}%`,
+          height: `${Math.min(180, Math.max(40, scale * 100))}%`,
+          transform: `translate(-50%, calc(-50% + ${offsetY}%))`,
+        }}
       />
-      {mediaOverlay}
+      {mediaOverlay ? (
+        <div className="absolute inset-0 z-20">{mediaOverlay}</div>
+      ) : null}
     </div>
   )
 }
@@ -2593,22 +2722,22 @@ function TikTokChrome({
 }) {
   const objectClass =
     mediaFit === "contain" ? "object-contain" : "object-cover"
+  // Fill the phone stage (parent already owns 9:16). Nested aspect+h-full
+  // was collapsing to 0 height inside the locked fluid shell → blank white.
   return (
-    <div className="relative aspect-[9/16] h-full w-full overflow-hidden bg-neutral-950">
+    <div className="absolute inset-0 z-[1] overflow-hidden bg-neutral-950">
+      {/* Photo/video under chrome — Words/Tags paint above (same pattern as Story). */}
       {mediaUrl && remotionPreview ? (
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 z-0 overflow-hidden">
           <RemotionCanvas {...remotionPreview} />
-          {mediaOverlay}
         </div>
       ) : mediaUrl && mediaType === "video" ? (
-        <VideoFill
-          src={mediaUrl}
-          fit={mediaFit}
-          mediaOverlay={mediaOverlay}
-        />
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <VideoFill src={mediaUrl} fit={mediaFit} mediaOverlay={null} />
+        </div>
       ) : mediaUrl ? (
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 z-0 overflow-hidden"
           style={
             mediaFit === "contain"
               ? { backgroundColor: "#0b0b0c" }
@@ -2621,10 +2750,13 @@ function TikTokChrome({
             alt=""
             className={cn("absolute inset-0 size-full", objectClass)}
           />
-          {mediaOverlay}
         </div>
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-950" />
+        <div className="absolute inset-0 z-0 flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950">
+          <p className="px-4 text-center text-xs text-neutral-400">
+            Add media to preview TikTok
+          </p>
+        </div>
       )}
       {mediaType === "image" && mediaUrl ? (
         <div className="pointer-events-none absolute top-3 left-3 z-20 rounded-full border border-white/30 bg-black/55 px-2 py-0.5 text-[0.72rem] font-medium text-white/95">
@@ -2632,10 +2764,10 @@ function TikTokChrome({
         </div>
       ) : null}
       {mediaUrl ? (
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        <div className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-t from-black/60 via-transparent to-transparent" />
       ) : null}
 
-      <div className="absolute top-1/3 right-3 z-10 flex flex-col items-center gap-4 text-white">
+      <div className="pointer-events-none absolute top-1/3 right-3 z-10 flex flex-col items-center gap-4 text-white">
         <div className="flex flex-col items-center gap-1">
           <Heart className="size-7 fill-white" />
           <span className="text-[0.72rem]">24.1K</span>
@@ -2651,12 +2783,18 @@ function TikTokChrome({
         <Disc3 className="size-8 animate-spin [animation-duration:4s]" />
       </div>
 
-      <div className="absolute right-14 bottom-8 left-4 z-10 space-y-1.5">
+      <div className="pointer-events-none absolute right-14 bottom-8 left-4 z-10 space-y-1.5">
         <p className="text-sm font-semibold text-white">@{handle}</p>
         <p className="line-clamp-3 text-[0.75rem] leading-snug text-white/95">
-          {caption}
+          {caption || "Caption preview"}
         </p>
       </div>
+
+      {mediaOverlay ? (
+        <div className="pointer-events-none absolute inset-0 z-40 isolate">
+          <div className="relative size-full min-h-0 min-w-0">{mediaOverlay}</div>
+        </div>
+      ) : null}
     </div>
   )
 }

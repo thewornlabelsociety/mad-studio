@@ -47,6 +47,13 @@ import {
   parseWorkbenchStepParam,
   prevWorkbenchStep,
 } from "@/lib/studio/workbench-steps"
+import {
+  buildCreativeSequence,
+  buildVisualOnlyCampaignPack,
+  parseCreativeSequence,
+  restoreCreativeSequence,
+  type CreativeSurface,
+} from "@/lib/studio/creative-sequence"
 import type { CustomizeWizardPhase } from "@/components/studio/steps/step-customize"
 import {
   DEFAULT_STORY_PREVIEW,
@@ -83,10 +90,18 @@ import {
   mergeTrayIntakeCaptions,
 } from "@/lib/studio/intake-listing-copy"
 import {
+  isCatalogMetadataDump,
+  readableListingCaption,
+} from "@/lib/inventory/context-hooks"
+import { buildWlsDestinationUrl } from "@/lib/inventory/wls-product-eligibility"
+import {
   buildCarouselPackContext,
   mergedCarouselVision,
 } from "@/lib/studio/carousel-pack-context"
-import { sanitizeBrandName } from "@/lib/copy/caption-hygiene"
+import {
+  sanitizeBrandName,
+  scrubInlineHashtags,
+} from "@/lib/copy/caption-hygiene"
 import type { MediaKind } from "@/lib/media/kind"
 import { Button } from "@/components/ui/button"
 import {
@@ -151,11 +166,14 @@ import { MediaLibraryDrawer } from "@/components/studio/media-library-drawer"
 import type { MediaLibraryItem } from "@/lib/studio/media-library"
 import type { CanvasItemFacts } from "@/components/studio/canvas-text-overlay"
 import { requestCutout } from "@/lib/media/request-cutout"
+import { CanvasLayoutsBar } from "@/components/studio/canvas-layouts-bar"
+import { CanvasLayoutSaveButton } from "@/components/studio/canvas-layout-save-button"
 import {
   applyLayoutToOverlay,
   defaultLayoutOverlay,
   layoutFromOverlay,
   layoutWantsBackdrop,
+  slideOverlayBeforeLayoutApply,
   type LayoutWordingMode,
   type SavedCanvasLayout,
 } from "@/lib/studio/canvas-layouts"
@@ -164,9 +182,34 @@ import { NewArrivalSuggestions } from "@/components/studio/new-arrival-suggestio
 import {
   fetchItemFacts,
   fetchItemsForStudio,
+  overlayPatchFromItemFacts,
   SUGGESTED_FORMAT_LABELS,
   type NewArrivalSuggestion,
 } from "@/lib/studio/new-arrival-suggestions"
+import { proxiedImageUrl } from "@/lib/studio/final-artwork"
+import type {
+  WlsHardBlockReason,
+  WlsProductSelection,
+} from "@/lib/inventory/wls-product-eligibility"
+import { INVENTORY_SYNCED_EVENT } from "@/lib/studio/pull-new-arrivals-client"
+import { buildFeedTrayFromWlsSelection } from "@/lib/studio/wls-studio-product-add"
+import {
+  buildWlsDailyStoryStudioSeed,
+  buildWlsStoryFrameFromSelection,
+  mergeWlsReplaceOverlay,
+  WLS_DAILY_STORY_HANDOFF_QUERY_FLAG,
+  WLS_DAILY_STORY_STUDIO_MAX_FRAMES,
+  wlsStoryAssetIdForProduct,
+} from "@/lib/templates/wls-daily-story-studio-seed"
+import { WlsEligibleProductStrip } from "@/components/studio/wls-eligible-product-strip"
+import { StudioTemplatePicker } from "@/components/studio/studio-template-picker"
+import { WlsDailyStoryEntryBanner } from "@/components/studio/wls-daily-story-entry-banner"
+import {
+  shouldSkipStudioTemplateHandoff,
+  studioTemplateHandoffResumeKey,
+} from "@/lib/studio/studio-template-handoff-guard"
+import { fetchStudioTemplateHandoff } from "@/lib/templates/studio-handoff-client"
+import type { StudioTemplateHandoffResponse } from "@/lib/templates/studio-handoff-types"
 import {
   buildCampaignPackFromFormula,
   defaultSlotsFromSpark,
@@ -269,6 +312,32 @@ export function StudioWorkspace({
   const [templateInstanceId, setTemplateInstanceId] = useState<string | null>(
     null
   )
+  const [templateVersionId, setTemplateVersionId] = useState<string | null>(
+    null
+  )
+  const [templateDisplayName, setTemplateDisplayName] = useState<string | null>(
+    null
+  )
+  /** Explicit Story vs Feed creative surface — preview channel switches do not clear Story edits. */
+  const [creativeSurface, setCreativeSurface] =
+    useState<CreativeSurface>("story")
+  const [templateHandoffBusy, setTemplateHandoffBusy] = useState(false)
+  /** True after WLS Daily Story template handoff seeds multi-frame Story tray. */
+  const [wlsDailyStorySession, setWlsDailyStorySession] = useState(false)
+  const [wlsCanvasLayoutId, setWlsCanvasLayoutId] = useState<string | null>(
+    "story_9_16"
+  )
+  const [wlsProductCatalog, setWlsProductCatalog] = useState<
+    WlsProductSelection[]
+  >([])
+  const [wlsEligibleLoading, setWlsEligibleLoading] = useState(false)
+  const [wlsExcludedCount, setWlsExcludedCount] = useState(0)
+  const [wlsSyncedCount, setWlsSyncedCount] = useState<number | null>(null)
+  const [wlsExclusionSummary, setWlsExclusionSummary] = useState<
+    Partial<Record<WlsHardBlockReason, number>>
+  >({})
+  const [wlsSelectableCount, setWlsSelectableCount] = useState(0)
+  const [wlsStripBusy, setWlsStripBusy] = useState(false)
   const [formulaHookId, setFormulaHookId] = useState<string | null>(null)
   const [formulaVisualId, setFormulaVisualId] = useState<string | null>(null)
   const [formulaCtaId, setFormulaCtaId] = useState<string | null>(null)
@@ -329,22 +398,117 @@ export function StudioWorkspace({
   // Which item each slide shows (from a suggestion or the library) — fills
   // that slide's Brand / Size / Price / Vibe tags on the Canvas step.
   const [slideFacts, setSlideFacts] = useState<Record<string, CanvasItemFacts>>({})
-  const overlayKey = activeMediaId ?? "_no_media"
+  // Prefer the active tray photo so Canvas Words/Tags and Apply layout always
+  // read/write the same slide the phone preview is showing.
+  const overlayKey =
+    activeMediaId ?? mediaAssets[0]?.id ?? "_no_media"
   // A new slide takes the last style, not the last photo's words, tag values
   // or cutout — those belong to that slide's own item.
   const freshOverlayFor = (key: string): CanvasTextOverlayState => {
     const item = slideFacts[key]
-    return canvasOverlayWithoutCopy({
+    const fromListing = item
+      ? overlayPatchFromItemFacts({ facts: item, enableTags: true })
+      : {
+          tagBrand: "",
+          tagSize: "",
+          tagPrice: "",
+          tagVibe: "",
+          tagNewLabel: "",
+        }
+    // withoutCopy clears Words — keep listing tags on and enabled for preview.
+    const cleared = canvasOverlayWithoutCopy({
       ...lastOverlayStyle,
-      tagBrand: item?.brand ?? "",
-      tagSize: item?.size ?? "",
-      tagPrice: item?.price ?? "",
-      tagVibe: item?.vibe ?? "",
+      ...fromListing,
       backdropEnabled: false,
       cutoutUrl: "",
       cutoutSourceUrl: "",
     })
+    const tagsOn = Boolean(
+      fromListing.tagShowBrand ||
+        fromListing.tagShowSize ||
+        fromListing.tagShowPrice ||
+        fromListing.tagShowVibe
+    )
+    return normalizeCanvasTextOverlay({
+      ...cleared,
+      tagShowBrand: Boolean(fromListing.tagShowBrand),
+      tagShowSize: Boolean(fromListing.tagShowSize),
+      tagShowPrice: Boolean(fromListing.tagShowPrice),
+      tagShowVibe: Boolean(fromListing.tagShowVibe),
+      enabled: Boolean(fromListing.enabled) || tagsOn,
+    })
   }
+
+  // Library attach loads facts async — persist listing tags into slide overlays
+  // so they survive Media → Intent (ephemeral freshOverlayFor was lost on step change).
+  useEffect(() => {
+    const entries = Object.entries(slideFacts)
+    if (entries.length === 0) return
+    setSlideOverlays((all) => {
+      let changed = false
+      const next = { ...all }
+      for (const [assetId, facts] of entries) {
+        const slide = next[assetId] ?? freshOverlayFor(assetId)
+        const brand = facts.brand?.trim() ?? ""
+        const size = facts.size?.trim() ?? ""
+        const price = facts.price?.trim() ?? ""
+        const vibe = facts.vibe?.trim() ?? ""
+        const patch: Partial<CanvasTextOverlayState> = {}
+        if (!slide.tagBrand.trim() && brand) {
+          patch.tagBrand = brand
+          if (!slide.tagShowBrand) patch.tagShowBrand = true
+        }
+        if (!slide.tagSize.trim() && size) {
+          patch.tagSize = size
+          if (!slide.tagShowSize) patch.tagShowSize = true
+        }
+        if (!slide.tagPrice.trim() && price) {
+          patch.tagPrice = price
+          if (!slide.tagShowPrice) patch.tagShowPrice = true
+        }
+        if (!slide.tagVibe.trim() && vibe) {
+          patch.tagVibe = vibe
+          if (!slide.tagShowVibe) patch.tagShowVibe = true
+        }
+        // Always seed a missing slide so Continue keeps tags/words on Preview.
+        if (!next[assetId]) {
+          next[assetId] = normalizeCanvasTextOverlay({
+            ...slide,
+            ...patch,
+            enabled:
+              slide.enabled ||
+              Boolean(
+                patch.tagShowBrand ||
+                  patch.tagShowSize ||
+                  patch.tagShowPrice ||
+                  patch.tagShowVibe ||
+                  slide.tagShowBrand ||
+                  slide.tagShowSize ||
+                  slide.tagShowPrice ||
+                  slide.tagShowVibe
+              ),
+          })
+          changed = true
+          continue
+        }
+        if (Object.keys(patch).length === 0) continue
+        const hasTags =
+          (patch.tagShowBrand ?? slide.tagShowBrand) ||
+          (patch.tagShowSize ?? slide.tagShowSize) ||
+          (patch.tagShowPrice ?? slide.tagShowPrice) ||
+          (patch.tagShowVibe ?? slide.tagShowVibe)
+        next[assetId] = normalizeCanvasTextOverlay({
+          ...slide,
+          ...patch,
+          ...(hasTags ? { enabled: true } : null),
+        })
+        changed = true
+      }
+      return changed ? next : all
+    })
+    // freshOverlayFor reads slideFacts + lastOverlayStyle; only re-run on facts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slideFacts])
   const textOverlay: CanvasTextOverlayState =
     slideOverlays[overlayKey] ?? freshOverlayFor(overlayKey)
   const isMultiPhoto =
@@ -359,9 +523,9 @@ export function StudioWorkspace({
     [overlayKey]
   )
   const imageAssets = mediaAssets.filter((asset) => asset.type === "image")
-  /** The text saved for one tray photo, if any. */
-  const overlayForAsset = (assetId: string): CanvasTextOverlayState | null =>
-    slideOverlays[assetId] ?? null
+  /** Overlay for one tray photo — falls back to listing/default style so bake matches preview. */
+  const overlayForAsset = (assetId: string): CanvasTextOverlayState =>
+    slideOverlays[assetId] ?? freshOverlayFor(assetId)
   const [simPlatform, setSimPlatform] = useState<
     import("@/components/marketing/multi-platform-simulator").SimulatorPlatform
   >("ig_story")
@@ -588,11 +752,15 @@ export function StudioWorkspace({
         mergedCaption &&
         (options?.forceCaption || rawSpark.trim().length < 8)
       ) {
-        setRawSpark(mergedCaption.slice(0, RAW_SPARK_MAX))
+        // Never dump Brand·Size·Condition into Copy — those are Canvas tags.
+        const caption = isCatalogMetadataDump(mergedCaption)
+          ? readableListingCaption({ description: mergedCaption })
+          : mergedCaption
+        if (caption) setRawSpark(caption.slice(0, RAW_SPARK_MAX))
       }
       const trayTags = mergeTagSuggestions(
         ...assets.map((row) => row.intakeTags ?? [])
-      )
+      ).filter((tag) => !/^\d+$/.test(tag))
       if (trayTags.length === 0) return
       setOptimizationTags((current) => {
         if (current.length > 0 && !options?.forceCaption) return current
@@ -721,11 +889,504 @@ export function StudioWorkspace({
   const mediaAssetsRef = useRef(mediaAssets)
   mediaAssetsRef.current = mediaAssets
 
+  const wlsSequenceMarketingEntityIds = useMemo(
+    () =>
+      mediaAssets
+        .filter((row) => row.type !== "video" && row.marketingEntityId)
+        .map((row) => row.marketingEntityId as string),
+    [mediaAssets]
+  )
+
+  const activeMarketingEntityId =
+    mediaAssets.find((row) => row.id === activeMediaId)?.marketingEntityId ??
+    null
+
+  const loadWlsEligibleProducts = useCallback(async () => {
+    if (!isFashionBrand) return
+    setWlsEligibleLoading(true)
+    try {
+      const res = await fetch(
+        `/api/templates/wls-daily-story/eligible?entityId=${encodeURIComponent(activeEntity.id)}`,
+        { credentials: "same-origin" }
+      )
+      const data = (await res.json().catch(() => ({}))) as {
+        catalog?: WlsProductSelection[]
+        eligible?: WlsProductSelection[]
+        excluded?: unknown[]
+        syncedCount?: number
+        selectableCount?: number
+        exclusionSummary?: Partial<Record<WlsHardBlockReason, number>>
+        error?: string
+      }
+      if (!res.ok) throw new Error(data.error || "Could not load products.")
+      const catalog =
+        data.catalog ??
+        data.eligible ??
+        []
+      setWlsProductCatalog(catalog)
+      setWlsSelectableCount(
+        typeof data.selectableCount === "number"
+          ? data.selectableCount
+          : catalog.filter((row) => row.feedSelectable).length
+      )
+      setWlsExcludedCount(
+        Array.isArray(data.excluded) ? data.excluded.length : 0
+      )
+      setWlsSyncedCount(
+        typeof data.syncedCount === "number"
+          ? data.syncedCount
+          : catalog.length
+      )
+      setWlsExclusionSummary(data.exclusionSummary ?? {})
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not load WLS products."
+      )
+    } finally {
+      setWlsEligibleLoading(false)
+    }
+  }, [activeEntity.id, isFashionBrand])
+
+  const ensureWlsTemplateForStrip = useCallback(async (): Promise<string> => {
+    if (templateInstanceId) return templateInstanceId
+    const res = await fetch("/api/templates/wls-daily-story/ensure", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entityId: activeEntity.id }),
+    })
+    const data = (await res.json().catch(() => ({}))) as {
+      instance?: { id: string; canvas_layout_id?: string | null }
+      error?: string
+    }
+    if (!res.ok || !data.instance?.id) {
+      throw new Error(data.error || "Could not set up Daily Story template.")
+    }
+    setTemplateInstanceId(data.instance.id)
+    setWlsCanvasLayoutId(data.instance.canvas_layout_id ?? "story_9_16")
+    return data.instance.id
+  }, [activeEntity.id, templateInstanceId])
+
+  const validateWlsSelections = useCallback(
+    async (
+      marketingEntityIds: string[],
+      surface: "story" | "feed" = "story"
+    ): Promise<WlsProductSelection[]> => {
+      const templateId =
+        surface === "story" ? await ensureWlsTemplateForStrip() : undefined
+      const res = await fetch("/api/templates/wls-daily-story/studio-seed", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityId: activeEntity.id,
+          templateInstanceId: templateId,
+          marketingEntityIds,
+          surface,
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        selections?: WlsProductSelection[]
+        error?: string
+      }
+      if (!res.ok || !data.selections?.length) {
+        throw new Error(data.error || "Product is not eligible.")
+      }
+      return data.selections
+    },
+    [activeEntity.id, ensureWlsTemplateForStrip]
+  )
+
+  const wlsFrameBuildInput = useCallback(
+    () => ({
+      entityId: activeEntity.id,
+      brandName: activeEntity.name,
+      brandLogoUrl: brandVisualPresets.logo_url,
+      canvasLayouts: activeEntity.brand_identity.canvas_layouts ?? [],
+      canvasLayoutId: wlsCanvasLayoutId,
+      resolveImageUrl: (url: string) => proxiedImageUrl(url, activeEntity.id),
+    }),
+    [
+      activeEntity.brand_identity.canvas_layouts,
+      activeEntity.id,
+      activeEntity.name,
+      brandVisualPresets.logo_url,
+      wlsCanvasLayoutId,
+    ]
+  )
+
+  const applyWlsDailyStorySeed = useCallback(
+    (
+      selections: WlsProductSelection[],
+      template: StudioTemplateHandoffResponse["template"]
+    ) => {
+      const layouts = activeEntity.brand_identity.canvas_layouts ?? []
+      const seed = buildWlsDailyStoryStudioSeed({
+        selections,
+        entityId: activeEntity.id,
+        brandName: activeEntity.name,
+        brandLogoUrl: brandVisualPresets.logo_url,
+        canvasLayouts: layouts,
+        canvasLayoutId: template.canvasLayoutId,
+        resolveImageUrl: (url) => proxiedImageUrl(url, activeEntity.id),
+      })
+
+      onMediaAssetsChange(seed.mediaAssets)
+      setSlideOverlays(seed.slideOverlays)
+      setSlideFacts(seed.slideFacts)
+      setStoryPreview(seed.storyPreview)
+      const styleFromFirst = seed.mediaAssets[0]?.id
+        ? seed.slideOverlays[seed.mediaAssets[0].id]
+        : null
+      if (styleFromFirst) {
+        setLastOverlayStyle(canvasOverlayWithoutCopy(styleFromFirst))
+      }
+      setActiveMediaId(seed.mediaAssets[0]?.id ?? null)
+      setSimPlatform("ig_story")
+      setWlsDailyStorySession(true)
+      setTemplateInstanceId(template.templateInstanceId)
+      setTemplateVersionId(String(template.templateVersion))
+      setTemplateDisplayName(template.templateName)
+      setCreativeSurface("story")
+      setWlsCanvasLayoutId(template.canvasLayoutId ?? "story_9_16")
+      if (template.formulaHookId) {
+        setFormulaHookId(template.formulaHookId)
+      }
+      // Public caption = listing intake / optional default_studio_caption only.
+      // Never seed creative_instructions (operator brief) into Copy / Feed.
+      applyIntakeFromTray(seed.mediaAssets, { forceCaption: true })
+      const templateCaption =
+        template.defaultStudioCaption?.trim() ||
+        template.creativeSpark.trim()
+      if (templateCaption) {
+        setRawSpark(templateCaption.slice(0, RAW_SPARK_MAX))
+      }
+    },
+    [
+      activeEntity.brand_identity.canvas_layouts,
+      activeEntity.id,
+      activeEntity.name,
+      applyIntakeFromTray,
+      brandVisualPresets.logo_url,
+      onMediaAssetsChange,
+    ]
+  )
+
+  const applyStudioTemplateHandoff = useCallback(
+    (handoff: StudioTemplateHandoffResponse) => {
+      const { template } = handoff
+      setTemplateInstanceId(template.templateInstanceId)
+      setTemplateVersionId(String(template.templateVersion))
+      setTemplateDisplayName(template.templateName)
+      if (template.formulaHookId) {
+        setFormulaHookId(template.formulaHookId)
+      }
+      if (template.canvasLayoutId) {
+        setWlsCanvasLayoutId(template.canvasLayoutId)
+      }
+      const publicCaption =
+        template.defaultStudioCaption?.trim() ||
+        template.creativeSpark.trim()
+      if (publicCaption) {
+        setRawSpark(publicCaption.slice(0, RAW_SPARK_MAX))
+      }
+
+      if (handoff.kind === "wls_daily_story") {
+        setWlsDailyStorySession(true)
+        if (handoff.selections?.length) {
+          applyWlsDailyStorySeed(handoff.selections, template)
+          toast.success(
+            `Loaded ${handoff.selections.length} Story frame${handoff.selections.length === 1 ? "" : "s"} — ${template.templateName}.`
+          )
+        } else {
+          toast.message(`Using ${template.templateName} — pick products in Synced products.`)
+        }
+        setWorkbenchStep(WORKBENCH_STEP_MEDIA)
+        return
+      }
+
+      setWlsDailyStorySession(false)
+      toast.message(`Using template: ${template.templateName}`)
+      setWorkbenchStep(WORKBENCH_STEP_MEDIA)
+    },
+    [applyWlsDailyStorySeed]
+  )
+
+  const selectStudioTemplate = useCallback(
+    async (instanceId: string, marketingEntityIds?: string[]) => {
+      if (
+        templateInstanceId &&
+        templateInstanceId !== instanceId &&
+        mediaAssetsRef.current.length > 0 &&
+        !window.confirm(
+          "Apply a different template? Your current media tray stays until you change it."
+        )
+      ) {
+        return
+      }
+      setTemplateHandoffBusy(true)
+      try {
+        const handoff = await fetchStudioTemplateHandoff({
+          entityId: activeEntity.id,
+          templateInstanceId: instanceId,
+          marketingEntityIds,
+        })
+        applyStudioTemplateHandoff(handoff)
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not apply template."
+        )
+      } finally {
+        setTemplateHandoffBusy(false)
+      }
+    },
+    [activeEntity.id, applyStudioTemplateHandoff, templateInstanceId]
+  )
+
+  const clearStudioTemplate = useCallback(() => {
+    setTemplateInstanceId(null)
+    setTemplateDisplayName(null)
+    setWlsDailyStorySession(false)
+  }, [])
+
+  const navigateWlsProductFrame = useCallback(
+    (marketingEntityId: string) => {
+      const asset = mediaAssetsRef.current.find(
+        (row) => row.marketingEntityId === marketingEntityId
+      )
+      if (asset) onSelectStudioMedia(asset)
+    },
+    []
+  )
+
+  const addWlsProductToMedia = useCallback(
+    async (selection: WlsProductSelection) => {
+      if (!selection.feedSelectable) return
+      const existing = mediaAssetsRef.current.find(
+        (row) => row.marketingEntityId === selection.marketingEntityId
+      )
+      if (existing) {
+        onSelectStudioMedia(existing)
+        return
+      }
+      setWlsStripBusy(true)
+      try {
+        const [validated] = await validateWlsSelections(
+          [selection.marketingEntityId],
+          "feed"
+        )
+        const bundle = buildFeedTrayFromWlsSelection(validated)
+        if (!bundle || bundle.assets.length === 0) {
+          throw new Error("This listing needs a usable product photo.")
+        }
+        const existingTray = mediaAssetsRef.current
+        const append =
+          existingTray.length > 0 &&
+          bundle.assets[0].type !== "video" &&
+          existingTray.every((row) => row.type !== "video")
+        const fresh = bundle.assets.filter(
+          (row) => !existingTray.some((have) => have.url === row.url)
+        )
+        const next = append
+          ? [...existingTray, ...fresh].slice(0, 10)
+          : bundle.assets.slice(0, 10)
+        onMediaAssetsChange(next)
+        applyIntakeFromTray(next, { forceCaption: true })
+        setSlideFacts((all) => ({
+          ...(append ? all : {}),
+          ...bundle.factsByAssetId,
+        }))
+        const added = append ? fresh : bundle.assets
+        onSelectStudioMedia(added[0] ?? next[0])
+        if (!wlsDailyStorySession) {
+          setSimPlatform(
+            next.length >= 2 && bundle.format === "carousel"
+              ? "ig_feed"
+              : bundle.format === "story"
+                ? "ig_story"
+                : bundle.format === "reel"
+                  ? "tiktok"
+                  : "ig_feed"
+          )
+        }
+        toast.success("Added to media tray.")
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not add product."
+        )
+      } finally {
+        setWlsStripBusy(false)
+      }
+    },
+    [applyIntakeFromTray, validateWlsSelections, wlsDailyStorySession]
+  )
+
+  const addWlsProductToSequence = useCallback(
+    async (selection: WlsProductSelection) => {
+      const existing = mediaAssetsRef.current.find(
+        (row) => row.marketingEntityId === selection.marketingEntityId
+      )
+      if (existing) {
+        onSelectStudioMedia(existing)
+        return
+      }
+      const photos = mediaAssetsRef.current.filter((row) => row.type !== "video")
+      if (photos.length >= WLS_DAILY_STORY_STUDIO_MAX_FRAMES) {
+        toast.error(
+          `Story sequence is full (${WLS_DAILY_STORY_STUDIO_MAX_FRAMES}). Replace the active frame or remove one.`
+        )
+        return
+      }
+      setWlsStripBusy(true)
+      try {
+        const [validated] = await validateWlsSelections([
+          selection.marketingEntityId,
+        ])
+        const frame = buildWlsStoryFrameFromSelection({
+          selection: validated,
+          ...wlsFrameBuildInput(),
+        })
+        onMediaAssetsChange([...mediaAssetsRef.current, frame.asset])
+        setSlideOverlays((all) => ({ ...all, [frame.asset.id]: frame.overlay }))
+        setSlideFacts((all) => ({ ...all, [frame.asset.id]: frame.facts }))
+        onSelectStudioMedia(frame.asset)
+        setWlsDailyStorySession(true)
+        setSimPlatform("ig_story")
+        toast.success("Added to Story sequence.")
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not add product."
+        )
+      } finally {
+        setWlsStripBusy(false)
+      }
+    },
+    [validateWlsSelections, wlsFrameBuildInput]
+  )
+
+  const removeWlsProductFromSequence = useCallback(
+    (marketingEntityId: string) => {
+      const assetId = wlsStoryAssetIdForProduct(marketingEntityId)
+      const nextAssets = mediaAssetsRef.current.filter((row) => row.id !== assetId)
+      onMediaAssetsChange(nextAssets)
+      setSlideOverlays((all) => {
+        const next = { ...all }
+        delete next[assetId]
+        return next
+      })
+      setSlideFacts((all) => {
+        const next = { ...all }
+        delete next[assetId]
+        return next
+      })
+      const stillActive = nextAssets.some((row) => row.id === activeMediaId)
+      if (!stillActive) {
+        setActiveMediaId(nextAssets[0]?.id ?? null)
+      }
+      toast.message("Removed from Story sequence.")
+    },
+    [activeMediaId]
+  )
+
+  const replaceActiveWlsFrame = useCallback(
+    async (selection: WlsProductSelection) => {
+      const activeId = activeMediaId
+      if (!activeId) {
+        await addWlsProductToSequence(selection)
+        return
+      }
+      const activeAsset = mediaAssetsRef.current.find((row) => row.id === activeId)
+      if (
+        activeAsset?.marketingEntityId === selection.marketingEntityId
+      ) {
+        return
+      }
+      setWlsStripBusy(true)
+      try {
+        const [validated] = await validateWlsSelections([
+          selection.marketingEntityId,
+        ])
+        const frame = buildWlsStoryFrameFromSelection({
+          selection: validated,
+          ...wlsFrameBuildInput(),
+        })
+        const index = mediaAssetsRef.current.findIndex((row) => row.id === activeId)
+        if (index < 0) {
+          await addWlsProductToSequence(selection)
+          return
+        }
+        const previousOverlay = slideOverlaysRef.current[activeId]
+        const previousUrl = activeAsset?.url ?? ""
+        const merged = mergeWlsReplaceOverlay({
+          existing: previousOverlay,
+          seeded: frame.overlay,
+          previousImageUrl: previousUrl,
+          nextImageUrl: frame.asset.url,
+        })
+        const nextAssets = [...mediaAssetsRef.current]
+        nextAssets[index] = frame.asset
+        onMediaAssetsChange(nextAssets)
+        setSlideOverlays((all) => {
+          const next = { ...all }
+          delete next[activeId]
+          next[frame.asset.id] = merged
+          return next
+        })
+        setSlideFacts((all) => ({
+          ...all,
+          [frame.asset.id]: frame.facts,
+        }))
+        if (activeId !== frame.asset.id) {
+          setSlideFacts((all) => {
+            const next = { ...all }
+            delete next[activeId]
+            return next
+          })
+        }
+        onSelectStudioMedia(frame.asset)
+        setWlsDailyStorySession(true)
+        setSimPlatform("ig_story")
+        toast.success("Active Story frame updated.")
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not replace frame."
+        )
+      } finally {
+        setWlsStripBusy(false)
+      }
+    },
+    [activeMediaId, addWlsProductToSequence, validateWlsSelections, wlsFrameBuildInput]
+  )
+
+  useEffect(() => {
+    if (!isFashionBrand || rehydrating) return
+    void loadWlsEligibleProducts()
+  }, [isFashionBrand, rehydrating, loadWlsEligibleProducts])
+
+  useEffect(() => {
+    if (!isFashionBrand) return
+    function onInventorySynced(event: Event) {
+      const detail = (event as CustomEvent<{ entityId?: string }>).detail
+      if (detail?.entityId && detail.entityId !== activeEntity.id) return
+      void loadWlsEligibleProducts()
+    }
+    function onFocus() {
+      void loadWlsEligibleProducts()
+    }
+    window.addEventListener(INVENTORY_SYNCED_EVENT, onInventorySynced)
+    window.addEventListener("focus", onFocus)
+    return () => {
+      window.removeEventListener(INVENTORY_SYNCED_EVENT, onInventorySynced)
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [activeEntity.id, isFashionBrand, loadWlsEligibleProducts])
+
   // Build from Today's Brain team: ?items=a,b,c&format=carousel loads those
   // items — one photo each, or every photo when it's a single item.
   const builtFromTeam = useRef(false)
   useEffect(() => {
     if (builtFromTeam.current || rehydrating) return
+    if (searchParams.get(WLS_DAILY_STORY_HANDOFF_QUERY_FLAG) === "1") return
     const raw = searchParams.get("items")?.trim()
     if (!raw) return
     builtFromTeam.current = true
@@ -749,6 +1410,13 @@ export function StudioWorkspace({
               publicUrl: m.url,
               type: m.kind,
               marketingEntityId: row.item.id,
+              destinationUrl:
+                row.item.listing_url ??
+                buildWlsDestinationUrl({
+                  websiteUrl: "https://www.wornlabelsociety.co.nz",
+                  websiteItemId: row.item.website_item_id,
+                  listingUrl: row.item.listing_url,
+                }),
               intakeCaption: listingCaptionForPost(row.item),
               intakeTags: listingTagsForPost({
                 item: row.item,
@@ -784,9 +1452,114 @@ export function StudioWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rehydrating])
 
+  const builtFromWlsStory = useRef(false)
+  const appliedGenericTemplateHandoff = useRef(false)
+  const lastSuccessfulTemplateHandoffKey = useRef<string | null>(null)
+  useEffect(() => {
+    if (builtFromWlsStory.current || rehydrating) return
+    if (searchParams.get(WLS_DAILY_STORY_HANDOFF_QUERY_FLAG) !== "1") return
+    const raw = searchParams.get("items")?.trim()
+    const templateId = searchParams.get("templateInstanceId")?.trim() ?? ""
+    if (!raw || !/^[0-9a-f-]{36}$/i.test(templateId)) return
+    if (searchParams.get("format") !== "story") return
+
+    builtFromWlsStory.current = true
+    appliedGenericTemplateHandoff.current = true
+    const marketingEntityIds = raw
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, 5)
+
+    void fetchStudioTemplateHandoff({
+      entityId: activeEntity.id,
+      templateInstanceId: templateId,
+      marketingEntityIds,
+    })
+      .then((handoff) => {
+        if (handoff.kind !== "wls_daily_story" || !handoff.selections?.length) {
+          throw new Error("Could not load Daily Story products.")
+        }
+        applyStudioTemplateHandoff(handoff)
+
+        const params = new URLSearchParams(window.location.search)
+        params.delete("items")
+        params.delete("format")
+        params.delete(WLS_DAILY_STORY_HANDOFF_QUERY_FLAG)
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `/studio?${params.toString()}`
+        )
+      })
+      .catch((error) => {
+        builtFromWlsStory.current = false
+        appliedGenericTemplateHandoff.current = false
+        toast.error(
+          error instanceof Error ? error.message : "Daily Story handoff failed."
+        )
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rehydrating, activeEntity.id])
+
+  useEffect(() => {
+    appliedGenericTemplateHandoff.current = false
+    lastSuccessfulTemplateHandoffKey.current = null
+  }, [activeEntity.id])
+
+  useEffect(() => {
+    if (appliedGenericTemplateHandoff.current || rehydrating) return
+    if (searchParams.get(WLS_DAILY_STORY_HANDOFF_QUERY_FLAG) === "1") return
+    if (searchParams.get("items")?.trim()) return
+    if (searchParams.get("pack_id")?.trim()) return
+    const templateId = searchParams.get("templateInstanceId")?.trim() ?? ""
+    if (!/^[0-9a-f-]{36}$/i.test(templateId)) return
+
+    const resumeKey = studioTemplateHandoffResumeKey({
+      entityId: activeEntity.id,
+      templateInstanceId: templateId,
+      templateVersion: searchParams.get("templateVersion"),
+    })
+    if (
+      shouldSkipStudioTemplateHandoff({
+        mediaAssetCount: mediaAssetsRef.current.length,
+        resumeKey,
+        lastSuccessfulHandoffKey: lastSuccessfulTemplateHandoffKey.current,
+      })
+    ) {
+      appliedGenericTemplateHandoff.current = true
+      return
+    }
+
+    appliedGenericTemplateHandoff.current = true
+    void fetchStudioTemplateHandoff({
+      entityId: activeEntity.id,
+      templateInstanceId: templateId,
+    })
+      .then((handoff) => {
+        applyStudioTemplateHandoff(handoff)
+        lastSuccessfulTemplateHandoffKey.current = resumeKey
+      })
+      .catch((error) => {
+        appliedGenericTemplateHandoff.current = false
+        toast.error(
+          error instanceof Error ? error.message : "Template handoff failed."
+        )
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rehydrating, activeEntity.id])
+
   function applyNewArrival(suggestion: NewArrivalSuggestion) {
+    const destinationUrl =
+      suggestion.item.listing_url ??
+      buildWlsDestinationUrl({
+        websiteUrl: "https://www.wornlabelsociety.co.nz",
+        websiteItemId: suggestion.item.website_item_id,
+        listingUrl: suggestion.item.listing_url,
+      })
     const intake = {
       marketingEntityId: suggestion.item.id,
+      destinationUrl,
       intakeCaption: suggestion.intakeCaption,
       intakeTags: suggestion.intakeTags,
     }
@@ -824,9 +1597,9 @@ export function StudioWorkspace({
     applyIntakeFromTray(next, { forceCaption: true })
     setActiveMediaId(added[0]?.id ?? next[0].id)
     setSimPlatform(
-      next.length >= 2
+      next.length >= 2 && !wlsDailyStorySession
         ? "ig_feed"
-        : suggestion.format === "story"
+        : suggestion.format === "story" || wlsDailyStorySession
           ? "ig_story"
           : "ig_feed"
     )
@@ -886,6 +1659,7 @@ export function StudioWorkspace({
     }
     setCutoutBusy(true)
     let failed = 0
+    let lastError: string | null = null
     await Promise.all(
       targets.map(async (row) => {
         const src = row.publicUrl || row.url
@@ -902,14 +1676,20 @@ export function StudioWorkspace({
             cutoutUrl,
             cutoutSourceUrl: src,
           })
-        } catch {
+        } catch (error) {
           failed += 1
+          lastError =
+            error instanceof Error ? error.message : "Cutout failed."
         }
       })
     )
     setCutoutBusy(false)
     if (failed > 0) {
-      toast.error(`Couldn't cut out ${failed} photo${failed === 1 ? "" : "s"}.`)
+      toast.error(
+        lastError && failed === 1
+          ? lastError
+          : `Couldn't cut out ${failed} photo${failed === 1 ? "" : "s"}.`
+      )
     } else if (scope === "all") {
       toast.success(`Cut out ${targets.length} photos`)
     }
@@ -926,8 +1706,13 @@ export function StudioWorkspace({
       const result = (await saveCanvasLayouts({
         entityId: activeEntity.id,
         layouts: next,
-      })) as { ok?: boolean; error?: string }
+      })) as {
+        ok?: boolean
+        error?: string
+        data?: { layouts?: SavedCanvasLayout[] }
+      }
       if (!result?.ok) throw new Error(result?.error ?? "Couldn't save layouts.")
+      if (result.data?.layouts) setCanvasLayouts(result.data.layouts)
       if (success) toast.success(success)
     } catch (error) {
       setCanvasLayouts(previous)
@@ -937,21 +1722,40 @@ export function StudioWorkspace({
     }
   }
 
-  function saveLayout(name: string, makeDefault: boolean) {
-    const layout: SavedCanvasLayout = {
-      id: crypto.randomUUID(),
-      name,
-      isDefault: makeDefault,
-      overlay: layoutFromOverlay(textOverlay),
-      createdAt: new Date().toISOString(),
-    }
-    const others = makeDefault
-      ? canvasLayouts.map((row) => ({ ...row, isDefault: false }))
+  function saveLayout(
+    name: string,
+    makeDefault: boolean,
+    updateLayoutId?: string | null
+  ) {
+    const existing = updateLayoutId
+      ? canvasLayouts.find((row) => row.id === updateLayoutId)
+      : undefined
+    const layout: SavedCanvasLayout = existing
+      ? {
+          ...existing,
+          name,
+          isDefault: makeDefault,
+          overlay: layoutFromOverlay(textOverlay),
+        }
+      : {
+          id: crypto.randomUUID(),
+          name,
+          isDefault: makeDefault,
+          overlay: layoutFromOverlay(textOverlay),
+          createdAt: new Date().toISOString(),
+        }
+    const withoutTarget = existing
+      ? canvasLayouts.filter((row) => row.id !== existing.id)
       : canvasLayouts
+    const others = makeDefault
+      ? withoutTarget.map((row) => ({ ...row, isDefault: false }))
+      : withoutTarget
     void persistLayouts(
       [...others, layout],
       canvasLayouts,
-      `Saved "${name}"${makeDefault ? " — new posts will start with it" : ""}`
+      existing
+        ? `Updated "${name}"${makeDefault ? " — default for new posts" : ""}`
+        : `Saved "${name}"${makeDefault ? " — new posts will start with it" : ""}`
     )
   }
 
@@ -980,16 +1784,25 @@ export function StudioWorkspace({
     const layout = canvasLayouts.find((row) => row.id === layoutId)
     if (!layout) return
     const photos = mediaAssets.filter((row) => row.type !== "video")
+    const activePhotoId =
+      photos.find((row) => row.id === activeMediaId)?.id ?? photos[0]?.id ?? null
+    // Never write to "_no_media" when a real tray photo is on screen — that
+    // left the preview (keyed by asset id) unchanged after Apply style.
     const ids =
       scope === "all" && photos.length > 0
         ? photos.map((row) => row.id)
-        : [overlayKey]
+        : activePhotoId
+          ? [activePhotoId]
+          : [overlayKey]
     const brandLogo = brandVisualPresets.logo_url ?? ""
     let lastApplied: CanvasTextOverlayState | null = null
     setSlideOverlays((all) => {
       const next = { ...all }
       for (const id of ids) {
-        const slide = all[id] ?? freshOverlayFor(id)
+        const slide = slideOverlayBeforeLayoutApply({
+          slide: all[id],
+          facts: slideFacts[id],
+        })
         const applied = applyLayoutToOverlay({
           layout,
           slide: { ...slide, logoUrl: brandLogo || slide.logoUrl },
@@ -1132,7 +1945,6 @@ export function StudioWorkspace({
       skipIntentObjectiveSync.current = true
       setPack(snapshot.pack)
       setCampaignId(snapshot.campaignId)
-      syncMediaFromUrl(snapshot.mediaUrl)
       if (snapshot.context.fudi_track) {
         setFudiTrack(snapshot.context.fudi_track)
       }
@@ -1170,6 +1982,43 @@ export function StudioWorkspace({
       const matched = personas.find((persona) => persona.name === personaName)
       setPersonaId(matched?.id ?? personas[0]?.id ?? "")
 
+      const sequence = parseCreativeSequence(
+        snapshot.context.metadata?.creative_sequence
+      )
+      if (sequence) {
+        const restored = restoreCreativeSequence(sequence)
+        onMediaAssetsChange(restored.mediaAssets)
+        setSlideOverlays(restored.slideOverlays)
+        setStoryPreview(restored.storyPreview)
+        setActiveMediaId(restored.mediaAssets[0]?.id ?? null)
+        setCreativeSurface(restored.surface)
+        setSimPlatform(
+          restored.activeChannel === "ig_feed" ||
+            restored.activeChannel === "facebook"
+            ? restored.activeChannel === "facebook"
+              ? "facebook"
+              : "ig_feed"
+            : restored.activeChannel === "tiktok"
+              ? "tiktok"
+              : "ig_story"
+        )
+        setTemplateInstanceId(restored.templateInstanceId)
+        setTemplateVersionId(restored.templateVersionId)
+        if (restored.rawSpark.trim()) {
+          setRawSpark(restored.rawSpark.slice(0, RAW_SPARK_MAX))
+        }
+        if (restored.productIds.length > 0) {
+          setWlsDailyStorySession(true)
+        }
+        if (restored.soldProductIds.length > 0) {
+          toast.message(
+            `${restored.soldProductIds.length} product${restored.soldProductIds.length === 1 ? "" : "s"} in this draft may no longer be available — review before scheduling.`
+          )
+        }
+      } else {
+        syncMediaFromUrl(snapshot.mediaUrl)
+      }
+
       setEditorSession((value) => value + 1)
       setRestoredAt(
         options?.markRestored === false
@@ -1195,7 +2044,13 @@ export function StudioWorkspace({
         syncPackUrl(snapshot.campaignId)
       }
     },
-    [personas, studioPresets, syncPackUrl, writeLocalBuffer]
+    [
+      onMediaAssetsChange,
+      personas,
+      studioPresets,
+      syncPackUrl,
+      writeLocalBuffer,
+    ]
   )
 
   useEffect(() => {
@@ -1463,7 +2318,7 @@ export function StudioWorkspace({
     )
     setEditorSession((value) => value + 1)
     setRestoredAt(null)
-    setWorkbenchStep(3)
+    setWorkbenchStep(WORKBENCH_STEP_INTENT)
     toast.success("Formula pack rendered — zero AI tokens.")
   }
 
@@ -1582,20 +2437,71 @@ export function StudioWorkspace({
   }
 
   function runSave(status: "draft" | "published") {
-    if (!pack) { toast.error("Generate or select your pack copy in Step 2 before arming."); return; }
+    const imageCount = mediaAssets.filter((row) => row.type !== "video").length
+    const allowVisualOnly =
+      status === "draft" &&
+      imageCount >= 1 &&
+      (wlsDailyStorySession ||
+        wlsSequenceMarketingEntityIds.length > 0 ||
+        creativeSurface === "story")
+
+    if (!pack && !allowVisualOnly) {
+      toast.error(
+        "Generate or select your pack copy before arming — or add Story frames to save a visual draft."
+      )
+      return
+    }
+    if (!pack && allowVisualOnly && imageCount === 0) {
+      toast.error("Add at least one photo before saving a visual draft.")
+      return
+    }
+
+    const packToSave =
+      pack ??
+      buildVisualOnlyCampaignPack({
+        title:
+          templateDisplayName?.trim() ||
+          `${activeEntity.name} · ${imageCount}-frame Story`,
+        captionHint: rawSpark.trim(),
+        frameCount: imageCount,
+      })
+
+    const sequence = buildCreativeSequence({
+      mediaAssets,
+      slideOverlays: slideOverlaysRef.current,
+      storyPreview,
+      surface: creativeSurface,
+      activeChannel: simPlatform,
+      templateInstanceId,
+      templateVersionId,
+      visualOnly: !pack,
+      rawSpark: rawSpark.trim(),
+    })
+
+    if (allowVisualOnly && !sequence) {
+      toast.error("Could not build a saveable Story sequence from the tray.")
+      return
+    }
+
+    const mediaUrlForSave =
+      apiImageUrl ||
+      sequence?.frames[0]?.mediaUrl ||
+      null
+
     startTransition(async () => {
       const result = await saveCampaign({
         entityId: activeEntity.id,
-        eventDescription: rawSpark.trim(),
-        targetGoal: packTargetGoal,
+        eventDescription: rawSpark.trim() || packToSave.seo_caption.caption_body,
+        targetGoal: packTargetGoal || "Drive Sales",
         targetSegment: resolvedPersona?.name ?? null,
-        pack,
+        pack: packToSave,
         status,
-        mediaUrl: apiImageUrl,
+        mediaUrl: mediaUrlForSave,
         campaignId,
         intent,
         fudiTrack: isFudi ? fudiTrack : null,
         forecastingTag: activeForecastingTag,
+        creativeSequence: sequence ?? undefined,
       })
       if (!result.ok) {
         setSystemError(result.error)
@@ -1603,6 +2509,7 @@ export function StudioWorkspace({
         return
       }
       setCampaignId(result.campaignId)
+      if (!pack) setPack(packToSave)
       if (status === "draft") {
         await disarmCampaignQueue({
           entityId: activeEntity.id,
@@ -1611,11 +2518,11 @@ export function StudioWorkspace({
       }
       writeLocalBuffer({
         packId: result.campaignId,
-        pack,
-        mediaUrl: studioMediaUrl,
+        pack: packToSave,
+        mediaUrl: studioMediaUrl || mediaUrlForSave,
         eventDescription: rawSpark.trim(),
         intent,
-        objective: packTargetGoal,
+        objective: packTargetGoal || "Drive Sales",
         personaName: resolvedPersona?.name ?? null,
         fudiTrack: isFudi ? fudiTrack : null,
       })
@@ -1655,14 +2562,47 @@ export function StudioWorkspace({
     })
   }
 
+  /** Ensure a pack exists for review/arm — visual Story drafts may use a stub pack. */
+  function ensurePackForReview(): CampaignPack | null {
+    if (pack) return pack
+    const imageCount = mediaAssets.filter((row) => row.type !== "video").length
+    if (imageCount < 1) return null
+    if (
+      !(
+        wlsDailyStorySession ||
+        wlsSequenceMarketingEntityIds.length > 0 ||
+        creativeSurface === "story"
+      )
+    ) {
+      return null
+    }
+    const stub = buildVisualOnlyCampaignPack({
+      title:
+        templateDisplayName?.trim() ||
+        `${activeEntity.name} · ${imageCount}-frame Story`,
+      captionHint: rawSpark.trim(),
+      frameCount: imageCount,
+    })
+    setPack(stub)
+    return stub
+  }
+
   /** Checks that need no artwork; shared by the review screen and arming. */
   function armBlocker(): string | null {
-    if (!pack) return "Generate or select your pack copy in Step 2 before arming."
+    const reviewPack = pack ?? ensurePackForReview()
+    if (!reviewPack) {
+      return "Generate or select your pack copy in Step 2 before arming."
+    }
     if (!(dispatchPlan ?? []).some((slot) => slot.enabled)) {
       return "Tick at least one channel to arm."
     }
     if (!apiImageUrl) {
-      return "Arming needs a public https image — add or finish uploading media in step 1."
+      const firstHttps = mediaAssets
+        .map((row) => row.publicUrl || row.url)
+        .find((url) => /^https?:\/\//i.test(url))
+      if (!firstHttps) {
+        return "Arming needs a public https image — add or finish uploading media in step 1."
+      }
     }
     return null
   }
@@ -1697,6 +2637,19 @@ export function StudioWorkspace({
       return
     }
     const slots = (dispatchPlan ?? []).filter((slot) => slot.enabled)
+    // Persist the tray sequence with the draft so Confirm/arm cannot wipe
+    // creative_sequence that Save draft already wrote.
+    const sequenceForArm = buildCreativeSequence({
+      mediaAssets,
+      slideOverlays: slideOverlaysRef.current,
+      storyPreview,
+      surface: creativeSurface,
+      activeChannel: simPlatform,
+      templateInstanceId,
+      templateVersionId,
+      visualOnly: false,
+      rawSpark: rawSpark.trim(),
+    })
 
     setArming(true)
     startTransition(async () => {
@@ -1712,6 +2665,7 @@ export function StudioWorkspace({
         intent,
         fudiTrack: isFudi ? fudiTrack : null,
         forecastingTag: activeForecastingTag,
+        creativeSequence: sequenceForArm ?? undefined,
       })
       if (!saved.ok) {
         setArming(false)
@@ -1824,6 +2778,15 @@ export function StudioWorkspace({
     if (workbenchStep !== WORKBENCH_STEP_CHANNELS) setPackEditorOpen(false)
   }, [workbenchStep])
 
+  // One-shot: strip catalog Brand·Size dumps already sitting in Copy.
+  useEffect(() => {
+    if (workbenchStep !== WORKBENCH_STEP_COPY) return
+    if (!isCatalogMetadataDump(rawSpark)) return
+    const cleaned = readableListingCaption({ description: rawSpark })
+    if (cleaned) setRawSpark(cleaned.slice(0, RAW_SPARK_MAX))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when entering Copy
+  }, [workbenchStep])
+
   const studioChrome = useStudioChromeOptional()
   // Depend on the stable callbacks, not the whole context value: the value
   // changes every time chrome state changes, which re-ran these effects
@@ -1865,7 +2828,12 @@ export function StudioWorkspace({
             stripMarkdown(pack.email_drop.body_markdown).slice(0, 120),
           emailBody: stripMarkdown(pack.email_drop.body_markdown),
         }
-      : {}
+      : {
+          // Pre-pack Email preview uses Copy fields (not a blank placeholder).
+          emailSubject: headlineLine,
+          emailPreview: (captionBody || headlineLine).slice(0, 120),
+          emailBody: captionBody || headlineLine,
+        }
     if (usePackInPreview && pack) {
       return {
         brandName: activeEntity.name,
@@ -1876,7 +2844,7 @@ export function StudioWorkspace({
         caption:
           simPlatform === "ig_story"
             ? pack.algorithmic_signals.spoken_hook
-            : pack.seo_caption.caption_body,
+            : scrubInlineHashtags(pack.seo_caption.caption_body),
         imageUrl:
           studioMediaUrl && /^https?:\/\//i.test(studioMediaUrl)
             ? studioMediaUrl
@@ -1888,8 +2856,10 @@ export function StudioWorkspace({
       brandName: activeEntity.name,
       headline: headlineLine,
       caption:
-        mergeCaptionWithTags(captionBody || headlineLine, optimizationTags) ||
-        headlineLine,
+        scrubInlineHashtags(
+          mergeCaptionWithTags(captionBody || headlineLine, optimizationTags) ||
+            headlineLine
+        ),
       imageUrl:
         studioMediaUrl && /^https?:\/\//i.test(studioMediaUrl)
           ? studioMediaUrl
@@ -1941,6 +2911,11 @@ export function StudioWorkspace({
       : "Add hook & caption"
 
   function renderCustomizePhase(phase: CustomizeWizardPhase) {
+    const activePhoto =
+      mediaAssets.find((row) => row.id === activeMediaId) ?? mediaAssets[0] ?? null
+    const hasStillPhoto = Boolean(
+      activePhoto && activePhoto.type !== "video"
+    )
     return (
       <StepCustomize
         phase={phase}
@@ -1952,6 +2927,66 @@ export function StudioWorkspace({
         onCutout={cutoutSlides}
         cutoutBusy={cutoutBusy}
         photoCount={mediaAssets.filter((row) => row.type !== "video").length}
+        storyTools={
+          phase === "canvas"
+            ? {
+                bridge: {
+                  spokenHook:
+                    workbenchHeadline.trim() || rawSpark.trim().slice(0, 120),
+                  onScreenHeadline:
+                    workbenchHeadline.trim().slice(0, 80) || activeEntity.name,
+                  caption: rawSpark.trim(),
+                  destinationUrl:
+                    activePhoto?.destinationUrl ??
+                    mediaAssets[0]?.destinationUrl ??
+                    null,
+                  assetUrl: activePhoto?.url ?? null,
+                },
+                cutoutActive: isMultiPhoto
+                  ? canvasBackdropOn(textOverlay)
+                  : storyPreview.cutoutMode === "transparent",
+                onCutoutToggle: isMultiPhoto
+                  ? () =>
+                      void cutoutSlides(
+                        "slide",
+                        !canvasBackdropOn(textOverlay)
+                      )
+                  : onCutoutToggle,
+                onCutoutAll: isMultiPhoto
+                  ? () => void cutoutSlides("all", true)
+                  : undefined,
+                isVideo: activePhoto?.type === "video",
+                hasPhoto: hasStillPhoto,
+                storyCard: isMultiPhoto
+                  ? null
+                  : {
+                      swatches: brandSwatches(brandVisualPresets),
+                      background:
+                        storyPreview.canvasColor ||
+                        brandVisualPresets.canvas_color,
+                      onBackgroundChange: (hex) =>
+                        setStoryPreview((current) => ({
+                          ...current,
+                          canvasColor: hex,
+                          bgPresetId: "custom",
+                        })),
+                      scale: storyPreview.subjectScale ?? 1,
+                      onScaleChange: (subjectScale) =>
+                        setStoryPreview((current) => ({
+                          ...current,
+                          subjectScale,
+                        })),
+                      offsetY: storyPreview.subjectOffsetY ?? 0,
+                      onOffsetYChange: (subjectOffsetY) =>
+                        setStoryPreview((current) => ({
+                          ...current,
+                          subjectOffsetY,
+                        })),
+                    },
+                disabled: multiplexing || pending || rehydrating,
+              }
+            : null
+        }
         canvasSourceUrl={(() => {
           const active =
             mediaAssets.find((row) => row.id === activeMediaId) ?? mediaAssets[0]
@@ -2062,25 +3097,46 @@ export function StudioWorkspace({
         }
         footerSlot={null}
         canvasSlot={
-          phase === "canvas" && imageAssets.length >= 2 ? (
-            <CanvasSlidePicker
-              slides={imageAssets.map((asset) => {
-                const overlay =
-                  asset.id === activeMediaId
-                    ? textOverlay
-                    : overlayForAsset(asset.id)
-                return {
-                  id: asset.id,
-                  url: asset.publicUrl || asset.url,
-                  hasText: overlay ? canvasOverlayHasDecor(overlay) : false,
-                }
-              })}
-              activeId={activeMediaId}
-              onSelect={(id) => {
-                const asset = imageAssets.find((row) => row.id === id)
-                if (asset) onSelectStudioMedia(asset)
-              }}
-            />
+          phase === "canvas" ? (
+            <div className="space-y-3">
+              <CanvasLayoutsBar
+                layouts={canvasLayouts}
+                photoCount={imageAssets.length}
+                busy={layoutsBusy || cutoutBusy}
+                saveSlot={(selected) => (
+                  <CanvasLayoutSaveButton
+                    variant="labeled"
+                    busy={layoutsBusy}
+                    suggestedName={`Layout ${canvasLayouts.length + 1}`}
+                    selectedLayout={selected}
+                    onSave={saveLayout}
+                  />
+                )}
+                onApply={applyLayout}
+                onSetDefault={setDefaultLayout}
+                onDelete={deleteLayout}
+              />
+              {imageAssets.length >= 2 ? (
+                <CanvasSlidePicker
+                  slides={imageAssets.map((asset) => {
+                    const overlay =
+                      asset.id === activeMediaId
+                        ? textOverlay
+                        : overlayForAsset(asset.id)
+                    return {
+                      id: asset.id,
+                      url: asset.publicUrl || asset.url,
+                      hasText: overlay ? canvasOverlayHasDecor(overlay) : false,
+                    }
+                  })}
+                  activeId={activeMediaId}
+                  onSelect={(id) => {
+                    const asset = imageAssets.find((row) => row.id === id)
+                    if (asset) onSelectStudioMedia(asset)
+                  }}
+                />
+              ) : null}
+            </div>
           ) : null
         }
       />
@@ -2094,6 +3150,7 @@ export function StudioWorkspace({
         step={workbenchStep}
         onStepChange={setWorkbenchStep}
       />
+      <WlsDailyStoryEntryBanner show={isFashionBrand && wlsDailyStorySession} />
       {systemError ? (
         <div
           className="mt-2 border-2 border-mad-black bg-mad-vermillion px-3 py-2 text-sm font-bold text-mad-white shadow-keycap"
@@ -2105,21 +3162,24 @@ export function StudioWorkspace({
     </>
   )
 
-  const priorSummaryStep =
-    workbenchStep === WORKBENCH_STEP_INTENT
-      ? WORKBENCH_STEP_MEDIA
-      : workbenchStep === WORKBENCH_STEP_CANVAS
-        ? WORKBENCH_STEP_INTENT
-        : workbenchStep === WORKBENCH_STEP_COPY
-          ? WORKBENCH_STEP_CANVAS
-          : null
+  /** WLS Daily Story sequence active — bottom strip is the product picker. */
+  const wlsTemplateProductMode =
+    wlsDailyStorySession || wlsSequenceMarketingEntityIds.length > 0
 
   return (
     <div className="flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden">
       <StudioSplitShell
         className="min-h-0 flex-1"
         showInlinePreview
-        previewActions={null}
+        previewActions={
+          workbenchStep === WORKBENCH_STEP_CANVAS ? (
+            <CanvasLayoutSaveButton
+              busy={layoutsBusy}
+              suggestedName={`Layout ${canvasLayouts.length + 1}`}
+              onSave={saveLayout}
+            />
+          ) : null
+        }
         previewDrawer={{
           open: previewDrawerOpen,
           onOpenChange: setPreviewDrawerOpen,
@@ -2129,8 +3189,21 @@ export function StudioWorkspace({
           <CompactChannelRail
             placement="below"
             platform={simPlatform}
-            onPlatformChange={setSimPlatform}
+            onPlatformChange={(platform) => {
+              setSimPlatform(platform)
+              // Preserve Story overlays when previewing Feed/TikTok — only
+              // record intended surface; do not clear slideOverlays/storyPreview.
+              if (platform === "ig_story") setCreativeSurface("story")
+              else if (platform === "ig_feed" || platform === "facebook") {
+                setCreativeSurface("feed")
+              }
+            }}
           />
+        }
+        previewGridClassName={
+          workbenchStep === WORKBENCH_STEP_CANVAS
+            ? "lg:grid-cols-[minmax(0,1fr)_minmax(220px,min(20rem,26vw))] xl:grid-cols-[minmax(0,1fr)_minmax(240px,min(22rem,28vw))]"
+            : undefined
         }
         navigationDock={
           <StepDock
@@ -2140,10 +3213,10 @@ export function StudioWorkspace({
             nextBusy={multiplexing || (pending && !arming)}
             nextLabel={
               workbenchStep === WORKBENCH_STEP_MEDIA
-                ? "Continue to Intent"
-                : workbenchStep === WORKBENCH_STEP_INTENT
-                  ? "Continue to Canvas"
-                  : workbenchStep === WORKBENCH_STEP_CANVAS
+                ? "Continue to Canvas"
+                : workbenchStep === WORKBENCH_STEP_CANVAS
+                  ? "Continue to Intent"
+                  : workbenchStep === WORKBENCH_STEP_INTENT
                     ? "Continue to Copy"
                     : workbenchStep === WORKBENCH_STEP_COPY
                       ? "Continue to Schedule"
@@ -2155,12 +3228,17 @@ export function StudioWorkspace({
               (workbenchStep === WORKBENCH_STEP_MEDIA &&
                 mediaAssets.length === 0) ||
               (workbenchStep === WORKBENCH_STEP_COPY &&
-                rawSpark.trim().length < 8)
+                rawSpark.trim().length < 8 &&
+                !wlsTemplateProductMode)
             }
             showScheduleActions={
               workbenchStep === WORKBENCH_STEP_CHANNELS && showStudio
             }
-            onSaveDraft={() => runSave("draft")}
+            onSaveDraft={
+              mediaAssets.some((row) => row.type === "image")
+                ? () => runSave("draft")
+                : undefined
+            }
             saveDraftBusy={pending && !arming}
             onConfirmArm={openReview}
             confirmArmBusy={arming}
@@ -2171,6 +3249,31 @@ export function StudioWorkspace({
               setPreviewDrawerOpen((open) => !open)
             }
           />
+        }
+        footer={
+          isFashionBrand &&
+          (workbenchStep === WORKBENCH_STEP_MEDIA ||
+            workbenchStep === WORKBENCH_STEP_CANVAS) ? (
+            <WlsEligibleProductStrip
+              entityId={activeEntity.id}
+              catalog={wlsProductCatalog}
+              loading={wlsEligibleLoading}
+              excludedCount={wlsExcludedCount}
+              selectableCount={wlsSelectableCount}
+              syncedCount={wlsSyncedCount}
+              exclusionSummary={wlsExclusionSummary}
+              storySequenceMode={wlsTemplateProductMode}
+              sequenceMarketingEntityIds={wlsSequenceMarketingEntityIds}
+              activeMarketingEntityId={activeMarketingEntityId}
+              onRefresh={() => void loadWlsEligibleProducts()}
+              onNavigateToFrame={navigateWlsProductFrame}
+              onAddToSequence={(row) => void addWlsProductToSequence(row)}
+              onAddToMedia={(row) => void addWlsProductToMedia(row)}
+              onRemoveFromSequence={removeWlsProductFromSequence}
+              onReplaceActiveFrame={(row) => void replaceActiveWlsFrame(row)}
+              disabled={wlsStripBusy || rehydrating}
+            />
+          ) : null
         }
         preview={
           <MultiPlatformSimulator
@@ -2185,7 +3288,13 @@ export function StudioWorkspace({
               if (asset) onSelectStudioMedia(asset)
             }}
             platform={simPlatform}
-            onPlatformChange={setSimPlatform}
+            onPlatformChange={(platform) => {
+              setSimPlatform(platform)
+              if (platform === "ig_story") setCreativeSurface("story")
+              else if (platform === "ig_feed" || platform === "facebook") {
+                setCreativeSurface("feed")
+              }
+            }}
             industry={activeEntity.industry}
             visualPresets={activeEntity.brand_identity.visual_presets ?? null}
             textOverlay={textOverlay}
@@ -2193,49 +3302,73 @@ export function StudioWorkspace({
             textOverlayInteractive={workbenchStep === WORKBENCH_STEP_CANVAS}
             storyPreview={storyPreview}
             onStoryPreviewChange={setStoryPreview}
-            hideStylingDock={workbenchStep === WORKBENCH_STEP_MEDIA}
+            // Story tools live on Canvas — the under-phone dock on Intent/Copy
+            // shrank the preview and made Words/Tags vanish (0-height overlay).
+            hideStylingDock
             externalCutoutRequestId={cutoutRequestId}
+            onCutoutBusyChange={setCutoutBusy}
             showTextStyler={false}
             showCreativeControls={false}
             showActionDock={workbenchStep === WORKBENCH_STEP_CHANNELS}
             hidePlatformSwitcher
             actionContext={{
               entityId: activeEntity.id,
-              marketingEntityId: null,
-              destinationUrl: null,
+              marketingEntityId:
+                mediaAssets.find((row) => row.id === activeMediaId)
+                  ?.marketingEntityId ??
+                mediaAssets[0]?.marketingEntityId ??
+                null,
+              destinationUrl:
+                mediaAssets.find((row) => row.id === activeMediaId)
+                  ?.destinationUrl ??
+                mediaAssets[0]?.destinationUrl ??
+                null,
             }}
           />
         }
         controls={
-          <div className="flex h-full min-h-0 flex-1 flex-col gap-2">
-            {priorSummaryStep === WORKBENCH_STEP_INTENT &&
-            workbenchStep !== WORKBENCH_STEP_CANVAS ? (
-              <StudioStepSummary
-                title="Intent"
-                summary={intentStepSummary}
-                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_INTENT)}
-              />
-            ) : null}
-            {priorSummaryStep === WORKBENCH_STEP_CANVAS ? (
+          <div className="flex min-h-0 w-full flex-col gap-2">
+            {workbenchStep === WORKBENCH_STEP_INTENT ||
+            workbenchStep === WORKBENCH_STEP_COPY ? (
               <StudioStepSummary
                 title="Canvas"
                 summary={canvasStepSummary}
                 onEdit={() => setWorkbenchStep(WORKBENCH_STEP_CANVAS)}
               />
             ) : null}
-            <div className="flex min-h-0 flex-1 flex-col">
+            {workbenchStep === WORKBENCH_STEP_COPY ? (
+              <StudioStepSummary
+                title="Intent"
+                summary={intentStepSummary}
+                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_INTENT)}
+              />
+            ) : null}
+            <div className="flex min-h-0 w-full flex-col pb-1">
         {workbenchStep === WORKBENCH_STEP_MEDIA ? (
           <StepMedia
             entityId={activeEntity.id}
-            suggestionsSlot={
-              <NewArrivalSuggestions
+            templatePickerSlot={
+              <StudioTemplatePicker
                 entityId={activeEntity.id}
-                brandName={activeEntity.name}
-                industry={activeEntity.industry}
-                isFashion={isFashionBrand}
-                onUse={applyNewArrival}
+                selectedTemplateId={templateInstanceId}
+                selectedTemplateName={templateDisplayName}
+                busy={templateHandoffBusy}
                 disabled={multiplexing || pending || rehydrating}
+                onSelectTemplate={(id) => selectStudioTemplate(id)}
+                onClearTemplate={clearStudioTemplate}
               />
+            }
+            suggestionsSlot={
+              isFashionBrand ? null : (
+                <NewArrivalSuggestions
+                  entityId={activeEntity.id}
+                  brandName={activeEntity.name}
+                  industry={activeEntity.industry}
+                  isFashion={isFashionBrand}
+                  onUse={applyNewArrival}
+                  disabled={multiplexing || pending || rehydrating}
+                />
+              )
             }
             assets={mediaAssets}
             activeId={activeMediaId}
@@ -2245,48 +3378,10 @@ export function StudioWorkspace({
             industry={activeEntity.industry}
             onIntakeAssetsAdded={(added) => applyIntakeFromTray(added)}
             onVisualInspect={onVisualInspect}
-            bridgePayload={{
-              spokenHook: workbenchHeadline.trim() || rawSpark.trim().slice(0, 120),
-              onScreenHeadline:
-                workbenchHeadline.trim().slice(0, 80) || activeEntity.name,
-              caption: rawSpark.trim(),
-              destinationUrl: null,
-            }}
             onFinishedRender={onStudioFinishedRender}
             onOpenMediaLibrary={() => setMediaLibraryOpen(true)}
             disabled={multiplexing || pending || rehydrating}
             visualDescription={visualInspection?.visualDescription ?? null}
-            cutoutActive={
-              isMultiPhoto
-                ? canvasBackdropOn(textOverlay)
-                : storyPreview.cutoutMode === "transparent"
-            }
-            cutoutBusy={cutoutBusy}
-            onCutoutToggle={
-              isMultiPhoto
-                ? () => void cutoutSlides("slide", !canvasBackdropOn(textOverlay))
-                : onCutoutToggle
-            }
-            onCutoutAll={
-              isMultiPhoto ? () => void cutoutSlides("all", true) : undefined
-            }
-            storyCard={isMultiPhoto ? null : {
-              swatches: brandSwatches(brandVisualPresets),
-              background:
-                storyPreview.canvasColor || brandVisualPresets.canvas_color,
-              onBackgroundChange: (hex) =>
-                setStoryPreview((current) => ({
-                  ...current,
-                  canvasColor: hex,
-                  bgPresetId: "custom",
-                })),
-              scale: storyPreview.subjectScale ?? 1,
-              onScaleChange: (subjectScale) =>
-                setStoryPreview((current) => ({ ...current, subjectScale })),
-              offsetY: storyPreview.subjectOffsetY ?? 0,
-              onOffsetYChange: (subjectOffsetY) =>
-                setStoryPreview((current) => ({ ...current, subjectOffsetY })),
-            }}
           />
         ) : null}
 
@@ -2482,7 +3577,12 @@ export function StudioWorkspace({
         }
       />
 
-      {pack && apiImageUrl && dispatchPlan ? (
+      {pack &&
+      (apiImageUrl ||
+        mediaAssets.some((row) =>
+          /^https?:\/\//i.test(row.publicUrl || row.url)
+        )) &&
+      dispatchPlan ? (
         <ReviewBeforeSchedule
           open={reviewOpen}
           onOpenChange={setReviewOpen}
@@ -2490,7 +3590,13 @@ export function StudioWorkspace({
           brandName={activeEntity.name}
           pack={pack}
           slots={dispatchPlan.filter((slot) => slot.enabled)}
-          photoUrl={apiImageUrl}
+          photoUrl={
+            apiImageUrl ||
+            mediaAssets
+              .map((row) => row.publicUrl || row.url)
+              .find((url) => /^https?:\/\//i.test(url)) ||
+            ""
+          }
           textOverlay={textOverlay}
           storyPreview={storyPreview}
           useStoryCard={!isFudi && storyPreview.cutoutMode !== "original"}

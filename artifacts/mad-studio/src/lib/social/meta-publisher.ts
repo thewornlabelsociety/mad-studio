@@ -3,6 +3,70 @@ import {
   type PublishPlacement,
   type SocialConnectionRow,
 } from "@/lib/social/types"
+import { isPublishVideoUrl } from "@/lib/social/video-media"
+
+/** Explicit media kind from callers, or inferred from URL extension. */
+export type InstagramPublishMediaKind = "image" | "video"
+
+/**
+ * Resolve whether Instagram Content Publishing should use image_url or video_url.
+ * Prefer an explicit kind/MIME/"VIDEO" from callers; otherwise sniff the URL path.
+ */
+export function resolveInstagramPublishMediaKind(
+  mediaUrl: string,
+  mediaKind?: string | null
+): InstagramPublishMediaKind {
+  const raw = (mediaKind ?? "").trim().toLowerCase()
+  if (
+    raw === "video" ||
+    raw === "videos" ||
+    raw === "reel" ||
+    raw === "reels" ||
+    raw.startsWith("video/")
+  ) {
+    return "video"
+  }
+  if (
+    raw === "image" ||
+    raw === "photo" ||
+    raw === "photos" ||
+    raw.startsWith("image/")
+  ) {
+    return "image"
+  }
+  return isPublishVideoUrl(mediaUrl) ? "video" : "image"
+}
+
+/**
+ * Instagram Graph /{ig-user-id}/media container fields for a single asset.
+ * Feed video → video_url + REELS; Story video → video_url + STORIES; images keep image_url.
+ */
+export function buildInstagramMediaContainerBody(input: {
+  mediaUrl: string
+  caption: string
+  placement: PublishPlacement
+  /** Override URL sniffing when callers already know the asset type. */
+  mediaKind?: string | null
+}): Record<string, string | undefined> {
+  const isStory = input.placement === "story"
+  const kind = resolveInstagramPublishMediaKind(input.mediaUrl, input.mediaKind)
+  const caption = isStory ? undefined : input.caption
+
+  if (kind === "video") {
+    return {
+      video_url: input.mediaUrl,
+      caption,
+      // Feed video publishes as a Reel; Stories keep media_type=STORIES with video_url.
+      media_type: isStory ? "STORIES" : "REELS",
+    }
+  }
+
+  return {
+    image_url: input.mediaUrl,
+    caption,
+    media_type: isStory ? "STORIES" : undefined,
+  }
+}
 
 type GraphErrorBody = {
   error?: {
@@ -114,7 +178,7 @@ async function waitForInstagramContainer(input: {
     if (code === "FINISHED" || code === "PUBLISHED") return
     if (code === "ERROR" || code === "EXPIRED") {
       throw new Error(
-        `Instagram media container failed (${code || "ERROR"}). Check image_url is publicly reachable over HTTPS.`
+        `Instagram media container failed (${code || "ERROR"}). Check image_url/video_url is publicly reachable over HTTPS.`
       )
     }
 
@@ -132,20 +196,22 @@ export async function publishInstagramMedia(input: {
   mediaUrl: string
   caption: string
   placement: PublishPlacement
+  /** Optional: "video" | "image" | MIME / VIDEO — otherwise inferred from URL. */
+  mediaKind?: string | null
 }): Promise<MetaPublishResult> {
   const igUserId = input.connection.account_id
-  const isStory = input.placement === "story"
 
   const container = await graphRequest<{ id: string }>(
     `/${encodeURIComponent(igUserId)}/media`,
     {
       method: "POST",
       accessToken: input.connection.access_token,
-      body: {
-        image_url: input.mediaUrl,
-        caption: isStory ? undefined : input.caption,
-        media_type: isStory ? "STORIES" : undefined,
-      },
+      body: buildInstagramMediaContainerBody({
+        mediaUrl: input.mediaUrl,
+        caption: input.caption,
+        placement: input.placement,
+        mediaKind: input.mediaKind,
+      }),
     }
   )
 
@@ -433,6 +499,8 @@ export async function publishToMeta(input: {
   mediaUrl: string
   caption: string
   placement: PublishPlacement
+  /** Optional override for single-asset IG publish (URL sniff is the default). */
+  mediaKind?: string | null
   /** 2–10 images to post as one feed carousel / multi-photo post. */
   carouselUrls?: string[] | null
   /** 2–10 images → consecutive Instagram Story frames (tray order). */

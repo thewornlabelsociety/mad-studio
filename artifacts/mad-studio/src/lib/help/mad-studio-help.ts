@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-26a"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-27d"
 
 export type HelpSop = {
   title: string
@@ -231,7 +231,7 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Drop workbench (Media step)",
         description:
-          "Drop workbench: New posts start with **no on-image words** — add headline/subhead on **Canvas** (Words) and Brand/Size/Price/Vibe on **Tags**. On IG Story, Words/Tags paint **above** the Story card image, canvas colour, and phone chrome (Send bar) so they stay visible and draggable. Default brand layouts apply font/placement only until you type or **Apply layout**. Hook/caption stay on **Copy**. Phone preview keeps Canvas styling through Copy and Schedule.",
+          "Drop workbench: New posts start with **no on-image words** — add headline/subhead on **Canvas** (Words) and Brand/Size/Price/Vibe on **Tags**. On IG Story, Words/Tags paint **above** the Story card image, canvas colour, and phone chrome (Send bar) so they stay visible and draggable. Default brand layouts apply font/placement only until you type or **Apply style**. Hook/caption stay on **Copy**. Phone preview keeps Canvas styling through Copy and Schedule.",
       },
     ],
     sop: {
@@ -464,12 +464,12 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Media library & carousel",
         description:
-          "Media tray **Upload** picks multiple PNG/JPG/WEBP/MP4/MOV from your device (or drag onto the tray). **Library** opens entity media (intake + uploads with [ FÜDI App ] / [ Upload ] badges) — multi-select → **Add to tray**, or **Upload files** in the drawer. With 2+ tray items, **drag thumbnails** to change carousel order (numbered 1, 2, 3…); when the tray is linked to an inventory item, that order is saved on the item’s `images` list. **One tray for all channels**. **IG Feed** / **Facebook**: 2–10 stills → one **carousel** (1:1 center crop per slide). **IG Story**: 2–10 stills → **consecutive Story frames** in tray order (viewers tap through — same as multi-select in the Instagram app). Each slide keeps its own Canvas text when you arm from **Review**. Single-photo Story still letterboxes non–9:16 art on black. **IG Story** preview supports tap left/right, ‹ ›, progress segments, and keyboard ← →.",
+          "Media tray **Upload** picks multiple PNG/JPG/WEBP/MP4/MOV from your device (or drag onto the tray). **Library** opens entity media (intake + uploads with [ FÜDI App ] / [ Upload ] badges) — multi-select → **Add to tray**, or **Upload files** in the drawer. With 2+ tray items, **drag thumbnails** to change carousel order (numbered 1, 2, 3…); when the tray is linked to an inventory item, that order is saved on the item’s `images` list. **One tray for all channels**. **IG Feed** / **Facebook**: 2–10 stills → one **carousel** (1:1 center crop per slide). In preview, flicking slides updates on-image Canvas text and the mock caption to that slide’s listing (publish still uses the single Copy caption). Prices never become hashtags (e.g. $45.00 must not appear as #4500). **IG Story**: 2–10 stills → **consecutive Story frames** in tray order. Each slide keeps its own Canvas text when you arm from **Review**. **IG Story** preview supports tap left/right, ‹ ›, progress segments, and keyboard ← →.",
       },
       {
         name: "On-canvas text styler",
         description:
-          "Canvas step toolbar: **Words**, **Tags**, **Logo**, **Style** on one row (Clear / On beside them). Drag the dashed box on Preview. Tags paint **above** the photo and Story card in the phone mock (not behind the item). Ticking **Vibe** (or any tag) seeds placeholder text when the listing has no vibe yet — edit the field to your label. **WLS synced products:** title and listing details land in **Copy** (caption) by default; Canvas **Tags** still show brand / size / price on the image — **Words** stay empty until you add a hook. Below: native-only phone features (link sticker, music, poll) plus **Copy link for sticker** when a trackable URL is set. Plain baked text only — no fake stickers in export.",
+          "Canvas step toolbar: **Words**, **Tags**, **Logo**, **Style** on one row (Clear / On beside them). Drag the dashed box on Preview. Tags and Words paint **above** the photo, Story card, and phone chrome so they stay visible. **Saved layouts** (top of Canvas): style the slide → **Save layout**; **Apply style** merges fonts/placement onto this slide without wiping words; **+ saved text** fills blank headline/subhead; **Style all** applies to every still. Star a layout as default for new posts. Ticking **Vibe** (or any tag) seeds placeholder text when the listing has no vibe yet. **WLS synced products:** title/listing details land in **Copy**; Canvas **Tags** still show brand / size / price — **Words** stay empty until you add a hook. Below: native-only phone features plus **Copy link for sticker** when a trackable URL is set.",
       },
       {
         name: "CapCut bridge",
@@ -482,29 +482,40 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
           "On Canvas: CapCut, PhotoRoom, and **Cut out item** sit above Words/Tags/Logo. After cutout, **Story card** controls (background, item size, position) update the IG Story phone preview. Cutout prefers AI removal; white-studio photos can use the server fallback.",
       },
       {
+        name: "Multi-frame Story Save Draft",
+        description:
+          "WLS Daily New Arrivals (or any multi-still Story tray): **Save draft** stores one campaign with ordered frames, per-frame overlays, product IDs, destination URLs, Story preview settings, and template attribution in `studio_context` — no AI pack required. Reopen from Campaigns via `pack_id` to continue editing; resave updates the same draft. Review Before Schedule bakes each frame at 1080×1920 in tray order. Saving a draft does not change the reusable template version.",
+      },
+      {
         name: "Multi-channel scheduler",
         description: "Arm Instagram/Facebook/TikTok/email slots; brain timing suggestions.",
       },
       {
+        name: "Review Before Schedule (primary arm)",
+        description:
+          "On Schedule, tick channels then **Confirm** opens **Review Before Schedule**: bakes Feed/Story artwork (per-slide Canvas text, 1080×1920 Story frames), then **armCampaignMultiChannelDispatch** queues/publishes. Multi-frame Story drafts keep `creative_sequence` on arm so Confirm cannot wipe Save draft frames. Meta IG video uses Graph `video_url` (feed→REELS, story→STORIES); Facebook Story API is unsupported.",
+      },
+      {
         name: "Two-track dispatch dock",
         description:
-          "Schedule step preview dock follows platform: **Track 1 Autopilot** (IG Feed + Facebook) → **Confirm & publish live** via /api/social/publish with a trackable short link in the Facebook caption (FÜDI entity uses **https://fudi.nz/r/…**; other brands use your MAD Studio site /r/ slug). **Track 2 Draft & drop** (IG Story + TikTok) → **Download ready media (9:16)** and **Copy link sticker URL** — no fake link stickers in preview; native music/poll/link stickers are added on phone. **Video drops (incl. FÜDI):** **Video audio** — *No audio (add music in-app)* strips the track before download or API dispatch (TikTok, Meta, webhooks); *Keep original audio* sends the file unchanged except TikTok Direct Post (AAC optimize). Header **Team SOP & posting guide** opens the full slide-over playbook.",
+          "Optional preview dock shortcuts: **Track 1 Autopilot** (IG Feed + Facebook) → **Confirm & publish live** via /api/social/publish (Facebook caption gets a trackable short link — FÜDI uses **https://fudi.nz/r/…**; others use MAD /r/). **Track 2 Draft & drop** (IG Story + TikTok) → **Download ready media (9:16)** and **Copy link sticker URL**. Prefer **Review Before Schedule** for multi-channel arm with baked slides. **Video audio** toggle: strip vs keep original (TikTok Direct Post still AAC-optimizes). Header **Team SOP & posting guide** opens the playbook.",
       },
       {
         name: "Save / dispatch",
         description:
-          "Save draft to campaigns; arm queue; optional outbound webhook dispatch for legacy flows.",
+          "Save draft to campaigns (with creative_sequence for multi-frame); arm queue via Review; optional outbound webhook dispatch for legacy flows.",
       },
     ],
     sop: {
-      title: "Two-track team posting (Vanessa SOP)",
+      title: "Schedule & arm (creator)",
       audience: "Creator",
-      prerequisites: ["Signed in", "Brand selected", "Media attached on Schedule step"],
+      prerequisites: ["Signed in", "Brand selected", "Media on Create tray"],
       steps: [
-        "Open **Team SOP & posting guide** from the top bar anytime.",
-        "Track 1 (IG Feed / Facebook): review 4:5 preview → **Confirm & publish live**.",
-        "Track 2 (IG Story / TikTok): **Download ready media** → **Copy link sticker URL** → post from phone with native Link/Music/Poll stickers.",
-        "Optional: arm multi-channel rows on Schedule; confirm on Today and Campaigns.",
+        "Finish Media → Canvas → Intent → Copy, then open **Schedule**.",
+        "Tick the channels to arm, then **Confirm** → **Review Before Schedule** (check each channel mock).",
+        "Confirm arm — Feed/Facebook may publish or queue; Story/TikTok use baked media + phone stickers as needed.",
+        "Optional dock: Track 1 **Confirm & publish live** or Track 2 **Download ready media** for a single channel.",
+        "Open **Team SOP & posting guide** from the top bar for the full Vanessa playbook.",
       ],
     },
   },

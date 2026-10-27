@@ -110,7 +110,10 @@ export async function GET(request: WebRequest) {
     const shortToken = shortLived.access_token?.trim()
     if (!shortToken) return finish("meta_error", "token_exchange_failed", saved.entityId)
 
-    const longLived = await graphGet<{ access_token?: string }>("/oauth/access_token", {
+    const longLived = await graphGet<{
+      access_token?: string
+      expires_in?: number
+    }>("/oauth/access_token", {
       grant_type: "fb_exchange_token",
       client_id: appId,
       client_secret: appSecret,
@@ -118,6 +121,13 @@ export async function GET(request: WebRequest) {
     })
     const userToken = longLived.access_token?.trim()
     if (!userToken) return finish("meta_error", "long_lived_exchange_failed", saved.entityId)
+    // Long-lived user tokens are ~60 days; Page tokens from /me/accounts usually
+    // inherit that window. Persist expiry so arm/expiry checks aren't blind.
+    const expiresIn =
+      typeof longLived.expires_in === "number" && longLived.expires_in > 0
+        ? longLived.expires_in
+        : 60 * 24 * 60 * 60
+    const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000).toISOString()
 
     const accountsPayload = await graphGet<{ data?: MetaPageAccount[] }>("/me/accounts", {
       fields: "id,name,access_token,instagram_business_account{id,username}",
@@ -144,6 +154,7 @@ export async function GET(request: WebRequest) {
       account_id: string
       account_name: string
       access_token: string
+      token_expires_at: string
       is_active: boolean
       updated_at: string
     }> = [
@@ -153,6 +164,7 @@ export async function GET(request: WebRequest) {
         account_id: pageId,
         account_name: pageName,
         access_token: pageToken,
+        token_expires_at: tokenExpiresAt,
         is_active: true,
         updated_at: now,
       },
@@ -166,6 +178,7 @@ export async function GET(request: WebRequest) {
         account_id: ig.id.trim(),
         account_name: ig.username?.trim() || "Instagram",
         access_token: pageToken,
+        token_expires_at: tokenExpiresAt,
         is_active: true,
         updated_at: now,
       })

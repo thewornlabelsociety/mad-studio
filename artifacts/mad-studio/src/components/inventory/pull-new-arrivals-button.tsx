@@ -6,6 +6,7 @@ import { Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
 import { parseApiJsonResponse } from "@/lib/api/parse-response"
+import { notifyInventorySynced } from "@/lib/studio/pull-new-arrivals-client"
 import {
   inventoryIntakeBusyLabel,
   inventoryIntakeLabel,
@@ -60,6 +61,7 @@ export function PullNewArrivalsButton({
             : (payload.message ??
                 `Successfully pulled ${imported} new drops & specials from FÜDI`)
         )
+        notifyInventorySynced(entityId)
         router.refresh()
         return
       }
@@ -88,6 +90,7 @@ export function PullNewArrivalsButton({
             ? `Imported ${payload.imported} new arrival${payload.imported === 1 ? "" : "s"}.`
             : "No new arrivals to import.")
       )
+      notifyInventorySynced(entityId)
       router.refresh()
     } catch (error) {
       toast.error(

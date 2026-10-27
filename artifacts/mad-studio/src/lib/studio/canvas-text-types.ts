@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react"
 
+import { formatCanvasSizeTagLabel } from "@/lib/studio/canvas-size-tag-label"
+
 
 
 export const CANVAS_TEXT_FONT_IDS = [
@@ -187,7 +189,7 @@ export type CanvasTextOverlayState = {
 
   /**
    * Tags line: optional item facts as one pill ("New consignment · Brand ·
-   * Sz 10 · $180 · Vibe"). Each is ticked on or off; the values are editable.
+   * SIZE 8 · $180 · Vibe"). Each is ticked on or off; the values are editable.
    */
   tagShowNew: boolean
   tagShowBrand: boolean
@@ -421,7 +423,7 @@ export function canvasOverlayHasDecor(overlay: CanvasTextOverlayState): boolean 
     Boolean(
       overlay.headline.trim() ||
         overlay.subhead.trim() ||
-        canvasTagItems(overlay).length > 0 ||
+        canvasTagTogglesOn(overlay) ||
         canvasLogoOn(overlay) ||
         canvasBackdropOn(overlay)
     )
@@ -478,7 +480,14 @@ export function reconcileUnwantedCanvasTextOverlay(
   const next = normalizeCanvasTextOverlay(overlay)
   if (!next.enabled) return next
   const headline = next.headline.trim()
-  if (!headline && !next.subhead.trim()) {
+  const subhead = next.subhead.trim()
+  const hasTags = canvasTagItems(next).length > 0
+  const hasLogo = canvasLogoOn(next)
+  const hasBackdrop = canvasBackdropOn(next)
+  // Tags / logo / cutout-only slides are valid — do not wipe them just because
+  // Words (headline) is empty.
+  if (!headline && !subhead) {
+    if (hasTags || hasLogo || hasBackdrop) return next
     return clearCanvasTextOverlay()
   }
   if (!headline) return next
@@ -499,6 +508,14 @@ export function reconcileUnwantedCanvasTextOverlay(
     headline.localeCompare(hook, undefined, { sensitivity: "accent" }) === 0
 
   if (isSingleWord && matchesCaptionLead && !matchesHook) {
+    // Keep tags/logo; only clear the ghost headline/subhead.
+    if (hasTags || hasLogo || hasBackdrop) {
+      return normalizeCanvasTextOverlay({
+        ...next,
+        headline: "",
+        subhead: "",
+      })
+    }
     return clearCanvasTextOverlay()
   }
 
@@ -1225,13 +1242,6 @@ function priceLabel(raw: string): string {
   return /^\d+(?:[.,]\d+)?$/.test(value) ? `$${value}` : value
 }
 
-/** "Sz 10" from "10"; "Size M", "Sz M" and "One size" kept as typed. */
-function sizeLabel(raw: string): string {
-  const value = raw.trim()
-  if (!value) return ""
-  return /^sz\b|\bsize\b/i.test(value) ? value : `Sz ${value}`
-}
-
 /** The item-fact tags, each drawn as its own box. */
 export const CANVAS_TAGS = [
   { id: "tag_new", show: "tagShowNew", text: "tagNewLabel", x: "tagNewX", y: "tagNewY", label: "New" },
@@ -1377,6 +1387,17 @@ function normalizeTagStyles(raw: unknown): CanvasTextOverlayState["tagStyles"] {
   return out
 }
 
+/** Preview label when a tag is toggled on but the field is still empty. */
+export function canvasTagPlaceholderText(tagId: CanvasTagId): string {
+  const row = CANVAS_TAGS.find((tag) => tag.id === tagId)
+  return row?.label ?? "Tag"
+}
+
+/** True when any tag toggle is on (even before the operator types). */
+export function canvasTagTogglesOn(overlay: CanvasTextOverlayState): boolean {
+  return CANVAS_TAGS.some((tag) => overlay[tag.show])
+}
+
 /** Ticked tags with their display text (sizes and prices tidied). */
 export function canvasTagItems(
   overlay: CanvasTextOverlayState
@@ -1384,14 +1405,21 @@ export function canvasTagItems(
   return CANVAS_TAGS.flatMap((tag) => {
     if (!overlay[tag.show]) return []
     const raw = overlay[tag.text] ?? ""
-    const text =
+    let text =
       tag.id === "tag_size"
-        ? sizeLabel(raw)
+        ? formatCanvasSizeTagLabel(raw)
         : tag.id === "tag_price"
           ? priceLabel(raw)
           : raw.trim()
-    if (!text) return []
-    return [{ id: tag.id, text, x: overlay[tag.x] ?? 50, y: overlay[tag.y] ?? 10 }]
+    if (!text) text = canvasTagPlaceholderText(tag.id)
+    return [
+      {
+        id: tag.id,
+        text,
+        x: overlay[tag.x] ?? 50,
+        y: overlay[tag.y] ?? 10,
+      },
+    ]
   })
 }
 
