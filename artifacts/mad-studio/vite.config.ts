@@ -19,13 +19,9 @@ function envTrim(key: string, loaded: Record<string, string>): string {
 export default defineConfig(async ({ mode }) => {
   const loaded = loadEnv(mode, repoRoot, '');
 
-const rawPort = process.env.PORT ?? loaded.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    'PORT environment variable is required but was not provided.',
-  );
-}
+// Replit supplies PORT for the dev server, but static production builds do
+// not receive it. Keep the artifact's configured preview port as the default.
+const rawPort = process.env.PORT ?? loaded.PORT ?? '24726';
 
 const port = Number(rawPort);
 
@@ -33,13 +29,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH ?? loaded.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    'BASE_PATH environment variable is required but was not provided.',
-  );
-}
+const basePath = process.env.BASE_PATH ?? loaded.BASE_PATH ?? '/';
 
 const viteSupabaseUrl =
   envTrim('VITE_SUPABASE_URL', loaded) ||

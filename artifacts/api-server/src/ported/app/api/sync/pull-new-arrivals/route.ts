@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { HttpResponse as NextResponse } from "@server/http-response"
 
 import { pullNewArrivalsForEntity } from "@/lib/inventory/pull-arrivals"
 
