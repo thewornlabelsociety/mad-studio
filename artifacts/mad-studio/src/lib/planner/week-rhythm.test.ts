@@ -56,6 +56,16 @@ test("the grid is newest first, Instagram feed only, up to the week's end", () =
     post("planned", new Date(2026, 10, 4), ["instagram_feed"]),
     post("next-week", new Date(2026, 10, 10), ["instagram_feed"]),
   ]
-  const grid = gridPosts({ posts, until: new Date(2026, 10, 9) })
+  const grid = gridPosts({ posts, until: new Date(2026, 10, 9), now: new Date(2026, 10, 3) })
   assert.deepEqual(grid.map((row) => row.key), ["planned", "old"])
+})
+
+test("posts that failed or were missed never reach the grid", () => {
+  const posts = [
+    post("failed", new Date(2026, 10, 2), ["instagram_feed"], "failed"),
+    post("missed", new Date(2026, 10, 2, 9), ["instagram_feed"], "scheduled"),
+    post("due", new Date(2026, 10, 5), ["instagram_feed"], "scheduled"),
+  ]
+  const grid = gridPosts({ posts, until: new Date(2026, 10, 9), now: new Date(2026, 10, 3) })
+  assert.deepEqual(grid.map((row) => row.key), ["due"])
 })

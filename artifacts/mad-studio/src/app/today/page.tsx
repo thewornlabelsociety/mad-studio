@@ -229,7 +229,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       {isWls ? (
         // Worn Label: Stories, today's feed post, and alerts only when needed.
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto grid w-full max-w-6xl gap-3 px-3 py-3 md:px-4">
+          <div className="mx-auto grid w-full min-w-0 max-w-6xl grid-cols-1 gap-3 px-3 py-3 md:px-4">
             <TodayAlerts
               entityId={activeEntityId}
               failedCount={failedDispatchCount}

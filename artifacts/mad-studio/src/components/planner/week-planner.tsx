@@ -28,6 +28,27 @@ import {
 } from "@/lib/planner/week-rhythm"
 import { cn } from "@/lib/utils"
 
+/** A grid tile's picture, or its title when the image can't load (expired or a video). */
+function GridImage({ src, title, dim }: { src: string; title: string; dim: boolean }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return (
+      <span className="flex size-full items-center justify-center bg-neutral-100 p-2 text-center text-[11px] leading-snug text-neutral-600">
+        {title}
+      </span>
+    )
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={title}
+      onError={() => setFailed(true)}
+      className={cn("size-full object-cover", dim && "opacity-80")}
+    />
+  )
+}
+
 /** How far back to look for posts already on the grid. */
 const GRID_LOOKBACK_DAYS = 63
 
@@ -168,15 +189,13 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
                       </p>
                     )
                   : grid.map((post) => {
-                      const upcoming = post.status !== "published"
+                      // Judge by the Instagram post itself; another platform may have failed.
+                      const upcoming = !post.slots.some(
+                        (slot) => slot.platform === "instagram_feed" && slot.status === "published"
+                      )
                       return (
                         <div key={post.key} className="relative aspect-[4/5] overflow-hidden bg-white">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={post.mediaUrls[0]}
-                            alt={post.title}
-                            className={cn("size-full object-cover", upcoming && "opacity-80")}
-                          />
+                          <GridImage src={post.mediaUrls[0]} title={post.title} dim={upcoming} />
                           {post.mediaUrls.length > 1 ? (
                             <Layers className="absolute right-1.5 top-1.5 size-3.5 text-white drop-shadow" aria-label="Carousel" />
                           ) : null}

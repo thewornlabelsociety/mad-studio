@@ -82,16 +82,26 @@ export function planWeek(input: {
 
 /**
  * The Instagram grid as it will look at the end of the week: newest first,
- * planned posts on top of what's already up.
+ * planned posts on top of what's already up. Posts that failed, or whose
+ * time passed without going out, never reached the grid and are left off.
  */
-export function gridPosts(input: { posts: CalendarPost[]; until: Date; limit?: number }): CalendarPost[] {
+export function gridPosts(input: {
+  posts: CalendarPost[]
+  until: Date
+  now?: Date
+  limit?: number
+}): CalendarPost[] {
+  const now = input.now ?? new Date()
   return input.posts
-    .filter(
-      (post) =>
-        post.time < input.until &&
-        post.mediaUrls.length > 0 &&
-        post.slots.some((slot) => slot.platform === "instagram_feed")
-    )
+    .filter((post) => {
+      const feed = post.slots.filter((slot) => slot.platform === "instagram_feed")
+      if (feed.length === 0 || post.mediaUrls.length === 0 || post.time >= input.until) return false
+      const live = feed.some((slot) => slot.status === "published")
+      const due = feed.some(
+        (slot) => (slot.status === "scheduled" || slot.status === "processing") && slot.time >= now
+      )
+      return live || due
+    })
     .sort((a, b) => b.time.getTime() - a.time.getTime())
     .slice(0, input.limit ?? 12)
 }

@@ -170,12 +170,12 @@ export function MorningStoryFeed({
     }
   }
 
-  const cardWidth = compact ? "w-[168px]" : "w-[min(72vw,260px)]"
+  const cardWidth = compact ? "w-[168px]" : "w-[min(72vw,260px)] md:w-[200px]"
 
   return (
     <section
       aria-labelledby="story-feed-heading"
-      className={cn("border-2 border-mad-black bg-white", className)}
+      className={cn("overflow-hidden border-2 border-mad-black bg-white", className)}
     >
       <header className="flex items-center gap-3 px-3 py-2.5">
         <button
