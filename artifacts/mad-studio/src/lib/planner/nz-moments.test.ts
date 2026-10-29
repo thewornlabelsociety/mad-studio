@@ -7,6 +7,7 @@ import {
   momentsForYear,
   mondayNearest,
   nthWeekday,
+  momentsOnDay,
   upcomingMoments,
 } from "./nz-moments.ts"
 
@@ -31,6 +32,21 @@ test("weekday rules for NZ holidays", () => {
   assert.equal(ymd(nthWeekday(2026, 9, 0, 1)), "2026-09-06") // Father's Day
   assert.equal(ymd(mondayNearest(new Date(2026, 0, 29))), "2026-01-26") // Anniversary
   assert.equal(ymd(mondayNearest(new Date(2027, 0, 29))), "2027-02-01")
+})
+
+test("school holidays and day tags", () => {
+  const winter = find(2026, "school_winter")
+  assert.equal(ymd(winter.start), "2026-07-04")
+  assert.equal(ymd(winter.end), "2026-07-19")
+  const summer = find(2026, "school_summer")
+  assert.equal(ymd(summer.end), "2027-02-01")
+  // Every day of a short run; a long season only on its first day.
+  assert.ok(momentsOnDay(new Date(2026, 6, 10)).some((m) => m.id === "school_winter"))
+  assert.ok(momentsOnDay(new Date(2026, 6, 10)).some((m) => m.id === "matariki"))
+  assert.ok(momentsOnDay(new Date(2026, 4, 1)).some((m) => m.id === "ball_season"))
+  assert.ok(!momentsOnDay(new Date(2026, 4, 2)).some((m) => m.id === "ball_season"))
+  assert.ok(momentsOnDay(new Date(2027, 0, 5)).some((m) => m.id === "school_summer"))
+  assert.ok(!momentsOnDay(new Date(2026, 1, 25)).some((m) => m.kind === "season"))
 })
 
 test("Black Friday weekend and Matariki", () => {

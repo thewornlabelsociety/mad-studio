@@ -6,7 +6,7 @@ import { KIND_LABEL, MomentCard } from "@/components/planner/coming-up"
 import { daysUntil, upcomingMoments, type MomentKind, type NzMoment } from "@/lib/planner/nz-moments"
 import { cn } from "@/lib/utils"
 
-const KINDS: MomentKind[] = ["holiday", "sale", "season", "occasion", "cause"]
+const KINDS: MomentKind[] = ["holiday", "school", "sale", "season", "occasion", "cause"]
 
 function monthKey(date: Date): string {
   return `${date.getFullYear()}-${date.getMonth()}`

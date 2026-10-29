@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 
 export const KIND_LABEL: Record<MomentKind, string> = {
   holiday: "Holiday",
+  school: "School holidays",
   sale: "Sale day",
   season: "Season",
   occasion: "Occasion",

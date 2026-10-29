@@ -5,7 +5,7 @@
  * seasons are NZ (southern hemisphere).
  */
 
-export type MomentKind = "holiday" | "sale" | "season" | "occasion" | "cause"
+export type MomentKind = "holiday" | "school" | "sale" | "season" | "occasion" | "cause"
 
 /** A ready-made Editorial announcement for the moment; every word is editable. */
 export type MomentCard = {
@@ -92,7 +92,70 @@ const MATARIKI: Record<number, [number, number]> = {
 
 const single = (date: Date): [Date, Date] => [date, date]
 
+type Range = [[number, number], [number, number]]
+
+/**
+ * State school holidays (Ministry of Education). 2026 is the official
+ * calendar; 2027 is from schools' published dates, so check it once the
+ * Ministry confirms. Summer runs into the next year; schools go back on
+ * different days in early February.
+ */
+const SCHOOL_HOLIDAYS: Record<number, { autumn: Range; winter: Range; spring: Range; summer: Range }> = {
+  2025: { autumn: [[4, 12], [4, 27]], winter: [[7, 5], [7, 20]], spring: [[9, 27], [10, 12]], summer: [[12, 19], [2, 1]] },
+  2026: { autumn: [[4, 3], [4, 19]], winter: [[7, 4], [7, 19]], spring: [[9, 26], [10, 11]], summer: [[12, 19], [2, 1]] },
+  2027: { autumn: [[4, 10], [4, 26]], winter: [[7, 3], [7, 18]], spring: [[9, 25], [10, 10]], summer: [[12, 18], [2, 1]] },
+}
+
+function schoolBreak(year: number, which: "autumn" | "winter" | "spring" | "summer"): [Date, Date] | null {
+  const range = SCHOOL_HOLIDAYS[year]?.[which]
+  if (!range) return null
+  const [[sm, sd], [em, ed]] = range
+  return [day(year, sm, sd), day(em < sm ? year + 1 : year, em, ed)]
+}
+
+const SCHOOL_IDEAS = ["Holiday hours", "Kids' rack refresh", "School holiday family shopping day"]
+
 const TEMPLATES: MomentTemplate[] = [
+  {
+    id: "school_autumn",
+    name: "School holidays",
+    kind: "school",
+    dates: (y) => schoolBreak(y, "autumn"),
+    leadDays: 7,
+    why: "Autumn break: families out shopping, kids' clothes for winter.",
+    ideas: SCHOOL_IDEAS,
+    card: { kicker: "School holidays", headline: "Kids\nrack\nrefresh", details: ["Preloved kidswear", "In-store and online"], background: "faded_olive" },
+  },
+  {
+    id: "school_winter",
+    name: "School holidays",
+    kind: "school",
+    dates: (y) => schoolBreak(y, "winter"),
+    leadDays: 7,
+    why: "Winter break: coats and warm layers for growing kids.",
+    ideas: [...SCHOOL_IDEAS, "Kids' coats and jackets"],
+    card: { kicker: "School holidays", headline: "Warm\nlayers\nfor kids", details: ["Coats, knits and boots", "Preloved kidswear"], background: "deep_green" },
+  },
+  {
+    id: "school_spring",
+    name: "School holidays",
+    kind: "school",
+    dates: (y) => schoolBreak(y, "spring"),
+    leadDays: 7,
+    why: "Spring break: lighter clothes and a wardrobe clear-out.",
+    ideas: [...SCHOOL_IDEAS, "Outgrown it? Consign it"],
+    card: { kicker: "School holidays", headline: "Outgrown\nit?", script: "consign it with us", details: ["Kids' clothes wanted"], background: "vintage_beige" },
+  },
+  {
+    id: "school_summer",
+    name: "Summer school holidays",
+    kind: "school",
+    dates: (y) => schoolBreak(y, "summer"),
+    leadDays: 10,
+    why: "Six weeks off: holiday outfits, then back-to-school before February.",
+    ideas: ["Summer holiday hours", "Holiday outfits for the kids", "Back-to-school uniforms and kidswear"],
+    card: { kicker: "Summer holidays", headline: "Summer\nkids\nedit", details: ["Preloved kidswear", "In-store and online"], background: "faded_olive" },
+  },
   {
     id: "new_year",
     name: "New year",
@@ -442,6 +505,30 @@ export function upcomingMoments(today: Date, days = 75): NzMoment[] {
 /** Every moment the template list knows, by id, for the dates nearest `today`. */
 export function findMoment(id: string, today: Date): NzMoment | null {
   return upcomingMoments(today, 400).find((moment) => moment.id === id) ?? null
+}
+
+/** Long seasons (ball, wedding...) only show on the day they start. */
+const SHORT_RANGE_DAYS = 21
+
+/**
+ * NZ moments to tag on a calendar day: one-day dates on the day, school
+ * holidays and short runs (long weekends) on every day, and long seasons and
+ * change-of-season windows on their first day only.
+ */
+export function momentsOnDay(date: Date): NzMoment[] {
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  const year = date.getFullYear()
+  return [year - 1, year]
+    .flatMap(momentsForYear)
+    .filter((moment) => {
+      const start = moment.start.getTime()
+      const end = moment.end.getTime()
+      if (target < start || target > end) return false
+      const length = Math.round((end - start) / 86_400_000) + 1
+      const everyDay =
+        moment.kind === "school" || (length <= SHORT_RANGE_DAYS && moment.kind !== "season")
+      return everyDay || target === start
+    })
 }
 
 /** Whole days from `today` to the moment's start (0 or less once it's on). */
