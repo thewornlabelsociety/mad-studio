@@ -78,6 +78,16 @@ export type SavedCanvasLayout = z.infer<typeof canvasLayoutSchema>
 
 export type VisualPresets = z.infer<typeof visualPresetsSchema>
 
+/** One line of "We're searching for": a piece the shop wants consigned. */
+export const wantsItemSchema = z.object({
+  id: z.string().min(1).max(40),
+  label: z.string().min(1).max(60),
+  /** Sizes or condition, e.g. "All sizes". */
+  detail: z.string().max(40).default(""),
+})
+
+export type WantsItem = z.infer<typeof wantsItemSchema>
+
 export const brandIdentitySchema = z.object({
   tone: z
     .string()
@@ -106,6 +116,9 @@ export const brandIdentitySchema = z.object({
     ),
   /** Saved Canvas layouts — set in Studio, never by website scraping. */
   canvas_layouts: z.array(canvasLayoutSchema).optional(),
+  /** "We're searching for" list and its sign-off — set by the team, never scraped. */
+  wants_list: z.array(wantsItemSchema).max(10).optional(),
+  wants_note: z.string().max(80).optional(),
   intake_caption_default: z
     .enum(["title", "listing_description"])
     .optional(),

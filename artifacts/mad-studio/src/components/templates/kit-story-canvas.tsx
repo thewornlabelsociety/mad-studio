@@ -21,6 +21,8 @@ type Props = {
   onSubjectChange?: (next: LayerAdjust) => void
   subjectSelected?: boolean
   onSubjectSelect?: (selected: boolean) => void
+  /** Sale Stories: the old price struck through, then the new one. */
+  priceLine?: { was: string; now: string } | null
   /** Dashed link-sticker zone; never baked into the export. */
   showLinkGuide?: boolean
   className?: string
@@ -50,6 +52,7 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
     onSubjectChange,
     subjectSelected = false,
     onSubjectSelect,
+    priceLine = null,
     showLinkGuide = true,
     className,
   },
@@ -171,21 +174,34 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
         >
           {designer}
         </p>
-        {sizeLabel ? (
-          <p
-            style={{
-              ...caps,
-              justifySelf: "start",
-              fontWeight: 600,
-              fontSize: "4.4cqw",
-              letterSpacing: "0.2em",
-              padding: "1.6cqw 3.2cqw 1.2cqw",
-              border: "0.5cqw solid currentColor",
-              borderRadius: 999,
-            }}
-          >
-            {sizeLabel}
-          </p>
+        {sizeLabel || priceLine ? (
+          <div style={{ display: "flex", alignItems: "baseline", gap: "3.6cqw", flexWrap: "wrap" }}>
+            {sizeLabel ? (
+              <p
+                style={{
+                  ...caps,
+                  fontWeight: 600,
+                  fontSize: "4.4cqw",
+                  letterSpacing: "0.2em",
+                  padding: "1.6cqw 3.2cqw 1.2cqw",
+                  border: "0.5cqw solid currentColor",
+                  borderRadius: 999,
+                }}
+              >
+                {sizeLabel}
+              </p>
+            ) : null}
+            {priceLine ? (
+              <>
+                <p style={{ ...caps, fontSize: "4.6cqw", letterSpacing: "0.12em", textDecoration: "line-through", opacity: 0.6 }}>
+                  {priceLine.was}
+                </p>
+                <p style={{ ...caps, fontWeight: 700, fontSize: "6.6cqw", letterSpacing: "0.06em", color: accent }}>
+                  {priceLine.now}
+                </p>
+              </>
+            ) : null}
+          </div>
         ) : null}
       </div>
       </div>

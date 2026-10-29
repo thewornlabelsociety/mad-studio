@@ -19,6 +19,8 @@ import {
   type BrandIdentity,
   type LogoCorner,
   type StoryBackground,
+  wantsItemSchema,
+  type WantsItem,
   type EntityDna,
 } from "@/lib/entities/dna-schema"
 import { z } from "zod"
@@ -171,6 +173,105 @@ export async function saveCanvasLayouts(input: {
     }
   }
   return { ok: true, data: { layouts: layouts.data } }
+}
+
+type OperatorBrandSettings = {
+  wants_list?: unknown
+  wants_note?: unknown
+  visual_presets?: Record<string, unknown>
+}
+
+/** Settings the team sets by hand, which a website resync must never wipe. */
+async function currentOperatorBrandSettings(
+  supabase: { from: (table: "entities") => any },
+  entityId: string
+): Promise<OperatorBrandSettings> {
+  const { data } = await supabase
+    .from("entities")
+    .select("brand_identity")
+    .eq("id", entityId)
+    .maybeSingle()
+  const identity = data?.brand_identity
+  if (!identity || typeof identity !== "object" || Array.isArray(identity)) return {}
+  const record = identity as Record<string, unknown>
+  const presets = record.visual_presets
+  return {
+    wants_list: record.wants_list,
+    wants_note: record.wants_note,
+    visual_presets:
+      presets && typeof presets === "object" && !Array.isArray(presets)
+        ? (presets as Record<string, unknown>)
+        : undefined,
+  }
+}
+
+/** Fresh website DNA, keeping the wants list and Story backgrounds the team set. */
+function withOperatorBrandSettings(
+  identity: Record<string, unknown>,
+  operator: OperatorBrandSettings
+): Record<string, unknown> {
+  const scrapedPresets =
+    identity.visual_presets && typeof identity.visual_presets === "object"
+      ? (identity.visual_presets as Record<string, unknown>)
+      : undefined
+  const storyKit = operator.visual_presets?.story_kit
+  return {
+    ...identity,
+    wants_list: operator.wants_list,
+    wants_note: operator.wants_note,
+    visual_presets: scrapedPresets
+      ? { ...scrapedPresets, ...(storyKit ? { story_kit: storyKit } : {}) }
+      : operator.visual_presets,
+  }
+}
+
+/** Replace this brand's "We're searching for" list. */
+export async function saveWantsList(input: {
+  entityId: string
+  items: WantsItem[]
+  note?: string | null
+}): Promise<ActionResult<{ items: WantsItem[]; note: string }>> {
+  const items = z.array(wantsItemSchema).max(10).safeParse(input.items)
+  if (!items.success) {
+    return { ok: false, error: "Each line needs a name (up to 60 characters), and 10 lines at most." }
+  }
+  const note = (input.note ?? "").trim().slice(0, 80)
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error) {
+    return { ok: false, error: auth.error }
+  }
+  const admin = createAdminClient()
+  const { data: row, error: readError } = await admin
+    .from("entities")
+    .select("brand_identity")
+    .eq("id", input.entityId)
+    .single()
+  if (readError || !row) {
+    return { ok: false, error: readError?.message ?? "Entity not found." }
+  }
+  const current =
+    row.brand_identity &&
+    typeof row.brand_identity === "object" &&
+    !Array.isArray(row.brand_identity)
+      ? (row.brand_identity as Record<string, unknown>)
+      : {}
+  const { data: updated, error } = await admin
+    .from("entities")
+    .update({
+      brand_identity: { ...current, wants_list: items.data, wants_note: note } as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.entityId)
+    .select("id")
+    .maybeSingle()
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+  if (!updated?.id) {
+    return { ok: false, error: "The list didn't save — check you can edit this brand." }
+  }
+  revalidateBrain(input.entityId)
+  return { ok: true, data: { items: items.data, note } }
 }
 
 export async function saveEntityDna(input: {
@@ -343,6 +444,8 @@ export async function saveVisualPresets(input: {
     canvas_layouts: Array.isArray(current.canvas_layouts)
       ? current.canvas_layouts
       : undefined,
+    wants_list: Array.isArray(current.wants_list) ? current.wants_list : undefined,
+    wants_note: typeof current.wants_note === "string" ? current.wants_note : undefined,
   })
 
   if (!parsed.success) {
@@ -384,16 +487,17 @@ export async function commitScrapedDna(input: {
 
   const dna = parsed.data
   const layouts = await currentCanvasLayouts(auth.supabase, input.entityId)
+  const operator = await currentOperatorBrandSettings(auth.supabase, input.entityId)
   const { error } = await auth.supabase
     .from("entities")
     .update({
       ...(input.websiteUrl ? { website_url: input.websiteUrl } : {}),
       industry: dna.industry,
       business_model: dna.business_model,
-      brand_identity: {
-        ...dna.brand_identity,
-        canvas_layouts: layouts,
-      } as unknown as Json,
+      brand_identity: withOperatorBrandSettings(
+        { ...dna.brand_identity, canvas_layouts: layouts },
+        operator
+      ) as unknown as Json,
       audience_segments: dna.audience_segments as unknown as Json,
       value_propositions: dna.value_propositions as unknown as Json,
       conversion_goals: dna.conversion_goals as unknown as Json,
@@ -443,16 +547,17 @@ export async function resyncDnaFromWebsite(
     })
 
     const layouts = await currentCanvasLayouts(auth.supabase, entityId)
+    const operator = await currentOperatorBrandSettings(auth.supabase, entityId)
     const { error: updateError } = await auth.supabase
       .from("entities")
       .update({
         website_url: sourceUrl,
         industry: dna.industry,
         business_model: dna.business_model,
-        brand_identity: {
-          ...dna.brand_identity,
-          canvas_layouts: layouts,
-        } as unknown as Json,
+        brand_identity: withOperatorBrandSettings(
+          { ...dna.brand_identity, canvas_layouts: layouts },
+          operator
+        ) as unknown as Json,
         audience_segments: dna.audience_segments as unknown as Json,
         value_propositions: dna.value_propositions as unknown as Json,
         conversion_goals: dna.conversion_goals as unknown as Json,

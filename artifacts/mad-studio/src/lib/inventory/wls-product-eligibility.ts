@@ -63,6 +63,9 @@ export type WlsProductSelection = {
   /** Marketplace category ("Tops", "Bottoms"), from the listing or its description. */
   category?: string | null
   gender?: GarmentGender | null
+  /** Full price before a shop markdown (the item is on the sale rack). */
+  wasPrice?: number | null
+  discountedAt?: string | null
   /** Explicit listing size only — never invented. */
   size: string | null
   price: number | null
@@ -315,6 +318,11 @@ export function evaluateWlsProductEligibility(
     vibe: item.vibe ?? null,
     category: item.listing_category ?? categoryFromDescription(item.description),
     gender: item.listing_gender ?? null,
+    wasPrice:
+      item.listing_was_price != null && item.price != null && item.listing_was_price > Number(item.price)
+        ? item.listing_was_price
+        : null,
+    discountedAt: item.listing_discounted_at ?? null,
     size: verifiedSize,
     price: item.price == null ? null : Number(item.price),
     currency: item.listing_currency,

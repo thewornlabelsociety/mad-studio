@@ -13,6 +13,7 @@ import {
   readListingGarmentFromMetrics,
   type GarmentGender,
 } from "./listing-garment.ts"
+import { readListingMarkdownFromMetrics } from "./listing-markdown.ts"
 
 export const MARKETING_ENTITY_STATUSES = [
   "unfeatured",
@@ -127,6 +128,9 @@ export type MarketingEntity = {
   /** Marketplace category and gender from the last sync, when the feed has them. */
   listing_category?: string | null
   listing_gender?: GarmentGender | null
+  /** Full price before a shop markdown; null when the item is not discounted. */
+  listing_was_price?: number | null
+  listing_discounted_at?: string | null
   aesthetic_slugs: string[]
   scheduled_at: string | null
   channels: string[]
@@ -367,6 +371,7 @@ export function mapMarketingEntityRow(row: {
 }): MarketingEntity {
   const listingVibe = readListingVibeFromMetrics(row.metrics)
   const listingGarment = readListingGarmentFromMetrics(row.metrics)
+  const listingMarkdown = readListingMarkdownFromMetrics(row.metrics)
   const descriptionVibe =
     typeof row.description === "string"
       ? row.description.match(/\bVibe\s*:\s*([^·|]+)/i)?.[1]?.trim() || null
@@ -390,6 +395,8 @@ export function mapMarketingEntityRow(row: {
     vibe: listingVibe.vibe || descriptionVibe,
     listing_category: listingGarment.category,
     listing_gender: listingGarment.gender,
+    listing_was_price: listingMarkdown.wasPrice,
+    listing_discounted_at: listingMarkdown.discountedAt,
     aesthetic_slugs: listingVibe.aesthetic_slugs,
     scheduled_at: row.scheduled_at,
     channels: Array.isArray(row.channels) ? row.channels : [],
