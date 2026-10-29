@@ -133,5 +133,6 @@ export function resolveVisualPresets(input: {
     font_family: parsed.data.font_family || fallback.font_family,
     logo_url: parsed.data.logo_url?.trim() || undefined,
     logo_corner: parsed.data.logo_corner,
+    story_kit: parsed.data.story_kit,
   }
 }

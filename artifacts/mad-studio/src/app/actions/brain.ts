@@ -18,6 +18,7 @@ import {
   type AudienceSegment,
   type BrandIdentity,
   type LogoCorner,
+  type StoryBackground,
   type EntityDna,
 } from "@/lib/entities/dna-schema"
 import { z } from "zod"
@@ -300,6 +301,7 @@ export async function saveVisualPresets(input: {
     logo_corner?: LogoCorner
     palette?: string[]
     heading_font_id?: string
+    story_kit?: StoryBackground[]
   }
 }): Promise<ActionResult<{ brandIdentity: BrandIdentity }>> {
   const auth = await assertCanEdit(input.entityId)

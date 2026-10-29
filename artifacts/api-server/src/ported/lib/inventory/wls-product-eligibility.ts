@@ -54,6 +54,8 @@ export type WlsProductSelection = {
   brand: string | null
   title: string
   description: string | null
+  /** Shop-by-Vibe label from the website listing, when it has one. */
+  vibe?: string | null
   /** Explicit listing size only — never invented. */
   size: string | null
   price: number | null
@@ -299,6 +301,7 @@ export function evaluateWlsProductEligibility(
     brand: item.brand,
     title,
     description: item.description,
+    vibe: item.vibe ?? null,
     size: verifiedSize,
     price: item.price == null ? null : Number(item.price),
     currency: item.listing_currency,
