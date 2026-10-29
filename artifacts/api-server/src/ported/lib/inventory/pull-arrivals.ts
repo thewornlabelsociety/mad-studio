@@ -21,6 +21,7 @@ import {
 import type { BrandIdentity } from "@/lib/entities/dna-schema"
 import { parsePrice } from "@/lib/inventory/types"
 import { markdownFromPrices, type ListingMarkdown } from "@/lib/inventory/listing-markdown"
+import { listingGenderField } from "@/lib/inventory/listing-garment"
 import { metaGraphBase } from "@/lib/social/types"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -381,7 +382,10 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
         vibe: aesthetics.vibe,
         aesthetic_slugs: aesthetics.aesthetic_slugs,
         category: stringField(record, "category", "subCategory"),
-        gender: stringField(record, "gender", "department"),
+        gender: listingGenderField(
+          stringField(record, "gender", "department"),
+          stringField(record, "ageGroup", "age_group")
+        ),
         markdown: markdownFromPrices({
           fullPrice: numberField(record, "listingPrice", "price"),
           salePrice: numberField(record, "salePrice", "discountedPrice"),
@@ -439,7 +443,10 @@ function parseWornLabelItems(payload: unknown): PulledArrival[] {
         vibe: aesthetics.vibe,
         aesthetic_slugs: aesthetics.aesthetic_slugs,
         category: stringField(record, "category", "subCategory"),
-        gender: stringField(record, "gender", "department"),
+        gender: listingGenderField(
+          stringField(record, "gender", "department"),
+          stringField(record, "ageGroup", "age_group")
+        ),
         markdown: markdownFromPrices({
           fullPrice: numberField(record, "price"),
           salePrice: numberField(record, "discountedPrice"),
