@@ -115,9 +115,6 @@ export function StoryCanvasTools({
             Story background
           </p>
           <div className="space-y-1.5">
-            <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-black uppercase">
-              Background
-            </span>
             <div className="flex flex-wrap gap-2">
               {storyCard.swatches.map((swatch) => (
                 <button
