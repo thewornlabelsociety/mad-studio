@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button"
 import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
-import { findMoment } from "@/lib/planner/nz-moments"
+import { ANNOUNCEMENT_PREFILL_KEY } from "@/components/campaigns/campaign-planner"
+import { findMoment, type MomentCard } from "@/lib/planner/nz-moments"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
@@ -157,26 +158,40 @@ function fromPreset(preset: Preset): CardDraft {
   }
 }
 
-/** The card for `?moment=` (an NZ date from Coming up), or null. */
+/** A campaign step's card, handed over by Make it on the Campaigns page. */
+function prefilledCard(): MomentCard | null {
+  try {
+    const raw = window.sessionStorage.getItem(ANNOUNCEMENT_PREFILL_KEY)
+    window.sessionStorage.removeItem(ANNOUNCEMENT_PREFILL_KEY)
+    const parsed = raw ? (JSON.parse(raw) as MomentCard) : null
+    return parsed && typeof parsed.headline === "string" ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+/** The card for `?moment=` (an NZ date) or `?prefill=1` (a campaign step), or null. */
 function cardForMoment(): CardDraft | null {
   if (typeof window === "undefined") return null
-  const id = new URLSearchParams(window.location.search).get("moment")
+  const params = new URLSearchParams(window.location.search)
+  const id = params.get("moment")
   const moment = id ? findMoment(id, new Date()) : null
-  if (!moment) return null
+  const card = params.get("prefill") === "1" ? prefilledCard() : moment?.card ?? null
+  if (!card) return null
   const base = EDITORIAL_PRESETS[0].value
   return {
     id: newCardId(),
     value: {
       ...base,
-      kicker: moment.card.kicker ?? "",
-      headline: moment.card.headline,
-      script: moment.card.script ?? "",
-      headlineFont: moment.card.headlineFont ?? "serif",
+      kicker: card.kicker ?? "",
+      headline: card.headline,
+      script: card.script ?? "",
+      headlineFont: card.headlineFont ?? "serif",
       accent: "brush",
       align: "center",
-      details: padDetails(moment.card.details),
+      details: padDetails(card.details),
     },
-    backgroundId: moment.card.background,
+    backgroundId: card.background,
   }
 }
 
@@ -205,6 +220,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
     // Drop ?moment= so a reload doesn't add the card again.
     const url = new URL(window.location.href)
     url.searchParams.delete("moment")
+    url.searchParams.delete("prefill")
     window.history.replaceState(window.history.state, "", url.toString())
   }, [momentCard])
   const active = cards.find((card) => card.id === activeId) ?? cards[0]

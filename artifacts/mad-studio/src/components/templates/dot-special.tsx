@@ -1,6 +1,6 @@
 "use client"
 
-import { forwardRef, useMemo, useRef, useState } from "react"
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "wouter"
 import { ArrowRight, Check, FileText, Loader2, Share2 } from "lucide-react"
 import { toast } from "sonner"
@@ -186,6 +186,13 @@ export function DotSpecialPanel({
   const white = useMemo(() => printBackground(kit), [kit])
   const field = "h-9 w-full border-2 border-mad-black bg-white px-2 text-sm"
 
+  // Opened from a campaign step (#dot-special): bring it into view.
+  useEffect(() => {
+    if (window.location.hash !== "#dot-special") return
+    const timer = window.setTimeout(() => document.getElementById("dot-special")?.scrollIntoView({ behavior: "smooth" }), 300)
+    return () => window.clearTimeout(timer)
+  }, [])
+
   function set<K extends keyof DotSpecial>(key: K, value: DotSpecial[K]) {
     setSpecial((current) => ({ ...current, [key]: value }))
   }
@@ -243,7 +250,7 @@ export function DotSpecialPanel({
     })
 
   return (
-    <section aria-labelledby="dot-special-heading" className="grid gap-4 border-t-2 border-mad-black pt-4">
+    <section id="dot-special" aria-labelledby="dot-special-heading" className="grid scroll-mt-4 gap-4 border-t-2 border-mad-black pt-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="dot-special-heading" className="brand-typewriter text-lg">

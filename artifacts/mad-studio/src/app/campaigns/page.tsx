@@ -6,12 +6,14 @@ import {
   getActiveOrganizationId,
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
+import { CampaignPlanner } from "@/components/campaigns/campaign-planner"
 import { CampaignsWorkspace } from "@/components/campaigns/campaigns-workspace"
 import { CampaignsToast } from "@/components/campaigns/campaigns-toast"
 import { CalendarTabs } from "@/components/layout/calendar-tabs"
 import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import { createClient } from "@/lib/supabase/client"
+import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { ENTITY_COOKIE } from "@/lib/types"
 
 export const metadata = {
@@ -88,11 +90,29 @@ export default async function CampaignsPage({
         <Suspense fallback={null}>
           <CampaignsToast />
         </Suspense>
-        <CampaignsWorkspace
-          entityId={activeEntity.id}
-          entityName={activeEntity.name}
-          programId={params.programId ?? null}
-        />
+        {isWornLabelFashionEntity({ name: activeEntity.name, industry: activeEntity.industry }) ? (
+          <div className="min-h-0 flex-1 overflow-y-auto pb-6">
+            <CampaignPlanner entityId={activeEntity.id} />
+            <details className="mt-8 border-t-2 border-mad-black pt-3" open={Boolean(params.programId)}>
+              <summary className="cursor-pointer font-typewriter text-xs uppercase tracking-widest">
+                Earlier AI campaigns
+              </summary>
+              <div className="mt-3 flex min-h-[32rem] flex-col">
+                <CampaignsWorkspace
+                  entityId={activeEntity.id}
+                  entityName={activeEntity.name}
+                  programId={params.programId ?? null}
+                />
+              </div>
+            </details>
+          </div>
+        ) : (
+          <CampaignsWorkspace
+            entityId={activeEntity.id}
+            entityName={activeEntity.name}
+            programId={params.programId ?? null}
+          />
+        )}
     </StudioAppShell>
   )
 }
