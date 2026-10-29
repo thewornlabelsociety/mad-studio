@@ -1,26 +1,9 @@
 import { forwardRef, type CSSProperties } from "react"
 
+import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 import type { WantsItem } from "@/lib/entities/dna-schema"
 
-const DISPLAY = "'Josefin Sans', 'Century Gothic', Futura, system-ui, sans-serif"
-const caps: CSSProperties = { fontFamily: DISPLAY, textTransform: "uppercase", margin: 0 }
-
-function Wordmark({ brandName, accent, size }: { brandName: string; accent: string; size: number }) {
-  const words = brandName.trim().toUpperCase().split(/\s+/)
-  const top = words.length > 1 ? words.slice(0, -1).join(" ") : words[0]
-  const bottom = words.length > 1 ? words[words.length - 1] : ""
-  return (
-    <p style={{ ...caps, fontWeight: 600, fontSize: `${size}cqw`, letterSpacing: "0.2em", lineHeight: 1.15 }}>
-      {top}
-      {bottom ? (
-        <span style={{ display: "block", fontSize: `${size * 0.62}cqw`, letterSpacing: "0.5em", fontWeight: 400, color: accent }}>
-          {bottom}
-        </span>
-      ) : null}
-    </p>
-  )
-}
 
 type Props = {
   background: StoryBackground
@@ -49,7 +32,7 @@ function WantsLayout({ background, brandName, items, note, story }: Props & { st
           alignItems: "flex-start",
         }}
       >
-        <Wordmark brandName={brandName} accent={background.accent_color} size={story ? 5.6 : 3.4} />
+        <Wordmark brandName={brandName} accent={background.accent_color} size={story ? 5.6 : 3.4} align="left" />
         <p style={{ ...caps, fontSize: story ? "4cqw" : "3.2cqw", letterSpacing: "0.24em", color: background.accent_color }}>
           Consign
         </p>
@@ -122,16 +105,6 @@ function WantsLayout({ background, brandName, items, note, story }: Props & { st
     </>
   )
 }
-
-const frame = (background: StoryBackground, aspect: string): CSSProperties => ({
-  position: "relative",
-  aspectRatio: aspect,
-  width: "100%",
-  overflow: "hidden",
-  background: background.color,
-  color: background.text_color,
-  containerType: "inline-size",
-})
 
 export const WantsStory = forwardRef<HTMLDivElement, Props>(function WantsStory(props, ref) {
   return (

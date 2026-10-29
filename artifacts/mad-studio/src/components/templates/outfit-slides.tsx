@@ -2,22 +2,11 @@ import { forwardRef, type CSSProperties } from "react"
 import { ArrowRight } from "lucide-react"
 
 import { AdjustableLayer, type LayerAdjust } from "@/components/templates/adjustable-layer"
+import { KIT_DISPLAY as DISPLAY, kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 import type { GarmentSlot } from "@/lib/inventory/listing-garment"
 
-const DISPLAY = "'Josefin Sans', 'Century Gothic', Futura, system-ui, sans-serif"
 
-const caps: CSSProperties = { fontFamily: DISPLAY, textTransform: "uppercase", margin: 0 }
-
-const frame = (background: StoryBackground): CSSProperties => ({
-  position: "relative",
-  aspectRatio: "4 / 5",
-  width: "100%",
-  overflow: "hidden",
-  background: background.color,
-  color: background.text_color,
-  containerType: "inline-size",
-})
 
 /** Small numbered circle that ties a piece on the flatlay to its line in the list. */
 const numberDot = (background: StoryBackground): CSSProperties => ({
@@ -54,22 +43,6 @@ const PLACEMENT: Record<GarmentSlot, { left: number; top: number; width: number;
   shoes: { left: 0, top: 68, width: 40, height: 30, rotate: -10, z: 4 },
   accessory: { left: 66, top: 0, width: 34, height: 34, rotate: 8, z: 4 },
   other: { left: 62, top: 62, width: 36, height: 36, rotate: 6, z: 4 },
-}
-
-function Wordmark({ brandName, accent }: { brandName: string; accent: string }) {
-  const words = brandName.trim().toUpperCase().split(/\s+/)
-  const top = words.length > 1 ? words.slice(0, -1).join(" ") : words[0]
-  const bottom = words.length > 1 ? words[words.length - 1] : ""
-  return (
-    <p style={{ ...caps, fontWeight: 600, fontSize: "3.4cqw", letterSpacing: "0.2em", lineHeight: 1.15, textAlign: "right" }}>
-      {top}
-      {bottom ? (
-        <span style={{ display: "block", fontSize: "2.2cqw", letterSpacing: "0.5em", fontWeight: 400, color: accent }}>
-          {bottom}
-        </span>
-      ) : null}
-    </p>
-  )
 }
 
 /** One day of the week: the outfit as a flatlay, its pieces listed down the side. */
