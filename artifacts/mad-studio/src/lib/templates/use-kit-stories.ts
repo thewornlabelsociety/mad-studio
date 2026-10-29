@@ -5,6 +5,7 @@ import { toPng } from "html-to-image"
 import { toast } from "sonner"
 
 import { storyExportFilter } from "@/components/marketing/story-canvas"
+import { NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import {
   detectItemTraits,
   pickStoryBackground,
@@ -26,8 +27,8 @@ import { buildWlsDailyStoryCanvasModel } from "@/lib/templates/wls-daily-story"
 export type StoryEdits = {
   vibe?: string
   backgroundId?: string
-  subjectScale?: number
-  subjectOffsetY?: number
+  /** Hand placement of the cutout. */
+  subject?: LayerAdjust
   useCutout?: boolean
 }
 
@@ -48,8 +49,7 @@ export type KitStory = {
   useCutout: boolean
   /** Proxied, same-origin image for the canvas. */
   imageUrl: string | null
-  subjectScale: number
-  subjectOffsetY: number
+  subject: LayerAdjust
   edits: StoryEdits
 }
 
@@ -261,8 +261,7 @@ export function useKitStories(input: {
         cutoutUrl,
         useCutout,
         imageUrl: shown ? proxiedImageUrl(shown, entityId) : null,
-        subjectScale: rowEdits.subjectScale ?? 1,
-        subjectOffsetY: rowEdits.subjectOffsetY ?? 0,
+        subject: rowEdits.subject ?? NO_ADJUST,
         edits: rowEdits,
       })
     }

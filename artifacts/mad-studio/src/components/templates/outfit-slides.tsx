@@ -1,6 +1,7 @@
 import { forwardRef, type CSSProperties } from "react"
 import { ArrowRight } from "lucide-react"
 
+import { AdjustableLayer, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 import type { GarmentSlot } from "@/lib/inventory/listing-garment"
 
@@ -63,11 +64,26 @@ export const OutfitSlide = forwardRef<
     day: string
     vibe: string | null
     pieces: SlidePiece[]
+    /** Hand placements by piece id; pieces without one sit in their automatic spot. */
+    adjust?: Record<string, LayerAdjust>
+    /** Given, pieces can be dragged, resized and tilted. */
+    onAdjust?: (pieceId: string, next: LayerAdjust) => void
+    selectedId?: string | null
+    onSelect?: (pieceId: string | null) => void
     className?: string
   }
->(function OutfitSlide({ background, brandName, day, vibe, pieces, className }, ref) {
+>(function OutfitSlide(
+  { background, brandName, day, vibe, pieces, adjust, onAdjust, selectedId = null, onSelect, className },
+  ref
+) {
+  const editable = Boolean(onAdjust)
   return (
-    <div ref={ref} className={className} style={frame(background)}>
+    <div
+      ref={ref}
+      className={className}
+      style={frame(background)}
+      onPointerDown={editable ? () => onSelect?.(null) : undefined}
+    >
       <div style={{ position: "absolute", inset: "6cqw 6cqw auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <p style={{ ...caps, fontWeight: 700, fontSize: "9cqw", letterSpacing: "0.08em", lineHeight: 1 }}>{day}</p>
@@ -80,28 +96,37 @@ export const OutfitSlide = forwardRef<
         <Wordmark brandName={brandName} accent={background.accent_color} />
       </div>
 
-      <div style={{ position: "absolute", left: "5cqw", top: "27%", width: "60%", bottom: "6cqw" }}>
+      {/* Isolated so "send to back" stays above the slide colour. */}
+      <div style={{ position: "absolute", left: "5cqw", top: "27%", width: "60%", bottom: "6cqw", isolation: "isolate" }}>
         {pieces.map((piece) => {
           const place = PLACEMENT[piece.slot]
           return piece.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <AdjustableLayer
               key={piece.id}
-              src={piece.imageUrl}
-              alt=""
-              crossOrigin="anonymous"
-              style={{
-                position: "absolute",
-                left: `${place.left}%`,
-                top: `${place.top}%`,
-                width: `${place.width}%`,
-                height: `${place.height}%`,
-                objectFit: "contain",
-                transform: `rotate(${place.rotate}deg)`,
-                zIndex: place.z,
-                filter: "drop-shadow(0 2cqw 2.4cqw rgba(0,0,0,0.3))",
-              }}
-            />
+              base={place}
+              adjust={adjust?.[piece.id]}
+              zIndex={place.z}
+              editable={editable}
+              selected={selectedId === piece.id}
+              label={piece.brand}
+              onSelect={() => onSelect?.(piece.id)}
+              onChange={(next) => onAdjust?.(piece.id, next)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={piece.imageUrl}
+                alt=""
+                crossOrigin="anonymous"
+                draggable={false}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  pointerEvents: "none",
+                  filter: "drop-shadow(0 2cqw 2.4cqw rgba(0,0,0,0.3))",
+                }}
+              />
+            </AdjustableLayer>
           ) : null
         })}
       </div>

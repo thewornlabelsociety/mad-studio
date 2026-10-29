@@ -4,17 +4,22 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "wouter"
 import {
   ArrowRight,
+  BringToFront,
   Check,
   Loader2,
   Plus,
   RefreshCw,
   Repeat2,
+  RotateCcw,
   Scissors,
+  SendToBack,
   Shuffle,
+  Undo2,
   X,
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { isAdjusted, NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import { OutfitCoverSlide, OutfitSlide, type SlidePiece } from "@/components/templates/outfit-slides"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
@@ -66,6 +71,9 @@ export function WlsWeekOutfitsWorkspace({
   const [week, setWeek] = useState<DayOutfit[] | null>(null)
   const [backgroundId, setBackgroundId] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+  // Hand placements per day (slide index - 1), keyed by piece id.
+  const [adjusts, setAdjusts] = useState<Record<number, Record<string, LayerAdjust>>>({})
+  const [selected, setSelected] = useState<{ day: number; pieceId: string } | null>(null)
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
   const range = useMemo(() => nextWeekRange(), [])
 
@@ -88,6 +96,15 @@ export function WlsWeekOutfitsWorkspace({
       setWeek(buildWeekOutfits(pieces))
     }
   }, [loaded, loading, week, pieces])
+
+  useEffect(() => {
+    if (!selected) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelected(null)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [selected])
 
   const background = kit.find((bg) => bg.id === backgroundId) ?? kit[0]
   const waiting = weekIds.filter((id) => !stories.get(id)?.cutoutUrl && !cutoutFailed[id])
@@ -134,6 +151,28 @@ export function WlsWeekOutfitsWorkspace({
     updateDay(index, week[index].pieceIds.map((id) => (id === pieceId ? next : id)))
   }
 
+  function setAdjust(day: number, pieceId: string, next: LayerAdjust | null) {
+    setAdjusts((current) => {
+      const dayAdjusts = { ...current[day] }
+      if (next) dayAdjusts[pieceId] = next
+      else delete dayAdjusts[pieceId]
+      return { ...current, [day]: dayAdjusts }
+    })
+  }
+
+  /** Bring the selected piece to the front (+1) or send it to the back (-1). */
+  function restack(direction: 1 | -1) {
+    if (!selected || !week) return
+    const ids = week[selected.day].pieceIds
+    const current = adjusts[selected.day] ?? {}
+    const levels = ids.map((id) => current[id]?.z ?? 0)
+    const z = direction === 1 ? Math.max(...levels, 5) + 1 : Math.min(...levels, 0) - 1
+    setAdjust(selected.day, selected.pieceId, {
+      ...(current[selected.pieceId] ?? NO_ADJUST),
+      z,
+    })
+  }
+
   function buildCaption(): string {
     const lines = (week ?? []).map((day) => {
       const parts = day.pieceIds.flatMap((id) => {
@@ -158,6 +197,7 @@ export function WlsWeekOutfitsWorkspace({
 
   async function sendToStudio() {
     if (!week) return
+    setSelected(null)
     setSending(true)
     try {
       const urls: string[] = []
@@ -201,8 +241,9 @@ export function WlsWeekOutfitsWorkspace({
           </p>
           <h1 className="brand-typewriter text-xl">A week of outfits</h1>
           <p className="mt-1 max-w-xl text-sm text-mad-black/70">
-            Seven outfits built from what&apos;s on the racks. Swap any piece,
-            then send the slides to Studio to write the caption and schedule.
+            Seven outfits built from what&apos;s on the racks. Drag any piece to
+            move it, pull its corner to resize or its top dot to tilt. Then
+            send the slides to Studio to write the caption and schedule.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -234,6 +275,8 @@ export function WlsWeekOutfitsWorkspace({
             disabled={loading || sending}
             onClick={() => {
               setWeek(null)
+              setAdjusts({})
+              setSelected(null)
               void reload()
             }}
             title="Rebuild the week from current stock"
@@ -304,11 +347,65 @@ export function WlsWeekOutfitsWorkspace({
                   day={day.day}
                   vibe={dayVibe(day)}
                   pieces={slidePieces(day)}
+                  adjust={adjusts[index]}
+                  onAdjust={(pieceId, next) => setAdjust(index, pieceId, next)}
+                  selectedId={selected?.day === index ? selected.pieceId : null}
+                  onSelect={(pieceId) => setSelected(pieceId ? { day: index, pieceId } : null)}
                   className="rounded-sm shadow-md"
                 />
-                <p className="font-typewriter text-[10px] uppercase tracking-widest text-mad-black/55">
-                  Slide {index + 2} · {day.day}
-                </p>
+                <div className="flex min-h-7 items-center justify-between gap-2">
+                  <p className="font-typewriter text-[10px] uppercase tracking-widest text-mad-black/55">
+                    Slide {index + 2} · {day.day}
+                  </p>
+                  <div className="flex items-center gap-0.5">
+                    {selected?.day === index ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => restack(1)}
+                          title="Bring to front"
+                          aria-label="Bring the selected piece to the front"
+                          className="flex size-7 items-center justify-center text-mad-black/70 hover:text-mad-black"
+                        >
+                          <BringToFront className="size-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => restack(-1)}
+                          title="Send to back"
+                          aria-label="Send the selected piece to the back"
+                          className="flex size-7 items-center justify-center text-mad-black/70 hover:text-mad-black"
+                        >
+                          <SendToBack className="size-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAdjust(index, selected.pieceId, null)}
+                          disabled={!isAdjusted(adjusts[index]?.[selected.pieceId])}
+                          title="Put this piece back"
+                          aria-label="Put the selected piece back in its automatic spot"
+                          className="flex size-7 items-center justify-center text-mad-black/70 hover:text-mad-black disabled:opacity-30"
+                        >
+                          <RotateCcw className="size-4" aria-hidden />
+                        </button>
+                      </>
+                    ) : null}
+                    {Object.keys(adjusts[index] ?? {}).length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdjusts((current) => ({ ...current, [index]: {} }))
+                          setSelected(null)
+                        }}
+                        title="Reset this slide's layout"
+                        aria-label={`Reset ${day.day}'s layout`}
+                        className="flex size-7 items-center justify-center text-mad-black/70 hover:text-mad-black"
+                      >
+                        <Undo2 className="size-4" aria-hidden />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
                 <ul className="grid grid-cols-1 gap-1">
                   {day.pieceIds.map((id) => {
                     const story = stories.get(id)
