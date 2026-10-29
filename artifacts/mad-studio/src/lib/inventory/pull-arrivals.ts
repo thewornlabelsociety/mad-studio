@@ -20,6 +20,7 @@ import {
 } from "@/lib/inventory/reconcile-arrival"
 import type { BrandIdentity } from "@/lib/entities/dna-schema"
 import { parsePrice } from "@/lib/inventory/types"
+import { markdownFromPrices, type ListingMarkdown } from "@/lib/inventory/listing-markdown"
 import { metaGraphBase } from "@/lib/social/types"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -38,6 +39,8 @@ export type PulledArrival = {
   /** Marketplace category and gender (Worn Label feeds). */
   category?: string | null
   gender?: string | null
+  /** Shop markdown: full price and when it was discounted (Worn Label feeds). */
+  markdown?: ListingMarkdown
   availability: ListingAvailability
   listing_url: string | null
 }
@@ -379,6 +382,11 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
         aesthetic_slugs: aesthetics.aesthetic_slugs,
         category: stringField(record, "category", "subCategory"),
         gender: stringField(record, "gender", "department"),
+        markdown: markdownFromPrices({
+          fullPrice: numberField(record, "listingPrice", "price"),
+          salePrice: numberField(record, "salePrice", "discountedPrice"),
+          discountedAt: stringField(record, "discountedAt"),
+        }),
         availability: classifyWornLabelAvailability(record),
         listing_url: listingUrlFromRecord(record),
       })
@@ -432,6 +440,11 @@ function parseWornLabelItems(payload: unknown): PulledArrival[] {
         aesthetic_slugs: aesthetics.aesthetic_slugs,
         category: stringField(record, "category", "subCategory"),
         gender: stringField(record, "gender", "department"),
+        markdown: markdownFromPrices({
+          fullPrice: numberField(record, "price"),
+          salePrice: numberField(record, "discountedPrice"),
+          discountedAt: stringField(record, "discountedAt"),
+        }),
         availability: classifyWornLabelAvailability(record),
         listing_url: listingUrlFromRecord(record),
       })

@@ -3,6 +3,7 @@ import { buildSeededCopyDraft } from "./intake-caption-default.ts"
 import type { ListingAvailability } from "./listing-availability.ts"
 import { withListingSyncMetrics } from "./listing-availability.ts"
 import { withListingGarmentMetrics } from "./listing-garment.ts"
+import { withListingMarkdownMetrics, type ListingMarkdown } from "./listing-markdown.ts"
 import { withListingVibeMetrics } from "./listing-vibe.ts"
 
 /** Incoming catalogue row used to reconcile marketing_entities. */
@@ -20,6 +21,8 @@ export type ArrivalReconcileInput = {
   /** Marketplace category and gender; left out by feeds that have none. */
   category?: string | null
   gender?: string | null
+  /** Shop markdown; left out by feeds without one. */
+  markdown?: ListingMarkdown
   availability: ListingAvailability
   listing_url: string | null
 }
@@ -123,6 +126,9 @@ export function buildArrivalReconcilePatch(input: {
     vibe: input.incoming.vibe,
     aesthetic_slugs: input.incoming.aesthetic_slugs,
   })
+  if (input.incoming.markdown !== undefined) {
+    metrics = withListingMarkdownMetrics(metrics, input.incoming.markdown)
+  }
   if (input.incoming.category !== undefined || input.incoming.gender !== undefined) {
     metrics = withListingGarmentMetrics(metrics, {
       category: input.incoming.category,
@@ -153,7 +159,7 @@ export function buildArrivalInsertRow(input: {
   syncedAt: string
   intakeCaptionDefault?: IntakeCaptionDefaultSource
 }): Record<string, unknown> {
-  const metrics = withListingSyncMetrics(
+  const listing = withListingMarkdownMetrics(
     withListingGarmentMetrics(
       withListingVibeMetrics(
         { views: 0, clicks: 0, sales: 0 },
@@ -164,6 +170,10 @@ export function buildArrivalInsertRow(input: {
       ),
       { category: input.incoming.category, gender: input.incoming.gender }
     ),
+    input.incoming.markdown ?? { wasPrice: null, discountedAt: null }
+  )
+  const metrics = withListingSyncMetrics(
+    listing,
     {
       availability: input.incoming.availability,
       syncedAt: input.syncedAt,

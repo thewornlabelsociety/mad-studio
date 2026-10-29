@@ -21,7 +21,7 @@ import { readDispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { resolveIntakeCaptionDefaultSource } from "@/lib/inventory/intake-caption-default"
 import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
 import { MorningStoryFeed } from "@/components/today/morning-story-feed"
-import { WeekOutfitsLink } from "@/components/today/week-outfits-link"
+import { TodayToolLinks } from "@/components/today/today-tool-links"
 import { TodayActionDeck } from "@/components/today/action-deck"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { TodayChecklist } from "@/components/today/today-checklist"
@@ -237,7 +237,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             />
           ) : null}
           {isWls ? (
-            <WeekOutfitsLink entityId={activeEntityId} className="mx-3 mt-2" />
+            <TodayToolLinks entityId={activeEntityId} className="mx-3 mt-2" />
           ) : null}
           <TodayChecklist
             entityId={activeEntityId}
@@ -270,7 +270,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             />
           ) : null}
           {isWls ? (
-            <WeekOutfitsLink entityId={activeEntityId} className="mb-3 shrink-0" />
+            <TodayToolLinks entityId={activeEntityId} className="mb-3 shrink-0" />
           ) : null}
           <TodayCommandDashboard
             entityId={activeEntityId}
