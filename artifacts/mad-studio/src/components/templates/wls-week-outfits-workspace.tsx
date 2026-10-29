@@ -21,10 +21,11 @@ import { toast } from "sonner"
 
 import { isAdjusted, NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import { OutfitCoverSlide, OutfitSlide, type SlidePiece } from "@/components/templates/outfit-slides"
+import { PiecePicker, type PickerOption } from "@/components/templates/piece-picker"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
-import { uploadRenderedPng } from "@/lib/studio/final-artwork"
+import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
 import {
   saveStudioSlidesHandoff,
   STUDIO_SLIDES_QUERY_FLAG,
@@ -36,12 +37,14 @@ import {
   buildWeekOutfits,
   formatWeekRange,
   nextSwap,
+  swapCandidates,
   nextWeekRange,
   OUTFIT_SLOT_LABELS,
   toOutfitPiece,
   type DayOutfit,
 } from "@/lib/templates/week-outfits"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
+import { useRememberedState } from "@/lib/use-remembered-state"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -49,6 +52,64 @@ type Props = {
   entityName: string
   industry?: string | null
   brandIdentity?: { visual_presets?: VisualPresets | null } | null
+}
+
+type CoverText = {
+  kicker: string
+  title: string
+  /** null = the week's dates. */
+  dateLine: string | null
+}
+
+/** Starting points for the cover; every word stays editable. */
+const COVER_PICKS: Array<{ label: string; value: CoverText }> = [
+  { label: "A week of outfits", value: { kicker: "A week of", title: "Outfits", dateLine: null } },
+  { label: "Capsule wardrobe", value: { kicker: "This week's", title: "Capsule Wardrobe", dateLine: null } },
+  { label: "For the kids", value: { kicker: "Something for", title: "The Kids", dateLine: null } },
+  { label: "Weekend edit", value: { kicker: "Your", title: "Weekend Edit", dateLine: null } },
+  { label: "Little ones", value: { kicker: "Something for", title: "The Little Ones", dateLine: null } },
+]
+
+type Audience = "women" | "men" | "kids" | "tween" | "baby"
+
+const AUDIENCES: Array<{ id: Audience; label: string }> = [
+  { id: "men", label: "Mens" },
+  { id: "women", label: "Womens" },
+  { id: "kids", label: "Kids" },
+  { id: "tween", label: "Tween" },
+  { id: "baby", label: "Baby" },
+]
+
+/** Children's weeks start from a matching cover pick. */
+const AUDIENCE_COVER: Partial<Record<Audience, string>> = {
+  kids: "For the kids",
+  tween: "For the kids",
+  baby: "Little ones",
+}
+
+function readAudience(entityId: string): Audience | null {
+  try {
+    const value = window.localStorage.getItem(`mad.weekAudience.${entityId}`)
+    return AUDIENCES.some((option) => option.id === value) ? (value as Audience) : null
+  } catch {
+    return null
+  }
+}
+
+function readCover(entityId: string): CoverText | null {
+  try {
+    const raw = window.localStorage.getItem(`mad.weekCover.${entityId}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<CoverText>
+    if (typeof parsed.title !== "string") return null
+    return {
+      kicker: typeof parsed.kicker === "string" ? parsed.kicker : "",
+      title: parsed.title,
+      dateLine: typeof parsed.dateLine === "string" ? parsed.dateLine : null,
+    }
+  } catch {
+    return null
+  }
 }
 
 function shortPrice(label: string | null | undefined): string | null {
@@ -69,14 +130,30 @@ export function WlsWeekOutfitsWorkspace({
 }: Props) {
   const [, navigate] = useLocation()
   const slideNodes = useRef<Array<HTMLDivElement | null>>([])
-  const [week, setWeek] = useState<DayOutfit[] | null>(null)
-  const [backgroundId, setBackgroundId] = useState<string | null>(null)
+  const range = useMemo(() => nextWeekRange(), [])
+  // The week's outfits, swaps and placements are kept as a draft for that
+  // week, so leaving the screen doesn't lose them.
+  const draftKey = `mad.weekDraft.${entityId}.${range.start.toDateString()}`
+  const [week, setWeek] = useRememberedState<DayOutfit[] | null>(`${draftKey}.week`, null)
+  const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`${draftKey}.background`, null)
   const [sending, setSending] = useState(false)
   // Hand placements per day (slide index - 1), keyed by piece id.
-  const [adjusts, setAdjusts] = useState<Record<number, Record<string, LayerAdjust>>>({})
+  const [adjusts, setAdjusts] = useRememberedState<Record<number, Record<string, LayerAdjust>>>(
+    `${draftKey}.placements`,
+    {}
+  )
   const [selected, setSelected] = useState<{ day: number; pieceId: string } | null>(null)
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
-  const range = useMemo(() => nextWeekRange(), [])
+  const [cover, setCover] = useState<CoverText>(() => readCover(entityId) ?? COVER_PICKS[0].value)
+  const dateLine = cover.dateLine ?? formatWeekRange(range)
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(`mad.weekCover.${entityId}`, JSON.stringify(cover))
+    } catch {
+      /* the cover words just aren't remembered */
+    }
+  }, [entityId, cover])
 
   const weekIds = useMemo(() => [...new Set((week ?? []).flatMap((day) => day.pieceIds))], [week])
   const { kit, eligible, loaded, loading, reload, stories, cuttingId, cutoutFailed, retryCutout } =
@@ -89,14 +166,56 @@ export function WlsWeekOutfitsWorkspace({
       cutoutIds: weekIds,
     })
 
-  const pieces = useMemo(() => eligible.map(toOutfitPiece), [eligible])
-  const pieceById = useMemo(() => new Map(pieces.map((piece) => [piece.id, piece])), [pieces])
+  const allPieces = useMemo(() => eligible.map(toOutfitPiece), [eligible])
+  const counts = useMemo(() => {
+    const out: Record<Audience, number> = { women: 0, men: 0, kids: 0, tween: 0, baby: 0 }
+    for (const piece of allPieces) if (piece.gender && piece.gender in out) out[piece.gender as Audience]++
+    return out
+  }, [allPieces])
+  // Until chosen, start with whichever group has the most stock.
+  const [audience, setAudience] = useState<Audience | null>(() => readAudience(entityId))
+  const activeAudience: Audience =
+    audience ?? (Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] as Audience) ?? "women"
+  // One group per week (plus unisex), so men's, women's and kids' never mix.
+  const pieces = useMemo(
+    () => allPieces.filter((piece) => piece.gender === activeAudience || piece.gender === "unisex"),
+    [allPieces, activeAudience]
+  )
+  const ungendered = allPieces.filter((piece) => !piece.gender).length
+  const pieceById = useMemo(() => new Map(allPieces.map((piece) => [piece.id, piece])), [allPieces])
+
+  function chooseAudience(next: Audience) {
+    if (next === activeAudience) return
+    setAudience(next)
+    try {
+      window.localStorage.setItem(`mad.weekAudience.${entityId}`, next)
+    } catch {
+      /* remembered for this visit only */
+    }
+    setWeek(null)
+    setAdjusts({})
+    setSelected(null)
+    // Children's weeks get a matching cover; a cover you typed yourself is kept.
+    const isPick = COVER_PICKS.some((pick) => pick.value.title === cover.title && pick.value.kicker === cover.kicker)
+    if (isPick) {
+      const label = AUDIENCE_COVER[next] ?? "A week of outfits"
+      setCover((COVER_PICKS.find((pick) => pick.label === label) ?? COVER_PICKS[0]).value)
+    }
+  }
 
   useEffect(() => {
     if (loaded && !loading && week === null && pieces.length > 0) {
       setWeek(buildWeekOutfits(pieces))
     }
   }, [loaded, loading, week, pieces])
+
+  // A kept draft may name pieces that have since sold: drop them.
+  useEffect(() => {
+    if (!loaded || loading || !week || allPieces.length === 0) return
+    const inStock = new Set(allPieces.map((piece) => piece.id))
+    if (week.every((day) => day.pieceIds.every((id) => inStock.has(id)))) return
+    setWeek(week.map((day) => ({ ...day, pieceIds: day.pieceIds.filter((id) => inStock.has(id)) })))
+  }, [loaded, loading, week, allPieces, setWeek])
 
   useEffect(() => {
     if (!selected) return
@@ -152,6 +271,27 @@ export function WlsWeekOutfitsWorkspace({
     updateDay(index, week[index].pieceIds.map((id) => (id === pieceId ? next : id)))
   }
 
+  /** Stock that could take this piece's place, for the search panel. */
+  function pickerOptions(dayIndex: number, pieceId: string): PickerOption[] {
+    if (!week) return []
+    return swapCandidates({ pieces, outfit: week[dayIndex].pieceIds, currentId: pieceId }).flatMap((piece) => {
+      const story = stories.get(piece.id)
+      if (!story) return []
+      const row = story.row
+      const image = story.cutoutUrl ?? row.sourceImageUrls[0] ?? null
+      return [
+        {
+          id: piece.id,
+          brand: story.designer,
+          title: row.title,
+          detail: [formatSizeForText(row.size), shortPrice(story.priceLabel), row.vibe].filter(Boolean).join(" · "),
+          thumb: image ? proxiedImageUrl(image, entityId) : null,
+          searchText: [row.title, row.brand, row.description, row.category, row.vibe, row.size].filter(Boolean).join(" "),
+        },
+      ]
+    })
+  }
+
   function setAdjust(day: number, pieceId: string, next: LayerAdjust | null) {
     setAdjusts((current) => {
       const dayAdjusts = { ...current[day] }
@@ -187,8 +327,10 @@ export function WlsWeekOutfitsWorkspace({
       })
       return `${day.day}: ${parts.join(" + ")}`
     })
+    const heading = [cover.kicker.trim(), cover.title.trim()].filter(Boolean).join(" ")
+    const opener = heading ? heading.charAt(0).toUpperCase() + heading.slice(1).toLowerCase() : "A week of outfits"
     return [
-      "A week of outfits, every piece on our racks right now.",
+      `${opener}, every piece on our racks right now.`,
       "",
       ...lines,
       "",
@@ -236,10 +378,30 @@ export function WlsWeekOutfitsWorkspace({
           <p className="mt-1 max-w-xl text-sm text-mad-black/70">
             Seven outfits built from what&apos;s on the racks. Drag any piece to
             move it, pull its corner to resize or its top dot to tilt. Then
-            send the slides to Studio to write the caption and schedule.
+            send the slides to Studio to write the caption and schedule. Your
+            changes are kept as a draft on this device until you rebuild.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <div className="flex border-2 border-mad-black" role="group" aria-label="Who this week is for">
+            {AUDIENCES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => chooseAudience(option.id)}
+                aria-pressed={option.id === activeAudience}
+                className={cn(
+                  "flex h-9 items-center gap-1.5 px-3 font-typewriter text-xs font-bold uppercase tracking-widest",
+                  option.id === activeAudience ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]"
+                )}
+              >
+                {option.label}
+                <span className={cn("text-[10px] font-normal", option.id === activeAudience ? "text-mad-white/70" : "text-mad-black/50")}>
+                  {counts[option.id]}
+                </span>
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-1.5" role="group" aria-label="Background for the week">
             {kit.map((bg) => (
               <button
@@ -311,7 +473,11 @@ export function WlsWeekOutfitsWorkspace({
           <Loader2 className="size-4 animate-spin" aria-hidden /> Building the week from stock…
         </p>
       ) : !week || pieces.length === 0 ? (
-        <p className="text-sm text-mad-black/60">No live stock to build outfits from yet.</p>
+        <p className="text-sm text-mad-black/60">
+          {allPieces.length === 0
+            ? "No live stock to build outfits from yet."
+            : `No ${AUDIENCES.find((option) => option.id === activeAudience)?.label.toLowerCase()} pieces in stock right now.`}
+        </p>
       ) : (
         <ol className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <li className="flex min-w-0 flex-col gap-2">
@@ -321,10 +487,72 @@ export function WlsWeekOutfitsWorkspace({
               }}
               background={background}
               brandName={entityName}
-              dateRange={formatWeekRange(range)}
+              kicker={cover.kicker}
+              title={cover.title}
+              dateRange={dateLine}
               className="rounded-sm shadow-md"
             />
             <p className="font-typewriter text-[10px] uppercase tracking-widest text-mad-black/55">Slide 1 · Cover</p>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Cover quick picks">
+              {COVER_PICKS.map((pick) => (
+                <button
+                  key={pick.label}
+                  type="button"
+                  onClick={() => setCover(pick.value)}
+                  aria-pressed={cover.title === pick.value.title && cover.kicker === pick.value.kicker}
+                  className={cn(
+                    "border px-2 py-0.5 text-[11px]",
+                    cover.title === pick.value.title && cover.kicker === pick.value.kicker
+                      ? "border-mad-black bg-mad-black text-mad-white"
+                      : "border-mad-black/30 hover:border-mad-black"
+                  )}
+                >
+                  {pick.label}
+                </button>
+              ))}
+            </div>
+            <label className="grid gap-0.5 text-[11px]">
+              <span className="text-mad-black/60">Small line</span>
+              <input
+                id="cover-kicker"
+                value={cover.kicker}
+                maxLength={30}
+                onChange={(event) => setCover((current) => ({ ...current, kicker: event.target.value }))}
+                className="h-8 border-2 border-mad-black/40 bg-white px-2 text-xs uppercase tracking-wider"
+              />
+            </label>
+            <label className="grid gap-0.5 text-[11px]">
+              <span className="text-mad-black/60">Title</span>
+              <input
+                id="cover-title"
+                value={cover.title}
+                maxLength={30}
+                onChange={(event) => setCover((current) => ({ ...current, title: event.target.value }))}
+                className="h-8 border-2 border-mad-black bg-white px-2 text-xs font-semibold uppercase tracking-wider"
+              />
+            </label>
+            <label className="grid gap-0.5 text-[11px]">
+              <span className="flex items-center justify-between text-mad-black/60">
+                Line under the title
+                {cover.dateLine !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => setCover((current) => ({ ...current, dateLine: null }))}
+                    className="underline"
+                  >
+                    Use the dates
+                  </button>
+                ) : null}
+              </span>
+              <input
+                id="cover-date-line"
+                value={dateLine}
+                maxLength={40}
+                placeholder="Leave empty to hide"
+                onChange={(event) => setCover((current) => ({ ...current, dateLine: event.target.value }))}
+                className="h-8 border-2 border-mad-black/40 bg-white px-2 text-xs uppercase tracking-wider"
+              />
+            </label>
           </li>
           {week.map((day, index) => {
             const options = addableSlots({ pieces, outfit: day.pieceIds })
@@ -413,6 +641,11 @@ export function WlsWeekOutfitsWorkspace({
                           {formatSizeForText(story.row.size) ? ` · ${formatSizeForText(story.row.size)}` : ""}
                         </span>
                         {cuttingId === id ? <Scissors className="size-3 animate-pulse text-mad-black/50" aria-hidden /> : null}
+                        <PiecePicker
+                          label={OUTFIT_SLOT_LABELS[piece.slot].toLowerCase()}
+                          options={pickerOptions(index, id)}
+                          onPick={(next) => updateDay(index, day.pieceIds.map((pieceId) => (pieceId === id ? next : pieceId)))}
+                        />
                         <button
                           type="button"
                           onClick={() => swap(index, id)}
@@ -458,7 +691,8 @@ export function WlsWeekOutfitsWorkspace({
       {loaded && week ? (
         <p className="flex items-center gap-2 pb-4 text-xs text-mad-black/55">
           <RefreshCw className="size-3" aria-hidden />
-          Built from {pieces.length} pieces in stock. Rebuild after new arrivals land.
+          Built from {pieces.length} {AUDIENCES.find((option) => option.id === activeAudience)?.label.toLowerCase()} pieces in stock
+          {ungendered > 0 ? ` (${ungendered} without a men's, women's or kids' tag are left out)` : ""}. Rebuild after new arrivals land.
         </p>
       ) : null}
     </div>

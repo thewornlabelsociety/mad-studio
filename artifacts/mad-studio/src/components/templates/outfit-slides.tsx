@@ -194,27 +194,52 @@ export const OutfitSlide = forwardRef<
   )
 })
 
-/** Slide 1, type only: A WEEK OF OUTFITS and the dates. */
+/** Slide 1, type only: a small line, the big title and the dates — all editable. */
 export const OutfitCoverSlide = forwardRef<
   HTMLDivElement,
   {
     background: StoryBackground
     brandName: string
+    /** Small line above the title, e.g. A WEEK OF. */
+    kicker?: string
+    /** The big words, e.g. OUTFITS or CAPSULE WARDROBE. */
+    title?: string
+    /** Line under the title; the week's dates by default. Empty hides it. */
     dateRange: string
     className?: string
   }
->(function OutfitCoverSlide({ background, brandName, dateRange, className }, ref) {
+>(function OutfitCoverSlide(
+  { background, brandName, kicker = "A week of", title = "Outfits", dateRange, className },
+  ref
+) {
+  // Big for one short word, stepping down so the longest word stays on one line.
+  const longest = Math.max(...title.split(/s+/).map((word) => word.length), 1)
+  const titleSize = Math.min(17, 92 / (longest * 0.72), title.length > 18 ? 12 : 17)
   return (
     <div ref={ref} className={className} style={frame(background)}>
       <div style={{ position: "absolute", top: "6cqw", right: "6cqw" }}>
         <Wordmark brandName={brandName} accent={background.accent_color} />
       </div>
       <div style={{ position: "absolute", left: "6cqw", right: "6cqw", top: "50%", transform: "translateY(-50%)" }}>
-        <p style={{ ...caps, fontSize: "5cqw", letterSpacing: "0.3em", color: background.accent_color }}>A week of</p>
-        <p style={{ ...caps, fontWeight: 700, fontSize: "17cqw", letterSpacing: "0.04em", lineHeight: 0.95, marginTop: "1cqw" }}>
-          Outfits
+        {kicker.trim() ? (
+          <p style={{ ...caps, fontSize: "5cqw", letterSpacing: "0.3em", color: background.accent_color }}>{kicker}</p>
+        ) : null}
+        <p
+          style={{
+            ...caps,
+            fontWeight: 700,
+            fontSize: `${titleSize}cqw`,
+            letterSpacing: "0.04em",
+            lineHeight: 0.95,
+            marginTop: "1cqw",
+            textWrap: "balance",
+          }}
+        >
+          {title || "Outfits"}
         </p>
-        <p style={{ ...caps, fontSize: "3.6cqw", letterSpacing: "0.22em", marginTop: "3cqw" }}>{dateRange}</p>
+        {dateRange.trim() ? (
+          <p style={{ ...caps, fontSize: "3.6cqw", letterSpacing: "0.22em", marginTop: "3cqw" }}>{dateRange}</p>
+        ) : null}
       </div>
 
       <p

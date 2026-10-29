@@ -21,6 +21,7 @@ import {
   type KitStory,
 } from "@/lib/templates/use-kit-stories"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
+import { useRememberedState } from "@/lib/use-remembered-state"
 import { cn } from "@/lib/utils"
 
 /** A carousel takes the cover plus nine pieces. */
@@ -52,8 +53,9 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
   const slideNodes = useRef<Array<HTMLDivElement | null>>([])
   const storyNodes = useRef<Record<string, HTMLDivElement | null>>({})
-  const [picked, setPicked] = useState<string[] | null>(null)
-  const [backgroundId, setBackgroundId] = useState<string | null>(null)
+  // Ticked pieces and background are kept, so leaving the screen keeps the carousel.
+  const [picked, setPicked] = useRememberedState<string[] | null>(`mad.saleRack.${entityId}.picked`, null)
+  const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.saleRack.${entityId}.background`, null)
   const [sending, setSending] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
 

@@ -1,7 +1,13 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { categoryFromDescription, garmentGender, readListingGarmentFromMetrics } from "./listing-garment.ts"
+import {
+  categoryFromDescription,
+  garmentGender,
+  listingGenderField,
+  normalizeGarmentGender,
+  readListingGarmentFromMetrics,
+} from "./listing-garment.ts"
 import { buildArrivalInsertRow, buildArrivalReconcilePatch } from "./reconcile-arrival.ts"
 
 const incoming = {
@@ -65,4 +71,18 @@ test("older items fall back to the description's category line and title words",
   assert.equal(categoryFromDescription("Brand: X\nSize: M\nBottoms\nBlue"), "Bottoms")
   assert.equal(garmentGender({ title: "Shirt Coco Mens in Navy" }), "men")
   assert.equal(garmentGender({ title: "Shirt Coco in Navy" }), null)
+})
+
+test("children are split by the shop's age group: baby, kids, tween", () => {
+  assert.equal(listingGenderField("Boys", "Baby"), "baby")
+  assert.equal(listingGenderField("Men", "Teen"), "tween")
+  assert.equal(listingGenderField("Girls", "Kids"), "kids")
+  assert.equal(listingGenderField("Men", "Adult"), "Men")
+  assert.equal(normalizeGarmentGender("baby"), "baby")
+  assert.equal(normalizeGarmentGender("tween"), "tween")
+  assert.equal(normalizeGarmentGender("Boys"), "kids")
+  assert.equal(normalizeGarmentGender("Women"), "women")
+  assert.equal(garmentGender({ title: "Boys Puffer Jacket" }), "kids")
+  // A colour, not an age.
+  assert.equal(garmentGender({ title: "Mini Dress Staple the Label in Baby blue" }), null)
 })

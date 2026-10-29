@@ -23,6 +23,7 @@ import { formatCanvasSizeTagLabel } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl } from "@/lib/studio/final-artwork"
 import { formatWlsNzdPrice } from "@/lib/templates/format-wls-nzd-price"
 import { buildWlsDailyStoryCanvasModel } from "@/lib/templates/wls-daily-story"
+import { useRememberedState } from "@/lib/use-remembered-state"
 
 export type StoryEdits = {
   vibe?: string
@@ -123,7 +124,8 @@ export function useKitStories(input: {
   const [cutoutFailed, setCutoutFailed] = useState<Record<string, true>>({})
   const [cuttingId, setCuttingId] = useState<string | null>(null)
   const [colours, setColours] = useState<Record<string, Rgb | null>>({})
-  const [edits, setEdits] = useState<Record<string, StoryEdits>>({})
+  // Vibe, background and placement edits per item, kept across visits.
+  const [edits, setEdits] = useRememberedState<Record<string, StoryEdits>>(`mad.storyEdits.${entityId}`, {})
   const [sharedAt, setSharedAt] = useState<Record<string, string | null>>({})
   const sampling = useRef(new Set<string>())
 
