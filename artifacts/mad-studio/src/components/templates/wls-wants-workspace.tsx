@@ -11,6 +11,7 @@ import { saveWantsList } from "@/lib/actions"
 import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets, WantsItem } from "@/lib/entities/dna-schema"
+import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
@@ -98,6 +99,7 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
       const baked = await bakeStoryPng(storyRef.current)
       const result = await shareOrDownloadStory({ ...baked, filename: "wls-searching-for.png" })
       if (result === "downloaded") toast.success("Story image saved.")
+      if (result !== "cancelled") void completeActiveStep(entityId)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the image.")
     } finally {

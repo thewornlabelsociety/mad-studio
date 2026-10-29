@@ -51,7 +51,15 @@ import {
 import type { PlannerTimelineDay } from "@/lib/planner/planner-timeline-types"
 import { fetchNewArrivalSuggestions } from "@/lib/studio/new-arrival-suggestions"
 import { prepareCampaignStep } from "@/components/campaigns/campaign-planner"
-import { DayPills, datePillsOn, useCampaignPlans } from "@/components/planner/day-pills"
+import {
+  DayPills,
+  datePillsOn,
+  SharedStoriesChip,
+  useCampaignPlans,
+  useSharedStories,
+} from "@/components/planner/day-pills"
+import { ymd } from "@/lib/planner/campaign-recipes"
+import type { SharedStory } from "@/lib/planner/campaign-progress"
 import { campaignStepsOn, type CampaignPlan } from "@/lib/planner/campaign-recipes"
 import { WLS_WEEK_RHYTHM } from "@/lib/planner/week-rhythm"
 import { useLocation } from "wouter"
@@ -147,6 +155,7 @@ export function PlannerCalendarCanvas({
   }, [anchorDate])
 
   const { from, to } = useMemo(() => rangeFor(view, anchor), [view, anchor])
+  const sharedStories = useSharedStories({ entityId, from, to, enabled: isWls })
 
   // Only the latest request wins, so quick Next/Previous clicks never show
   // another week's posts.
@@ -395,6 +404,7 @@ export function PlannerCalendarCanvas({
           campaigns={campaigns}
           picks={picks}
           isWls={isWls}
+          sharedStories={sharedStories}
           onOpenDay={(date) => {
             setAnchor(startOfDay(date))
             setView("week")
@@ -442,6 +452,7 @@ export function PlannerCalendarCanvas({
                   </div>
 
                   <DayPills date={cell.date} entityId={entityId} campaigns={campaigns} />
+                  <SharedStoriesChip stories={sharedStories.get(ymd(cell.date))} entityId={entityId} />
 
                   {beat ? (
                     <div className="group/beat relative">
@@ -642,7 +653,7 @@ function FillDay({
                   <p className="truncate text-xs font-semibold">{step.title}</p>
                   <p className="truncate text-[0.75rem] text-neutral-600">{plan.name} campaign</p>
                 </div>
-                <button type="button" onClick={() => navigate(prepareCampaignStep(step, entityId))} className={make}>
+                <button type="button" onClick={() => navigate(prepareCampaignStep(step, entityId, plan.id))} className={make}>
                   Make it
                 </button>
               </div>
@@ -732,11 +743,13 @@ function MonthGrid({
   campaigns,
   picks,
   isWls,
+  sharedStories,
 }: {
   entityId: string
   campaigns: CampaignPlan[]
   picks: ArtDirectorPick[]
   isWls: boolean
+  sharedStories: Map<string, SharedStory[]>
   cells: Array<{ date: Date; inCurrentMonth: boolean }>
   today: Date
   postsByDay: Map<string, CalendarPost[]>
@@ -794,6 +807,7 @@ function MonthGrid({
                 </button>
               </div>
               <DayPills date={cell.date} entityId={entityId} campaigns={campaigns} compact />
+              <SharedStoriesChip stories={sharedStories.get(ymd(cell.date))} entityId={entityId} compact />
               {beat ? (
                 <button
                   type="button"

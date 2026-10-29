@@ -15,6 +15,7 @@ import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { ANNOUNCEMENT_PREFILL_KEY } from "@/components/campaigns/campaign-planner"
+import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { findMoment, type MomentCard } from "@/lib/planner/nz-moments"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
@@ -322,6 +323,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
         if ((await shareOrDownloadStory(row)) === "downloaded") downloaded++
       }
       if (downloaded > 0) toast.success(downloaded === 1 ? "Story image saved." : `${downloaded} Story images saved.`)
+      void completeActiveStep(entityId)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the image.")
     } finally {
@@ -381,6 +383,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
       const payload = (await response.json().catch(() => ({}))) as { error?: string }
       if (!response.ok) throw new Error(payload.error || "Couldn't reach the website.")
       toast.success("On the website home page.")
+      void completeActiveStep(entityId)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't put it on the website.")
     } finally {

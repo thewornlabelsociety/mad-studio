@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Link } from "wouter"
 
 import { getCampaignPlans } from "@/lib/actions"
+import { fetchSharedStories, sharedStoriesByDay, type SharedStory } from "@/lib/planner/campaign-progress"
 import { campaignCovers, campaignStepsOn, type CampaignPlan } from "@/lib/planner/campaign-recipes"
 import { momentsOnDay } from "@/lib/planner/nz-moments"
 import { cn } from "@/lib/utils"
@@ -86,5 +87,69 @@ export function DayPills({
         </Link>
       ))}
     </div>
+  )
+}
+
+/** Stories marked shared on Today in the range, by day (yyyy-mm-dd). */
+export function useSharedStories(input: {
+  entityId: string
+  from: Date
+  to: Date
+  enabled: boolean
+}): Map<string, SharedStory[]> {
+  const { entityId, from, to, enabled } = input
+  const [byDay, setByDay] = useState<Map<string, SharedStory[]>>(new Map())
+  const fromTime = from.getTime()
+  const toTime = to.getTime()
+  useEffect(() => {
+    if (!enabled) return
+    let live = true
+    void fetchSharedStories({ entityId, from: new Date(fromTime), to: new Date(toTime) })
+      .then((stories) => {
+        if (live) setByDay(sharedStoriesByDay(stories))
+      })
+      .catch(() => {
+        /* the calendar still shows scheduled posts */
+      })
+    return () => {
+      live = false
+    }
+  }, [entityId, fromTime, toTime, enabled])
+  return byDay
+}
+
+/** "3 Stories shared" with small thumbnails; links to Today. */
+export function SharedStoriesChip({
+  stories,
+  entityId,
+  compact = false,
+}: {
+  stories: SharedStory[] | undefined
+  entityId: string
+  compact?: boolean
+}) {
+  if (!stories || stories.length === 0) return null
+  const label = `${stories.length} ${stories.length === 1 ? "Story" : "Stories"} shared`
+  return (
+    <Link
+      href={`/today?eid=${encodeURIComponent(entityId)}`}
+      title={stories.map((story) => story.title).join(" · ")}
+      className={cn(
+        "inline-flex max-w-full items-center gap-1.5 self-start rounded-full border border-mad-black/20 bg-white py-0.5 pl-0.5 pr-2 text-[10px] font-medium leading-4 text-mad-black",
+        compact && "pl-1"
+      )}
+    >
+      {compact ? null : (
+        <span className="flex -space-x-1.5">
+          {stories.slice(0, 3).map((story) =>
+            story.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={story.id} src={story.image} alt="" className="size-4 rounded-full border border-white object-cover" />
+            ) : null
+          )}
+        </span>
+      )}
+      <span className="truncate">{label}</span>
+    </Link>
   )
 }
