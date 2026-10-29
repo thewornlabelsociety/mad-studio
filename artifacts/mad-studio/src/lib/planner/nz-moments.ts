@@ -512,8 +512,8 @@ const SHORT_RANGE_DAYS = 21
 
 /**
  * NZ moments to tag on a calendar day: one-day dates on the day, school
- * holidays and short runs (long weekends) on every day, and long seasons and
- * change-of-season windows on their first day only.
+ * holidays and short holiday or sale runs (long weekends) on every day, and seasons, occasions
+ * and causes on their first day only.
  */
 export function momentsOnDay(date: Date): NzMoment[] {
   const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
@@ -526,7 +526,8 @@ export function momentsOnDay(date: Date): NzMoment[] {
       if (target < start || target > end) return false
       const length = Math.round((end - start) / 86_400_000) + 1
       const everyDay =
-        moment.kind === "school" || (length <= SHORT_RANGE_DAYS && moment.kind !== "season")
+        moment.kind === "school" ||
+        (length <= SHORT_RANGE_DAYS && (moment.kind === "holiday" || moment.kind === "sale"))
       return everyDay || target === start
     })
 }
