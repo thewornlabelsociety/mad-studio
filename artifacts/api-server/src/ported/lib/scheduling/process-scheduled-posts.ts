@@ -16,7 +16,7 @@ export type ScheduledPostPayload = {
   headline?: string | null
   caption?: string
   media_url?: string | null
-  /** Feed carousel slides (Instagram feed, Facebook); media_url is slide 1. */
+  /** Carousel slides (Instagram feed, Facebook, TikTok photos); media_url is slide 1. */
   media_urls?: string[] | null
   /** Instagram Story sequence (2–10 frames); media_url is frame 1. */
   story_urls?: string[] | null
@@ -106,11 +106,15 @@ async function dispatchRow(
         carouselUrls,
       })
     case "tiktok": {
-      const tiktokMediaError = tikTokMediaGuardError(mediaUrl)
+      const tiktokMediaError = tikTokMediaGuardError(mediaUrl, carouselUrls)
       if (tiktokMediaError) {
         return { ok: false, error: tiktokMediaError }
       }
-      return dispatchOutboundChannel(ctx, { ...base, platform: "tiktok" })
+      return dispatchOutboundChannel(ctx, {
+        ...base,
+        platform: "tiktok",
+        carouselUrls,
+      })
     }
     case "email":
       return dispatchOutboundChannel(ctx, { ...base, platform: "email" })

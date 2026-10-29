@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { TIKTOK_PHOTO_MAX } from "@/lib/social/tiktok-media-guard"
 import { refreshTikTokConnectionIfNeeded } from "@/lib/social/tiktok-token-refresh"
 
 type DbClient = ReturnType<typeof createAdminClient> | {
@@ -188,15 +189,26 @@ export async function verifyTikTokConnection(input: {
   }
 }
 
-/** Direct Post via the TikTok Content Posting API, pulling media from a public URL. */
+/**
+ * Direct Post via the TikTok Content Posting API, pulling media from a public URL.
+ * With 2+ `photoUrls` (JPEG/WEBP) it posts one photo-mode carousel instead.
+ */
 export async function publishToTikTok(input: {
   accessToken: string
   mediaUrl: string
   caption: string
   autoAddMusic?: boolean
+  photoUrls?: string[] | null
 }): Promise<TikTokPublishResult> {
-  const video = isVideoUrl(input.mediaUrl)
+  const carousel =
+    input.photoUrls && input.photoUrls.length >= 2
+      ? input.photoUrls.slice(0, TIKTOK_PHOTO_MAX)
+      : null
+  const video = !carousel && isVideoUrl(input.mediaUrl)
   const mediaUrl = tiktokVerifiedMediaUrl(input.mediaUrl)
+  const photoImages = carousel
+    ? carousel.map(tiktokVerifiedMediaUrl)
+    : [mediaUrl]
 
   try {
     const { status, envelope } = video
@@ -228,7 +240,7 @@ export async function publishToTikTok(input: {
             source_info: {
               source: "PULL_FROM_URL",
               photo_cover_index: 0,
-              photo_images: [mediaUrl],
+              photo_images: photoImages,
             },
             post_mode: "DIRECT_POST",
             media_type: "PHOTO",

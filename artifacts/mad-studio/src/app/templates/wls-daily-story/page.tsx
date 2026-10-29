@@ -16,7 +16,7 @@ export const metadata = {
 }
 
 type PageProps = {
-  searchParams: Promise<{ eid?: string; entityId?: string }>
+  searchParams: Promise<{ eid?: string; entityId?: string; item?: string }>
 }
 
 export default async function WlsDailyStoryPage({ searchParams }: PageProps) {
@@ -45,7 +45,9 @@ export default async function WlsDailyStoryPage({ searchParams }: PageProps) {
 
   if (params.eid !== activeSummary.id) {
     redirect(
-      `/templates/wls-daily-story?eid=${encodeURIComponent(activeSummary.id)}`
+      `/templates/wls-daily-story?eid=${encodeURIComponent(activeSummary.id)}${
+        params.item ? `&item=${encodeURIComponent(params.item)}` : ""
+      }`
     )
   }
 
@@ -93,6 +95,7 @@ export default async function WlsDailyStoryPage({ searchParams }: PageProps) {
         entityName={entityRow?.name ?? activeSummary.name}
         industry={entityRow?.industry ?? activeSummary.industry}
         brandIdentity={brandIdentity as never}
+        initialItemId={params.item ?? null}
       />
     </StudioAppShell>
   )

@@ -54,6 +54,7 @@ import * as templateRecipes from "../ported/app/api/templates/recipes/route";
 import * as wlsDailyStoryEnsure from "../ported/app/api/templates/wls-daily-story/ensure/route";
 import * as wlsDailyStoryEligible from "../ported/app/api/templates/wls-daily-story/eligible/route";
 import * as wlsDailyStorySaveDraft from "../ported/app/api/templates/wls-daily-story/save-draft/route";
+import * as wlsDailyStoryState from "../ported/app/api/templates/wls-daily-story/story-state/route";
 import * as wlsDailyStoryStudioSeed from "../ported/app/api/templates/wls-daily-story/studio-seed/route";
 import * as templateStudioHandoff from "../ported/app/api/templates/studio-handoff/route";
 import * as authCallback from "../ported/app/auth/callback/route";
@@ -231,6 +232,10 @@ router.get(
 router.post(
   "/api/templates/wls-daily-story/save-draft",
   webHandler(method(wlsDailyStorySaveDraft, "POST")),
+);
+router.post(
+  "/api/templates/wls-daily-story/story-state",
+  webHandler(method(wlsDailyStoryState, "POST")),
 );
 router.post(
   "/api/templates/wls-daily-story/studio-seed",

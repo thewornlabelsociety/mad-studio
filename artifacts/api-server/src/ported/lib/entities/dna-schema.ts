@@ -21,6 +21,19 @@ export const audienceSegmentSchema = z.object({
   conversion_goal: z.string().optional(),
 })
 
+/** One Story background: a named ground with its own fixed text and accent colours. */
+export const storyBackgroundSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().min(1).max(40),
+  color: z.string(),
+  text_color: z.string(),
+  accent_color: z.string(),
+  /** Item traits this ground suits (STORY_ITEM_TRAITS ids), used to auto-pick. */
+  suits: z.array(z.string().max(32)).max(12).optional(),
+})
+
+export type StoryBackground = z.infer<typeof storyBackgroundSchema>
+
 export const visualPresetsSchema = z.object({
   canvas_color: z
     .string()
@@ -46,6 +59,8 @@ export const visualPresetsSchema = z.object({
   palette: z.array(z.string()).max(12).optional(),
   /** Default on-image headline font (a CANVAS_TEXT_FONTS id). */
   heading_font_id: z.string().optional(),
+  /** Up to five Story backgrounds; new-arrival Stories pick one per item. */
+  story_kit: z.array(storyBackgroundSchema).max(5).optional(),
 })
 
 export type LogoCorner = NonNullable<VisualPresets["logo_corner"]>

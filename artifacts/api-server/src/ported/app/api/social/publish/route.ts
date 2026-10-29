@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "crypto"
 import { HttpResponse } from "@server/http-response"
+import { ensureTikTokPhotoUrl } from "@server/tiktok-photo"
 
 import { resolveIndustryProfile } from "@/lib/brands/industry-templates"
 import {
@@ -418,15 +419,46 @@ export async function POST(request: Request) {
         )
       }
 
-      const tiktokMediaError = tikTokMediaGuardError(mediaUrl)
+      const tiktokMediaError = tikTokMediaGuardError(mediaUrl, input.carouselUrls)
       if (tiktokMediaError) {
         return HttpResponse.json({ error: tiktokMediaError }, { status: 400 })
       }
 
+      // Photo carousel: every slide public and JPEG, since TikTok refuses PNG.
+      let tiktokPhotoUrls: string[] | null = null
+      if (input.carouselUrls && input.carouselUrls.length >= 2) {
+        try {
+          tiktokPhotoUrls = await Promise.all(
+            input.carouselUrls.map(async (slideUrl) => {
+              const ensured = await ensurePublicMediaUrl({
+                mediaUrl: slideUrl,
+                entityId: entity.id,
+              })
+              return ensureTikTokPhotoUrl({
+                mediaUrl: ensured.url,
+                entityId: entity.id,
+              })
+            })
+          )
+        } catch (error) {
+          return HttpResponse.json(
+            {
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Every TikTok carousel slide must be a public HTTPS image.",
+            },
+            { status: 400 }
+          )
+        }
+      }
+      // Photo mode posts silently unless TikTok adds a sound.
+      const tiktokAutoAddMusic = tiktokPhotoUrls ? true : input.tiktokAutoAddMusic
+
       const videoAudioMode = resolveVideoAudioMode(input)
-      let tiktokDispatchUrl = mediaUrl
+      let tiktokDispatchUrl = tiktokPhotoUrls?.[0] ?? mediaUrl
       let tiktokPrepNote: string | undefined
-      if (isTikTokVideoUrl(mediaUrl)) {
+      if (!tiktokPhotoUrls && isTikTokVideoUrl(mediaUrl)) {
         const prepared = await prepareVideoForSocialPublish({
           mediaUrl,
           entityId: entity.id,
@@ -446,7 +478,8 @@ export async function POST(request: Request) {
           accessToken: tiktokConnection.accessToken,
           mediaUrl: tiktokDispatchUrl,
           caption,
-          autoAddMusic: input.tiktokAutoAddMusic,
+          autoAddMusic: tiktokAutoAddMusic,
+          photoUrls: tiktokPhotoUrls,
         })
         if (!posted.ok) {
           return HttpResponse.json({ error: posted.error }, { status: posted.status })
@@ -479,7 +512,8 @@ export async function POST(request: Request) {
             privacy_level: posted.privacyLevel,
             media_type: posted.mediaType,
             video_audio_mode: videoAudioMode,
-            tiktok_auto_add_music: input.tiktokAutoAddMusic,
+            tiktok_auto_add_music: tiktokAutoAddMusic,
+            tiktok_photo_count: tiktokPhotoUrls?.length ?? null,
             tiktok_prep_note: tiktokPrepNote ?? null,
             short_url: shortUrl,
             slug,
@@ -528,7 +562,8 @@ export async function POST(request: Request) {
           searchKeywords: input.searchKeywords ?? [],
           videoAudioMode,
           tiktokVideoAudioMode: videoAudioMode,
-          tiktokAutoAddMusic: input.tiktokAutoAddMusic,
+          tiktokAutoAddMusic,
+          carouselUrls: tiktokPhotoUrls,
           shortUrl,
           slug,
           timestamp: new Date().toISOString(),

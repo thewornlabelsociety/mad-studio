@@ -34,7 +34,10 @@ import {
   type SchedulerChannel,
 } from "@/lib/scheduling/brain-timing"
 import { packPayloadFor } from "@/lib/scheduling/pack-payload"
-import { tikTokMediaGuardError } from "@/lib/social/tiktok-media-guard"
+import {
+  isTikTokVideoUrl,
+  tikTokMediaGuardError,
+} from "@/lib/social/tiktok-media-guard"
 import {
   partitionFormulaSlotGaps,
   unfilledFormulaSlots,
@@ -68,9 +71,9 @@ type Props = {
   slugSeed?: string | null
   /**
    * Every photo in the tray, in order, with that photo's own on-image text.
-   * With 2+, Instagram feed and Facebook post them as one carousel (each slide
-   * baked with its own text); Story posts every tray still as consecutive
-   * frames when 2+; TikTok / email use the selected photo.
+   * With 2+, Instagram feed, Facebook and TikTok post them as one carousel
+   * (each slide baked with its own text); Story posts every tray still as
+   * consecutive frames when 2+; email uses the selected photo.
    */
   carouselSlides?: Array<{
     url: string
@@ -92,7 +95,7 @@ type Artwork = {
   storySlides: string[]
 }
 
-const CAROUSEL_CHANNELS: SchedulerChannel[] = ["instagram_feed", "facebook"]
+const CAROUSEL_CHANNELS: SchedulerChannel[] = ["instagram_feed", "facebook", "tiktok"]
 const CAROUSEL_MAX = 10
 
 /** Instagram's caption ceiling; TikTok's API caption uses the same. */
@@ -107,10 +110,19 @@ const FRAME: Record<SchedulerChannel, string> = {
   email: "aspect-[16/10]",
 }
 
-function channelNote(channel: SchedulerChannel): {
+function channelNote(
+  channel: SchedulerChannel,
+  carousel: boolean
+): {
   auto: boolean
   text: string
 } {
+  if (channel === "tiktok" && carousel) {
+    return {
+      auto: true,
+      text: "Posts as a TikTok photo carousel if TikTok is connected in Socials, with a sound TikTok picks — swap it for a trending one in the app.",
+    }
+  }
   switch (channel) {
     case "instagram_story":
       return {
@@ -133,6 +145,8 @@ function problemsFor(input: {
   channel: SchedulerChannel
   caption: string
   mediaUrl: string | null
+  /** Slides this channel posts as one carousel, if any. */
+  slides: string[] | null
   aspect: number | null
   slot: ChannelSlot
 }): { blocking: string[]; warnings: string[] } {
@@ -156,7 +170,7 @@ function problemsFor(input: {
     )
   }
   if (channel === "tiktok" && input.mediaUrl) {
-    const tiktok = tikTokMediaGuardError(input.mediaUrl)
+    const tiktok = tikTokMediaGuardError(input.mediaUrl, input.slides)
     if (tiktok) blocking.push(tiktok)
   }
   if (channel !== "email" && caption.length > CAPTION_LIMIT) {
@@ -374,19 +388,28 @@ export function ReviewBeforeSchedule({
           slot.channel === "instagram_story" || slot.channel === "tiktok"
             ? (aspects.story ?? null)
             : (aspects.feed ?? null)
+        // TikTok photo mode is photos only; with a video in the tray it posts the selected video.
+        const takesCarousel =
+          isCarousel &&
+          CAROUSEL_CHANNELS.includes(slot.channel) &&
+          !(
+            slot.channel === "tiktok" &&
+            carouselSlides.some((slide) => isTikTokVideoUrl(slide.url))
+          )
+        const slides =
+          isCarousel && slot.channel === "instagram_story" && artwork
+            ? artwork.storySlides
+            : takesCarousel && artwork
+              ? artwork.slides
+              : null
         const problems = problemsFor({
           channel: slot.channel,
           caption,
           mediaUrl,
-          aspect: isCarousel && CAROUSEL_CHANNELS.includes(slot.channel) ? null : aspect,
+          slides: takesCarousel ? slides : null,
+          aspect: takesCarousel ? null : aspect,
           slot,
         })
-        const slides =
-          isCarousel && slot.channel === "instagram_story" && artwork
-            ? artwork.storySlides
-            : isCarousel && CAROUSEL_CHANNELS.includes(slot.channel) && artwork
-              ? artwork.slides
-              : null
         if (slides) {
           if (slides.length > CAROUSEL_MAX) {
             problems.blocking.push(
@@ -405,7 +428,7 @@ export function ReviewBeforeSchedule({
           }
         } else if (isCarousel && slot.channel === "tiktok") {
           problems.warnings.push(
-            `Only the selected photo posts here — TikTok doesn't take carousels from the app.`
+            "Only the selected photo or video posts here — TikTok photo carousels can't include a video."
           )
         }
         return {
@@ -414,11 +437,11 @@ export function ReviewBeforeSchedule({
           mediaUrl,
           payload,
           caption,
-          note: channelNote(slot.channel),
+          note: channelNote(slot.channel, Boolean(slides)),
           ...problems,
         }
       }),
-    [slots, artwork, aspects, slideAspects, isCarousel, pack, slugSeed]
+    [slots, artwork, aspects, slideAspects, isCarousel, carouselSlides, pack, slugSeed]
   )
 
   const blockingCount = cards.reduce(

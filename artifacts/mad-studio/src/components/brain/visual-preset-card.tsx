@@ -15,7 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { StoryKitField } from "@/components/brain/story-kit-field"
+import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
+import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import type { StudioEntityDna } from "@/lib/campaigns/entity-dna"
 import type { LogoCorner, VisualPresets } from "@/lib/entities/dna-schema"
 import { CANVAS_TEXT_FONTS } from "@/lib/studio/canvas-text-types"
@@ -35,6 +38,15 @@ export function VisualPresetCard({ entity, className }: Props) {
     brandIdentity: entity.brand_identity,
   })
   const [draft, setDraft] = useState<VisualPresets>(resolved)
+  const isWornLabel = isWornLabelFashionEntity({
+    name: entity.name,
+    industry: entity.industry,
+  })
+  const storyKit = resolveStoryKit({ presets: draft, isWornLabel })
+  const startingKit = resolveStoryKit({
+    presets: { ...draft, story_kit: undefined },
+    isWornLabel,
+  })
   const rowSwatches = [
     ...new Set(
       [...(draft.palette ?? []), "#000000", "#FFFFFF"].map((hex) =>
@@ -221,6 +233,14 @@ export function VisualPresetCard({ entity, className }: Props) {
         logoUrl={draft.logo_url ?? null}
         corner={draft.logo_corner ?? "top_left"}
         onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
+      />
+
+      <StoryKitField
+        kit={storyKit}
+        defaults={startingKit}
+        onChange={(story_kit) =>
+          setDraft((current) => ({ ...current, story_kit }))
+        }
       />
     </section>
   )

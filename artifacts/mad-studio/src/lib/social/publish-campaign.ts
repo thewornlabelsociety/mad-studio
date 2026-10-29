@@ -117,10 +117,14 @@ export async function publishCampaignToSocials(
   })
 }
 
-/** TikTok → outbound webhook (Make / n8n); VIP Email → Resend or webhook. */
+/** TikTok → native OAuth connection or outbound webhook; VIP Email → Resend or webhook. */
 export async function dispatchOutboundChannel(
   ctx: ServiceDispatchContext,
-  input: CampaignPublishPayload & { platform: "tiktok" | "email" }
+  input: CampaignPublishPayload & {
+    platform: "tiktok" | "email"
+    /** 2+ photos → one TikTok photo carousel. */
+    carouselUrls?: string[] | null
+  }
 ): Promise<CampaignPublishResult> {
   const headline = input.headline?.trim() || null
   return postToPublishRoute(ctx, {
@@ -129,6 +133,10 @@ export async function dispatchOutboundChannel(
     platform: input.platform,
     placement: "feed",
     mediaUrl: input.mediaUrl,
+    carouselUrls:
+      input.platform === "tiktok" && (input.carouselUrls?.length ?? 0) >= 2
+        ? input.carouselUrls
+        : undefined,
     caption: input.caption,
     destinationUrl: input.destinationUrl ?? null,
     slugSeed: input.slugSeed ?? null,
