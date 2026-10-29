@@ -146,6 +146,7 @@ export async function resolveTemplateForGeneration(input: {
     surfaces: payload.surfaces,
     placeholders: payload.placeholders,
     defaultStudioCaption: payload.default_studio_caption?.trim() || null,
+    frameTemplate: payload.frame_template ?? null,
   }
 }
 

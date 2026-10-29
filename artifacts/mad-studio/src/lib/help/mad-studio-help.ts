@@ -3,7 +3,7 @@
  * Update this file whenever user-facing features or workflows change.
  * See `.cursor/rules/mad-studio-help.mdc` for agent instructions.
  */
-export const MAD_STUDIO_HELP_VERSION = "2026-10-27d"
+export const MAD_STUDIO_HELP_VERSION = "2026-10-28a"
 
 export type HelpSop = {
   title: string
@@ -370,12 +370,17 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       {
         name: "Entity template instances",
         description:
-          "Edit creative instructions, formula hook, channels, surfaces, placeholders. **Default Create caption** prefills Studio **Copy** when the template is applied (Start from template, Generate in Studio, Daily New Arrival Story) — use for a reusable New Arrival CTA; it overrides merged listing captions when set. Save version / activate / archive / duplicate via /api/templates/instances (live only). Cross-brand isolation enforced server-side.",
+          "Edit name, creative instructions, formula hook, channels, surfaces, placeholders. **Default Create caption** prefills Studio **Copy** when the template is applied (Start from template, Generate in Studio, Daily New Arrival Story) — use for a reusable New Arrival CTA; it overrides merged listing captions when set. Save version / activate / archive / duplicate via /api/templates/instances (live only). Cross-brand isolation enforced server-side.",
+      },
+      {
+        name: "Canva frame templates",
+        description:
+          "Optional `payload.frame_template`: Canva background PNG + image drop slots + editable text labels (stored in MAD template payload — no new tables). **New frame template** seeds **Instagram Feed OOTD** (4 frames + headline/item labels). Upload a Canva export with empty cream frames (leave replaceable headers off the export, or accept MAD labels covering them). Logo/footer art stay baked in the PNG. Generate in Studio / Start from template → Create preview shows the layout; drag Media tray photos into frames; edit labels on Canvas or on-phone inputs. Review composes one Feed PNG via bake, then Schedule as usual.",
       },
       {
         name: "Generate → Schedule",
         description:
-          "Generate in Studio opens Create **Media** (`step=2`) with `templateInstanceId`; POST /api/templates/studio-handoff applies the brief on load. POST /api/generate/pack still resolves the template for AI packs (entity check), injects creative instructions/channels/placeholders into the CampaignPack prompt with brand DNA, persists `template_*` attribution + generation key, and returns an existing draft on duplicate keys. Review → Approve → Schedule stay on Studio / Calendar — no second publishing engine.",
+          "Generate in Studio opens Create **Media** (`step=2`) with `templateInstanceId`; POST /api/templates/studio-handoff applies the brief on load (`generic`, `wls_daily_story`, or `frame_template` when a usable frame layout is saved). POST /api/generate/pack still resolves the template for AI packs (entity check), injects creative instructions/channels/placeholders into the CampaignPack prompt with brand DNA, persists `template_*` attribution + generation key, and returns an existing draft on duplicate keys. Review → Approve → Schedule stay on Studio / Calendar — no second publishing engine.",
       },
       {
         name: "WLS Daily New Arrival Story",
@@ -393,15 +398,16 @@ export const MAD_STUDIO_HELP_SECTIONS: HelpSection[] = [
       steps: [
         "Open Templates from the left rail and confirm the brand name.",
         "If you see Demo data, browse only — apply the MAD migration before saving.",
-        "Starter Library → Copy to brand (live) or open an existing My Template.",
-        "Edit instructions/channels → Save & activate.",
-        "Generate in Studio → lands on Create **Media** with the template applied → finish Review → Approve → Schedule as usual.",
+        "Starter Library → Copy to brand (live) or open an existing My Template — or click **New frame template** for Instagram Feed OOTD.",
+        "For frame templates: name it (e.g. Instagram Feed OOTD) → upload Canva background → tweak default labels → Save & activate.",
+        "Generate in Studio → lands on Create **Media** with the template applied → add photos to the tray → drag into frames → edit labels on Canvas → Review → Approve → Schedule.",
         "Use Advanced Edit anytime for the full Create wizard.",
         "WLS: pick **Daily New Arrival Story** on Create Media or Templates → Daily Arrival Story → select up to five synced products → Story frames seed on Media (handoff API) → **Canvas** (per-frame ‹ ›) → **Intent** → Copy → Review → Schedule.",
       ],
       tips: [
         "Never point MAD env at FÜDI. Template APIs write only to MAD Supabase.",
         "Demo and live rows are never mixed in one load.",
+        "Export Canva with empty photo frames; put final product shots and rewriteable headers in MAD, not in the PNG.",
       ],
     },
   },

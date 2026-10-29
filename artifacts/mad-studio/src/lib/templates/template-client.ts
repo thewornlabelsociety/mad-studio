@@ -152,6 +152,33 @@ export async function loadTemplateCentre(
   }
 }
 
+export async function createInstanceLive(input: {
+  entityId: string
+  category: string
+  name: string
+  creative_instructions?: string
+  status?: TemplateInstanceStatus
+  channel_plan?: string[]
+  payload?: Partial<TemplatePayload>
+}): Promise<EntityTemplateInstance> {
+  const res = await fetchJson("/api/templates/instances", {
+    method: "POST",
+    body: JSON.stringify({
+      entityId: input.entityId,
+      category: input.category,
+      name: input.name,
+      creative_instructions: input.creative_instructions,
+      status: input.status ?? "draft",
+      channel_plan: input.channel_plan,
+      payload: input.payload,
+    }),
+  })
+  if (!res.ok) throw new Error(res.message)
+  return entityTemplateInstanceSchema.parse(
+    (res.data as { instance: unknown }).instance
+  )
+}
+
 export async function forkStarterLive(input: {
   entityId: string
   starterId: string

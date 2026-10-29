@@ -68,6 +68,11 @@ import {
   bakeCanvasTextOnImage,
   canvasOverlayNeedsBake,
 } from "@/lib/media/bake-canvas-text"
+import { FrameTemplateLayer } from "@/components/templates/frame-template-layer"
+import {
+  hasUsableFrameTemplate,
+  type FrameTemplate,
+} from "@/lib/templates/frame-template"
 import {
   RemotionCanvas,
   type RemotionCanvasProps,
@@ -248,6 +253,14 @@ type Props = {
   textOverlayInteractive?: boolean
   /** Today quick preview — phone, platform pills, and action dock only. */
   previewMinimal?: boolean
+  /** Canva frame template session (bg + image/text slots). */
+  frameTemplate?: FrameTemplate | null
+  frameEntityId?: string | null
+  frameImageFills?: Record<string, string>
+  frameTextFills?: Record<string, string>
+  frameInteractive?: boolean
+  onFrameImageFill?: (slotId: string, url: string) => void
+  onFrameTextFill?: (slotId: string, text: string) => void
   className?: string
 }
 
@@ -351,6 +364,13 @@ export function MultiPlatformSimulator({
   onCutoutBusyChange,
   textOverlayInteractive = false,
   previewMinimal = false,
+  frameTemplate = null,
+  frameEntityId = null,
+  frameImageFills = {},
+  frameTextFills = {},
+  frameInteractive = false,
+  onFrameImageFill,
+  onFrameTextFill,
   className,
 }: Props) {
   const captureRef = useRef<HTMLDivElement>(null)
@@ -1183,8 +1203,23 @@ export function MultiPlatformSimulator({
 
   const canvasEditActive =
     textOverlayInteractive && Boolean(onTextOverlayChange)
+  const frameSessionActive = hasUsableFrameTemplate(frameTemplate)
+  const frameEntity = frameEntityId?.trim() || actionContext?.entityId || ""
 
-  const canvasOverlayOnMedia = (
+  const canvasOverlayOnMedia = frameSessionActive ? (
+    <div className="absolute inset-0 z-20">
+      <FrameTemplateLayer
+        template={frameTemplate}
+        entityId={frameEntity}
+        imageFills={frameImageFills}
+        textFills={frameTextFills}
+        interactive={frameInteractive}
+        onImageFill={onFrameImageFill}
+        onTextFill={onFrameTextFill}
+        className="h-full w-full"
+      />
+    </div>
+  ) : (
     <CanvasTextOverlayLayer
       overlay={textOverlay}
       isVideo={isVideo}

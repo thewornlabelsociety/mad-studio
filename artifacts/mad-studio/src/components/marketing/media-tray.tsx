@@ -488,9 +488,13 @@ export function MediaTray({
       return
     }
     event.stopPropagation()
-    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.effectAllowed = "copyMove"
     event.dataTransfer.setData("text/mad-media-asset", asset.id)
     event.dataTransfer.setData("text/plain", asset.id)
+    const mediaUrl = (asset.publicUrl || asset.url || "").trim()
+    if (mediaUrl) {
+      event.dataTransfer.setData("text/mad-media-url", mediaUrl)
+    }
     setDragAssetId(asset.id)
     setDropTargetId(null)
     reorderDirtyRef.current = false

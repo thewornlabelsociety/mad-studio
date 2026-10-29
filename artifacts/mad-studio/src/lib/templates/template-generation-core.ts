@@ -20,6 +20,8 @@ export type ResolvedTemplateForGeneration = {
   placeholders: string[]
   /** When set, prefills Studio Copy on template handoff. */
   defaultStudioCaption: string | null
+  /** Canva frame layout from payload.frame_template (when present). */
+  frameTemplate: unknown | null
 }
 
 /** Pure prompt block — must mention creative rules so generation can change. */

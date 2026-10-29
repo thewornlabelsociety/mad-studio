@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { frameTemplateSchema } from "@/lib/templates/frame-template"
+
 /** Extensible taxonomy — keep in sync with DB CHECK on platform_template_defs.category */
 export const TEMPLATE_CATEGORIES = [
   "new_arrivals",
@@ -50,6 +52,11 @@ export const templatePayloadSchema = z.object({
   pack_bias: z.string().max(1000).optional(),
   /** Prefills Studio Copy when this template is applied (CTA / boilerplate). */
   default_studio_caption: z.string().max(4000).optional(),
+  /**
+   * Canva-style visual layout: background PNG + image drop slots + editable text.
+   * Optional — brief-only templates omit this.
+   */
+  frame_template: frameTemplateSchema.optional().nullable(),
 })
 
 export type TemplatePayload = z.infer<typeof templatePayloadSchema>

@@ -37,6 +37,8 @@ function sampleTemplate(
     packBias: "Lean into tactile fabric detail.",
     surfaces: ["social_post", "story"],
     placeholders: ["item", "location"],
+    defaultStudioCaption: null,
+    frameTemplate: null,
     ...overrides,
   }
 }

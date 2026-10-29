@@ -37,6 +37,7 @@ import {
 } from "@/lib/templates/template-schema"
 import {
   CHANNEL_OPTIONS,
+  createInstanceLive,
   duplicateInstanceLive,
   forkStarterLive,
   loadTemplateCentre,
@@ -49,6 +50,12 @@ import {
   categoryLabel,
 } from "@/lib/templates/template-handoff"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
+import {
+  createInstagramFeedOotdPreset,
+  parseFrameTemplate,
+  type FrameTemplate,
+} from "@/lib/templates/frame-template"
+import { FrameTemplateEditor } from "@/components/templates/frame-template-editor"
 
 type TabId = "mine" | "starters"
 
@@ -68,6 +75,7 @@ type EditorDraft = {
   channel_plan: string[]
   placeholdersText: string
   surfaces: string[]
+  frame_template: FrameTemplate | null
 }
 
 function toDraft(instance: EntityTemplateInstance): EditorDraft {
@@ -82,6 +90,7 @@ function toDraft(instance: EntityTemplateInstance): EditorDraft {
     channel_plan: [...instance.channel_plan],
     placeholdersText: (instance.payload.placeholders ?? []).join(", "),
     surfaces: [...(instance.payload.surfaces ?? ["social_post"])],
+    frame_template: parseFrameTemplate(instance.payload.frame_template) ?? null,
   }
 }
 
@@ -230,6 +239,44 @@ export function TemplateCentreWorkspace({ entityId, entityName }: Props) {
     }
   }
 
+  async function onCreateFrameTemplate() {
+    if (!canMutate) {
+      toast.message("Creating templates requires the template database migration.")
+      return
+    }
+    setBusy(true)
+    try {
+      const frame = createInstagramFeedOotdPreset()
+      const instance = await createInstanceLive({
+        entityId,
+        category: "product_spotlight",
+        name: "Instagram Feed OOTD",
+        status: "draft",
+        channel_plan: ["instagram_feed"],
+        creative_instructions:
+          "Fill the four photo frames from inventory, then rewrite the OOTD labels to match the look.",
+        payload: {
+          surfaces: ["social_post"],
+          default_channels: ["instagram_feed"],
+          creative_instructions:
+            "Fill the four photo frames from inventory, then rewrite the OOTD labels to match the look.",
+          placeholders: ["item", "brand"],
+          frame_template: frame,
+        },
+      })
+      toast.success("Instagram Feed OOTD draft created — upload your Canva background.")
+      setTab("mine")
+      await reload()
+      setSelectedId(instance.id)
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not create frame template."
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function onDuplicate() {
     if (!selected || !canMutate) {
       toast.message("Duplicate requires the template database migration.")
@@ -283,6 +330,7 @@ export function TemplateCentreWorkspace({ entityId, entityName }: Props) {
           canvas_layout_id: draft.canvas_layout_id || null,
           placeholders,
           default_studio_caption: draft.default_studio_caption.trim() || undefined,
+          frame_template: draft.frame_template,
         },
       })
       toast.success(
@@ -360,6 +408,21 @@ export function TemplateCentreWorkspace({ entityId, entityName }: Props) {
               </Link>
             </Button>
           ) : null}
+          <Button
+            type="button"
+            size="sm"
+            disabled={!canMutate || busy}
+            className="rounded-none border-2 border-mad-black bg-mad-black text-mad-white"
+            onClick={() => void onCreateFrameTemplate()}
+            title={
+              canMutate
+                ? "Create a named Canva frame template (Instagram Feed OOTD)"
+                : "Requires database migration"
+            }
+          >
+            <Plus className="size-3.5" aria-hidden />
+            New frame template
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -496,6 +559,9 @@ export function TemplateCentreWorkspace({ entityId, entityName }: Props) {
                       </p>
                       <p className="mt-2 font-typewriter text-[0.6rem] tracking-wider text-neutral-400 uppercase">
                         {categoryLabel(row.category)}
+                        {row.payload.frame_template?.backgroundUrl
+                          ? " · frame layout"
+                          : ""}
                         {source === "mock" ? " · demo" : ""}
                       </p>
                     </button>
@@ -614,8 +680,18 @@ export function TemplateCentreWorkspace({ entityId, entityName }: Props) {
                         setDraft((d) => (d ? { ...d, name: e.target.value } : d))
                       }
                       className="rounded-none"
+                      placeholder="e.g. Instagram Feed OOTD"
                     />
                   </div>
+
+                  <FrameTemplateEditor
+                    entityId={entityId}
+                    value={draft.frame_template}
+                    disabled={!canMutate || busy}
+                    onChange={(next) =>
+                      setDraft((d) => (d ? { ...d, frame_template: next } : d))
+                    }
+                  />
 
                   <div className="space-y-1">
                     <Label htmlFor="tmpl-instructions">

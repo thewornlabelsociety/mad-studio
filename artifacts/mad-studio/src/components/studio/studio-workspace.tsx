@@ -211,6 +211,14 @@ import {
 import { fetchStudioTemplateHandoff } from "@/lib/templates/studio-handoff-client"
 import type { StudioTemplateHandoffResponse } from "@/lib/templates/studio-handoff-types"
 import {
+  defaultTextFillsFromTemplate,
+  hasUsableFrameTemplate,
+  type FrameTemplate,
+} from "@/lib/templates/frame-template"
+import { bakeFrameTemplate } from "@/lib/media/bake-frame-template"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
   buildCampaignPackFromFormula,
   defaultSlotsFromSpark,
   resolveConversionActions,
@@ -324,6 +332,16 @@ export function StudioWorkspace({
   const [templateHandoffBusy, setTemplateHandoffBusy] = useState(false)
   /** True after WLS Daily Story template handoff seeds multi-frame Story tray. */
   const [wlsDailyStorySession, setWlsDailyStorySession] = useState(false)
+  /** Canva frame template session (Feed OOTD etc.). */
+  const [frameTemplate, setFrameTemplate] = useState<FrameTemplate | null>(null)
+  const [frameImageFills, setFrameImageFills] = useState<
+    Record<string, string>
+  >({})
+  const [frameTextFills, setFrameTextFills] = useState<Record<string, string>>(
+    {}
+  )
+  const [frameComposedUrl, setFrameComposedUrl] = useState<string | null>(null)
+  const [frameBaking, setFrameBaking] = useState(false)
   const [wlsCanvasLayoutId, setWlsCanvasLayoutId] = useState<string | null>(
     "story_9_16"
   )
@@ -1093,6 +1111,10 @@ export function StudioWorkspace({
 
       if (handoff.kind === "wls_daily_story") {
         setWlsDailyStorySession(true)
+        setFrameTemplate(null)
+        setFrameImageFills({})
+        setFrameTextFills({})
+        setFrameComposedUrl(null)
         if (handoff.selections?.length) {
           applyWlsDailyStorySeed(handoff.selections, template)
           toast.success(
@@ -1105,11 +1127,40 @@ export function StudioWorkspace({
         return
       }
 
+      if (handoff.kind === "frame_template") {
+        setWlsDailyStorySession(false)
+        setFrameTemplate(handoff.frameTemplate)
+        setFrameImageFills({})
+        setFrameTextFills(defaultTextFillsFromTemplate(handoff.frameTemplate))
+        setFrameComposedUrl(null)
+        setCreativeSurface("feed")
+        setSimPlatform("ig_feed")
+        const bg = handoff.frameTemplate.backgroundUrl.trim()
+        if (bg) {
+          const asset: MediaAsset = {
+            id: `frame-template-bg-${handoff.template.templateInstanceId}`,
+            url: bg,
+            publicUrl: bg,
+            type: "image",
+          }
+          onMediaAssetsChange([asset])
+        }
+        toast.success(
+          `${template.templateName} loaded — drop photos into the frames, then edit the labels.`
+        )
+        setWorkbenchStep(WORKBENCH_STEP_MEDIA)
+        return
+      }
+
       setWlsDailyStorySession(false)
+      setFrameTemplate(null)
+      setFrameImageFills({})
+      setFrameTextFills({})
+      setFrameComposedUrl(null)
       toast.message(`Using template: ${template.templateName}`)
       setWorkbenchStep(WORKBENCH_STEP_MEDIA)
     },
-    [applyWlsDailyStorySeed]
+    [applyWlsDailyStorySeed, onMediaAssetsChange]
   )
 
   const selectStudioTemplate = useCallback(
@@ -1147,6 +1198,10 @@ export function StudioWorkspace({
     setTemplateInstanceId(null)
     setTemplateDisplayName(null)
     setWlsDailyStorySession(false)
+    setFrameTemplate(null)
+    setFrameImageFills({})
+    setFrameTextFills({})
+    setFrameComposedUrl(null)
   }, [])
 
   const navigateWlsProductFrame = useCallback(
@@ -2607,10 +2662,32 @@ export function StudioWorkspace({
     return null
   }
 
-  function openReview() {
+  async function openReview() {
     const blocker = armBlocker()
     if (blocker) {
       toast.error(blocker)
+      return
+    }
+    if (hasUsableFrameTemplate(frameTemplate)) {
+      setFrameBaking(true)
+      try {
+        const composed = await bakeFrameTemplate({
+          entityId: activeEntity.id,
+          template: frameTemplate,
+          imageFills: frameImageFills,
+          textFills: frameTextFills,
+        })
+        setFrameComposedUrl(composed)
+        setReviewOpen(true)
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : "Could not compose the frame template."
+        )
+      } finally {
+        setFrameBaking(false)
+      }
       return
     }
     setReviewOpen(true)
@@ -3099,43 +3176,85 @@ export function StudioWorkspace({
         canvasSlot={
           phase === "canvas" ? (
             <div className="space-y-3">
-              <CanvasLayoutsBar
-                layouts={canvasLayouts}
-                photoCount={imageAssets.length}
-                busy={layoutsBusy || cutoutBusy}
-                saveSlot={(selected) => (
-                  <CanvasLayoutSaveButton
-                    variant="labeled"
-                    busy={layoutsBusy}
-                    suggestedName={`Layout ${canvasLayouts.length + 1}`}
-                    selectedLayout={selected}
-                    onSave={saveLayout}
+              {hasUsableFrameTemplate(frameTemplate) ? (
+                <div className="space-y-3 border-2 border-mad-black bg-neutral-50 p-3">
+                  <p className="font-typewriter text-[0.65rem] font-bold tracking-widest text-neutral-500 uppercase">
+                    Frame labels
+                  </p>
+                  <p className="text-xs text-neutral-600">
+                    Drag tray photos onto the cream frames in the preview. Edit
+                    the headers here or tap them on the phone.
+                  </p>
+                  {frameTemplate.textSlots.map((slot) => (
+                    <div key={slot.id} className="space-y-1">
+                      <Label htmlFor={`frame-text-${slot.id}`}>
+                        {slot.label}
+                      </Label>
+                      <Input
+                        id={`frame-text-${slot.id}`}
+                        value={frameTextFills[slot.id] ?? slot.defaultText ?? ""}
+                        onChange={(e) =>
+                          setFrameTextFills((prev) => ({
+                            ...prev,
+                            [slot.id]: e.target.value,
+                          }))
+                        }
+                        className="rounded-none"
+                      />
+                    </div>
+                  ))}
+                  <ul className="space-y-1 text-xs text-neutral-600">
+                    {frameTemplate.imageSlots.map((slot) => (
+                      <li key={slot.id}>
+                        {slot.label}:{" "}
+                        {frameImageFills[slot.id] ? "filled" : "empty — drop a photo"}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <>
+                  <CanvasLayoutsBar
+                    layouts={canvasLayouts}
+                    photoCount={imageAssets.length}
+                    busy={layoutsBusy || cutoutBusy}
+                    saveSlot={(selected) => (
+                      <CanvasLayoutSaveButton
+                        variant="labeled"
+                        busy={layoutsBusy}
+                        suggestedName={`Layout ${canvasLayouts.length + 1}`}
+                        selectedLayout={selected}
+                        onSave={saveLayout}
+                      />
+                    )}
+                    onApply={applyLayout}
+                    onSetDefault={setDefaultLayout}
+                    onDelete={deleteLayout}
                   />
-                )}
-                onApply={applyLayout}
-                onSetDefault={setDefaultLayout}
-                onDelete={deleteLayout}
-              />
-              {imageAssets.length >= 2 ? (
-                <CanvasSlidePicker
-                  slides={imageAssets.map((asset) => {
-                    const overlay =
-                      asset.id === activeMediaId
-                        ? textOverlay
-                        : overlayForAsset(asset.id)
-                    return {
-                      id: asset.id,
-                      url: asset.publicUrl || asset.url,
-                      hasText: overlay ? canvasOverlayHasDecor(overlay) : false,
-                    }
-                  })}
-                  activeId={activeMediaId}
-                  onSelect={(id) => {
-                    const asset = imageAssets.find((row) => row.id === id)
-                    if (asset) onSelectStudioMedia(asset)
-                  }}
-                />
-              ) : null}
+                  {imageAssets.length >= 2 ? (
+                    <CanvasSlidePicker
+                      slides={imageAssets.map((asset) => {
+                        const overlay =
+                          asset.id === activeMediaId
+                            ? textOverlay
+                            : overlayForAsset(asset.id)
+                        return {
+                          id: asset.id,
+                          url: asset.publicUrl || asset.url,
+                          hasText: overlay
+                            ? canvasOverlayHasDecor(overlay)
+                            : false,
+                        }
+                      })}
+                      activeId={activeMediaId}
+                      onSelect={(id) => {
+                        const asset = imageAssets.find((row) => row.id === id)
+                        if (asset) onSelectStudioMedia(asset)
+                      }}
+                    />
+                  ) : null}
+                </>
+              )}
             </div>
           ) : null
         }
@@ -3226,7 +3345,8 @@ export function StudioWorkspace({
             }
             nextDisabled={
               (workbenchStep === WORKBENCH_STEP_MEDIA &&
-                mediaAssets.length === 0) ||
+                mediaAssets.length === 0 &&
+                !hasUsableFrameTemplate(frameTemplate)) ||
               (workbenchStep === WORKBENCH_STEP_COPY &&
                 rawSpark.trim().length < 8 &&
                 !wlsTemplateProductMode)
@@ -3240,8 +3360,8 @@ export function StudioWorkspace({
                 : undefined
             }
             saveDraftBusy={pending && !arming}
-            onConfirmArm={openReview}
-            confirmArmBusy={arming}
+            onConfirmArm={() => void openReview()}
+            confirmArmBusy={arming || frameBaking}
             confirmArmDisabled={pending && !arming}
             previewDrawerOpen={previewDrawerOpen}
             hidePreviewToggleOnWide
@@ -3299,7 +3419,10 @@ export function StudioWorkspace({
             visualPresets={activeEntity.brand_identity.visual_presets ?? null}
             textOverlay={textOverlay}
             onTextOverlayChange={setTextOverlay}
-            textOverlayInteractive={workbenchStep === WORKBENCH_STEP_CANVAS}
+            textOverlayInteractive={
+              workbenchStep === WORKBENCH_STEP_CANVAS &&
+              !hasUsableFrameTemplate(frameTemplate)
+            }
             storyPreview={storyPreview}
             onStoryPreviewChange={setStoryPreview}
             // Story tools live on Canvas — the under-phone dock on Intent/Copy
@@ -3311,6 +3434,20 @@ export function StudioWorkspace({
             showCreativeControls={false}
             showActionDock={workbenchStep === WORKBENCH_STEP_CHANNELS}
             hidePlatformSwitcher
+            frameTemplate={frameTemplate}
+            frameEntityId={activeEntity.id}
+            frameImageFills={frameImageFills}
+            frameTextFills={frameTextFills}
+            frameInteractive={
+              workbenchStep === WORKBENCH_STEP_MEDIA ||
+              workbenchStep === WORKBENCH_STEP_CANVAS
+            }
+            onFrameImageFill={(slotId, url) =>
+              setFrameImageFills((prev) => ({ ...prev, [slotId]: url }))
+            }
+            onFrameTextFill={(slotId, text) =>
+              setFrameTextFills((prev) => ({ ...prev, [slotId]: text }))
+            }
             actionContext={{
               entityId: activeEntity.id,
               marketingEntityId:
@@ -3480,7 +3617,7 @@ export function StudioWorkspace({
                 plan={dispatchPlan}
                 onPlanChange={setDispatchPlan}
                 onSaveDraft={() => runSave("draft")}
-                onArm={openReview}
+                onArm={() => void openReview()}
                 saving={pending && !arming}
                 arming={arming}
                 hideFooterActions
@@ -3591,15 +3728,24 @@ export function StudioWorkspace({
           pack={pack}
           slots={dispatchPlan.filter((slot) => slot.enabled)}
           photoUrl={
+            frameComposedUrl ||
             apiImageUrl ||
             mediaAssets
               .map((row) => row.publicUrl || row.url)
               .find((url) => /^https?:\/\//i.test(url)) ||
             ""
           }
-          textOverlay={textOverlay}
+          textOverlay={
+            frameComposedUrl
+              ? DEFAULT_CANVAS_TEXT_OVERLAY
+              : textOverlay
+          }
           storyPreview={storyPreview}
-          useStoryCard={!isFudi && storyPreview.cutoutMode !== "original"}
+          useStoryCard={
+            !frameComposedUrl &&
+            !isFudi &&
+            storyPreview.cutoutMode !== "original"
+          }
           storyHeadline={simulatorContent.headline}
           visualPresets={resolveVisualPresets({
             brandName: activeEntity.name,
@@ -3607,23 +3753,27 @@ export function StudioWorkspace({
             brandIdentity: activeEntity.brand_identity,
           })}
           slugSeed={liveRedirectSlugSeed}
-          carouselSlides={imageAssets
-            .map((asset) => ({
-              // Match how the selected photo's URL is chosen (apiImageUrl).
-              url: /^https?:\/\//i.test(asset.url)
-                ? asset.url
-                : (asset.publicUrl ?? ""),
-              overlay:
-                asset.id === activeMediaId
-                  ? textOverlay
-                  : overlayForAsset(asset.id),
-            }))
-            .filter((slide) => /^https?:\/\//i.test(slide.url))}
+          carouselSlides={
+            frameComposedUrl
+              ? []
+              : imageAssets
+                  .map((asset) => ({
+                    // Match how the selected photo's URL is chosen (apiImageUrl).
+                    url: /^https?:\/\//i.test(asset.url)
+                      ? asset.url
+                      : (asset.publicUrl ?? ""),
+                    overlay:
+                      asset.id === activeMediaId
+                        ? textOverlay
+                        : overlayForAsset(asset.id),
+                  }))
+                  .filter((slide) => /^https?:\/\//i.test(slide.url))
+          }
           onDropChannel={dropChannel}
           onConfirm={(mediaByChannel, carouselUrls, storyUrls) =>
             onArmPack(mediaByChannel, carouselUrls, storyUrls)
           }
-          confirming={arming}
+          confirming={arming || frameBaking}
         />
       ) : null}
 

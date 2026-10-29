@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import type { WlsProductSelection } from "@/lib/inventory/wls-product-eligibility"
+import {
+  hasUsableFrameTemplate,
+  parseFrameTemplate,
+  type FrameTemplate,
+} from "@/lib/templates/frame-template"
 import { resolveTemplateForGeneration } from "@/lib/templates/template-generation"
 import { resolveTemplateStudioCaption } from "@/lib/templates/template-studio-caption"
 import { WLS_DAILY_STORY_TEMPLATE_NAME } from "@/lib/templates/wls-daily-story"
@@ -42,9 +47,17 @@ export type StudioWlsDailyStoryHandoffResult = {
   selections?: WlsProductSelection[]
 }
 
+export type StudioFrameTemplateHandoffResult = {
+  kind: "frame_template"
+  initialStep: StudioHandoffInitialStep
+  template: StudioHandoffTemplateMeta
+  frameTemplate: FrameTemplate
+}
+
 export type ResolveStudioTemplateHandoffResult =
   | StudioGenericHandoffResult
   | StudioWlsDailyStoryHandoffResult
+  | StudioFrameTemplateHandoffResult
 
 function metaFromResolved(input: {
   name: string
@@ -83,7 +96,8 @@ function isWlsDailyStoryTemplateName(name: string): boolean {
 }
 
 /**
- * Resolve how Create Studio should apply a template instance (generic brief vs WLS seed).
+ * Resolve how Create Studio should apply a template instance
+ * (generic brief vs WLS seed vs Canva frame layout).
  */
 export async function resolveStudioTemplateHandoff(
   input: ResolveStudioTemplateHandoffInput
@@ -107,6 +121,16 @@ export async function resolveStudioTemplateHandoff(
     channelPlan: resolved.channelPlan,
     surfaces: resolved.surfaces,
   })
+
+  const frameTemplate = parseFrameTemplate(resolved.frameTemplate)
+  if (hasUsableFrameTemplate(frameTemplate)) {
+    return {
+      kind: "frame_template",
+      initialStep: "media",
+      template,
+      frameTemplate,
+    }
+  }
 
   if (!isWlsDailyStoryTemplateName(resolved.name)) {
     return {
