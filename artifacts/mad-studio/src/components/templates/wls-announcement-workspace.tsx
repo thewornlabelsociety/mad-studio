@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "wouter"
-import { ArrowRight, Check, Loader2, Plus, Share2, X } from "lucide-react"
+import { ArrowRight, Check, Globe, Loader2, Plus, Share2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -223,7 +223,13 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
   const editorial = value.style === "editorial"
   const presets = editorial ? EDITORIAL_PRESETS : PRESETS
   const [linkSpace, setLinkSpace] = useState(true)
-  const [busy, setBusy] = useState<"story" | "studio" | null>(null)
+  const [busy, setBusy] = useState<"story" | "studio" | "website" | null>(null)
+  const [siteLink, setSiteLink] = useState("")
+  const [siteUntil, setSiteUntil] = useState(() => {
+    const until = new Date()
+    until.setDate(until.getDate() + 14)
+    return until.toISOString().slice(0, 10)
+  })
 
   const kit = useMemo(
     () =>
@@ -330,6 +336,38 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
       navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the card.")
+      setBusy(null)
+    }
+  }
+
+  /** The card being edited goes on the website home page until the date set. */
+  async function putOnWebsite() {
+    const node = cardRefs.current.get(active.id)
+    if (!node || !value.headline.trim()) return
+    setBusy("website")
+    try {
+      const { blob } = await bakeStoryPng(node)
+      const imageUrl = await uploadRenderedPng(blob, entityId)
+      const ends = siteUntil ? new Date(`${siteUntil}T23:59:59`) : null
+      const response = await fetch("/api/website/announcement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityId,
+          externalId: `announcement-${active.id}`,
+          imageUrl,
+          headline: [oneLine(value.headline), value.script?.trim()].filter(Boolean).join(" "),
+          body: value.details.map((line) => line.trim()).filter(Boolean).join(" · ") || undefined,
+          linkUrl: siteLink.trim() || undefined,
+          endsAt: ends && !Number.isNaN(ends.getTime()) ? ends.toISOString() : undefined,
+        }),
+      })
+      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      if (!response.ok) throw new Error(payload.error || "Couldn't reach the website.")
+      toast.success("On the website home page.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't put it on the website.")
+    } finally {
       setBusy(null)
     }
   }
@@ -617,6 +655,48 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
                 {count > 1 ? `Send ${count} cards to Studio` : "Send card to Studio"}
               </Button>
             </div>
+          </div>
+          <div className="grid max-w-[535px] gap-2 border-2 border-mad-black/15 bg-white p-3">
+            <h3 className="flex items-center gap-1.5 font-typewriter text-xs uppercase tracking-widest">
+              <Globe className="size-3.5" aria-hidden />
+              Website home page
+            </h3>
+            <p className="text-xs text-mad-black/65">
+              Shows the card you&apos;re editing on wornlabelsociety.co.nz until the date below.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <label className="grid gap-1 text-xs">
+                <span className="font-typewriter uppercase tracking-widest">Link to (optional)</span>
+                <input
+                  id="announce-site-link"
+                  className={field}
+                  value={siteLink}
+                  maxLength={500}
+                  placeholder="e.g. /shop or a product link"
+                  onChange={(e) => setSiteLink(e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-xs">
+                <span className="font-typewriter uppercase tracking-widest">Show until</span>
+                <input
+                  id="announce-site-until"
+                  type="date"
+                  className={field}
+                  value={siteUntil}
+                  onChange={(e) => setSiteUntil(e.target.value)}
+                />
+              </label>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-self-start border-2 border-mad-black"
+              disabled={!value.headline.trim() || busy != null}
+              onClick={() => void putOnWebsite()}
+            >
+              {busy === "website" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Globe className="mr-2 size-4" />}
+              Put on website
+            </Button>
           </div>
         </section>
       </div>
