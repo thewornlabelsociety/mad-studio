@@ -31,7 +31,24 @@ import { cn } from "@/lib/utils"
 
 /** How many new arrivals the morning feed offers at once. */
 const FEED_SIZE = 6
+/** How many more Stories "Show more" adds to the row. */
+const MORE_SIZE = 10
 const COLLAPSE_KEY = "mad.today.storyFeed.collapsed"
+
+/** Stories saved today on this device, so each card can show a Saved tick. */
+function savedKey(entityId: string): string {
+  const now = new Date()
+  return `mad.today.storySaved.${entityId}.${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
+}
+
+function readSaved(entityId: string): Record<string, true> {
+  try {
+    const raw = window.localStorage.getItem(savedKey(entityId))
+    return raw ? (JSON.parse(raw) as Record<string, true>) : {}
+  } catch {
+    return {}
+  }
+}
 
 type Props = {
   entityId: string
@@ -77,6 +94,30 @@ export function MorningStoryFeed({
   const nodes = useRef<Record<string, HTMLDivElement | null>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
   const [savingAll, setSavingAll] = useState<{ done: number; total: number } | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [savedIds, setSavedIds] = useState<Record<string, true>>(() => readSaved(entityId))
+
+  function markSaved(ids: string[]) {
+    setSavedIds((current) => {
+      const next = { ...current }
+      for (const id of ids) next[id] = true
+      try {
+        window.localStorage.setItem(savedKey(entityId), JSON.stringify(next))
+      } catch {
+        /* the tick lasts until the page closes */
+      }
+      return next
+    })
+  }
+
+  function toggleSelected(id: string) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const [syncing, setSyncing] = useState(false)
 
@@ -128,7 +169,7 @@ export function MorningStoryFeed({
   function showMore() {
     setFeedIds((current) => [
       ...(current ?? []),
-      ...waiting.slice(0, FEED_SIZE).map((row) => row.marketingEntityId),
+      ...waiting.slice(0, MORE_SIZE).map((row) => row.marketingEntityId),
     ])
   }
 
@@ -154,6 +195,7 @@ export function MorningStoryFeed({
         filename: `wls-story-${story.row.websiteItemId}.png`,
       })
       if (result === "downloaded") toast.success("Story image saved.")
+      if (result !== "cancelled") markSaved([story.row.marketingEntityId])
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the image.")
     } finally {
@@ -168,9 +210,16 @@ export function MorningStoryFeed({
     return !sharedAt[id] && cutReady && Boolean(story.imageUrl)
   })
 
-  /** Every Story showing in one go: one share sheet on a phone, a download each on a computer. */
+  /** The ticked Stories that are ready (any, shared or not); none ticked means all ready ones. */
+  const selectedReady = feed.filter((story) => {
+    const id = story.row.marketingEntityId
+    return selected.has(id) && (Boolean(story.cutoutUrl) || Boolean(cutoutFailed[id])) && Boolean(story.imageUrl)
+  })
+  const toSave = selected.size > 0 ? selectedReady : readyToSave
+
+  /** Every Story showing (or the ticked ones) in one go: one share sheet on a phone, a download each on a computer. */
   async function onSaveAll() {
-    const stories = readyToSave
+    const stories = toSave
     if (stories.length === 0) return
     setSavingAll({ done: 0, total: stories.length })
     try {
@@ -182,16 +231,21 @@ export function MorningStoryFeed({
         setSavingAll({ done: baked.length, total: stories.length })
       }
       const files = baked.map((row) => new File([row.blob], row.filename, { type: "image/png" }))
+      const ids = stories.map((story) => story.row.marketingEntityId)
       if (navigator.canShare?.({ files })) {
         try {
           await navigator.share({ files })
+          markSaved(ids)
+          setSelected(new Set())
         } catch (error) {
           if (!(error instanceof DOMException && error.name === "AbortError")) throw error
         }
         return
       }
       for (const row of baked) await shareOrDownloadStory(row)
-      toast.success(`${baked.length} Story images saved. Post them, then tick each one off.`)
+      markSaved(ids)
+      setSelected(new Set())
+      toast.success(`${baked.length} Story images saved. Post them, then mark each one shared.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the images.")
     } finally {
@@ -261,16 +315,20 @@ export function MorningStoryFeed({
             />
           </div>
         ) : null}
-        {readyToSave.length > 1 ? (
+        {toSave.length > 1 || selected.size > 0 ? (
           <button
             type="button"
             onClick={() => void onSaveAll()}
-            disabled={savingAll != null || savingId != null}
-            title="Save every Story showing (not the ones behind More new arrivals)"
+            disabled={savingAll != null || savingId != null || toSave.length === 0}
+            title={selected.size > 0 ? "Save the Stories you ticked" : "Save every Story showing (not the ones behind Show more)"}
             className="flex h-8 shrink-0 items-center gap-1.5 border-2 border-mad-black bg-mad-black px-2.5 text-xs font-medium text-mad-white hover:bg-mad-black/85 disabled:opacity-50"
           >
             {savingAll ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Share2 className="size-3.5" aria-hidden />}
-            {savingAll ? `Saving ${savingAll.done} of ${savingAll.total}` : `Save all ${readyToSave.length}`}
+            {savingAll
+              ? `Saving ${savingAll.done} of ${savingAll.total}`
+              : selected.size > 0
+                ? `Save ${toSave.length} selected`
+                : `Save all ${toSave.length}`}
           </button>
         ) : null}
         <button
@@ -289,8 +347,9 @@ export function MorningStoryFeed({
         <div id="story-feed-body" className="border-t border-mad-black/15 px-3 pb-3 pt-2">
           <p className="mb-3 text-xs text-mad-black/65">
             Save each Story, post it from your phone, paste the shop link into a
-            link sticker, then tick it off. Shared Stories leave the row
-            tomorrow; tap More new arrivals at the end for the next ones.
+            link sticker, then mark it shared. Tick the corner of the ones you want and
+            Save them together. Shared Stories leave the row tomorrow; tap Show more
+            at the end for the next ones.
           </p>
 
           {!loaded || (loading && feed.length === 0) ? (
@@ -338,6 +397,28 @@ export function MorningStoryFeed({
                           {cutting ? <Scissors className="size-4 animate-pulse" aria-hidden /> : <Loader2 className="size-4 animate-spin" aria-hidden />}
                           {cutting ? "Cutting out…" : "Waiting to cut out"}
                         </div>
+                      ) : null}
+                      {!shared && !waiting ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleSelected(id)}
+                          aria-pressed={selected.has(id)}
+                          title={selected.has(id) ? "Untick" : "Tick to save with others"}
+                          aria-label={`${selected.has(id) ? "Untick" : "Tick"} ${story.designer} Story`}
+                          className={cn(
+                            "absolute bottom-2 right-2 flex size-7 items-center justify-center rounded-full border-2 shadow",
+                            selected.has(id)
+                              ? "border-white bg-mad-black text-white"
+                              : "border-white/90 bg-black/25 text-transparent hover:bg-black/40"
+                          )}
+                        >
+                          <Check className="size-4" aria-hidden />
+                        </button>
+                      ) : null}
+                      {savedIds[id] && !shared ? (
+                        <span className="pointer-events-none absolute bottom-2.5 left-2 flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-semibold text-mad-black shadow">
+                          <Check className="size-3" aria-hidden /> Saved
+                        </span>
                       ) : null}
                       {shared ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/55 text-white">
@@ -448,7 +529,7 @@ export function MorningStoryFeed({
                     className="flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-mad-black/40 text-sm text-mad-black/70 hover:border-mad-black hover:text-mad-black"
                   >
                     <Plus className="size-6" aria-hidden />
-                    More new arrivals
+                    Show {Math.min(MORE_SIZE, waiting.length)} more
                     <span className="text-xs text-mad-black/55">{waiting.length} waiting</span>
                   </button>
                 </li>
