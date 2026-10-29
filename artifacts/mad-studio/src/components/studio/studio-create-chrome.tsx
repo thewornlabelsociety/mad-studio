@@ -2,6 +2,7 @@
 
 import {
   STUDIO_WIZARD_STEPS,
+  wizardRailStep,
   type WorkbenchFlowStep,
 } from "@/lib/studio/workbench-steps"
 import { studioWizardSopForStep } from "@/lib/studio/studio-wizard-sop"
@@ -21,7 +22,8 @@ export function StudioCreateChrome({
   step,
   onStepChange,
 }: Props) {
-  const stepRow = STUDIO_WIZARD_STEPS.find((row) => row.id === step)
+  const railStep = wizardRailStep(step)
+  const stepRow = STUDIO_WIZARD_STEPS.find((row) => row.id === railStep)
   const stepLabel = stepRow?.label ?? "Create"
 
   return (
@@ -41,8 +43,8 @@ export function StudioCreateChrome({
           >
             <ol className="flex w-full items-center gap-0.5">
               {STUDIO_WIZARD_STEPS.map((item, index) => {
-                const active = step === item.id
-                const complete = step > item.id
+                const active = railStep === item.id
+                const complete = railStep > item.id
                 const itemSop = studioWizardSopForStep(item.id)
                 const tab = (
                   <button
@@ -75,7 +77,7 @@ export function StudioCreateChrome({
                     <span
                       className={cn(
                         "truncate text-[11px] font-medium",
-                        active ? "inline" : "hidden xl:inline"
+                        "inline"
                       )}
                     >
                       {item.label}

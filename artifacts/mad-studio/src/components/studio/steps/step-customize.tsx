@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react"
 
-import { Brain, Loader2, RotateCcw, Sparkles } from "lucide-react"
+import { Brain, ChevronUp, Loader2, RotateCcw, Sparkles } from "lucide-react"
 
 import { toast } from "sonner"
 
@@ -146,7 +146,7 @@ function pickSelectValue(
   return allowed[0] ?? SELECT_NONE
 }
 
-export type CustomizeWizardPhase = "intent" | "canvas" | "copy" | "all"
+export type CustomizeWizardPhase = "intent" | "canvas" | "copy" | "post" | "all"
 
 type Props = {
   /** The item being posted — fills the tags line on the Canvas step. */
@@ -256,6 +256,8 @@ type Props = {
 
   /** Retail/fashion: audience + topic only; hook/CTA live on Schedule formula bank. */
   intentFieldSet?: "full" | "focus"
+  /** One line for the folded Who it's for row on Post. */
+  intentSummary?: string | null
 
   audienceToneCue?: string
   postFocusLabel?: string | null
@@ -337,8 +339,8 @@ const PHASE_META: Record<
     subtitle: STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_INTENT].hint,
   },
   canvas: {
-    step: "III · Canvas",
-    title: "Story card & on-image text",
+    step: "2 · Make",
+    title: "The picture",
     subtitle: STUDIO_WIZARD_STEP_SOP[WORKBENCH_STEP_CANVAS].hint,
   },
   copy: {
@@ -347,6 +349,48 @@ const PHASE_META: Record<
     subtitle:
       "Write the caption as it should publish; optional opening line for Story/Reels.",
   },
+  post: {
+    step: "3 · Post",
+    title: "Caption",
+    subtitle: "",
+  },
+}
+
+/** On Post, who the post is for folds away to one line you can open. */
+function IntentSection({
+  collapsible,
+  summary,
+  children,
+}: {
+  collapsible: boolean
+  summary: string | null
+  children: ReactNode
+}) {
+  if (!collapsible) return <>{children}</>
+  return (
+    <details className="group mb-3 shrink-0 border-2 border-mad-black/15 bg-white open:border-mad-black">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">
+          <span className="block font-typewriter text-[0.68rem] font-bold tracking-wider text-neutral-500 uppercase">
+            Who it's for
+          </span>
+          <span className="block truncate text-sm text-mad-black">
+            {summary || "Pick a tone and focus"}
+          </span>
+        </span>
+        <span className="shrink-0 text-xs font-medium text-neutral-600 underline underline-offset-2 group-open:hidden">
+          Change
+        </span>
+        <ChevronUp className="hidden size-4 shrink-0 group-open:block" aria-hidden />
+      </summary>
+      <div className="border-t border-mad-black/15 p-3">
+        <p className="mb-2 text-xs text-neutral-600">
+          Only steers AI suggestions. The caption below is what posts.
+        </p>
+        {children}
+      </div>
+    </details>
+  )
 }
 
 export function StepCustomize({
@@ -441,6 +485,7 @@ export function StepCustomize({
   enhancingCaption = false,
 
   intentFieldSet = "full",
+  intentSummary = null,
 
   audienceToneCue = "",
   postFocusLabel = null,
@@ -769,13 +814,13 @@ export function StepCustomize({
 
 
   const meta = PHASE_META[phase]
-  const showIntent = phase === "all" || phase === "intent"
+  const showIntent = phase === "all" || phase === "intent" || phase === "post"
   const showCanvas = phase === "all" || phase === "canvas"
-  const showCopy = phase === "all" || phase === "copy"
+  const showCopy = phase === "all" || phase === "copy" || phase === "post"
   const isIntentWizard = phase === "intent"
   const intentFocus = intentFieldSet === "focus" && !isFudi
   const isCanvasWizard = phase === "canvas"
-  const isCopyWizard = phase === "copy"
+  const isCopyWizard = phase === "copy" || phase === "post"
   // Every wizard step shows the same "N · Step" header.
   const isStepWizard = isIntentWizard || isCanvasWizard || isCopyWizard
   // This brand's colours and headline font (Brand Brain → Visual presets).
@@ -808,6 +853,7 @@ export function StepCustomize({
         isStepWizard && "p-2 md:p-2.5"
       )}
     >
+      <IntentSection collapsible={phase === "post"} summary={intentSummary}>
       {showIntent ? (
         <div className={isIntentWizard ? "shrink-0" : "space-y-1"}>
           {intentFocus ? (
@@ -880,7 +926,7 @@ export function StepCustomize({
         />
       ) : null}
 
-      {showIntent && intentFocus ? (
+      {isIntentWizard && intentFocus ? (
         <p className="mt-2 text-xs leading-relaxed text-neutral-600">
           Pick who you are talking to above, then what this post is about for{" "}
           {entity.name}. Hook style and CTA are on{" "}
@@ -1077,8 +1123,7 @@ export function StepCustomize({
 
       </div>
       ) : null}
-
-
+      </IntentSection>
 
       {showCanvas && onTextOverlayChange ? (
         <>
@@ -1123,7 +1168,7 @@ export function StepCustomize({
 
 
       {showCopy ? (
-      phase === "copy" ? (
+      isCopyWizard ? (
         <>
           <StepCopyEditor
             wizardCompact={isCopyWizard}
