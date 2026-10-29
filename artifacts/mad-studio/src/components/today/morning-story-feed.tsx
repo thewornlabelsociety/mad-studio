@@ -12,12 +12,21 @@ import {
   RefreshCw,
   Scissors,
   Download,
+  FolderOpen,
   Share2,
   Undo2,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
+import {
+  canSaveToFolder,
+  chooseFolder,
+  folderForSaving,
+  savedFolderName,
+  todaysSubfolder,
+  writeToFolder,
+} from "@/lib/media/save-to-folder"
 import { parseApiJsonResponse } from "@/lib/api/parse-response"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import {
@@ -100,6 +109,24 @@ export function MorningStoryFeed({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   // Phones share to Instagram or Photos; computers download straight to the Downloads folder.
   const [onPhone] = useState(onTouchDevice)
+  // On a computer with Chrome or Edge, Stories go straight into a chosen folder (e.g. Dropbox).
+  const [useFolder] = useState(() => !onTouchDevice() && canSaveToFolder())
+  const [folderName, setFolderName] = useState<string | null>(null)
+  useEffect(() => {
+    if (useFolder) void savedFolderName().then(setFolderName)
+  }, [useFolder])
+  const savedWord = onPhone ? "Saved" : useFolder ? "Saved" : "Downloaded"
+
+  /** The folder to write into, asking for it (or permission) when needed. */
+  async function folderOrAsk() {
+    const folder = await folderForSaving()
+    if (!folder) {
+      toast.message("Choose a folder (your Dropbox folder) to save Stories into.")
+      return null
+    }
+    setFolderName(folder.name)
+    return folder
+  }
   const [savedIds, setSavedIds] = useState<Record<string, true>>(() => readSaved(entityId))
 
   function markSaved(ids: string[]) {
@@ -192,9 +219,19 @@ export function MorningStoryFeed({
   async function onSave(story: KitStory) {
     const node = nodes.current[story.row.marketingEntityId]
     if (!node) return
+    // Ask for the folder first, while this still counts as your click.
+    const folder = useFolder ? await folderOrAsk() : null
+    if (useFolder && !folder) return
     setSavingId(story.row.marketingEntityId)
     try {
       const baked = await bakeStoryPng(node)
+      if (folder) {
+        const sub = todaysSubfolder()
+        await writeToFolder(folder, sub, [{ blob: baked.blob, filename: `wls-story-${story.row.websiteItemId}.png` }])
+        markSaved([story.row.marketingEntityId])
+        toast.success(`Saved to ${folder.name} › ${sub}`)
+        return
+      }
       const result = await shareOrDownloadStory({
         ...baked,
         filename: `wls-story-${story.row.websiteItemId}.png`,
@@ -226,6 +263,8 @@ export function MorningStoryFeed({
   async function onSaveAll() {
     const stories = toSave
     if (stories.length === 0) return
+    const folder = useFolder ? await folderOrAsk() : null
+    if (useFolder && !folder) return
     setSavingAll({ done: 0, total: stories.length })
     try {
       const baked: Array<{ dataUrl: string; blob: Blob; filename: string }> = []
@@ -237,6 +276,14 @@ export function MorningStoryFeed({
       }
       const files = baked.map((row) => new File([row.blob], row.filename, { type: "image/png" }))
       const ids = stories.map((story) => story.row.marketingEntityId)
+      if (folder) {
+        const sub = todaysSubfolder()
+        const written = await writeToFolder(folder, sub, baked)
+        markSaved(ids)
+        setSelected(new Set())
+        toast.success(`${written} Stories saved to ${folder.name} › ${sub}`)
+        return
+      }
       if (onPhone && navigator.canShare?.({ files })) {
         try {
           await navigator.share({ files })
@@ -337,7 +384,7 @@ export function MorningStoryFeed({
             )}
             {savingAll
               ? `Getting ${savingAll.done} of ${savingAll.total} ready`
-              : `${onPhone ? "Save" : "Download"} ${selected.size > 0 ? `${toSave.length} selected` : `all ${toSave.length}`}`}
+              : `${onPhone || useFolder ? "Save" : "Download"} ${selected.size > 0 ? `${toSave.length} selected` : `all ${toSave.length}`}${useFolder && folderName ? ` to ${folderName}` : ""}`}
           </button>
         ) : null}
         <button
@@ -360,6 +407,31 @@ export function MorningStoryFeed({
             Save them together. Shared Stories leave the row tomorrow; tap Show more
             at the end for the next ones.
           </p>
+          {useFolder ? (
+            <p className="-mt-2 mb-3 flex flex-wrap items-center gap-1.5 text-xs text-mad-black/65">
+              <FolderOpen className="size-3.5" aria-hidden />
+              {folderName ? (
+                <>
+                  Saving into <span className="font-medium text-mad-black">{folderName}</span>, a folder for each day.
+                </>
+              ) : (
+                "Pick your Dropbox folder the first time you save; Stories go straight in, a folder for each day."
+              )}
+              <button
+                type="button"
+                onClick={() =>
+                  void chooseFolder()
+                    .then((name) => {
+                      if (name) setFolderName(name)
+                    })
+                    .catch((error) => toast.error(error instanceof Error ? error.message : "Couldn't open the folder."))
+                }
+                className="underline underline-offset-2 hover:text-mad-black"
+              >
+                {folderName ? "Change" : "Choose folder"}
+              </button>
+            </p>
+          ) : null}
 
           {!loaded || (loading && feed.length === 0) ? (
             <div className="flex gap-3" aria-hidden>
@@ -426,7 +498,7 @@ export function MorningStoryFeed({
                       ) : null}
                       {savedIds[id] && !shared ? (
                         <span className="pointer-events-none absolute bottom-2.5 left-2 flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-semibold text-mad-black shadow">
-                          <Check className="size-3" aria-hidden /> {onPhone ? "Saved" : "Downloaded"}
+                          <Check className="size-3" aria-hidden /> {savedWord}
                         </span>
                       ) : null}
                       {shared ? (
@@ -509,12 +581,12 @@ export function MorningStoryFeed({
                             <Download className="size-3.5" aria-hidden />
                           )}
                           {savedIds[id]
-                            ? onPhone
-                              ? "Saved"
-                              : "Downloaded"
+                            ? savedWord
                             : onPhone
                               ? "Save image"
-                              : "Download image"}
+                              : useFolder
+                                ? "Save to folder"
+                                : "Download image"}
                         </button>
                       </li>
                       <li>
