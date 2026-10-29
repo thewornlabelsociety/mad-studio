@@ -35,7 +35,7 @@ function rangeLabel(start: string, end: string): string {
 }
 
 /** Where a step's Make it goes. */
-function stepHref(step: CampaignStep, entityId: string): string {
+export function stepHref(step: CampaignStep, entityId: string): string {
   const eid = `eid=${encodeURIComponent(entityId)}`
   switch (step.tool) {
     case "announcement":
@@ -53,6 +53,18 @@ function stepHref(step: CampaignStep, entityId: string): string {
     case "studio":
       return `/studio?${eid}`
   }
+}
+
+/** Hand an announcement step's card to the announcement screen; returns where to go. */
+export function prepareCampaignStep(step: CampaignStep, entityId: string): string {
+  if (step.tool === "announcement" && step.card) {
+    try {
+      window.sessionStorage.setItem(ANNOUNCEMENT_PREFILL_KEY, JSON.stringify(step.card))
+    } catch {
+      /* opens with the usual cards instead */
+    }
+  }
+  return stepHref(step, entityId)
 }
 
 /**
@@ -136,14 +148,7 @@ export function CampaignPlanner({ entityId }: { entityId: string }) {
   }
 
   function makeIt(step: CampaignStep) {
-    if (step.tool === "announcement" && step.card) {
-      try {
-        window.sessionStorage.setItem(ANNOUNCEMENT_PREFILL_KEY, JSON.stringify(step.card))
-      } catch {
-        /* opens with the usual cards instead */
-      }
-    }
-    navigate(stepHref(step, entityId))
+    navigate(prepareCampaignStep(step, entityId))
   }
 
   /** Recipes already on the calendar for these dates (pick-a-date ones can repeat). */

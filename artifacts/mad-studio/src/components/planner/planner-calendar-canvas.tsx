@@ -50,6 +50,11 @@ import {
 } from "@/lib/planner/calendar-posts"
 import type { PlannerTimelineDay } from "@/lib/planner/planner-timeline-types"
 import { fetchNewArrivalSuggestions } from "@/lib/studio/new-arrival-suggestions"
+import { prepareCampaignStep } from "@/components/campaigns/campaign-planner"
+import { DayPills, datePillsOn, useCampaignPlans } from "@/components/planner/day-pills"
+import { campaignStepsOn, type CampaignPlan } from "@/lib/planner/campaign-recipes"
+import { WLS_WEEK_RHYTHM } from "@/lib/planner/week-rhythm"
+import { useLocation } from "wouter"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
@@ -132,6 +137,9 @@ export function PlannerCalendarCanvas({
   const [dragKey, setDragKey] = useState<string | null>(null)
   const [dropKey, setDropKey] = useState<string | null>(null)
   const [picks, setPicks] = useState<ArtDirectorPick[]>([])
+  const [isWls, setIsWls] = useState(false)
+  // Campaign days and NZ dates show on every day.
+  const campaigns = useCampaignPlans(entityId, isWls)
 
   // Jump to a campaign when one is generated or opened.
   useEffect(() => {
@@ -175,6 +183,7 @@ export function PlannerCalendarCanvas({
         const isFashion =
           resolveIndustryProfile({ name: data?.name ?? "", industry: data?.industry ?? "" }).id ===
           "worn_label"
+        if (!cancelled) setIsWls(isFashion)
         const suggestions = await fetchNewArrivalSuggestions({ entityId, isFashion, limit: 24 })
         if (!cancelled) {
           setPicks(artDirectorPicks({ items: suggestions.map((row) => row.item), isFashion, max: 4 }))
@@ -382,6 +391,8 @@ export function PlannerCalendarCanvas({
           timelineByDay={timelineByDay}
           onOpenPost={openPost}
           onSelectDay={onSelectDay}
+          entityId={entityId}
+          campaigns={campaigns}
           onOpenDay={(date) => {
             setAnchor(startOfDay(date))
             setView("week")
@@ -422,6 +433,8 @@ export function PlannerCalendarCanvas({
                       {cell.date.getDate()}
                     </p>
                   </div>
+
+                  <DayPills date={cell.date} entityId={entityId} campaigns={campaigns} />
 
                   {beat ? (
                     <div className="group/beat relative">
@@ -464,7 +477,7 @@ export function PlannerCalendarCanvas({
                   ))}
 
                   {dayPosts.length === 0 && !past ? (
-                    <FillDay picks={picks} entityId={entityId} />
+                    <FillDay picks={picks} entityId={entityId} date={cell.date} isWls={isWls} campaigns={campaigns} />
                   ) : null}
                 </div>
               )
@@ -555,7 +568,31 @@ function PostCard({
   )
 }
 
-function FillDay({ picks, entityId }: { picks: ArtDirectorPick[]; entityId: string }) {
+/** Ideas for an empty day: what's planned or on that day, the week's slot, then new arrivals. */
+function FillDay({
+  picks,
+  entityId,
+  date,
+  isWls,
+  campaigns,
+}: {
+  picks: ArtDirectorPick[]
+  entityId: string
+  date: Date
+  isWls: boolean
+  campaigns: CampaignPlan[]
+}) {
+  const [, navigate] = useLocation()
+  const eid = encodeURIComponent(entityId)
+  const steps = isWls ? campaignStepsOn(campaigns, date) : []
+  const moments = isWls ? datePillsOn(campaigns, date) : []
+  // Monday first, matching the Week planner's rhythm.
+  const slot = isWls ? WLS_WEEK_RHYTHM[(date.getDay() + 6) % 7] : null
+  const heading = "font-typewriter text-[0.68rem] font-bold tracking-widest text-neutral-500 uppercase"
+  const row = "flex items-center gap-2 px-3 py-2"
+  const make =
+    "inline-flex shrink-0 items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion"
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -569,11 +606,56 @@ function FillDay({ picks, entityId }: { picks: ArtDirectorPick[]; entityId: stri
           </span>
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 rounded-none border-2 border-mad-black p-0">
+      <PopoverContent align="start" className="max-h-[70vh] w-80 overflow-y-auto rounded-none border-2 border-mad-black p-0">
         <p className="flex items-center gap-1.5 border-b-2 border-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
           <Sparkles className="size-3.5" aria-hidden />
-          Art director suggests
+          Ideas for {date.toLocaleDateString("en-NZ", { weekday: "long", day: "numeric", month: "short" })}
         </p>
+
+        {steps.length > 0 || moments.length > 0 ? (
+          <div className="border-b border-neutral-200 py-1">
+            <p className={cn(heading, "px-3 pt-1")}>On this day</p>
+            {steps.map(({ plan, step }) => (
+              <div key={step.id} className={row}>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold">{step.title}</p>
+                  <p className="truncate text-[0.75rem] text-neutral-600">{plan.name} campaign</p>
+                </div>
+                <button type="button" onClick={() => navigate(prepareCampaignStep(step, entityId))} className={make}>
+                  Make it
+                </button>
+              </div>
+            ))}
+            {moments.map((moment) => (
+              <div key={moment.id} className={row}>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold">{moment.name}</p>
+                  <p className="line-clamp-2 text-[0.75rem] leading-snug text-neutral-600">{moment.ideas[0]}</p>
+                </div>
+                <Link href={`/templates/wls-announcement?eid=${eid}&moment=${encodeURIComponent(moment.id)}`} className={make}>
+                  Card
+                </Link>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {slot ? (
+          <div className="border-b border-neutral-200 py-1">
+            <p className={cn(heading, "px-3 pt-1")}>Your week</p>
+            <div className={row}>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold">{slot.title}</p>
+                <p className="truncate text-[0.75rem] text-neutral-600">{slot.detail}</p>
+              </div>
+              <Link href={`${slot.path}?eid=${eid}`} className={make}>
+                Make it
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
+        <p className={cn(heading, "px-3 pt-2")}>From new arrivals</p>
         {picks.length === 0 ? (
           <p className="px-3 py-3 text-xs text-neutral-600">
             No new arrivals to suggest right now.
@@ -589,8 +671,13 @@ function FillDay({ picks, entityId }: { picks: ArtDirectorPick[]; entityId: stri
                 items: pick.items.map((item) => item.id).join(","),
                 format: pick.format,
               })
+              // A single piece is a kit Story; a group goes to Studio as a carousel or reel.
+              const href =
+                isWls && pick.format === "story" && pick.items[0]
+                  ? `/templates/wls-daily-story?eid=${eid}&item=${encodeURIComponent(pick.items[0].id)}`
+                  : `/studio?${params.toString()}`
               return (
-                <li key={pick.id} className="flex items-center gap-2 px-3 py-2">
+                <li key={pick.id} className={row}>
                   {cover ? (
                     <img src={cover} alt="" className="size-10 shrink-0 border border-mad-black object-cover" />
                   ) : null}
@@ -598,10 +685,7 @@ function FillDay({ picks, entityId }: { picks: ArtDirectorPick[]; entityId: stri
                     <p className="truncate text-xs font-semibold">{pick.title}</p>
                     <p className="line-clamp-2 text-[0.75rem] leading-snug text-neutral-600">{pick.reason}</p>
                   </div>
-                  <Link
-                    href={`/studio?${params.toString()}`}
-                    className="inline-flex shrink-0 items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.68rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion"
-                  >
+                  <Link href={href} className={make}>
                     <Wand2 className="size-3" aria-hidden />
                     Build
                   </Link>
@@ -623,7 +707,11 @@ function MonthGrid({
   onOpenPost,
   onSelectDay,
   onOpenDay,
+  entityId,
+  campaigns,
 }: {
+  entityId: string
+  campaigns: CampaignPlan[]
   cells: Array<{ date: Date; inCurrentMonth: boolean }>
   today: Date
   postsByDay: Map<string, CalendarPost[]>
@@ -673,6 +761,7 @@ function MonthGrid({
               >
                 {cell.date.getDate()}
               </button>
+              <DayPills date={cell.date} entityId={entityId} campaigns={campaigns} compact />
               {beat ? (
                 <button
                   type="button"

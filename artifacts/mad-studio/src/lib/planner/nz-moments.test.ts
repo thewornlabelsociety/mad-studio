@@ -47,6 +47,9 @@ test("school holidays and day tags", () => {
   assert.ok(!momentsOnDay(new Date(2026, 4, 2)).some((m) => m.id === "ball_season"))
   assert.ok(momentsOnDay(new Date(2027, 0, 5)).some((m) => m.id === "school_summer"))
   assert.ok(!momentsOnDay(new Date(2026, 1, 25)).some((m) => m.kind === "season"))
+  // Graduation (a 20-day occasion) only on its first day; Black Friday weekend every day.
+  assert.ok(!momentsOnDay(new Date(2026, 11, 3)).some((m) => m.id === "graduation_summer"))
+  assert.ok(momentsOnDay(new Date(2026, 10, 29)).some((m) => m.id === "black_friday"))
 })
 
 test("Black Friday weekend and Matariki", () => {
