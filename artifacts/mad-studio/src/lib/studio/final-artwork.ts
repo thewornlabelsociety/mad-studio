@@ -30,6 +30,8 @@ export async function renderStoryCardToUrl(
   entityId: string
 ): Promise<string> {
   const blob = await toBlob(node, {
+    // Proxied images differ only by query string; without this they all share one cache entry.
+    includeQueryParams: true,
     cacheBust: true,
     filter: storyExportFilter,
     pixelRatio: 1080 / node.offsetWidth,

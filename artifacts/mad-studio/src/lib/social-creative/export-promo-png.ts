@@ -22,6 +22,8 @@ export async function exportPromoPng(
   const height = promoExportHeight(config.aspectRatio)
 
   const dataUrl = await toPng(node, {
+    // Proxied images differ only by query string; without this they all share one cache entry.
+    includeQueryParams: true,
     cacheBust: true,
     pixelRatio: 3,
     width,
