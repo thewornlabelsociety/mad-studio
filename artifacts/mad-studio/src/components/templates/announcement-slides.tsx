@@ -1,5 +1,6 @@
 import { forwardRef } from "react"
 
+import { EditorialAnnouncement, type EditorialAccent } from "@/components/templates/editorial-announcement"
 import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
@@ -9,8 +10,16 @@ export type Announcement = {
   /** Line above the headline, e.g. THIS FRIDAY. */
   kicker: string
   headline: string
-  /** Up to three short lines: when, where, what. */
+  /** Up to three short lines: when, where, what (four on Editorial). */
   details: string[]
+  /** Kit: Josefin capitals. Editorial: the moodboard's serif and script. */
+  style?: "kit" | "editorial"
+  /** Editorial: a signature-script line under the headline. */
+  script?: string
+  /** Editorial: headline in the tall serif or the script. */
+  headlineFont?: "serif" | "script"
+  accent?: EditorialAccent
+  align?: "center" | "left"
 }
 
 type Props = {
@@ -33,6 +42,17 @@ function headlineSize(text: string, story: boolean): number {
 }
 
 function AnnouncementLayout({ background, brandName, announcement, linkSpace, story }: Props & { story: boolean }) {
+  if (announcement.style === "editorial") {
+    return (
+      <EditorialAnnouncement
+        background={background}
+        brandName={brandName}
+        announcement={announcement}
+        story={story}
+        linkSpace={linkSpace}
+      />
+    )
+  }
   const { tag, kicker, headline, details } = announcement
   const lines = details.map((line) => line.trim()).filter(Boolean)
   return (

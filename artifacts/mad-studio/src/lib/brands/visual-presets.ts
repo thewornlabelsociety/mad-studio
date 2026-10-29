@@ -63,7 +63,7 @@ const BRAND_DEFAULTS: Record<
   // Gold, beige, black, white — quiet luxury.
   worn_label: {
     palette: ["#C5A46D", "#E8DCC4", "#111111", "#FFFFFF"],
-    headingFontId: "editorial_serif",
+    headingFontId: "wls_caps",
   },
   fudi: {
     palette: ["#CCFF00", "#FF007F", "#0A0A0A", "#FFFFFF"],

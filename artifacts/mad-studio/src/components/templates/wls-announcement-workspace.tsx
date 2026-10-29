@@ -26,8 +26,10 @@ type Props = {
   brandIdentity?: { visual_presets?: VisualPresets | null } | null
 }
 
+type Preset = { id: string; label: string; background: string; value: Announcement }
+
 /** Starting points; every word is editable. */
-const PRESETS: Array<{ id: string; label: string; background: string; value: Announcement }> = [
+const PRESETS: Preset[] = [
   {
     id: "sale",
     label: "Sale starts",
@@ -60,7 +62,52 @@ const PRESETS: Array<{ id: string; label: string; background: string; value: Ann
   },
 ]
 
-const BLANK: Announcement = { tag: "News", kicker: "", headline: "", details: ["", "", ""] }
+const BLANK: Announcement = { tag: "News", kicker: "", headline: "", details: ["", "", "", ""] }
+
+function padDetails(details: string[]): string[] {
+  const out = details.slice(0, 4)
+  while (out.length < 4) out.push("")
+  return out
+}
+
+function editorialPreset(
+  id: string,
+  label: string,
+  background: string,
+  value: Partial<Announcement>
+): Preset {
+  return {
+    id,
+    label,
+    background,
+    value: {
+      tag: "",
+      kicker: "",
+      headline: "",
+      script: "",
+      headlineFont: "serif",
+      accent: "brush",
+      align: "center",
+      ...value,
+      style: "editorial",
+      details: padDetails(value.details ?? []),
+    },
+  }
+}
+
+/** Editorial cards from the brand moodboard: launch and announcement lines. */
+const EDITORIAL_PRESETS: Preset[] = [
+  editorialPreset("new_look", "A new look", "charcoal", { headline: "A new\nlook", script: "for Worn Label Society", accent: "none", align: "left" }),
+  editorialPreset("online", "Now online", "deep_green", { headline: "We are\nnow\nonline!!", details: ["Shop", "preloved", "NZ"], accent: "oval" }),
+  editorialPreset("same_good", "Same good stuff", "vintage_beige", { headline: "Same\ngood\nstuff", details: ["Quality", "preloved fashion", "now easier", "than ever"], accent: "none" }),
+  editorialPreset("shop_nz", "Shop preloved NZ", "faded_olive", { headline: "Shop\npreloved\nNZ", details: ["Womens", "Mens", "Kids"], accent: "arrow" }),
+  editorialPreset("buy_sell", "Buy sell discover", "worn_taupe", { kicker: "Same vibe\nBigger possibilities", headline: "Buy\nsell\ndiscover", details: ["All in one place"] }),
+  editorialPreset("marketplace", "Marketplace is here", "vintage_beige", { headline: "Your\nnew\npreloved\nmarketplace\nis here", details: ["Fashion", "Brands", "Bargains", "NZ only"] }),
+  editorialPreset("more_ways", "More ways to shop", "charcoal", { headline: "Same\ncommunity\nmore\nways to shop", details: ["In-store", "Online", "NZ wide"] }),
+  editorialPreset("go_further", "Good clothes", "deep_green", { headline: "Good\nclothes\ngo further.", headlineFont: "script", details: ["Shop preloved", "Support local", "Keep fashion circular"] }),
+  editorialPreset("real_people", "Real people", "vintage_beige", { headline: "Real\npeople\nreal\nfashion", details: ["New arrivals", "every day", "online now"], align: "left" }),
+  editorialPreset("same_heart", "Same heart", "charcoal", { headline: "Same heart,\nbigger reach.", headlineFont: "script", details: ["Local style", "Circular fashion", "NZ wide"] }),
+]
 
 function draftKey(entityId: string): string {
   return `mad.announcement.${entityId}`
@@ -72,8 +119,7 @@ function readDraft(entityId: string): { value: Announcement; backgroundId: strin
     if (!raw) return null
     const parsed = JSON.parse(raw) as { value?: Announcement; backgroundId?: string | null }
     if (!parsed.value || typeof parsed.value.headline !== "string") return null
-    const details = Array.isArray(parsed.value.details) ? parsed.value.details.slice(0, 3) : []
-    while (details.length < 3) details.push("")
+    const details = padDetails(Array.isArray(parsed.value.details) ? parsed.value.details : [])
     return { value: { ...BLANK, ...parsed.value, details }, backgroundId: parsed.backgroundId ?? null }
   } catch {
     return null
@@ -86,8 +132,12 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
   const storyRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const [initial] = useState(() => readDraft(entityId))
-  const [value, setValue] = useState<Announcement>(initial?.value ?? PRESETS[0].value)
-  const [backgroundId, setBackgroundId] = useState<string | null>(initial?.backgroundId ?? PRESETS[0].background)
+  const [value, setValue] = useState<Announcement>(initial?.value ?? EDITORIAL_PRESETS[0].value)
+  const [backgroundId, setBackgroundId] = useState<string | null>(
+    initial?.backgroundId ?? EDITORIAL_PRESETS[0].background
+  )
+  const editorial = value.style === "editorial"
+  const presets = editorial ? EDITORIAL_PRESETS : PRESETS
   const [linkSpace, setLinkSpace] = useState(true)
   const [busy, setBusy] = useState<"story" | "studio" | null>(null)
 
@@ -141,8 +191,10 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
       const { blob } = await bakeStoryPng(cardRef.current)
       const url = await uploadRenderedPng(blob, entityId)
       const lines = value.details.map((line) => line.trim()).filter(Boolean)
+      const oneLine = (text: string) =>
+        text.split(/\n/).map((part) => part.trim()).filter(Boolean).join(" ")
       const caption = [
-        [value.kicker.trim(), value.headline.trim()].filter(Boolean).join(": "),
+        [oneLine(value.kicker), oneLine(value.headline), value.script?.trim()].filter(Boolean).join(" "),
         "",
         ...lines,
       ].join("\n").trim()
@@ -166,8 +218,8 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
           </p>
           <h1 className="brand-typewriter text-xl">Announcement</h1>
           <p className="mt-1 max-w-xl text-sm text-mad-black/70">
-            Start from a preset or a blank card. Everything is in your kit, so
-            it sits with the rest of the grid.
+            Pick a starting point and change any of the words. Kit uses your
+            website capitals; Editorial is the serif and script look.
           </p>
         </div>
         <div className="flex items-center gap-1.5" role="group" aria-label="Background">
@@ -195,13 +247,35 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         <section aria-labelledby="announce-words" className="grid content-start gap-3">
+          <div className="flex border-2 border-mad-black" role="group" aria-label="Style">
+            {(["editorial", "kit"] as const).map((style) => (
+              <button
+                key={style}
+                type="button"
+                aria-pressed={(value.style ?? "kit") === style}
+                onClick={() => {
+                  const first = (style === "editorial" ? EDITORIAL_PRESETS : PRESETS)[0]
+                  setValue({ ...first.value, details: padDetails(first.value.details) })
+                  setBackgroundId(first.background)
+                }}
+                className={cn(
+                  "flex-1 px-3 py-1.5 font-typewriter text-xs uppercase tracking-widest",
+                  (value.style ?? "kit") === style
+                    ? "bg-mad-black text-mad-white"
+                    : "bg-white hover:bg-mad-lime/40"
+                )}
+              >
+                {style === "editorial" ? "Editorial" : "Kit"}
+              </button>
+            ))}
+          </div>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Start from">
-            {PRESETS.map((preset) => (
+            {presets.map((preset) => (
               <button
                 key={preset.id}
                 type="button"
                 onClick={() => {
-                  setValue(preset.value)
+                  setValue({ ...preset.value, details: padDetails(preset.value.details) })
                   setBackgroundId(preset.background)
                 }}
                 className="border border-mad-black/30 px-2.5 py-1 text-xs hover:border-mad-black"
@@ -211,7 +285,13 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
             ))}
             <button
               type="button"
-              onClick={() => setValue(BLANK)}
+              onClick={() =>
+                setValue(
+                  editorial
+                    ? { ...EDITORIAL_PRESETS[0].value, kicker: "", headline: "", script: "", details: padDetails([]) }
+                    : BLANK
+                )
+              }
               className="border border-dashed border-mad-black/40 px-2.5 py-1 text-xs text-mad-black/70 hover:border-mad-black"
             >
               Blank
@@ -219,42 +299,104 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
           </div>
 
           <h2 id="announce-words" className="sr-only">Words</h2>
-          <div className="grid grid-cols-[1fr_2fr] gap-2">
+          {editorial ? (
             <label className="grid gap-1 text-xs">
-              <span className="font-typewriter uppercase tracking-widest">Tag</span>
-              <input id="announce-tag" className={field} value={value.tag} maxLength={14} onChange={(e) => set("tag", e.target.value)} />
+              <span className="font-typewriter uppercase tracking-widest">Small line above (optional)</span>
+              <textarea
+                id="announce-kicker"
+                rows={2}
+                className="w-full resize-none border-2 border-mad-black bg-white px-2 py-1.5 text-sm"
+                value={value.kicker}
+                maxLength={60}
+                placeholder="e.g. Same vibe"
+                onChange={(e) => set("kicker", e.target.value)}
+              />
             </label>
-            <label className="grid gap-1 text-xs">
-              <span className="font-typewriter uppercase tracking-widest">Above the headline</span>
-              <input id="announce-kicker" className={field} value={value.kicker} maxLength={30} placeholder="e.g. This Friday" onChange={(e) => set("kicker", e.target.value)} />
-            </label>
-          </div>
+          ) : (
+            <div className="grid grid-cols-[1fr_2fr] gap-2">
+              <label className="grid gap-1 text-xs">
+                <span className="font-typewriter uppercase tracking-widest">Tag</span>
+                <input id="announce-tag" className={field} value={value.tag} maxLength={14} onChange={(e) => set("tag", e.target.value)} />
+              </label>
+              <label className="grid gap-1 text-xs">
+                <span className="font-typewriter uppercase tracking-widest">Above the headline</span>
+                <input id="announce-kicker" className={field} value={value.kicker} maxLength={30} placeholder="e.g. This Friday" onChange={(e) => set("kicker", e.target.value)} />
+              </label>
+            </div>
+          )}
           <label className="grid gap-1 text-xs">
-            <span className="font-typewriter uppercase tracking-widest">Headline</span>
+            <span className="font-typewriter uppercase tracking-widest">
+              Headline{editorial ? " (Enter starts a new line)" : ""}
+            </span>
             <textarea
               id="announce-headline"
-              className="min-h-16 w-full resize-y border-2 border-mad-black bg-white px-2 py-1.5 text-sm uppercase tracking-wider"
+              rows={editorial ? 4 : 2}
+              className={cn(
+                "min-h-16 w-full resize-y border-2 border-mad-black bg-white px-2 py-1.5 text-sm tracking-wider",
+                (!editorial || value.headlineFont !== "script") && "uppercase"
+              )}
               value={value.headline}
-              maxLength={60}
+              maxLength={editorial ? 80 : 60}
               placeholder="e.g. Winter sale starts"
               onChange={(e) => set("headline", e.target.value)}
             />
           </label>
+          {editorial ? (
+            <>
+              <Choice
+                label="Headline in"
+                value={value.headlineFont ?? "serif"}
+                options={[["serif", "Serif"], ["script", "Script"]]}
+                onChange={(next) => set("headlineFont", next)}
+              />
+              <label className="grid gap-1 text-xs">
+                <span className="font-typewriter uppercase tracking-widest">Script line (optional)</span>
+                <input
+                  id="announce-script"
+                  className={field}
+                  value={value.script ?? ""}
+                  maxLength={40}
+                  placeholder="e.g. for Worn Label Society"
+                  onChange={(e) => set("script", e.target.value)}
+                />
+              </label>
+            </>
+          ) : null}
           <fieldset className="grid gap-1.5 text-xs">
             <legend className="mb-1 font-typewriter uppercase tracking-widest">Details</legend>
-            {value.details.map((line, index) => (
+            {value.details.slice(0, editorial ? 4 : 3).map((line, index) => (
               <input
                 key={index}
                 id={`announce-detail-${index}`}
                 className={field}
                 value={line}
                 maxLength={40}
-                placeholder={["When", "Where", "What's on"][index]}
+                placeholder={
+                  editorial
+                    ? ["e.g. Shop preloved", "Support local", "", ""][index]
+                    : ["When", "Where", "What's on"][index]
+                }
                 aria-label={`Detail line ${index + 1}`}
                 onChange={(e) => setDetail(index, e.target.value)}
               />
             ))}
           </fieldset>
+          {editorial ? (
+            <>
+              <Choice
+                label="Finish with"
+                value={value.accent ?? "brush"}
+                options={[["brush", "Gold brush"], ["oval", "Oval"], ["arrow", "Arrow"], ["none", "Nothing"]]}
+                onChange={(next) => set("accent", next)}
+              />
+              <Choice
+                label="Line up"
+                value={value.align ?? "center"}
+                options={[["center", "Centre"], ["left", "Left"]]}
+                onChange={(next) => set("align", next)}
+              />
+            </>
+          ) : null}
           <label className="flex items-center gap-2 text-sm">
             <input id="announce-link-space" type="checkbox" checked={linkSpace} onChange={(e) => setLinkSpace(e.target.checked)} />
             Leave space on the Story for a link sticker
@@ -307,6 +449,42 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
             </div>
           </div>
         </section>
+      </div>
+    </div>
+  )
+}
+
+function Choice<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: T
+  options: Array<[T, string]>
+  onChange: (next: T) => void
+}) {
+  return (
+    <div className="grid gap-1 text-xs">
+      <span className="font-typewriter uppercase tracking-widest">{label}</span>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
+        {options.map(([id, text]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={value === id}
+            onClick={() => onChange(id)}
+            className={cn(
+              "border px-2.5 py-1 text-xs",
+              value === id
+                ? "border-mad-black bg-mad-black text-mad-white"
+                : "border-mad-black/30 hover:border-mad-black"
+            )}
+          >
+            {text}
+          </button>
+        ))}
       </div>
     </div>
   )

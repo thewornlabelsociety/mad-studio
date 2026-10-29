@@ -23,7 +23,8 @@ import {
   ReviewBeforeSchedule,
   type MediaByChannel,
 } from "@/components/studio/review-before-schedule"
-import { brandSwatches, resolveVisualPresets } from "@/lib/brands/visual-presets"
+import { resolveStoryKit } from "@/lib/brands/story-kit"
+import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { SchedulerChannel } from "@/lib/scheduling/brain-timing"
 import { stripMarkdown } from "@/lib/scheduling/pack-payload"
 import { IntentMatrix } from "@/components/studio/intent-matrix"
@@ -3093,7 +3094,11 @@ export function StudioWorkspace({
                 storyCard: isMultiPhoto
                   ? null
                   : {
-                      swatches: brandSwatches(brandVisualPresets),
+                      // The brand kit's Story backgrounds, same as Today.
+                      swatches: resolveStoryKit({
+                        presets: brandVisualPresets,
+                        isWornLabel: isFashionBrand,
+                      }).map((bg) => ({ hex: bg.color, label: bg.name })),
                       background:
                         storyPreview.canvasColor ||
                         brandVisualPresets.canvas_color,
