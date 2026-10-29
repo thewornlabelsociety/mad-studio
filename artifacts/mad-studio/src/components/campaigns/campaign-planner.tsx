@@ -18,6 +18,7 @@ import {
   type CampaignRecipe,
   type CampaignStep,
 } from "@/lib/planner/campaign-recipes"
+import { rememberActiveStep } from "@/lib/planner/campaign-progress"
 import { cn } from "@/lib/utils"
 
 /** Session handoff read by the announcement screen (?prefill=1). */
@@ -56,7 +57,9 @@ export function stepHref(step: CampaignStep, entityId: string): string {
 }
 
 /** Hand an announcement step's card to the announcement screen; returns where to go. */
-export function prepareCampaignStep(step: CampaignStep, entityId: string): string {
+export function prepareCampaignStep(step: CampaignStep, entityId: string, planId: string): string {
+  // Saving, posting or scheduling this post then ticks the step off.
+  rememberActiveStep(entityId, planId, step.id)
   if (step.tool === "announcement" && step.card) {
     try {
       window.sessionStorage.setItem(ANNOUNCEMENT_PREFILL_KEY, JSON.stringify(step.card))
@@ -147,8 +150,8 @@ export function CampaignPlanner({ entityId }: { entityId: string }) {
     )
   }
 
-  function makeIt(step: CampaignStep) {
-    navigate(prepareCampaignStep(step, entityId))
+  function makeIt(planId: string, step: CampaignStep) {
+    navigate(prepareCampaignStep(step, entityId, planId))
   }
 
   /** Recipes already on the calendar for these dates (pick-a-date ones can repeat). */
@@ -296,7 +299,7 @@ function PlanCard({
   todayYmd: string
   busy: boolean
   onToggle: (planId: string, stepId: string) => void
-  onMake: (step: CampaignStep) => void
+  onMake: (planId: string, step: CampaignStep) => void
   onRemove: (planId: string) => void
 }) {
   const done = plan.steps.filter((step) => step.done).length
@@ -357,7 +360,7 @@ function PlanCard({
               </span>
               <button
                 type="button"
-                onClick={() => onMake(step)}
+                onClick={() => onMake(plan.id, step)}
                 className="inline-flex shrink-0 items-center gap-1 border-2 border-mad-black px-2 py-0.5 text-xs font-medium hover:bg-mad-lime/40"
               >
                 Make it <ArrowRight className="size-3" aria-hidden />

@@ -5,6 +5,7 @@ import { toPng } from "html-to-image"
 import { toast } from "sonner"
 
 import { storyExportFilter } from "@/components/marketing/story-canvas"
+import { completeStepsFor } from "@/lib/planner/campaign-progress"
 import { NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import {
   detectItemTraits,
@@ -316,6 +317,7 @@ export function useKitStories(input: {
       try {
         const result = await saveStoryState({ entityId, marketingEntityId: id, shared })
         setSharedAt((current) => ({ ...current, [id]: result.sharedAt }))
+        if (shared) void completeStepsFor(entityId, "stories")
       } catch (error) {
         setSharedAt((current) => ({ ...current, [id]: previous }))
         toast.error(error instanceof Error ? error.message : "Couldn't save that.")

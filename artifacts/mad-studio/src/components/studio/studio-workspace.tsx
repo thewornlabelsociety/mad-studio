@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { Link } from "wouter"
 import { useRouter, useSearchParams } from "@/lib/next-compat"
 import { ChevronDown, Loader2, Sparkles } from "lucide-react"
+import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { toast } from "sonner"
 
 import {
@@ -2825,6 +2826,7 @@ export function StudioWorkspace({
         )
       }
       toast.success(`Multi-channel post armed — ${parts.join(" · ") || "queued"}`)
+      void completeActiveStep(activeEntity.id)
       for (const failure of immediate.errors) {
         const channel =
           CHANNEL_META[failure.platform as keyof typeof CHANNEL_META]?.label ??

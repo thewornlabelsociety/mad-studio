@@ -16,6 +16,7 @@ import { KIT_DISPLAY } from "@/components/templates/kit-type"
 import { Button } from "@/components/ui/button"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 import { WORN_LABEL_TAG_COLORS } from "@/lib/social-creative/worn-label-promo-theme"
+import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
@@ -214,6 +215,7 @@ export function DotSpecialPanel({
       const baked = await bakeStoryPng(storyRef.current)
       const result = await shareOrDownloadStory({ ...baked, filename: `wls-${special.color.toLowerCase()}-dot.png` })
       if (result === "downloaded") toast.success("Story image saved.")
+      if (result !== "cancelled") void completeActiveStep(entityId)
     })
 
   const sendCard = () =>
@@ -247,6 +249,7 @@ export function DotSpecialPanel({
       pdf.addImage(dataUrl, "PNG", 0, 0, 210, 297)
       pdf.save(`WLS-${special.color}-dot-A4.pdf`)
       toast.success("A4 sheet downloaded. Print it on white paper.")
+      void completeActiveStep(entityId)
     })
 
   return (
