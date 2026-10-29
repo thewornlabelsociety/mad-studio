@@ -57,3 +57,33 @@ export async function sampleItemColour(url: string): Promise<Rgb | null> {
   if (count === 0) return null
   return { r: Math.round(r / count), g: Math.round(g / count), b: Math.round(b / count) }
 }
+
+/**
+ * True when the image already has a see-through background (a Photoroom-style
+ * cutout): at least 8% of it fully clear. False when it can't be read.
+ */
+export async function hasSeeThroughBackground(url: string): Promise<boolean> {
+  const image = await new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = url
+  })
+  if (!image) return false
+  const size = 64
+  const canvas = document.createElement("canvas")
+  canvas.width = size
+  canvas.height = size
+  const context = canvas.getContext("2d", { willReadFrequently: true })
+  if (!context) return false
+  context.drawImage(image, 0, 0, size, size)
+  try {
+    const data = context.getImageData(0, 0, size, size).data
+    let clear = 0
+    for (let i = 3; i < data.length; i += 4) if (data[i] < 16) clear++
+    return clear / (size * size) >= 0.08
+  } catch {
+    return false
+  }
+}
