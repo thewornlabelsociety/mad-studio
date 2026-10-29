@@ -16,7 +16,7 @@ import {
 
 import { ComingUp } from "@/components/planner/coming-up"
 import { getCampaignPlans } from "@/lib/actions"
-import { campaignStepsOn, type CampaignPlan } from "@/lib/planner/campaign-recipes"
+import { campaignCovers, campaignStepsOn, type CampaignPlan } from "@/lib/planner/campaign-recipes"
 import { momentsOnDay } from "@/lib/planner/nz-moments"
 import { TodayToolLinks } from "@/components/today/today-tool-links"
 import { PlatformIcon } from "@/components/ui/app-icons"
@@ -104,6 +104,10 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
       live = false
     }
   }, [entityId, isWornLabel])
+
+  /** NZ date pills, minus any a campaign that day already shows. */
+  const datePills = (date: Date) =>
+    momentsOnDay(date).filter((moment) => !campaignCovers(campaigns, moment, date))
 
   const load = useCallback(async () => {
     setPosts(null)
@@ -284,7 +288,7 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
                       ) : null}
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{day.slot.title}</p>
-                        {momentsOnDay(day.date).length > 0 || campaignStepsOn(campaigns, day.date).length > 0 ? (
+                        {datePills(day.date).length > 0 || campaignStepsOn(campaigns, day.date).length > 0 ? (
                           <div className="mb-0.5 mt-0.5 flex flex-wrap gap-1">
                             {campaignStepsOn(campaigns, day.date).map(({ plan, step }) => (
                               <Link
@@ -298,10 +302,12 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
                                     : "border-mad-black bg-white text-mad-black"
                                 )}
                               >
-                                {plan.name}: {step.title}
+                                {step.title.toLowerCase().includes(plan.name.toLowerCase())
+                                  ? step.title
+                                  : `${plan.name}: ${step.title}`}
                               </Link>
                             ))}
-                            {momentsOnDay(day.date).map((moment) => (
+                            {datePills(day.date).map((moment) => (
                               <Link
                                 key={moment.id}
                                 href={`/dates?eid=${encodeURIComponent(entityId)}`}
@@ -389,7 +395,7 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
 
       {isWornLabel ? (
         <div className="mx-auto mt-8 max-w-6xl">
-          <ComingUp entityId={entityId} />
+          <ComingUp entityId={entityId} compact />
         </div>
       ) : null}
 

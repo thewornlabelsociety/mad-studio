@@ -297,6 +297,20 @@ export function buildCampaign(input: {
   }
 }
 
+/**
+ * True when a planned campaign already covers this NZ moment on this day,
+ * so the plain date pill would only repeat it.
+ */
+export function campaignCovers(plans: CampaignPlan[], moment: NzMoment, date: Date): boolean {
+  const day = ymd(date)
+  return plans.some((plan) => {
+    if (day < plan.start || day > plan.end) return false
+    const recipe = CAMPAIGN_RECIPES.find((row) => row.id === plan.recipeId)
+    if (!recipe) return false
+    return recipe.id === "change_of_season" ? moment.kind === "season" : recipe.momentId === moment.id
+  })
+}
+
 /** Campaign steps on a day, across plans. */
 export function campaignStepsOn(plans: CampaignPlan[], date: Date): Array<{ plan: CampaignPlan; step: CampaignStep }> {
   const day = ymd(date)

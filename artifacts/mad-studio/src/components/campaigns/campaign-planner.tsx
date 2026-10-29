@@ -146,6 +146,11 @@ export function CampaignPlanner({ entityId }: { entityId: string }) {
     navigate(stepHref(step, entityId))
   }
 
+  /** Recipes already on the calendar for these dates (pick-a-date ones can repeat). */
+  const plannedRecipeIds = new Set(
+    (plans ?? []).filter((plan) => plan.end >= todayYmd).map((plan) => plan.recipeId)
+  )
+
   const current = (plans ?? []).filter((plan) => plan.end >= todayYmd || plan.steps.some((step) => step.date >= todayYmd))
   const finished = (plans ?? []).filter((plan) => !current.includes(plan))
 
@@ -207,6 +212,11 @@ export function CampaignPlanner({ entityId }: { entityId: string }) {
                     <span className="block font-typewriter text-[10px] uppercase tracking-widest text-mad-black/55">
                       {moment ? rangeLabel(ymd(moment.start), ymd(moment.end)) : "Pick a date"} · {recipe.steps.length} posts
                     </span>
+                    {moment && plannedRecipeIds.has(recipe.id) ? (
+                      <span className="mb-0.5 inline-flex items-center gap-1 bg-mad-black px-1.5 py-px text-[10px] font-medium text-mad-white">
+                        <Check className="size-3" aria-hidden /> On your calendar
+                      </span>
+                    ) : null}
                     <span className="block text-sm font-semibold">{recipe.name}</span>
                     <span className="block text-xs text-mad-black/70">{recipe.why}</span>
                   </span>
