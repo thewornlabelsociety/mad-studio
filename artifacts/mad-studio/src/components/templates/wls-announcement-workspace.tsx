@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
+import { findMoment } from "@/lib/planner/nz-moments"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
@@ -156,6 +157,29 @@ function fromPreset(preset: Preset): CardDraft {
   }
 }
 
+/** The card for `?moment=` (an NZ date from Coming up), or null. */
+function cardForMoment(): CardDraft | null {
+  if (typeof window === "undefined") return null
+  const id = new URLSearchParams(window.location.search).get("moment")
+  const moment = id ? findMoment(id, new Date()) : null
+  if (!moment) return null
+  const base = EDITORIAL_PRESETS[0].value
+  return {
+    id: newCardId(),
+    value: {
+      ...base,
+      kicker: moment.card.kicker ?? "",
+      headline: moment.card.headline,
+      script: moment.card.script ?? "",
+      headlineFont: moment.card.headlineFont ?? "serif",
+      accent: "brush",
+      align: "center",
+      details: padDetails(moment.card.details),
+    },
+    backgroundId: moment.card.background,
+  }
+}
+
 /** The headline as one line, for captions and file names. */
 function oneLine(text: string): string {
   return text.split(/\n/).map((part) => part.trim()).filter(Boolean).join(" ")
@@ -167,10 +191,22 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
   // Every card renders off screen too, so all of them can be saved at once.
   const storyRefs = useRef(new Map<string, HTMLDivElement>())
   const cardRefs = useRef(new Map<string, HTMLDivElement>())
-  const [cards, setCards] = useState<CardDraft[]>(
-    () => readDraft(entityId) ?? [fromPreset(EDITORIAL_PRESETS[0])]
-  )
-  const [activeId, setActiveId] = useState(() => cards[0].id)
+  // Opened from Coming up: the moment's card joins the set, ready to edit.
+  const [momentCard] = useState(() => cardForMoment())
+  const [cards, setCards] = useState<CardDraft[]>(() => {
+    const saved = readDraft(entityId) ?? []
+    const list = momentCard ? [...saved, momentCard] : saved
+    return list.length > 0 ? list.slice(-MAX_CARDS) : [fromPreset(EDITORIAL_PRESETS[0])]
+  })
+  const [activeId, setActiveId] = useState(() => momentCard?.id ?? cards[0].id)
+
+  useEffect(() => {
+    if (!momentCard) return
+    // Drop ?moment= so a reload doesn't add the card again.
+    const url = new URL(window.location.href)
+    url.searchParams.delete("moment")
+    window.history.replaceState(window.history.state, "", url.toString())
+  }, [momentCard])
   const active = cards.find((card) => card.id === activeId) ?? cards[0]
   const value = active.value
   const backgroundId = active.backgroundId

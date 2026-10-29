@@ -14,6 +14,7 @@ import {
   Plus,
 } from "lucide-react"
 
+import { ComingUp } from "@/components/planner/coming-up"
 import { TodayToolLinks } from "@/components/today/today-tool-links"
 import { PlatformIcon } from "@/components/ui/app-icons"
 import { fetchCalendarPosts, type CalendarPost } from "@/lib/planner/calendar-posts"
@@ -332,6 +333,12 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
           ) : null}
         </section>
       </div>
+
+      {isWornLabel ? (
+        <div className="mx-auto mt-8 max-w-6xl">
+          <ComingUp entityId={entityId} />
+        </div>
+      ) : null}
 
       {isWornLabel ? (
         <section aria-labelledby="make-heading" className="mx-auto mt-8 grid max-w-6xl gap-2">

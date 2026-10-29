@@ -20,6 +20,7 @@ import {
 import { readDispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { resolveIntakeCaptionDefaultSource } from "@/lib/inventory/intake-caption-default"
 import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
+import { ComingUp } from "@/components/planner/coming-up"
 import { MorningStoryFeed } from "@/components/today/morning-story-feed"
 import { TodayAlerts, TodayFeedPost } from "@/components/today/today-feed-post"
 import { TodayActionDeck } from "@/components/today/action-deck"
@@ -242,6 +243,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
               brandIdentity={storyBrandIdentity}
             />
             <TodayFeedPost entityId={activeEntityId} />
+            <ComingUp entityId={activeEntityId} compact />
           </div>
         </div>
       ) : (
