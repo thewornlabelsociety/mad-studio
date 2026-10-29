@@ -125,7 +125,7 @@ export function MorningStoryFeed({
         toast.message(
           result.reason === "not-allowed"
             ? "Chrome didn't allow saving to that folder. Click Save again and choose Allow."
-            : "No folder chosen. Click Choose folder and pick your Dropbox folder."
+            : "Chrome didn't hand over a folder. Click Choose folder, open a folder inside Dropbox (like MAD STUDIO STORIES), click Select Folder, then Edit files."
         )
         return null
       }
@@ -424,7 +424,7 @@ export function MorningStoryFeed({
                   Saving into <span className="font-medium text-mad-black">{folderName}</span>, a folder for each day.
                 </>
               ) : (
-                "Pick your Dropbox folder the first time you save; Stories go straight in, a folder for each day."
+                "Choose a folder inside Dropbox (open it, then Select Folder, then Edit files); Stories go straight in, a folder for each day."
               )}
               <button
                 type="button"
