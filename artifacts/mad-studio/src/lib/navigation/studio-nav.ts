@@ -44,7 +44,7 @@ function showPromoFor(activeEntity: AccessibleEntity | null): boolean {
   )
 }
 
-/** Plan, Campaigns and Promo are views of one Calendar destination. */
+/** Plan, Week, Dates, Campaigns and Promo are views of one Calendar destination. */
 export function buildCalendarViews(input: {
   entityQuery: string
   activeEntity: AccessibleEntity | null
@@ -65,6 +65,17 @@ export function buildCalendarViews(input: {
       label: "Week",
       description: "Your grid and the week's rhythm",
     },
+    ...(showPromoFor(activeEntity)
+      ? [
+          {
+            id: "dates",
+            href: `/dates${entityQuery}`,
+            match: "/dates",
+            label: "Dates",
+            description: "NZ holidays, sale days and seasons",
+          },
+        ]
+      : []),
     {
       id: "campaigns",
       href: `/campaigns${entityQuery}`,

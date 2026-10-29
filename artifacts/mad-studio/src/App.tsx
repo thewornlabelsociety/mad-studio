@@ -22,6 +22,7 @@ import PrivacyPolicyPage from "@/app/privacy/page"
 import TermsOfServicePage from "@/app/terms/page"
 import HelpPage from "@/app/help/page"
 import PromoPage from "@/app/promo/page"
+import DatesPage from "@/app/dates/page"
 import TemplatesPage from "@/app/templates/page"
 import WlsDailyStoryPage from "@/app/templates/wls-daily-story/page"
 import WlsWeekOutfitsPage from "@/app/templates/wls-week-outfits/page"
@@ -101,6 +102,7 @@ const PAGE_TITLES: Array<[string, string]> = [
   ["/planner", "Calendar"],
   ["/campaigns", "Campaigns"],
   ["/promo", "Promo"],
+  ["/dates", "NZ dates"],
   ["/inventory", "Library"],
   ["/brain", "Brand Brain"],
   ["/analytics", "Analytics"],
@@ -141,6 +143,7 @@ function App() {
         <Route path="/planner">{() => <PageLoader load={() => PlannerPage({ searchParams: query() })} />}</Route>
         <Route path="/week">{() => <PageLoader load={() => WeekPage({ searchParams: query() })} />}</Route>
         <Route path="/promo">{() => <PageLoader load={() => PromoPage({ searchParams: query() })} />}</Route>
+        <Route path="/dates">{() => <PageLoader load={() => DatesPage({ searchParams: query() })} />}</Route>
         <Route path="/inventory">{() => <PageLoader load={() => InventoryPage({ searchParams: query() })} />}</Route>
         <Route path="/help">{() => <PageLoader load={() => HelpPage({ searchParams: query() })} />}</Route>
         <Route path="/inventory/:id">{(params) => <PageLoader load={async () => { await InventoryItemPage({ params: Promise.resolve(params), searchParams: query() }); return null }} />}</Route>
