@@ -1,11 +1,17 @@
 "use client"
 
 import { Link } from "wouter"
-import { ArrowRight, Megaphone, Search, Shirt, Tag, type LucideIcon } from "lucide-react"
+import { ArrowRight, CalendarRange, Megaphone, Search, Shirt, Tag, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
 const TOOLS: Array<{ path: string; icon: LucideIcon; title: string; detail: string }> = [
+  {
+    path: "/week",
+    icon: CalendarRange,
+    title: "Plan the week",
+    detail: "Your grid and what's still to make",
+  },
   {
     path: "/templates/wls-week-outfits",
     icon: Shirt,
@@ -32,11 +38,20 @@ const TOOLS: Array<{ path: string; icon: LucideIcon; title: string; detail: stri
   },
 ]
 
-/** Today's ways into the weekly posts. */
-export function TodayToolLinks({ entityId, className }: { entityId: string; className?: string }) {
+/** Ways into the weekly posts; `exclude` drops the page you're already on. */
+export function TodayToolLinks({
+  entityId,
+  exclude = [],
+  className,
+}: {
+  entityId: string
+  exclude?: string[]
+  className?: string
+}) {
+  const tools = TOOLS.filter((tool) => !exclude.includes(tool.path))
   return (
     <nav aria-label="Weekly posts" className={cn("grid gap-2 sm:grid-cols-2 xl:grid-cols-4", className)}>
-      {TOOLS.map(({ path, icon: Icon, title, detail }) => (
+      {tools.map(({ path, icon: Icon, title, detail }) => (
         <Link
           key={path}
           href={`${path}?eid=${encodeURIComponent(entityId)}`}

@@ -6,6 +6,7 @@ import {
   MediaTray,
   type MediaAsset,
 } from "@/components/marketing/media-tray"
+import { BrainTeamIdeas } from "@/components/studio/brain-team-ideas"
 import { FinishedRenderDropZone } from "@/components/studio/finished-render-drop"
 import type { MediaVisualInspection } from "@/lib/media/inspect-schema"
 import type { MediaKind } from "@/lib/media/kind"
@@ -94,6 +95,14 @@ export function StepMedia({
             disabled={disabled}
             icon={<FolderOpen className="size-5" />}
           />
+          {brandName ? (
+            <BrainTeamIdeas
+              entityId={entityId}
+              brandName={brandName}
+              industry={industry}
+              disabled={disabled}
+            />
+          ) : null}
           <span aria-hidden className="mx-1 h-7 w-px bg-neutral-300" />
           <FinishedRenderDropZone
             iconOnly
