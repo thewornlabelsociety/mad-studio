@@ -76,6 +76,7 @@ export function MorningStoryFeed({
 }: Props) {
   const nodes = useRef<Record<string, HTMLDivElement | null>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [savingAll, setSavingAll] = useState<{ done: number; total: number } | null>(null)
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const [syncing, setSyncing] = useState(false)
 
@@ -160,6 +161,44 @@ export function MorningStoryFeed({
     }
   }
 
+  /** Stories in the row that are ready and not shared yet (not the ones behind More new arrivals). */
+  const readyToSave = feed.filter((story) => {
+    const id = story.row.marketingEntityId
+    const cutReady = Boolean(story.cutoutUrl) || Boolean(cutoutFailed[id])
+    return !sharedAt[id] && cutReady && Boolean(story.imageUrl)
+  })
+
+  /** Every Story showing in one go: one share sheet on a phone, a download each on a computer. */
+  async function onSaveAll() {
+    const stories = readyToSave
+    if (stories.length === 0) return
+    setSavingAll({ done: 0, total: stories.length })
+    try {
+      const baked: Array<{ dataUrl: string; blob: Blob; filename: string }> = []
+      for (const story of stories) {
+        const node = nodes.current[story.row.marketingEntityId]
+        if (!node) continue
+        baked.push({ ...(await bakeStoryPng(node)), filename: `wls-story-${story.row.websiteItemId}.png` })
+        setSavingAll({ done: baked.length, total: stories.length })
+      }
+      const files = baked.map((row) => new File([row.blob], row.filename, { type: "image/png" }))
+      if (navigator.canShare?.({ files })) {
+        try {
+          await navigator.share({ files })
+        } catch (error) {
+          if (!(error instanceof DOMException && error.name === "AbortError")) throw error
+        }
+        return
+      }
+      for (const row of baked) await shareOrDownloadStory(row)
+      toast.success(`${baked.length} Story images saved. Post them, then tick each one off.`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't save the images.")
+    } finally {
+      setSavingAll(null)
+    }
+  }
+
   /** Pull new stock from the shop (also picks up markdowns), then rebuild the feed. */
   async function onRefresh() {
     setSyncing(true)
@@ -221,6 +260,18 @@ export function MorningStoryFeed({
               style={{ width: `${(sharedCount / feed.length) * 100}%` }}
             />
           </div>
+        ) : null}
+        {readyToSave.length > 1 ? (
+          <button
+            type="button"
+            onClick={() => void onSaveAll()}
+            disabled={savingAll != null || savingId != null}
+            title="Save every Story showing (not the ones behind More new arrivals)"
+            className="flex h-8 shrink-0 items-center gap-1.5 border-2 border-mad-black bg-mad-black px-2.5 text-xs font-medium text-mad-white hover:bg-mad-black/85 disabled:opacity-50"
+          >
+            {savingAll ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Share2 className="size-3.5" aria-hidden />}
+            {savingAll ? `Saving ${savingAll.done} of ${savingAll.total}` : `Save all ${readyToSave.length}`}
+          </button>
         ) : null}
         <button
           type="button"
