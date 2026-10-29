@@ -18,7 +18,7 @@ import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import type { WlsProductSelection } from "@/lib/inventory/wls-product-eligibility"
 import { requestCutout } from "@/lib/media/request-cutout"
-import { sampleItemColour } from "@/lib/media/sample-item-colour"
+import { hasSeeThroughBackground, sampleItemColour } from "@/lib/media/sample-item-colour"
 import { formatCanvasSizeTagLabel } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl } from "@/lib/studio/final-artwork"
 import { formatWlsNzdPrice } from "@/lib/templates/format-wls-nzd-price"
@@ -212,6 +212,33 @@ export function useKitStories(input: {
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cutoutKey, eligible, cutouts, cutoutFailed, cuttingId, entityId])
+
+  // A saved cutout we made for a shop photo that was already see-through
+  // (Photoroom): switch back to the original, which is the better image.
+  const checkedOriginals = useRef(new Set<string>())
+  useEffect(() => {
+    for (const row of eligible) {
+      const id = row.marketingEntityId
+      const saved = cutouts[id]
+      const source = firstImage(row)
+      if (!saved || !source || saved === source || !saved.includes("/cutouts/")) continue
+      if (checkedOriginals.current.has(id)) continue
+      checkedOriginals.current.add(id)
+      void hasSeeThroughBackground(proxiedImageUrl(source, entityId)).then((clear) => {
+        if (!clear) return
+        setCutouts((current) => ({ ...current, [id]: source }))
+        setColours((current) => {
+          const next = { ...current }
+          delete next[id]
+          return next
+        })
+        sampling.current.delete(id)
+        void saveStoryState({ entityId, marketingEntityId: id, cutoutUrl: source }).catch(() => {
+          /* still shown; just not remembered */
+        })
+      })
+    }
+  }, [eligible, cutouts, entityId])
 
   // Read each cut-out item's colour for background matching.
   useEffect(() => {

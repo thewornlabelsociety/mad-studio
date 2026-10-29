@@ -30,6 +30,25 @@ async function loadSharp() {
   }
 }
 
+/**
+ * True when the photo already has a see-through background (a cutout made in
+ * Photoroom or similar): enough fully clear pixels that it's not just a stray
+ * transparent edge.
+ */
+async function isAlreadyCutout(input: Buffer): Promise<boolean> {
+  const sharp = await loadSharp()
+  const meta = await sharp(input).metadata()
+  if (!meta.hasAlpha) return false
+  const { data, info } = await sharp(input)
+    .ensureAlpha()
+    .resize(64, 64, { fit: "fill" })
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  let clear = 0
+  for (let i = 3; i < data.length; i += info.channels) if (data[i] < 16) clear++
+  return clear / (info.width * info.height) >= 0.08
+}
+
 async function removeNearWhiteBackground(input: Buffer): Promise<Buffer> {
   const sharp = await loadSharp()
   const { data, info } = await sharp(input)
@@ -126,6 +145,13 @@ export async function POST(request: Request) {
     const cloudKey = process.env.CLOUDINARY_API_KEY?.trim()
     const cloudSecret = process.env.CLOUDINARY_API_SECRET?.trim()
 
+    // Already cut out (e.g. Photoroom PNGs on the shop): use it as it is,
+    // with no Cloudinary credit spent and no white parts of the garment lost.
+    const source = await fetchPublicImage(fetchUrl)
+    if (await isAlreadyCutout(source.bytes)) {
+      return HttpResponse.json({ transparentUrl: fetchUrl, mode: "already_transparent" })
+    }
+
     let pngBuffer: Buffer
     let mode: "cloudinary" | "sharp_threshold" = "sharp_threshold"
 
@@ -146,11 +172,9 @@ export async function POST(request: Request) {
           "[remove-bg] Cloudinary failed, falling back to sharp:",
           error
         )
-        const source = await fetchPublicImage(fetchUrl)
         pngBuffer = await removeNearWhiteBackground(source.bytes)
       }
     } else {
-      const source = await fetchPublicImage(fetchUrl)
       pngBuffer = await removeNearWhiteBackground(source.bytes)
     }
 

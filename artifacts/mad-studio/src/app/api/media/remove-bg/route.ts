@@ -19,6 +19,24 @@ const bodySchema = z.object({
  * Drop near-white / studio-backdrop pixels to transparent.
  * Works well for flat white product photography without an external rembg key.
  */
+/**
+ * True when the photo already has a see-through background (a cutout made in
+ * Photoroom or similar): enough fully clear pixels that it's not just a stray
+ * transparent edge.
+ */
+async function isAlreadyCutout(input: Buffer): Promise<boolean> {
+  const meta = await sharp(input).metadata()
+  if (!meta.hasAlpha) return false
+  const { data, info } = await sharp(input)
+    .ensureAlpha()
+    .resize(64, 64, { fit: "fill" })
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  let clear = 0
+  for (let i = 3; i < data.length; i += info.channels) if (data[i] < 16) clear++
+  return clear / (info.width * info.height) >= 0.08
+}
+
 async function removeNearWhiteBackground(input: Buffer): Promise<Buffer> {
   const { data, info } = await sharp(input)
     .ensureAlpha()
@@ -108,6 +126,13 @@ export async function POST(request: Request) {
     )
     if (accessError || !canEdit) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Already cut out (e.g. Photoroom PNGs on the shop): use it as it is,
+    // with no Cloudinary credit spent and no white parts of the garment lost.
+    const original = await fetch(fetchUrl)
+    if (original.ok && (await isAlreadyCutout(Buffer.from(await original.arrayBuffer())))) {
+      return NextResponse.json({ transparentUrl: fetchUrl, mode: "already_transparent" })
     }
 
     // Prefer Cloudinary AI removal when configured.
