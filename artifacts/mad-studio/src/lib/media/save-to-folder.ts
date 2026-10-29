@@ -15,9 +15,12 @@ type PickerWindow = Window & {
   showDirectoryPicker?: (options?: { id?: string; mode?: "readwrite"; startIn?: string }) => Promise<DirectoryHandle>
 }
 
-const DB_NAME = "mad-studio"
+const DB_NAME = "mad-studio-folders"
 const STORE = "folders"
 const KEY = "story-folder"
+
+/** The folder picked this visit; the browser's stored copy is the backup. */
+let current: DirectoryHandle | null = null
 
 export function canSaveToFolder(): boolean {
   return typeof window !== "undefined" && typeof (window as PickerWindow).showDirectoryPicker === "function"
@@ -33,19 +36,23 @@ function openDb(): Promise<IDBDatabase> {
 }
 
 async function readHandle(): Promise<DirectoryHandle | null> {
+  if (current) return current
   try {
     const db = await openDb()
-    return await new Promise((resolve) => {
+    const handle = await new Promise<DirectoryHandle | null>((resolve) => {
       const request = db.transaction(STORE).objectStore(STORE).get(KEY)
       request.onsuccess = () => resolve((request.result as DirectoryHandle | undefined) ?? null)
       request.onerror = () => resolve(null)
     })
+    if (handle) current = handle
+    return handle
   } catch {
     return null
   }
 }
 
 async function writeHandle(handle: DirectoryHandle): Promise<void> {
+  current = handle
   try {
     const db = await openDb()
     await new Promise<void>((resolve) => {
@@ -55,7 +62,7 @@ async function writeHandle(handle: DirectoryHandle): Promise<void> {
       tx.onerror = () => resolve()
     })
   } catch {
-    /* asked again next time */
+    /* remembered for this visit only */
   }
 }
 
@@ -78,21 +85,26 @@ export async function chooseFolder(): Promise<string | null> {
   }
 }
 
+export type FolderResult =
+  | { ok: true; folder: DirectoryHandle }
+  | { ok: false; reason: "none" | "not-allowed" }
+
 /**
- * The folder, with write permission. Run from a click: Chrome asks once per
- * session to allow it again, and the first time to choose one.
+ * The folder, with write permission. Run straight from a click: Chrome asks
+ * once per session to allow it again, and the first time to choose one.
  */
-export async function folderForSaving(): Promise<DirectoryHandle | null> {
-  let handle = await readHandle()
+export async function folderForSaving(): Promise<FolderResult> {
+  // Use the folder in memory first so Chrome still sees this as your click.
+  let handle = current ?? (await readHandle())
   if (!handle) {
-    if (!(await chooseFolder())) return null
-    handle = await readHandle()
-    if (!handle) return null
+    if (!(await chooseFolder())) return { ok: false, reason: "none" }
+    handle = current
+    if (!handle) return { ok: false, reason: "none" }
   }
   const state = (await handle.queryPermission?.({ mode: "readwrite" })) ?? "granted"
-  if (state === "granted") return handle
+  if (state === "granted") return { ok: true, folder: handle }
   const asked = (await handle.requestPermission?.({ mode: "readwrite" })) ?? "denied"
-  return asked === "granted" ? handle : null
+  return asked === "granted" ? { ok: true, folder: handle } : { ok: false, reason: "not-allowed" }
 }
 
 /** "WLS Stories 30 Oct 2026" */

@@ -119,13 +119,22 @@ export function MorningStoryFeed({
 
   /** The folder to write into, asking for it (or permission) when needed. */
   async function folderOrAsk() {
-    const folder = await folderForSaving()
-    if (!folder) {
-      toast.message("Choose a folder (your Dropbox folder) to save Stories into.")
+    try {
+      const result = await folderForSaving()
+      if (!result.ok) {
+        toast.message(
+          result.reason === "not-allowed"
+            ? "Chrome didn't allow saving to that folder. Click Save again and choose Allow."
+            : "No folder chosen. Click Choose folder and pick your Dropbox folder."
+        )
+        return null
+      }
+      setFolderName(result.folder.name)
+      return result.folder
+    } catch (error) {
+      toast.error(error instanceof Error ? `Couldn't use that folder: ${error.message}` : "Couldn't use that folder.")
       return null
     }
-    setFolderName(folder.name)
-    return folder
   }
   const [savedIds, setSavedIds] = useState<Record<string, true>>(() => readSaved(entityId))
 
