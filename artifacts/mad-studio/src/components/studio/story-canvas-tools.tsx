@@ -55,7 +55,7 @@ export function StoryCanvasTools({
   return (
     <div className="space-y-3 border-2 border-mad-black bg-mad-white p-3">
       <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
-        Story tools
+        Cut out and background
       </p>
       <TooltipProvider>
         <div
@@ -112,7 +112,7 @@ export function StoryCanvasTools({
       {storyCard && cutoutActive ? (
         <section aria-label="Story card" className="space-y-3 border-t-2 border-mad-black/20 pt-3">
           <p className="font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-black uppercase">
-            Story card
+            Story background
           </p>
           <div className="space-y-1.5">
             <span className="font-typewriter text-[0.7rem] font-bold tracking-widest text-mad-black uppercase">
@@ -172,7 +172,7 @@ export function StoryCanvasTools({
         </section>
       ) : cutoutActive ? null : (
         <p className="font-typewriter text-[0.68rem] leading-relaxed text-neutral-500 normal-case">
-          Cut out the item to unlock Story card background, size, and position.
+          Cut out the item to put it on a brand background.
         </p>
       )}
     </div>

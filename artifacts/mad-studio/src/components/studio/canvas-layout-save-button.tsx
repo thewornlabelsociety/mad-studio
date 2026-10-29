@@ -78,14 +78,14 @@ export function CanvasLayoutSaveButton({
         type="button"
         onClick={openDialog}
         disabled={busy}
-        className="inline-flex h-9 items-center gap-1.5 border-2 border-mad-black bg-mad-lime px-2.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase shadow-keycap-sm hover:bg-mad-black hover:text-mad-white disabled:opacity-40"
+        className="inline-flex h-9 items-center gap-1.5 border-2 border-mad-black bg-mad-white px-2.5 font-typewriter text-[0.7rem] font-bold tracking-wider uppercase hover:bg-mad-lime disabled:opacity-40"
       >
         {busy ? (
           <Loader2 className="size-3.5 animate-spin" />
         ) : (
           <Save className="size-3.5" aria-hidden />
         )}
-        Save layout
+        Save look
       </button>
     ) : (
       <button

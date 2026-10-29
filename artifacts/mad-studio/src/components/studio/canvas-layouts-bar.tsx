@@ -56,22 +56,19 @@ export function CanvasLayoutsBar({
       <section
         aria-label="Saved layouts"
         className={cn(
-          "shrink-0 space-y-2 border-2 border-mad-black bg-mad-lime/20 p-3",
+          "shrink-0 space-y-1.5 border border-mad-black/20 bg-mad-white p-2.5",
           className
         )}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="inline-flex items-center gap-1.5 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
             <LayoutTemplate className="size-4" aria-hidden />
-            Saved layouts
+            Saved looks
           </p>
           {typeof saveSlot === "function" ? saveSlot(null) : saveSlot}
         </div>
-        <p className="text-xs leading-relaxed text-neutral-700">
-          Style this slide (Words, tags, logo, backdrop), then{" "}
-          <strong className="font-semibold">Save layout</strong>. You&apos;ll
-          name it and choose whether new posts start with it as the{" "}
-          <strong className="font-semibold">default</strong>.
+        <p className="text-xs text-neutral-600">
+          Style this picture, then save it to reuse the look.
         </p>
       </section>
     )
@@ -81,16 +78,15 @@ export function CanvasLayoutsBar({
     <section
       aria-label="Saved layouts"
       className={cn(
-        "shrink-0 space-y-2 border-2 border-mad-black bg-mad-white p-2",
+        "shrink-0 border border-mad-black/20 bg-mad-white p-2",
         className
       )}
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
           <LayoutTemplate className="size-4" aria-hidden />
-          Layouts
+          Look
         </span>
-        {typeof saveSlot === "function" ? saveSlot(selected) : saveSlot}
         <select
           value={selectedId}
           onChange={(event) => setSelectedId(event.target.value)}
@@ -108,29 +104,24 @@ export function CanvasLayoutsBar({
           type="button"
           disabled={!selected || busy}
           onClick={() => selected && onApply(selected.id, "slide", "keep-slide")}
+          title="Use this look on this picture (keeps your words)"
           className={cn(btn, "bg-mad-black text-mad-white hover:bg-mad-vermillion")}
         >
-          Apply style
-        </button>
-        <button
-          type="button"
-          disabled={!selected || busy}
-          onClick={() => selected && onApply(selected.id, "slide", "fill-empty")}
-          title="Use saved headline/subhead only where this slide has none"
-          className={cn(btn, "bg-mad-white hover:bg-mad-lime")}
-        >
-          + saved text
+          Use
         </button>
         {photoCount > 1 ? (
           <button
             type="button"
             disabled={!selected || busy}
             onClick={() => selected && onApply(selected.id, "all", "keep-slide")}
+            title="Use this look on every picture"
             className={cn(btn, "bg-mad-white hover:bg-mad-lime")}
           >
-            Style all {photoCount}
+            All {photoCount}
           </button>
         ) : null}
+        <span className="ml-auto inline-flex items-center gap-1.5">
+        {typeof saveSlot === "function" ? saveSlot(selected) : saveSlot}
         <button
           type="button"
           disabled={!selected || busy}
@@ -150,6 +141,7 @@ export function CanvasLayoutsBar({
           aria-pressed={Boolean(selected?.isDefault)}
           className={cn(
             btn,
+            "px-2",
             selected?.isDefault
               ? "bg-mad-lime"
               : "bg-mad-white hover:bg-mad-lime"
@@ -159,7 +151,6 @@ export function CanvasLayoutsBar({
             className={cn("size-3.5", selected?.isDefault && "fill-current")}
             aria-hidden
           />
-          {selected?.isDefault ? "Default" : "Set default"}
         </button>
         <button
           type="button"
@@ -180,16 +171,8 @@ export function CanvasLayoutsBar({
             aria-label="Saving"
           />
         ) : null}
+        </span>
       </div>
-      <p className="font-typewriter text-[0.68rem] leading-snug tracking-wide text-neutral-500 normal-case">
-        <strong className="font-bold text-mad-black">Set default</strong> makes
-        new posts start with this layout&apos;s fonts and placement.{" "}
-        <strong className="font-bold text-mad-black">Apply style</strong> merges
-        that look onto the current slide without wiping words you already typed.{" "}
-        <strong className="font-bold text-mad-black">Style all</strong> uses the
-        saved positions on every slide — listing tags keep their own brand/size
-        text. Pick a layout in the list, then <strong className="font-bold text-mad-black">Update</strong> in Save layout to overwrite it with the canvas you see now.
-      </p>
     </section>
   )
 }

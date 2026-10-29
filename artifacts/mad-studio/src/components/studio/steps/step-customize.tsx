@@ -1127,7 +1127,6 @@ export function StepCustomize({
 
       {showCanvas && onTextOverlayChange ? (
         <>
-        {canvasSlot}
         {isCanvasWizard && storyTools ? (
           <div className="mb-2 shrink-0">
             <StoryCanvasTools
@@ -1144,6 +1143,7 @@ export function StepCustomize({
             />
           </div>
         ) : null}
+        {canvasSlot}
         <CanvasTextOverlayEditor
           wizardCompact={isCanvasWizard}
           className={isCanvasWizard ? "min-h-0 flex-1" : undefined}
