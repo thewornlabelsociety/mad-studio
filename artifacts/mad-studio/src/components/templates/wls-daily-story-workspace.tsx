@@ -1,8 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Link } from "wouter"
-import { toPng } from "html-to-image"
 import {
   Check,
   Copy,
@@ -18,26 +17,12 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { storyExportFilter } from "@/components/marketing/story-canvas"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
-import { resolveVisualPresets } from "@/lib/brands/visual-presets"
-import {
-  detectItemTraits,
-  pickStoryBackground,
-  resolveStoryKit,
-  storyTraitLabel,
-  type Rgb,
-  type StoryBackground,
-} from "@/lib/brands/story-kit"
-import type { WlsProductSelection } from "@/lib/inventory/wls-product-eligibility"
-import { requestCutout } from "@/lib/media/request-cutout"
-import { sampleItemColour } from "@/lib/media/sample-item-colour"
-import { formatCanvasSizeTagLabel } from "@/lib/studio/canvas-size-tag-label"
+import { storyTraitLabel } from "@/lib/brands/story-kit"
 import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
 import {
-  buildWlsDailyStoryCanvasModel,
   isWornLabelFashionEntity,
   WLS_DAILY_STORY_TEMPLATE_NAME,
   assertWlsDailyStoryRenderable,
@@ -45,9 +30,14 @@ import {
 import type { EntityTemplateInstance } from "@/lib/templates/template-schema"
 import { buildWlsDailyStoryStudioHandoffHref } from "@/lib/templates/template-handoff"
 import {
+  bakeStoryPng,
+  copyStoryLink,
+  shareOrDownloadStory,
+  useKitStories,
+} from "@/lib/templates/use-kit-stories"
+import {
   WLS_DAILY_STORY_STUDIO_MAX_FRAMES,
 } from "@/lib/templates/wls-daily-story-studio-seed"
-import { formatWlsNzdPrice } from "@/lib/templates/format-wls-nzd-price"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -55,6 +45,8 @@ type Props = {
   entityName: string
   industry?: string | null
   brandIdentity?: { visual_presets?: VisualPresets | null } | null
+  /** Open on this product (from the Today Story feed). */
+  initialItemId?: string | null
 }
 
 type TemplateState = {
@@ -63,106 +55,55 @@ type TemplateState = {
   created: boolean
 }
 
-type ItemEdits = {
-  vibe?: string
-  backgroundId?: string
-  subjectScale?: number
-  subjectOffsetY?: number
-  useCutout?: boolean
-}
-
-function itemText(row: WlsProductSelection): string {
-  return [row.title, row.brand, row.description].filter(Boolean).join(" ")
-}
-
-/** The shop's vibe label, else a short form of the title. */
-function defaultVibe(row: WlsProductSelection): string {
-  const vibe = row.vibe?.trim()
-  if (vibe) return vibe
-  const brand = row.brand?.trim()
-  const withoutBrand = (
-    brand
-      ? row.title.replace(
-          new RegExp(brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig"),
-          " "
-        )
-      : row.title
-  )
-    .replace(/\b(in|by|from|with|size|sz)\b.*$/i, " ")
-    .replace(/[^\p{L}\p{N}' ]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-  return withoutBrand.split(" ").slice(0, 3).join(" ") || "New in"
-}
-
 export function WlsDailyStoryWorkspace({
   entityId,
   entityName,
   industry = null,
   brandIdentity = null,
+  initialItemId = null,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [template, setTemplate] = useState<TemplateState | null>(null)
-  const [eligible, setEligible] = useState<WlsProductSelection[]>([])
-  const [excludedCount, setExcludedCount] = useState(0)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(initialItemId)
   const [studioPickIds, setStudioPickIds] = useState<string[]>([])
-  const [cutouts, setCutouts] = useState<Record<string, string>>({})
-  const [cutoutFailed, setCutoutFailed] = useState<Record<string, true>>({})
-  const [colours, setColours] = useState<Record<string, Rgb | null>>({})
-  const [edits, setEdits] = useState<Record<string, ItemEdits>>({})
   const [busy, setBusy] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
 
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
 
-  const kit = useMemo(() => {
-    const presets = resolveVisualPresets({
-      brandName: entityName,
-      industry,
-      brandIdentity: brandIdentity as never,
-    })
-    return resolveStoryKit({ presets, isWornLabel: isWls })
-  }, [entityName, industry, brandIdentity, isWls])
+  const {
+    kit,
+    eligible,
+    excludedCount,
+    loading,
+    reload,
+    stories,
+    patch,
+    cuttingId,
+    cutoutFailed,
+    retryCutout,
+  } = useKitStories({
+    entityId,
+    entityName,
+    industry,
+    brandIdentity,
+    isWornLabel: isWls,
+    cutoutIds: selectedId ? [selectedId] : [],
+  })
 
-  const selected = eligible.find((row) => row.marketingEntityId === selectedId) ?? null
-  const selectedEdits = (selectedId && edits[selectedId]) || {}
+  // Keep a valid selection as the list loads or changes.
+  useEffect(() => {
+    if (eligible.length === 0) return
+    if (selectedId && eligible.some((row) => row.marketingEntityId === selectedId)) return
+    setSelectedId(eligible[0].marketingEntityId)
+  }, [eligible, selectedId])
 
-  function patchEdits(patch: ItemEdits) {
-    if (!selectedId) return
-    setEdits((current) => ({
-      ...current,
-      [selectedId]: { ...current[selectedId], ...patch },
-    }))
-  }
+  useEffect(() => {
+    setFailure(null)
+  }, [selectedId])
 
-  /**
-   * Background per item, in list order, so neighbours don't repeat. Uses the
-   * cutout's colour once it has been read, otherwise the listing words alone.
-   */
-  const autoBackgrounds = useMemo(() => {
-    const out: Record<string, { background: StoryBackground; matched: string[] }> = {}
-    let previousId: string | null = null
-    for (const row of eligible) {
-      const traits = detectItemTraits({
-        text: itemText(row),
-        colour: colours[row.marketingEntityId] ?? null,
-      })
-      const pick = pickStoryBackground({ kit, traits, previousId })
-      const chosen =
-        kit.find((bg) => bg.id === edits[row.marketingEntityId]?.backgroundId) ??
-        pick.background
-      out[row.marketingEntityId] = { background: pick.background, matched: pick.matched }
-      previousId = chosen.id
-    }
-    return out
-  }, [eligible, colours, kit, edits])
-
-  const auto = selectedId ? autoBackgrounds[selectedId] : undefined
-  const background =
-    kit.find((bg) => bg.id === selectedEdits.backgroundId) ??
-    auto?.background ??
-    kit[0]
+  const story = selectedId ? stories.get(selectedId) ?? null : null
+  const selected = story?.row ?? null
 
   function toggleStudioPick(marketingEntityId: string) {
     setStudioPickIds((current) => {
@@ -190,53 +131,6 @@ export function WlsDailyStoryWorkspace({
         })
       : null
 
-  const sourceImage = selected?.sourceImageUrls.find((url) =>
-    /^https?:\/\//i.test(url)
-  ) ?? null
-  const cutoutUrl = selectedId ? cutouts[selectedId] ?? null : null
-  const useCutout = selectedEdits.useCutout ?? true
-  const displayImage = useCutout && cutoutUrl ? cutoutUrl : sourceImage
-
-  const model = useMemo(() => {
-    if (!selected || !displayImage) return null
-    return buildWlsDailyStoryCanvasModel({
-      selection: selected,
-      brandName: entityName,
-      imageUrl: proxiedImageUrl(displayImage, entityId),
-    })
-  }, [selected, displayImage, entityName, entityId])
-
-  const vibe = selectedEdits.vibe ?? (selected ? defaultVibe(selected) : "")
-
-  const loadEligible = useCallback(async () => {
-    setBusy("eligible")
-    setFailure(null)
-    try {
-      const res = await fetch(
-        `/api/templates/wls-daily-story/eligible?entityId=${encodeURIComponent(entityId)}`,
-        { credentials: "same-origin" }
-      )
-      const data = (await res.json().catch(() => ({}))) as {
-        eligible?: WlsProductSelection[]
-        excluded?: unknown[]
-        error?: string
-      }
-      if (!res.ok) throw new Error(data.error || "Could not load products.")
-      const list = data.eligible ?? []
-      setEligible(list)
-      setExcludedCount(Array.isArray(data.excluded) ? data.excluded.length : 0)
-      setSelectedId((current) =>
-        current && list.some((row) => row.marketingEntityId === current)
-          ? current
-          : list[0]?.marketingEntityId ?? null
-      )
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Load failed.")
-    } finally {
-      setBusy(null)
-    }
-  }, [entityId])
-
   const ensureTemplate = useCallback(async () => {
     setBusy("ensure")
     setFailure(null)
@@ -263,78 +157,13 @@ export function WlsDailyStoryWorkspace({
         created: Boolean(data.created),
       })
       toast.success(data.message || "Template ready.")
-      await loadEligible()
+      await reload()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Setup failed.")
     } finally {
       setBusy(null)
     }
-  }, [entityId, loadEligible])
-
-  useEffect(() => {
-    if (!isWls) return
-    void loadEligible()
-  }, [isWls, loadEligible])
-
-  useEffect(() => {
-    setFailure(null)
-  }, [selectedId])
-
-  const makeCutout = useCallback(
-    async (row: WlsProductSelection, image: string) => {
-      setBusy("cutout")
-      try {
-        const url = await requestCutout({ imageUrl: image, entityId })
-        setCutouts((current) => ({ ...current, [row.marketingEntityId]: url }))
-      } catch (error) {
-        setCutoutFailed((current) => ({ ...current, [row.marketingEntityId]: true }))
-        toast.error(
-          error instanceof Error
-            ? `${error.message} Showing the original photo.`
-            : "Cutout failed. Showing the original photo."
-        )
-      } finally {
-        setBusy(null)
-      }
-    },
-    [entityId]
-  )
-
-  // Cut each product out the first time it's opened.
-  useEffect(() => {
-    if (!selected || !sourceImage) return
-    const id = selected.marketingEntityId
-    if (cutouts[id] || cutoutFailed[id] || busy === "cutout") return
-    void makeCutout(selected, sourceImage)
-  }, [selected, sourceImage, cutouts, cutoutFailed, busy, makeCutout])
-
-  // Read the item's colour (cutout first) to match its background.
-  useEffect(() => {
-    if (!selectedId || !displayImage || selectedId in colours) return
-    if (!cutoutUrl && !cutoutFailed[selectedId]) return
-    let cancelled = false
-    void sampleItemColour(proxiedImageUrl(displayImage, entityId)).then((rgb) => {
-      if (!cancelled) setColours((current) => ({ ...current, [selectedId]: rgb }))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [selectedId, displayImage, cutoutUrl, cutoutFailed, colours, entityId])
-
-  async function bakePng(): Promise<{ dataUrl: string; blob: Blob }> {
-    const node = canvasRef.current
-    if (!node) throw new Error("Story isn't ready yet.")
-    const dataUrl = await toPng(node, {
-      cacheBust: true,
-      filter: storyExportFilter,
-      pixelRatio: 1080 / Math.max(node.offsetWidth, 1),
-      width: node.offsetWidth,
-      height: node.offsetHeight,
-    })
-    const response = await fetch(dataUrl)
-    const blob = await response.blob()
-    return { dataUrl, blob }
-  }
+  }, [entityId, reload])
 
   function gateOk(): boolean {
     if (!selected) return false
@@ -353,51 +182,31 @@ export function WlsDailyStoryWorkspace({
   }
 
   async function onSaveImage() {
-    if (!selected || !model || !gateOk()) return
+    const node = canvasRef.current
+    if (!selected || !node || !gateOk()) return
     setBusy("download")
     try {
-      const { dataUrl, blob } = await bakePng()
-      const filename = `wls-story-${selected.websiteItemId}.png`
-      const file = new File([blob], filename, { type: "image/png" })
-      if (navigator.canShare?.({ files: [file] })) {
-        // Phones: straight to the share sheet (Instagram, Photos).
-        await navigator.share({ files: [file] })
-      } else {
-        const anchor = document.createElement("a")
-        anchor.href = dataUrl
-        anchor.download = filename
-        anchor.click()
-        toast.success("Story saved as a 1080×1920 image.")
-      }
+      const baked = await bakeStoryPng(node)
+      const result = await shareOrDownloadStory({
+        ...baked,
+        filename: `wls-story-${selected.websiteItemId}.png`,
+      })
+      if (result === "downloaded") toast.success("Story saved as a 1080×1920 image.")
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return
       toast.error(error instanceof Error ? error.message : "Couldn't save the image.")
     } finally {
       setBusy(null)
     }
   }
 
-  async function onCopyLink() {
-    if (!selected?.destinationUrl) {
-      toast.error("This product has no shop link.")
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(selected.destinationUrl)
-      toast.success("Shop link copied. Paste it into a link sticker on the Story.")
-    } catch {
-      toast.error("Couldn't copy the link.")
-    }
-  }
-
   async function onSaveDraft() {
-    if (!selected || !model || !template || !sourceImage || !gateOk()) return
+    const node = canvasRef.current
+    if (!selected || !node || !template || !story?.sourceImage || !gateOk()) return
     setBusy("save")
     setFailure(null)
     try {
-      const { blob } = await bakePng()
+      const { blob } = await bakeStoryPng(node)
       const renderedUrl = await uploadRenderedPng(blob, entityId)
-
       const res = await fetch("/api/templates/wls-daily-story/save-draft", {
         method: "POST",
         credentials: "same-origin",
@@ -407,7 +216,7 @@ export function WlsDailyStoryWorkspace({
           marketingEntityId: selected.marketingEntityId,
           templateInstanceId: template.instance.id,
           templateVersionId: template.versionId,
-          sourceImageUrl: sourceImage,
+          sourceImageUrl: story.sourceImage,
           renderedUrl,
         }),
       })
@@ -417,7 +226,7 @@ export function WlsDailyStoryWorkspace({
       }
       if (!res.ok) throw new Error(data.error || "Save failed.")
       toast.success(data.message || "Draft saved for approval.")
-      await loadEligible()
+      await reload()
     } catch (error) {
       const message = error instanceof Error ? error.message : "Save failed."
       setFailure(message)
@@ -436,12 +245,14 @@ export function WlsDailyStoryWorkspace({
     )
   }
 
-  const matchedNote =
-    selectedEdits.backgroundId && selectedEdits.backgroundId !== auto?.background.id
+  const matchedNote = !story
+    ? ""
+    : story.edits.backgroundId && story.edits.backgroundId !== story.autoBackground.id
       ? "Your pick"
-      : auto?.matched.length
-        ? `Matched: ${auto.matched.map(storyTraitLabel).join(", ")}`
+      : story.matched.length
+        ? `Matched: ${story.matched.map(storyTraitLabel).join(", ")}`
         : "No colour match, so it rotated"
+  const cutting = Boolean(selectedId && cuttingId === selectedId)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -477,11 +288,11 @@ export function WlsDailyStoryWorkspace({
             type="button"
             variant="outline"
             className="border-2 border-mad-black"
-            disabled={busy != null}
-            onClick={() => void loadEligible()}
+            disabled={loading}
+            onClick={() => void reload()}
             title="Load the newest arrivals from the shop"
           >
-            {busy === "eligible" ? (
+            {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -494,28 +305,28 @@ export function WlsDailyStoryWorkspace({
       <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)_300px]">
         <section className="flex flex-col items-center gap-3">
           <div className="relative w-full max-w-[300px] overflow-hidden rounded-lg shadow-lg">
-            {model ? (
+            {story && story.imageUrl ? (
               <KitStoryCanvas
                 ref={canvasRef}
-                background={background}
+                background={story.background}
                 brandName={entityName}
                 tag="New in"
-                imageUrl={model.imageUrl}
-                vibe={vibe}
-                designer={model.designer}
-                sizeLabel={model.sizeLabel ? formatCanvasSizeTagLabel(model.sizeLabel) : null}
-                subjectScale={selectedEdits.subjectScale ?? 1}
-                subjectOffsetY={selectedEdits.subjectOffsetY ?? 0}
+                imageUrl={story.imageUrl}
+                vibe={story.vibe}
+                designer={story.designer}
+                sizeLabel={story.sizeLabel}
+                subjectScale={story.subjectScale}
+                subjectOffsetY={story.subjectOffsetY}
               />
             ) : (
               <div
                 className="flex aspect-[9/16] items-center justify-center p-6 text-center font-typewriter text-xs uppercase"
                 style={{ background: kit[0].color, color: kit[0].text_color }}
               >
-                Pick a new arrival
+                {loading ? "Loading new arrivals…" : "Pick a new arrival"}
               </div>
             )}
-            {busy === "cutout" ? (
+            {cutting ? (
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-black/60 py-2 text-xs text-white">
                 <Scissors className="size-3.5" aria-hidden /> Cutting out…
               </div>
@@ -532,17 +343,17 @@ export function WlsDailyStoryWorkspace({
           <div className="grid gap-2">
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="font-typewriter text-xs uppercase tracking-widest">Background</h2>
-              <span className="text-[11px] text-mad-black/55">{selected ? matchedNote : ""}</span>
+              <span className="text-[11px] text-mad-black/55">{matchedNote}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {kit.map((bg) => {
-                const active = bg.id === background.id
+                const active = bg.id === story?.background.id
                 return (
                   <button
                     key={bg.id}
                     type="button"
-                    disabled={!selected}
-                    onClick={() => patchEdits({ backgroundId: bg.id })}
+                    disabled={!story}
+                    onClick={() => selectedId && patch(selectedId, { backgroundId: bg.id })}
                     title={bg.name}
                     aria-label={`Use ${bg.name}`}
                     aria-pressed={active}
@@ -558,10 +369,10 @@ export function WlsDailyStoryWorkspace({
                   </button>
                 )
               })}
-              {selectedEdits.backgroundId ? (
+              {story?.edits.backgroundId ? (
                 <button
                   type="button"
-                  onClick={() => patchEdits({ backgroundId: undefined })}
+                  onClick={() => selectedId && patch(selectedId, { backgroundId: undefined })}
                   title="Go back to the matched background"
                   aria-label="Use the matched background"
                   className="flex size-11 items-center justify-center rounded-full border border-dashed border-mad-black/50 text-mad-black/70 hover:text-mad-black"
@@ -570,7 +381,7 @@ export function WlsDailyStoryWorkspace({
                 </button>
               ) : null}
             </div>
-            <p className="text-xs text-mad-black/60">{background.name}</p>
+            <p className="text-xs text-mad-black/60">{story?.background.name ?? ""}</p>
           </div>
 
           <label className="grid gap-1.5">
@@ -578,24 +389,28 @@ export function WlsDailyStoryWorkspace({
             <input
               id="story-vibe"
               type="text"
-              value={vibe}
+              value={story?.vibe ?? ""}
               maxLength={28}
-              disabled={!selected}
-              onChange={(event) => patchEdits({ vibe: event.target.value })}
+              disabled={!story}
+              onChange={(event) => selectedId && patch(selectedId, { vibe: event.target.value })}
               className="h-10 border-2 border-mad-black bg-white px-3 text-sm uppercase tracking-wider"
             />
             <span className="text-[11px] text-mad-black/55">
-              {selected?.vibe ? "From the shop listing. Change it if you like." : "The listing has no vibe, so this is from the title."}
+              {!story
+                ? ""
+                : story.vibeFromShop
+                  ? "From the shop listing. Change it if you like."
+                  : "The listing has no vibe, so this is from the title."}
             </span>
           </label>
 
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
             <dt className="text-mad-black/55">Brand</dt>
-            <dd>{model?.designer ?? "—"}</dd>
+            <dd>{story?.designer ?? "—"}</dd>
             <dt className="text-mad-black/55">Size</dt>
-            <dd>{model?.sizeLabel ?? "Not on the listing, so left off"}</dd>
+            <dd>{story ? story.sizeLabel ?? "Not on the listing, so left off" : "—"}</dd>
             <dt className="text-mad-black/55">Price</dt>
-            <dd>{selected ? formatWlsNzdPrice(selected) : "—"}</dd>
+            <dd>{story?.priceLabel ?? "—"}</dd>
           </dl>
 
           <div className="grid gap-3 text-xs">
@@ -607,9 +422,11 @@ export function WlsDailyStoryWorkspace({
                 min={0.7}
                 max={1.3}
                 step={0.01}
-                disabled={!selected}
-                value={selectedEdits.subjectScale ?? 1}
-                onChange={(event) => patchEdits({ subjectScale: Number(event.target.value) })}
+                disabled={!story}
+                value={story?.subjectScale ?? 1}
+                onChange={(event) =>
+                  selectedId && patch(selectedId, { subjectScale: Number(event.target.value) })
+                }
               />
             </label>
             <label className="grid gap-1">
@@ -620,35 +437,32 @@ export function WlsDailyStoryWorkspace({
                 min={-10}
                 max={10}
                 step={1}
-                disabled={!selected}
-                value={selectedEdits.subjectOffsetY ?? 0}
-                onChange={(event) => patchEdits({ subjectOffsetY: Number(event.target.value) })}
+                disabled={!story}
+                value={story?.subjectOffsetY ?? 0}
+                onChange={(event) =>
+                  selectedId && patch(selectedId, { subjectOffsetY: Number(event.target.value) })
+                }
               />
             </label>
-            {cutoutUrl ? (
+            {story?.cutoutUrl ? (
               <label className="flex items-center gap-2 text-sm">
                 <input
                   id="story-use-cutout"
                   type="checkbox"
-                  checked={useCutout}
-                  onChange={(event) => patchEdits({ useCutout: event.target.checked })}
+                  checked={story.useCutout}
+                  onChange={(event) =>
+                    selectedId && patch(selectedId, { useCutout: event.target.checked })
+                  }
                 />
                 Use the cutout
               </label>
-            ) : selected && cutoutFailed[selected.marketingEntityId] && sourceImage ? (
+            ) : selectedId && cutoutFailed[selectedId] && story?.sourceImage ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="justify-self-start border-2 border-mad-black"
-                disabled={busy != null}
-                onClick={() => {
-                  setCutoutFailed((current) => {
-                    const next = { ...current }
-                    delete next[selected.marketingEntityId]
-                    return next
-                  })
-                }}
+                onClick={() => retryCutout(selectedId)}
               >
                 <Scissors className="mr-2 size-3.5" aria-hidden /> Try the cutout again
               </Button>
@@ -659,7 +473,7 @@ export function WlsDailyStoryWorkspace({
             <Button
               type="button"
               className="border-2 border-mad-black bg-mad-black text-mad-white"
-              disabled={!model || busy != null}
+              disabled={!story?.imageUrl || busy != null}
               onClick={() => void onSaveImage()}
             >
               {busy === "download" ? (
@@ -676,7 +490,7 @@ export function WlsDailyStoryWorkspace({
               variant="outline"
               className="border-2 border-mad-black"
               disabled={!selected?.destinationUrl}
-              onClick={() => void onCopyLink()}
+              onClick={() => void copyStoryLink(selected?.destinationUrl ?? null)}
             >
               <Copy className="mr-2 h-4 w-4" />
               Copy shop link
@@ -685,7 +499,7 @@ export function WlsDailyStoryWorkspace({
               type="button"
               variant="outline"
               className="border-2 border-mad-black"
-              disabled={!template || !model || busy != null}
+              disabled={!template || !story?.imageUrl || busy != null}
               onClick={() => void onSaveDraft()}
               title={template ? "Save for approval" : "Set up the template first"}
             >
@@ -711,19 +525,19 @@ export function WlsDailyStoryWorkspace({
           <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto">
             {eligible.length === 0 ? (
               <li className="text-sm text-mad-black/60">
-                No new arrivals ready. Pull new stock from Today or Library,
-                then reload.
+                {loading
+                  ? "Loading…"
+                  : "No new arrivals ready. Pull new stock from Today or Library, then reload."}
               </li>
             ) : (
               eligible.map((row) => {
-                const active = row.marketingEntityId === selectedId
-                const picked = studioPickIds.includes(row.marketingEntityId)
-                const thumb = row.sourceImageUrls[0]
-                const rowBackground =
-                  kit.find((bg) => bg.id === edits[row.marketingEntityId]?.backgroundId) ??
-                  autoBackgrounds[row.marketingEntityId]?.background
+                const id = row.marketingEntityId
+                const rowStory = stories.get(id)
+                const active = id === selectedId
+                const picked = studioPickIds.includes(id)
+                const thumb = rowStory?.cutoutUrl ?? row.sourceImageUrls[0]
                 return (
-                  <li key={row.marketingEntityId}>
+                  <li key={id}>
                     <div
                       className={cn(
                         "flex w-full gap-2 border-2 p-2 transition",
@@ -736,28 +550,28 @@ export function WlsDailyStoryWorkspace({
                         <input
                           type="checkbox"
                           checked={picked}
-                          onChange={() => toggleStudioPick(row.marketingEntityId)}
+                          onChange={() => toggleStudioPick(id)}
                           className="size-4 border-2 border-mad-black"
                           aria-label={`Include ${row.brand || row.title} in a Create Studio sequence`}
                         />
                       </label>
                       <button
                         type="button"
-                        onClick={() => setSelectedId(row.marketingEntityId)}
+                        onClick={() => setSelectedId(id)}
                         className="flex min-w-0 flex-1 gap-2 text-left hover:opacity-90"
                       >
                         <div
                           className="h-14 w-11 shrink-0 overflow-hidden"
-                          style={{ background: rowBackground?.color ?? "#E8DCC4" }}
+                          style={{ background: rowStory?.background.color ?? "#E8DCC4" }}
                         >
                           {thumb ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={proxiedImageUrl(cutouts[row.marketingEntityId] ?? thumb, entityId)}
+                              src={proxiedImageUrl(thumb, entityId)}
                               alt=""
                               className={cn(
                                 "h-full w-full",
-                                cutouts[row.marketingEntityId] ? "object-contain" : "object-cover"
+                                rowStory?.cutoutUrl ? "object-contain" : "object-cover"
                               )}
                             />
                           ) : null}
@@ -771,7 +585,7 @@ export function WlsDailyStoryWorkspace({
                           </p>
                           <p className="font-typewriter text-[10px] uppercase text-mad-black/55">
                             {row.size ? `Sz ${row.size} · ` : ""}
-                            {formatWlsNzdPrice(row)}
+                            {rowStory?.priceLabel}
                           </p>
                         </div>
                       </button>

@@ -61,6 +61,8 @@ export type WlsProductSelection = {
   price: number | null
   currency: string
   sourceImageUrls: string[]
+  /** Saved background-removed PNG, when the item has been cut out before. */
+  cutoutUrl?: string | null
   destinationUrl: string | null
   availability: ListingAvailability
   lastSyncedAt: string | null
@@ -70,6 +72,8 @@ export type WlsProductSelection = {
     studioUsedAt: string | null
     todayDeckStatus: "skipped" | "archived" | null
     todayDeckDismissedAt: string | null
+    /** Set when the new arrival Story was marked shared from Today. */
+    storySharedAt?: string | null
     publishedAt: string | null
   }
   /** Feed / manual Create — photo-led; shop link not required. */
@@ -306,6 +310,7 @@ export function evaluateWlsProductEligibility(
     price: item.price == null ? null : Number(item.price),
     currency: item.listing_currency,
     sourceImageUrls,
+    cutoutUrl: item.copy_draft?.metadata?.cutout_url ?? null,
     destinationUrl,
     availability,
     lastSyncedAt: item.listing_synced_at,
@@ -316,6 +321,7 @@ export function evaluateWlsProductEligibility(
       todayDeckStatus: item.copy_draft?.metadata?.today_deck_status ?? null,
       todayDeckDismissedAt:
         item.copy_draft?.metadata?.today_deck_dismissed_at ?? null,
+      storySharedAt: item.copy_draft?.metadata?.wls_story_shared_at ?? null,
       publishedAt: item.published_at,
     },
     feedSelectable,

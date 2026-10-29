@@ -99,45 +99,41 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
         </p>
       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          left: "10%",
-          right: "10%",
-          top: `${15 + subjectOffsetY}%`,
-          height: "43%",
-          display: "grid",
-          placeItems: "center",
-        }}
-      >
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt=""
-            crossOrigin="anonymous"
-            style={{
-              maxWidth: "100%",
-              maxHeight: "100%",
-              objectFit: "contain",
-              transform: `scale(${subjectScale})`,
-              filter: "drop-shadow(0 4cqw 4cqw rgba(0,0,0,0.28))",
-            }}
-          />
-        ) : null}
-      </div>
-
+      {/* Item and words share the space between the header and the link
+          sticker: longer words take room from the item, never overlap it. */}
       <div
         style={{
           position: "absolute",
           left: "6cqw",
           right: "6cqw",
-          // Sits on top of the link-sticker zone and grows upward.
+          top: "15%",
           bottom: "23cqw",
-          display: "grid",
-          gap: "2.4cqw",
+          display: "flex",
+          flexDirection: "column",
+          gap: "4cqw",
         }}
       >
+        <div style={{ position: "relative", flex: "1 1 0", minHeight: 0, margin: "0 4cqw" }}>
+          {imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imageUrl}
+              alt=""
+              crossOrigin="anonymous"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                transform: `translateY(${subjectOffsetY}%) scale(${subjectScale})`,
+                filter: "drop-shadow(0 4cqw 4cqw rgba(0,0,0,0.28))",
+              }}
+            />
+          ) : null}
+        </div>
+
+      <div style={{ display: "grid", gap: "2.4cqw" }}>
         <p
           style={{
             ...caps,
@@ -175,6 +171,7 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
             {sizeLabel}
           </p>
         ) : null}
+      </div>
       </div>
 
       {showLinkGuide ? (

@@ -20,12 +20,13 @@ import {
 import { readDispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { resolveIntakeCaptionDefaultSource } from "@/lib/inventory/intake-caption-default"
 import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
-import { DailyNewArrivalStoryButton } from "@/components/today/daily-new-arrival-story-button"
+import { MorningStoryFeed } from "@/components/today/morning-story-feed"
 import { TodayActionDeck } from "@/components/today/action-deck"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { TodayChecklist } from "@/components/today/today-checklist"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
+import type { VisualPresets } from "@/lib/entities/dna-schema"
 
 export const metadata = {
   title: "Today",
@@ -200,6 +201,12 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     name: activeEntity.name,
     industry: activeEntity.industry,
   })
+  const storyBrandIdentity =
+    entityRow?.brand_identity &&
+    typeof entityRow.brand_identity === "object" &&
+    !Array.isArray(entityRow.brand_identity)
+      ? (entityRow.brand_identity as { visual_presets?: VisualPresets | null })
+      : null
 
   return (
     <StudioAppShell
@@ -219,6 +226,15 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       }
     >
         <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
+          {isWls ? (
+            <MorningStoryFeed
+              entityId={activeEntityId}
+              entityName={activeEntity.name}
+              industry={activeEntity.industry}
+              brandIdentity={storyBrandIdentity}
+              className="mx-3 mt-3"
+            />
+          ) : null}
           <TodayChecklist
             entityId={activeEntityId}
             failedCount={failedDispatchCount}
@@ -227,11 +243,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             newDropsHref="#todays-deck"
             className="mx-3 mt-3"
           />
-          {isWls ? (
-            <div className="mx-3 mt-2">
-              <DailyNewArrivalStoryButton entityId={activeEntityId} />
-            </div>
-          ) : null}
           <div id="todays-deck" className="scroll-mt-4">
           <TodayActionDeck
             entityId={activeEntityId}
@@ -244,6 +255,16 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           </div>
         </div>
         <div className="hidden min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 md:flex">
+          {isWls ? (
+            <MorningStoryFeed
+              entityId={activeEntityId}
+              entityName={activeEntity.name}
+              industry={activeEntity.industry}
+              brandIdentity={storyBrandIdentity}
+              compact
+              className="mb-3 shrink-0"
+            />
+          ) : null}
           <TodayCommandDashboard
             entityId={activeEntityId}
             entityName={activeEntity.name}

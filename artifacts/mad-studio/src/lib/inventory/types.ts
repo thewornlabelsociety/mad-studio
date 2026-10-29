@@ -87,6 +87,8 @@ export type MarketingCopyDraft = {
     studio_used_at?: string | null
     /** WLS Daily New Arrival Story draft attribution (Checkpoint B). */
     wls_daily_story?: unknown
+    /** When this item's new arrival Story was marked shared from Today. */
+    wls_story_shared_at?: string | null
   }
 }
 
@@ -251,6 +253,7 @@ export function parseCopyDraftMetadata(
       : undefined
   const today_deck_dismissed_at = str("today_deck_dismissed_at")
   const studio_used_at = str("studio_used_at")
+  const wls_story_shared_at = str("wls_story_shared_at")
   const canvas_text_overlay =
     record.canvas_text_overlay !== undefined
       ? record.canvas_text_overlay
@@ -278,6 +281,7 @@ export function parseCopyDraftMetadata(
     !today_deck_status &&
     !today_deck_dismissed_at &&
     !studio_used_at &&
+    !wls_story_shared_at &&
     canvas_text_overlay === undefined &&
     wls_daily_story === undefined
   ) {
@@ -305,6 +309,7 @@ export function parseCopyDraftMetadata(
     today_deck_status: today_deck_status ?? null,
     today_deck_dismissed_at: today_deck_dismissed_at ?? null,
     studio_used_at: studio_used_at ?? null,
+    wls_story_shared_at: wls_story_shared_at ?? null,
     wls_daily_story,
   }
 }
