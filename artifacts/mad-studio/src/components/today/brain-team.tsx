@@ -36,6 +36,8 @@ type Props = {
   items: MarketingEntity[]
   /** One role at a time in tabs, filling its column (desktop Today). */
   tabbed?: boolean
+  /** Inside Studio: Build reloads the page so Studio picks up the new items. */
+  fullReloadLinks?: boolean
   className?: string
 }
 
@@ -125,6 +127,7 @@ export function BrainTeam({
   intakeCaptionDefault,
   items,
   tabbed = false,
+  fullReloadLinks = false,
   className,
 }: Props) {
   const [tab, setTab] = useState<RoleTab>("art")
@@ -397,6 +400,11 @@ export function BrainTeam({
                   <div className="mt-2 flex gap-1.5">
                     <Link
                       href={studioHref(entityId, pick)}
+                      onClick={(event) => {
+                        if (!fullReloadLinks) return
+                        event.preventDefault()
+                        window.location.assign(studioHref(entityId, pick))
+                      }}
                       className="inline-flex items-center gap-1 border-2 border-mad-black bg-mad-black px-2 py-1 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion"
                     >
                       <Wand2 className="size-3" aria-hidden />

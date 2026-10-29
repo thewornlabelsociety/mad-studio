@@ -21,7 +21,7 @@ import { readDispatchCronHealth } from "@/lib/cron/read-dispatch-health"
 import { resolveIntakeCaptionDefaultSource } from "@/lib/inventory/intake-caption-default"
 import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
 import { MorningStoryFeed } from "@/components/today/morning-story-feed"
-import { TodayToolLinks } from "@/components/today/today-tool-links"
+import { TodayAlerts, TodayFeedPost } from "@/components/today/today-feed-post"
 import { TodayActionDeck } from "@/components/today/action-deck"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { TodayChecklist } from "@/components/today/today-checklist"
@@ -226,68 +226,65 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         ) : null
       }
     >
-        <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
-          {isWls ? (
+      {isWls ? (
+        // Worn Label: Stories, today's feed post, and alerts only when needed.
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto grid w-full min-w-0 max-w-6xl grid-cols-1 gap-3 px-3 py-3 md:px-4">
+            <TodayAlerts
+              entityId={activeEntityId}
+              failedCount={failedDispatchCount}
+              schedulerPaused={dispatchCronHealth?.stale !== false}
+            />
             <MorningStoryFeed
               entityId={activeEntityId}
               entityName={activeEntity.name}
               industry={activeEntity.industry}
               brandIdentity={storyBrandIdentity}
-              className="mx-3 mt-3"
             />
-          ) : null}
-          {isWls ? (
-            <TodayToolLinks entityId={activeEntityId} className="mx-3 mt-2" />
-          ) : null}
-          <TodayChecklist
-            entityId={activeEntityId}
-            failedCount={failedDispatchCount}
-            scheduledCount={armedRows.length}
-            newDropsCount={deck.length}
-            newDropsHref="#todays-deck"
-            className="mx-3 mt-3"
-          />
-          <div id="todays-deck" className="scroll-mt-4">
-          <TodayActionDeck
-            entityId={activeEntityId}
-            entityName={activeEntity.name}
-            industry={activeEntity.industry}
-            websiteUrl={entityRow?.website_url ?? null}
-            liveDateLabel={formatAgendaLiveDate()}
-            initialDeck={deck}
-          />
+            <TodayFeedPost entityId={activeEntityId} />
           </div>
         </div>
-        <div className="hidden min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 md:flex">
-          {isWls ? (
-            <MorningStoryFeed
+      ) : (
+        <>
+          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
+            <TodayChecklist
+              entityId={activeEntityId}
+              failedCount={failedDispatchCount}
+              scheduledCount={armedRows.length}
+              newDropsCount={deck.length}
+              newDropsHref="#todays-deck"
+              className="mx-3 mt-3"
+            />
+            <div id="todays-deck" className="scroll-mt-4">
+            <TodayActionDeck
               entityId={activeEntityId}
               entityName={activeEntity.name}
               industry={activeEntity.industry}
-              brandIdentity={storyBrandIdentity}
-              compact
-              className="mb-3 shrink-0"
+              websiteUrl={entityRow?.website_url ?? null}
+              liveDateLabel={formatAgendaLiveDate()}
+              initialDeck={deck}
             />
-          ) : null}
-          {isWls ? (
-            <TodayToolLinks entityId={activeEntityId} className="mb-3 shrink-0" />
-          ) : null}
-          <TodayCommandDashboard
-            entityId={activeEntityId}
-            entityName={activeEntity.name}
-            industry={activeEntity.industry}
-            websiteUrl={entityRow?.website_url ?? null}
-            liveDateLabel={formatAgendaLiveDate()}
-            brainDirective={brainDirective}
-            unfeaturedCount={unfeaturedCount}
-            armedCount={armedRows.length}
-            initialQueue={queue}
-            armedRows={armedRows}
-            dispatchCronHealth={dispatchCronHealth}
-            failedDispatchCount={failedDispatchCount}
-            intakeCaptionDefault={intakeCaptionDefault}
-          />
-        </div>
+            </div>
+          </div>
+          <div className="hidden min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 md:flex">
+            <TodayCommandDashboard
+              entityId={activeEntityId}
+              entityName={activeEntity.name}
+              industry={activeEntity.industry}
+              websiteUrl={entityRow?.website_url ?? null}
+              liveDateLabel={formatAgendaLiveDate()}
+              brainDirective={brainDirective}
+              unfeaturedCount={unfeaturedCount}
+              armedCount={armedRows.length}
+              initialQueue={queue}
+              armedRows={armedRows}
+              dispatchCronHealth={dispatchCronHealth}
+              failedDispatchCount={failedDispatchCount}
+              intakeCaptionDefault={intakeCaptionDefault}
+            />
+          </div>
+        </>
+      )}
     </StudioAppShell>
   )
 }

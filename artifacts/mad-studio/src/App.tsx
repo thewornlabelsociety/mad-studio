@@ -13,6 +13,7 @@ import InventoryItemPage from "@/app/inventory/[id]/page"
 import BrainPage from "@/app/brain/page"
 import CampaignsPage from "@/app/campaigns/page"
 import PlannerPage from "@/app/planner/page"
+import WeekPage from "@/app/week/page"
 import AnalyticsPage from "@/app/analytics/page"
 import SocialSettingsPage from "@/app/settings/social/page"
 import NewEntityPage from "@/app/entities/new/page"
@@ -138,6 +139,7 @@ function App() {
         <Route path="/templates/wls-announcement">{() => <PageLoader load={() => WlsAnnouncementPage({ searchParams: query() })} />}</Route>
         <Route path="/today">{() => <PageLoader load={() => TodayPage({ searchParams: query() })} />}</Route>
         <Route path="/planner">{() => <PageLoader load={() => PlannerPage({ searchParams: query() })} />}</Route>
+        <Route path="/week">{() => <PageLoader load={() => WeekPage({ searchParams: query() })} />}</Route>
         <Route path="/promo">{() => <PageLoader load={() => PromoPage({ searchParams: query() })} />}</Route>
         <Route path="/inventory">{() => <PageLoader load={() => InventoryPage({ searchParams: query() })} />}</Route>
         <Route path="/help">{() => <PageLoader load={() => HelpPage({ searchParams: query() })} />}</Route>
