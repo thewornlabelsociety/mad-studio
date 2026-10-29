@@ -426,7 +426,7 @@ export function MorningStoryFeed({
                       ) : null}
                       {savedIds[id] && !shared ? (
                         <span className="pointer-events-none absolute bottom-2.5 left-2 flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-semibold text-mad-black shadow">
-                          <Check className="size-3" aria-hidden /> Saved
+                          <Check className="size-3" aria-hidden /> {onPhone ? "Saved" : "Downloaded"}
                         </span>
                       ) : null}
                       {shared ? (
@@ -490,17 +490,31 @@ export function MorningStoryFeed({
                           type="button"
                           onClick={() => void onSave(story)}
                           disabled={savingId != null || waiting}
-                          className="flex h-9 w-full items-center gap-2 bg-mad-black px-3 text-xs font-medium text-mad-white disabled:opacity-40"
+                          title={savedIds[id] ? (onPhone ? "Save it again" : "Download it again") : undefined}
+                          className={cn(
+                            "flex h-9 w-full items-center gap-2 px-3 text-xs font-medium disabled:opacity-40",
+                            savedIds[id]
+                              ? "border-2 border-emerald-700 bg-emerald-50 text-emerald-900"
+                              : "bg-mad-black text-mad-white"
+                          )}
                         >
                           <span className="font-typewriter opacity-60">1</span>
                           {savingId === id ? (
                             <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                          ) : savedIds[id] ? (
+                            <Check className="size-3.5" aria-hidden />
                           ) : onPhone ? (
                             <Share2 className="size-3.5" aria-hidden />
                           ) : (
                             <Download className="size-3.5" aria-hidden />
                           )}
-                          {onPhone ? "Save image" : "Download image"}
+                          {savedIds[id]
+                            ? onPhone
+                              ? "Saved"
+                              : "Downloaded"
+                            : onPhone
+                              ? "Save image"
+                              : "Download image"}
                         </button>
                       </li>
                       <li>
