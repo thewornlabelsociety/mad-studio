@@ -2,7 +2,7 @@ import type { WlsProductSelection } from "../inventory/wls-product-eligibility.t
 import { ownerLabelForHardBlock } from "../inventory/wls-product-eligibility.ts"
 import {
   formatCanvasSizeTagLabel,
-  stripAuSizePrefix,
+  shortSizeValue,
 } from "@/lib/studio/canvas-size-tag-label"
 
 /** Subset of StoryCanvasModel fields used by the Daily Story renderer. */
@@ -216,7 +216,7 @@ export function buildWlsDailyStoryCanvasModel(input: {
   const priceLabel = formatNzdPrice(selection.price)
   const sizeRaw = selection.size?.trim() ?? null
   const sizeLabel = sizeRaw
-    ? stripAuSizePrefix(sizeRaw).toUpperCase() || null
+    ? shortSizeValue(sizeRaw).toUpperCase() || null
     : null
 
   const specsParts = [

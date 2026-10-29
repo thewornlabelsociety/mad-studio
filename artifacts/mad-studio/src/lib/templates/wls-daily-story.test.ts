@@ -78,7 +78,7 @@ test("canvas model includes brand, title, price; omits missing size", () => {
   })
   assert.match(withSize.specsLine, /ZIMMERMANN/)
   assert.match(withSize.specsLine, /\$890/)
-  assert.match(withSize.specsLine, /SZ 1/)
+  assert.match(withSize.specsLine, /SIZE 1/)
   assert.equal(withSize.imageUrl, "https://cdn.example.com/dress.jpg")
   assert.equal(withSize.category, "New Arrival")
 

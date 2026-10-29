@@ -23,6 +23,7 @@ import { isAdjusted, NO_ADJUST, type LayerAdjust } from "@/components/templates/
 import { OutfitCoverSlide, OutfitSlide, type SlidePiece } from "@/components/templates/outfit-slides"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
+import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import {
   saveStudioSlidesHandoff,
@@ -179,8 +180,8 @@ export function WlsWeekOutfitsWorkspace({
         const story = stories.get(id)
         const piece = pieceById.get(id)
         if (!story || !piece) return []
-        // "AU 8 | EU 36 | US 4" reads as "AU 8" in a caption.
-        const size = story.row.size?.split(/[|·/]/)[0]?.trim() || null
+        // "AU 8 | EU 36 | US 4" reads as "Size 8" in a caption.
+        const size = formatSizeForText(story.row.size)
         const details = [size, shortPrice(story.priceLabel)].filter(Boolean).join(", ")
         return [`${pieceName(story, OUTFIT_SLOT_LABELS[piece.slot])}${details ? ` (${details})` : ""}`]
       })
@@ -418,7 +419,7 @@ export function WlsWeekOutfitsWorkspace({
                         </span>
                         <span className="min-w-0 flex-1 truncate text-xs" title={story.row.title}>
                           {story.designer}
-                          {story.row.size ? ` · ${story.row.size}` : ""}
+                          {formatSizeForText(story.row.size) ? ` · ${formatSizeForText(story.row.size)}` : ""}
                         </span>
                         {cuttingId === id ? <Scissors className="size-3 animate-pulse text-mad-black/50" aria-hidden /> : null}
                         <button

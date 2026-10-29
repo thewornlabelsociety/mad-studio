@@ -24,6 +24,7 @@ import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { storyTraitLabel } from "@/lib/brands/story-kit"
+import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
 import {
   isWornLabelFashionEntity,
@@ -578,7 +579,7 @@ export function WlsDailyStoryWorkspace({
                             {row.title}
                           </p>
                           <p className="font-typewriter text-[10px] uppercase text-mad-black/55">
-                            {row.size ? `Sz ${row.size} · ` : ""}
+                            {formatSizeForText(row.size) ? `${formatSizeForText(row.size)} · ` : ""}
                             {rowStory?.priceLabel}
                           </p>
                         </div>
