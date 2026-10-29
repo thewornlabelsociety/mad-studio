@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "wouter"
-import { ArrowRight, Search, Shirt, Tag, type LucideIcon } from "lucide-react"
+import { ArrowRight, Megaphone, Search, Shirt, Tag, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -24,12 +24,18 @@ const TOOLS: Array<{ path: string; icon: LucideIcon; title: string; detail: stri
     title: "We're searching for",
     detail: "Ask for the stock you want consigned",
   },
+  {
+    path: "/templates/wls-announcement",
+    icon: Megaphone,
+    title: "Announcement",
+    detail: "Sales, hours and events",
+  },
 ]
 
 /** Today's ways into the weekly posts. */
 export function TodayToolLinks({ entityId, className }: { entityId: string; className?: string }) {
   return (
-    <nav aria-label="Weekly posts" className={cn("grid gap-2 sm:grid-cols-3", className)}>
+    <nav aria-label="Weekly posts" className={cn("grid gap-2 sm:grid-cols-2 xl:grid-cols-4", className)}>
       {TOOLS.map(({ path, icon: Icon, title, detail }) => (
         <Link
           key={path}

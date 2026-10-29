@@ -1,36 +1,9 @@
 import { forwardRef, type CSSProperties } from "react"
 import { ArrowRight } from "lucide-react"
 
+import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
-const DISPLAY = "'Josefin Sans', 'Century Gothic', Futura, system-ui, sans-serif"
-const caps: CSSProperties = { fontFamily: DISPLAY, textTransform: "uppercase", margin: 0 }
-
-const frame = (background: StoryBackground): CSSProperties => ({
-  position: "relative",
-  aspectRatio: "4 / 5",
-  width: "100%",
-  overflow: "hidden",
-  background: background.color,
-  color: background.text_color,
-  containerType: "inline-size",
-})
-
-function Wordmark({ brandName, accent }: { brandName: string; accent: string }) {
-  const words = brandName.trim().toUpperCase().split(/\s+/)
-  const top = words.length > 1 ? words.slice(0, -1).join(" ") : words[0]
-  const bottom = words.length > 1 ? words[words.length - 1] : ""
-  return (
-    <p style={{ ...caps, fontWeight: 600, fontSize: "3.4cqw", letterSpacing: "0.2em", lineHeight: 1.15, textAlign: "right" }}>
-      {top}
-      {bottom ? (
-        <span style={{ display: "block", fontSize: "2.2cqw", letterSpacing: "0.5em", fontWeight: 400, color: accent }}>
-          {bottom}
-        </span>
-      ) : null}
-    </p>
-  )
-}
 
 /** Slide 1, type only: SALE RACK and the week it's for. */
 export const SaleCoverSlide = forwardRef<
