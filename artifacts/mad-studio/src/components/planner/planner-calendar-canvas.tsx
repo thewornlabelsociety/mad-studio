@@ -393,6 +393,8 @@ export function PlannerCalendarCanvas({
           onSelectDay={onSelectDay}
           entityId={entityId}
           campaigns={campaigns}
+          picks={picks}
+          isWls={isWls}
           onOpenDay={(date) => {
             setAnchor(startOfDay(date))
             setView("week")
@@ -424,14 +426,19 @@ export function PlannerCalendarCanvas({
                     <p className="font-typewriter text-[0.72rem] font-bold tracking-wider text-neutral-500 uppercase">
                       {cell.date.toLocaleDateString("en-NZ", { weekday: "short" })}
                     </p>
-                    <p
-                      className={cn(
-                        "font-typewriter text-sm font-bold tabular-nums",
-                        isToday && "bg-mad-black px-1.5 text-mad-white"
-                      )}
-                    >
-                      {cell.date.getDate()}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      {!past && dayPosts.length > 0 ? (
+                        <FillDay corner picks={picks} entityId={entityId} date={cell.date} isWls={isWls} campaigns={campaigns} />
+                      ) : null}
+                      <p
+                        className={cn(
+                          "font-typewriter text-sm font-bold tabular-nums",
+                          isToday && "bg-mad-black px-1.5 text-mad-white"
+                        )}
+                      >
+                        {cell.date.getDate()}
+                      </p>
+                    </div>
                   </div>
 
                   <DayPills date={cell.date} entityId={entityId} campaigns={campaigns} />
@@ -575,12 +582,15 @@ function FillDay({
   date,
   isWls,
   campaigns,
+  corner = false,
 }: {
   picks: ArtDirectorPick[]
   entityId: string
   date: Date
   isWls: boolean
   campaigns: CampaignPlan[]
+  /** A small + in the day's corner instead of the big Fill this day box. */
+  corner?: boolean
 }) {
   const [, navigate] = useLocation()
   const eid = encodeURIComponent(entityId)
@@ -596,15 +606,26 @@ function FillDay({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="mt-1 flex min-h-24 w-full flex-col items-center justify-center gap-1 border-2 border-dashed border-neutral-300 p-3 text-center text-neutral-500 hover:border-mad-black hover:text-mad-black"
-        >
-          <Plus className="size-4" aria-hidden />
-          <span className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase">
-            Fill this day
-          </span>
-        </button>
+        {corner ? (
+          <button
+            type="button"
+            title="Ideas for this day"
+            aria-label={`Ideas for ${date.toLocaleDateString("en-NZ", { weekday: "long", day: "numeric", month: "long" })}`}
+            className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-mad-black/40 bg-white text-mad-black/70 hover:border-mad-black hover:bg-mad-lime hover:text-mad-black"
+          >
+            <Plus className="size-3" aria-hidden />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="mt-1 flex min-h-24 w-full flex-col items-center justify-center gap-1 border-2 border-dashed border-neutral-300 p-3 text-center text-neutral-500 hover:border-mad-black hover:text-mad-black"
+          >
+            <Plus className="size-4" aria-hidden />
+            <span className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase">
+              Fill this day
+            </span>
+          </button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="start" className="max-h-[70vh] w-80 overflow-y-auto rounded-none border-2 border-mad-black p-0">
         <p className="flex items-center gap-1.5 border-b-2 border-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
@@ -709,9 +730,13 @@ function MonthGrid({
   onOpenDay,
   entityId,
   campaigns,
+  picks,
+  isWls,
 }: {
   entityId: string
   campaigns: CampaignPlan[]
+  picks: ArtDirectorPick[]
+  isWls: boolean
   cells: Array<{ date: Date; inCurrentMonth: boolean }>
   today: Date
   postsByDay: Map<string, CalendarPost[]>
@@ -749,18 +774,25 @@ function MonthGrid({
                 !cell.inCurrentMonth && "bg-neutral-50"
               )}
             >
-              <button
-                type="button"
-                onClick={() => onOpenDay(cell.date)}
-                title="Open this week"
-                className={cn(
-                  "self-end font-typewriter text-[0.75rem] font-bold tabular-nums hover:underline",
-                  cell.inCurrentMonth ? "text-mad-black" : "text-neutral-400",
-                  isToday && "bg-mad-black px-1 text-mad-white"
+              <div className="flex items-center justify-between gap-1">
+                {cell.date >= today ? (
+                  <FillDay corner picks={picks} entityId={entityId} date={cell.date} isWls={isWls} campaigns={campaigns} />
+                ) : (
+                  <span aria-hidden />
                 )}
-              >
-                {cell.date.getDate()}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenDay(cell.date)}
+                  title="Open this week"
+                  className={cn(
+                    "font-typewriter text-[0.75rem] font-bold tabular-nums hover:underline",
+                    cell.inCurrentMonth ? "text-mad-black" : "text-neutral-400",
+                    isToday && "bg-mad-black px-1 text-mad-white"
+                  )}
+                >
+                  {cell.date.getDate()}
+                </button>
+              </div>
               <DayPills date={cell.date} entityId={entityId} campaigns={campaigns} compact />
               {beat ? (
                 <button
