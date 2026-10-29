@@ -15,6 +15,8 @@ import {
 } from "lucide-react"
 
 import { ComingUp } from "@/components/planner/coming-up"
+import { getCampaignPlans } from "@/lib/actions"
+import { campaignStepsOn, type CampaignPlan } from "@/lib/planner/campaign-recipes"
 import { momentsOnDay } from "@/lib/planner/nz-moments"
 import { TodayToolLinks } from "@/components/today/today-tool-links"
 import { PlatformIcon } from "@/components/ui/app-icons"
@@ -88,6 +90,20 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
   const [error, setError] = useState<string | null>(null)
   const rhythm = isWornLabel ? WLS_WEEK_RHYTHM : OPEN_WEEK_RHYTHM
   const query = `?eid=${encodeURIComponent(entityId)}`
+
+  // Campaign days (from the Campaigns page) as pills on each day.
+  const [campaigns, setCampaigns] = useState<CampaignPlan[]>([])
+  useEffect(() => {
+    if (!isWornLabel) return
+    let live = true
+    void (async () => {
+      const result = (await getCampaignPlans({ entityId })) as { ok: boolean; data?: { plans: CampaignPlan[] } }
+      if (live && result.ok && result.data) setCampaigns(result.data.plans)
+    })()
+    return () => {
+      live = false
+    }
+  }, [entityId, isWornLabel])
 
   const load = useCallback(async () => {
     setPosts(null)
@@ -268,8 +284,23 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
                       ) : null}
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{day.slot.title}</p>
-                        {momentsOnDay(day.date).length > 0 ? (
+                        {momentsOnDay(day.date).length > 0 || campaignStepsOn(campaigns, day.date).length > 0 ? (
                           <div className="mb-0.5 mt-0.5 flex flex-wrap gap-1">
+                            {campaignStepsOn(campaigns, day.date).map(({ plan, step }) => (
+                              <Link
+                                key={step.id}
+                                href={`/campaigns?eid=${encodeURIComponent(entityId)}`}
+                                title={`${plan.name}: ${step.detail}`}
+                                className={cn(
+                                  "rounded-full border px-2 py-px text-[10px] font-medium leading-4",
+                                  step.done
+                                    ? "border-mad-black/20 text-mad-black/45 line-through"
+                                    : "border-mad-black bg-white text-mad-black"
+                                )}
+                              >
+                                {plan.name}: {step.title}
+                              </Link>
+                            ))}
                             {momentsOnDay(day.date).map((moment) => (
                               <Link
                                 key={moment.id}
