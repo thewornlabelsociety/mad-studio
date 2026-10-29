@@ -23,6 +23,7 @@ import {
   canSaveToFolder,
   chooseFolder,
   folderForSaving,
+  folderRefusalReason,
   savedFolderName,
   todaysSubfolder,
   writeToFolder,
@@ -122,10 +123,12 @@ export function MorningStoryFeed({
     try {
       const result = await folderForSaving()
       if (!result.ok) {
+        const reason = folderRefusalReason()
         toast.message(
           result.reason === "not-allowed"
-            ? "Chrome didn't allow saving to that folder. Click Save again and choose Allow."
-            : "Chrome didn't hand over a folder. Click Choose folder, open a folder inside Dropbox (like MAD STUDIO STORIES), click Select Folder, then Edit files."
+            ? "Chrome didn't allow saving to that folder, so they're downloading instead."
+            : `Chrome didn't hand over a folder${reason ? ` (${reason})` : ""}, so they're downloading instead.`,
+          { duration: 10000 }
         )
         return null
       }
@@ -229,8 +232,8 @@ export function MorningStoryFeed({
     const node = nodes.current[story.row.marketingEntityId]
     if (!node) return
     // Ask for the folder first, while this still counts as your click.
+    // No folder (cancelled or refused): download instead.
     const folder = useFolder ? await folderOrAsk() : null
-    if (useFolder && !folder) return
     setSavingId(story.row.marketingEntityId)
     try {
       const baked = await bakeStoryPng(node)
@@ -273,7 +276,6 @@ export function MorningStoryFeed({
     const stories = toSave
     if (stories.length === 0) return
     const folder = useFolder ? await folderOrAsk() : null
-    if (useFolder && !folder) return
     setSavingAll({ done: 0, total: stories.length })
     try {
       const baked: Array<{ dataUrl: string; blob: Blob; filename: string }> = []

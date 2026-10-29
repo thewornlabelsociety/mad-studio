@@ -22,6 +22,13 @@ const KEY = "story-folder"
 /** The folder picked this visit; the browser's stored copy is the backup. */
 let current: DirectoryHandle | null = null
 
+/** Chrome's own words the last time it didn't hand over a folder. */
+let lastRefusal: string | null = null
+
+export function folderRefusalReason(): string | null {
+  return lastRefusal
+}
+
 export function canSaveToFolder(): boolean {
   return typeof window !== "undefined" && typeof (window as PickerWindow).showDirectoryPicker === "function"
 }
@@ -80,7 +87,10 @@ export async function chooseFolder(): Promise<string | null> {
     await writeHandle(handle)
     return handle.name
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return null
+    if (error instanceof DOMException && error.name === "AbortError") {
+      lastRefusal = error.message || null
+      return null
+    }
     throw error
   }
 }
