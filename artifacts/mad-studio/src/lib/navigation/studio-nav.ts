@@ -59,6 +59,13 @@ export function buildCalendarViews(input: {
       description: "Week & month calendar",
     },
     {
+      id: "week",
+      href: `/week${entityQuery}`,
+      match: "/week",
+      label: "Week",
+      description: "Your grid and the week's rhythm",
+    },
+    {
       id: "campaigns",
       href: `/campaigns${entityQuery}`,
       match: "/campaigns",
