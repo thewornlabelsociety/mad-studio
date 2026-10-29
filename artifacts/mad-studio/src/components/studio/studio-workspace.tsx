@@ -201,6 +201,10 @@ import {
   WLS_DAILY_STORY_STUDIO_MAX_FRAMES,
   wlsStoryAssetIdForProduct,
 } from "@/lib/templates/wls-daily-story-studio-seed"
+import {
+  STUDIO_SLIDES_QUERY_FLAG,
+  takeStudioSlidesHandoff,
+} from "@/lib/studio/studio-slides-handoff"
 import { WlsEligibleProductStrip } from "@/components/studio/wls-eligible-product-strip"
 import { StudioTemplatePicker } from "@/components/studio/studio-template-picker"
 import { WlsDailyStoryEntryBanner } from "@/components/studio/wls-daily-story-entry-banner"
@@ -1435,6 +1439,36 @@ export function StudioWorkspace({
       window.removeEventListener("focus", onFocus)
     }
   }, [activeEntity.id, isFashionBrand, loadWlsEligibleProducts])
+
+  // Finished slides (e.g. the week of outfits) waiting in sessionStorage.
+  const builtFromSlides = useRef(false)
+  useEffect(() => {
+    if (builtFromSlides.current || rehydrating) return
+    if (searchParams.get(STUDIO_SLIDES_QUERY_FLAG) !== "1") return
+    builtFromSlides.current = true
+    const handoff = takeStudioSlidesHandoff(activeEntity.id)
+    const params = new URLSearchParams(window.location.search)
+    params.delete(STUDIO_SLIDES_QUERY_FLAG)
+    window.history.replaceState(window.history.state, "", `/studio?${params.toString()}`)
+    if (!handoff) {
+      toast.error("Those slides have expired. Send them from the week of outfits again.")
+      return
+    }
+    const tray: MediaAsset[] = handoff.urls.map((url, index) => ({
+      id: `slides-${index}-${Date.now()}`,
+      url,
+      publicUrl: url,
+      type: "image",
+      destinationUrl: handoff.destinationUrl ?? null,
+      intakeCaption: index === 0 ? handoff.caption : null,
+    }))
+    onMediaAssetsChange(tray)
+    applyIntakeFromTray(tray, { forceCaption: true })
+    setActiveMediaId(tray[0].id)
+    setSimPlatform("ig_feed")
+    toast.success(`${tray.length} slides are in the tray, ready to post as one carousel.`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rehydrating])
 
   // Build from Today's Brain team: ?items=a,b,c&format=carousel loads those
   // items — one photo each, or every photo when it's a single item.

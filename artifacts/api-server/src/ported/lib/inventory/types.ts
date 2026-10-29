@@ -9,6 +9,10 @@ import {
   type ListingAvailability,
 } from "./listing-availability.ts"
 import { readListingVibeFromMetrics } from "./listing-vibe.ts"
+import {
+  readListingGarmentFromMetrics,
+  type GarmentGender,
+} from "./listing-garment.ts"
 
 export const MARKETING_ENTITY_STATUSES = [
   "unfeatured",
@@ -120,6 +124,9 @@ export type MarketingEntity = {
   listing_url: string | null
   /** Primary Shop-by-Vibe label from the source listing (website aesthetic). */
   vibe: string | null
+  /** Marketplace category and gender from the last sync, when the feed has them. */
+  listing_category?: string | null
+  listing_gender?: GarmentGender | null
   aesthetic_slugs: string[]
   scheduled_at: string | null
   channels: string[]
@@ -359,6 +366,7 @@ export function mapMarketingEntityRow(row: {
   updated_at: string
 }): MarketingEntity {
   const listingVibe = readListingVibeFromMetrics(row.metrics)
+  const listingGarment = readListingGarmentFromMetrics(row.metrics)
   const descriptionVibe =
     typeof row.description === "string"
       ? row.description.match(/\bVibe\s*:\s*([^·|]+)/i)?.[1]?.trim() || null
@@ -380,6 +388,8 @@ export function mapMarketingEntityRow(row: {
     listing_currency: readListingCurrency(row.metrics),
     listing_url: readListingUrl(row.metrics),
     vibe: listingVibe.vibe || descriptionVibe,
+    listing_category: listingGarment.category,
+    listing_gender: listingGarment.gender,
     aesthetic_slugs: listingVibe.aesthetic_slugs,
     scheduled_at: row.scheduled_at,
     channels: Array.isArray(row.channels) ? row.channels : [],
