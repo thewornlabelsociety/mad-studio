@@ -1,4 +1,6 @@
-import type { Json } from "@/lib/database.types"
+import type { SupabaseClient } from "@supabase/supabase-js"
+
+import type { Database, Json } from "@/lib/database.types"
 import {
   resolveInventoryIntakeMode,
   type InventoryIntakeMode,
@@ -135,6 +137,20 @@ function entityEnvSlug(entityName: string | null | undefined): string {
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, "_")
     .replace(/^_|_$/g, "")
+}
+
+/**
+ * True when the brand has its own storefront or a per-brand feed env var.
+ * Scheduled pulls use this so brands without a shop never fall through to
+ * the global INVENTORY_FEED_URL.
+ */
+export function hasOwnArrivalFeed(input: {
+  websiteUrl: string | null
+  entityName?: string | null
+}): boolean {
+  if (storefrontOrigins(input.websiteUrl).length > 0) return true
+  const slugKey = entityEnvSlug(input.entityName)
+  return Boolean(slugKey && process.env[`INVENTORY_FEED_URL_${slugKey}`]?.trim())
 }
 
 /** Candidate catalog / feed URLs for a brand — scoped by intake mode. */
@@ -871,6 +887,42 @@ export async function pullNewArrivalsForEntity(input: {
     throw new Error("You need creator or manager access to pull inventory.")
   }
 
+  return runArrivalPull({
+    db: supabase,
+    actorUserId: user.id,
+    entityId: input.entityId,
+    feedUrl: input.feedUrl,
+    allowDemo:
+      process.env.INVENTORY_USE_DEMO_FEED === "1" ||
+      process.env.INVENTORY_USE_DEMO_FEED === "true",
+  })
+}
+
+/**
+ * Pull for scheduled jobs (no signed-in user). Uses the service-role client,
+ * never falls back to demo arrivals, and logs activity without a user id.
+ */
+export async function pullNewArrivalsAsSystem(input: {
+  entityId: string
+  feedUrl?: string | null
+}): Promise<PullNewArrivalsResult> {
+  return runArrivalPull({
+    db: createAdminClient(),
+    actorUserId: null,
+    entityId: input.entityId,
+    feedUrl: input.feedUrl,
+    allowDemo: false,
+  })
+}
+
+async function runArrivalPull(input: {
+  db: SupabaseClient<Database>
+  actorUserId: string | null
+  entityId: string
+  feedUrl?: string | null
+  allowDemo: boolean
+}): Promise<PullNewArrivalsResult> {
+  const supabase = input.db
   const { data: entity, error: entityError } = await supabase
     .from("entities")
     .select("id, name, website_url, industry, brand_identity")
@@ -969,11 +1021,7 @@ export async function pullNewArrivalsForEntity(input: {
     }
   }
 
-  const allowDemo =
-    process.env.INVENTORY_USE_DEMO_FEED === "1" ||
-    process.env.INVENTORY_USE_DEMO_FEED === "true"
-
-  if (arrivals.length === 0 && allowDemo) {
+  if (arrivals.length === 0 && input.allowDemo) {
     if (intakeMode === "food_feed") {
       arrivals = fudiDemoArrivals()
       usedFeed = "demo://fudi-eatery-feed"
@@ -994,7 +1042,7 @@ export async function pullNewArrivalsForEntity(input: {
     })
     await supabase.from("activity_logs").insert({
       entity_id: input.entityId,
-      user_id: user.id,
+      user_id: input.actorUserId,
       action: "pulled_new_arrivals",
       details: {
         imported: 0,
@@ -1148,7 +1196,7 @@ export async function pullNewArrivalsForEntity(input: {
 
   await supabase.from("activity_logs").insert({
     entity_id: input.entityId,
-    user_id: user.id,
+    user_id: input.actorUserId,
     action: "pulled_new_arrivals",
     details: {
       imported,
