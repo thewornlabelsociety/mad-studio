@@ -11,6 +11,7 @@ import {
   Plus,
   RefreshCw,
   Scissors,
+  Download,
   Share2,
   Undo2,
 } from "lucide-react"
@@ -21,6 +22,8 @@ import { parseApiJsonResponse } from "@/lib/api/parse-response"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import {
   bakeStoryPng,
+  downloadImages,
+  onTouchDevice,
   copyStoryLink,
   shareOrDownloadStory,
   useKitStories,
@@ -95,6 +98,8 @@ export function MorningStoryFeed({
   const [savingId, setSavingId] = useState<string | null>(null)
   const [savingAll, setSavingAll] = useState<{ done: number; total: number } | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Phones share to Instagram or Photos; computers download straight to the Downloads folder.
+  const [onPhone] = useState(onTouchDevice)
   const [savedIds, setSavedIds] = useState<Record<string, true>>(() => readSaved(entityId))
 
   function markSaved(ids: string[]) {
@@ -194,7 +199,7 @@ export function MorningStoryFeed({
         ...baked,
         filename: `wls-story-${story.row.websiteItemId}.png`,
       })
-      if (result === "downloaded") toast.success("Story image saved.")
+      if (result === "downloaded") toast.success("Story image downloaded.")
       if (result !== "cancelled") markSaved([story.row.marketingEntityId])
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the image.")
@@ -232,7 +237,7 @@ export function MorningStoryFeed({
       }
       const files = baked.map((row) => new File([row.blob], row.filename, { type: "image/png" }))
       const ids = stories.map((story) => story.row.marketingEntityId)
-      if (navigator.canShare?.({ files })) {
+      if (onPhone && navigator.canShare?.({ files })) {
         try {
           await navigator.share({ files })
           markSaved(ids)
@@ -242,10 +247,10 @@ export function MorningStoryFeed({
         }
         return
       }
-      for (const row of baked) await shareOrDownloadStory(row)
+      await downloadImages(baked)
       markSaved(ids)
       setSelected(new Set())
-      toast.success(`${baked.length} Story images saved. Post them, then mark each one shared.`)
+      toast.success(`${baked.length} Story images downloaded. Post them, then mark each one shared.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the images.")
     } finally {
@@ -323,12 +328,16 @@ export function MorningStoryFeed({
             title={selected.size > 0 ? "Save the Stories you ticked" : "Save every Story showing (not the ones behind Show more)"}
             className="flex h-8 shrink-0 items-center gap-1.5 border-2 border-mad-black bg-mad-black px-2.5 text-xs font-medium text-mad-white hover:bg-mad-black/85 disabled:opacity-50"
           >
-            {savingAll ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Share2 className="size-3.5" aria-hidden />}
+            {savingAll ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : onPhone ? (
+              <Share2 className="size-3.5" aria-hidden />
+            ) : (
+              <Download className="size-3.5" aria-hidden />
+            )}
             {savingAll
-              ? `Saving ${savingAll.done} of ${savingAll.total}`
-              : selected.size > 0
-                ? `Save ${toSave.length} selected`
-                : `Save all ${toSave.length}`}
+              ? `Getting ${savingAll.done} of ${savingAll.total} ready`
+              : `${onPhone ? "Save" : "Download"} ${selected.size > 0 ? `${toSave.length} selected` : `all ${toSave.length}`}`}
           </button>
         ) : null}
         <button
@@ -484,8 +493,14 @@ export function MorningStoryFeed({
                           className="flex h-9 w-full items-center gap-2 bg-mad-black px-3 text-xs font-medium text-mad-white disabled:opacity-40"
                         >
                           <span className="font-typewriter opacity-60">1</span>
-                          {savingId === id ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Share2 className="size-3.5" aria-hidden />}
-                          Save image
+                          {savingId === id ? (
+                            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                          ) : onPhone ? (
+                            <Share2 className="size-3.5" aria-hidden />
+                          ) : (
+                            <Download className="size-3.5" aria-hidden />
+                          )}
+                          {onPhone ? "Save image" : "Download image"}
                         </button>
                       </li>
                       <li>

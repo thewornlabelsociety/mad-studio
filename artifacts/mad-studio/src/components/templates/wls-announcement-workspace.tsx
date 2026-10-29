@@ -19,7 +19,7 @@ import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { findMoment, type MomentCard } from "@/lib/planner/nz-moments"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
-import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
+import { bakeStoryPng, onTouchDevice, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -310,7 +310,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
       if (baked.length === 0) return
       // Phone: one share sheet with every Story. Desktop: one download each.
       const files = baked.map((row) => new File([row.blob], row.filename, { type: "image/png" }))
-      if (baked.length > 1 && navigator.canShare?.({ files })) {
+      if (baked.length > 1 && onTouchDevice() && navigator.canShare?.({ files })) {
         try {
           await navigator.share({ files })
         } catch (error) {
