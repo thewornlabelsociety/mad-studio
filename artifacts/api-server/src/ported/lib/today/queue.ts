@@ -30,7 +30,7 @@ function extractSize(item: MarketingEntity): string | null {
   const size =
     hay.match(/\b(?:sz|size)\s*[:.]?\s*([0-9]+|[xsml]{1,3})\b/i)?.[1] ??
     hay.match(/\b([0-9]{2})\s*(?:eu|it|fr)?\b/i)?.[1]
-  return size ? `Sz ${size.toUpperCase()}` : null
+  return size ? `Size ${size.toUpperCase()}` : null
 }
 
 export function formatQueueSpecsLine(

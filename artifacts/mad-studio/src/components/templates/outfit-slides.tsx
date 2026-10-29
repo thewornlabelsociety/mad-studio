@@ -19,6 +19,23 @@ const frame = (background: StoryBackground): CSSProperties => ({
   containerType: "inline-size",
 })
 
+/** Small numbered circle that ties a piece on the flatlay to its line in the list. */
+const numberDot = (background: StoryBackground): CSSProperties => ({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "4.6cqw",
+  height: "4.6cqw",
+  borderRadius: "50%",
+  background: background.accent_color,
+  color: background.color,
+  fontFamily: DISPLAY,
+  fontWeight: 700,
+  fontSize: "2.6cqw",
+  lineHeight: 1,
+  paddingTop: "0.4cqw",
+})
+
 export type SlidePiece = {
   id: string
   slot: GarmentSlot
@@ -129,13 +146,40 @@ export const OutfitSlide = forwardRef<
             </AdjustableLayer>
           ) : null
         })}
+
+        {/* Numbers match the list; drawn above every piece so none is hidden,
+            and follow each piece when it is moved or resized. */}
+        {pieces.map((piece, index) => {
+          if (!piece.imageUrl) return null
+          const place = PLACEMENT[piece.slot]
+          const moved = adjust?.[piece.id]
+          const scale = moved?.scale ?? 1
+          const cx = place.left + (moved?.dx ?? 0) + place.width / 2
+          const cy = place.top + (moved?.dy ?? 0) + place.height / 2
+          return (
+            <span
+              key={`n-${piece.id}`}
+              aria-hidden
+              style={{
+                ...numberDot(background),
+                position: "absolute",
+                left: `${cx - (place.width * scale) * 0.36}%`,
+                top: `${cy - (place.height * scale) * 0.4}%`,
+                zIndex: 50,
+                pointerEvents: "none",
+              }}
+            >
+              {index + 1}
+            </span>
+          )
+        })}
       </div>
 
       <ul
         style={{
           position: "absolute",
-          right: "6cqw",
-          width: "30%",
+          right: "5cqw",
+          width: "32%",
           top: "27%",
           bottom: "6cqw",
           margin: 0,
@@ -147,14 +191,29 @@ export const OutfitSlide = forwardRef<
           gap: "4cqw",
         }}
       >
-        {pieces.map((piece) => (
-          <li key={piece.id} style={{ borderTop: `0.3cqw solid ${background.text_color}`, paddingTop: "1.8cqw", opacity: 0.95 }}>
-            <p style={{ ...caps, fontWeight: 600, fontSize: piece.brand.length > 14 ? "2.6cqw" : "3.2cqw", letterSpacing: "0.12em", lineHeight: 1.15, overflowWrap: "anywhere" }}>
-              {piece.brand}
-            </p>
-            <p style={{ ...caps, fontSize: "2.5cqw", letterSpacing: "0.16em", marginTop: "1cqw", color: background.accent_color }}>
-              {[piece.sizeLabel, piece.priceLabel].filter(Boolean).join(" · ")}
-            </p>
+        {pieces.map((piece, index) => (
+          <li
+            key={piece.id}
+            style={{
+              borderTop: `0.3cqw solid ${background.text_color}`,
+              paddingTop: "1.8cqw",
+              opacity: 0.95,
+              display: "flex",
+              gap: "1.8cqw",
+              alignItems: "flex-start",
+            }}
+          >
+            <span aria-hidden style={{ ...numberDot(background), flexShrink: 0 }}>
+              {index + 1}
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ ...caps, fontWeight: 600, fontSize: piece.brand.length > 14 ? "2.3cqw" : piece.brand.length > 9 ? "2.7cqw" : "3.2cqw", letterSpacing: "0.12em", lineHeight: 1.15, overflowWrap: "anywhere" }}>
+                {piece.brand}
+              </p>
+              <p style={{ ...caps, fontSize: "2.5cqw", letterSpacing: "0.16em", marginTop: "1cqw", color: background.accent_color }}>
+                {[piece.sizeLabel, piece.priceLabel].filter(Boolean).join(" · ")}
+              </p>
+            </div>
           </li>
         ))}
       </ul>
@@ -162,55 +221,27 @@ export const OutfitSlide = forwardRef<
   )
 })
 
-/** Slide 1: A WEEK OF OUTFITS, the dates, and the week's pieces fanned out. */
+/** Slide 1, type only: A WEEK OF OUTFITS and the dates. */
 export const OutfitCoverSlide = forwardRef<
   HTMLDivElement,
   {
     background: StoryBackground
     brandName: string
     dateRange: string
-    imageUrls: string[]
     className?: string
   }
->(function OutfitCoverSlide({ background, brandName, dateRange, imageUrls, className }, ref) {
-  const fan = imageUrls.slice(0, 7)
+>(function OutfitCoverSlide({ background, brandName, dateRange, className }, ref) {
   return (
     <div ref={ref} className={className} style={frame(background)}>
       <div style={{ position: "absolute", top: "6cqw", right: "6cqw" }}>
         <Wordmark brandName={brandName} accent={background.accent_color} />
       </div>
-      <div style={{ position: "absolute", left: "6cqw", right: "6cqw", top: "14%" }}>
+      <div style={{ position: "absolute", left: "6cqw", right: "6cqw", top: "50%", transform: "translateY(-50%)" }}>
         <p style={{ ...caps, fontSize: "5cqw", letterSpacing: "0.3em", color: background.accent_color }}>A week of</p>
         <p style={{ ...caps, fontWeight: 700, fontSize: "17cqw", letterSpacing: "0.04em", lineHeight: 0.95, marginTop: "1cqw" }}>
           Outfits
         </p>
         <p style={{ ...caps, fontSize: "3.6cqw", letterSpacing: "0.22em", marginTop: "3cqw" }}>{dateRange}</p>
-      </div>
-
-      <div style={{ position: "absolute", left: "4cqw", right: "4cqw", top: "48%", bottom: "16cqw" }}>
-        {fan.map((url, index) => {
-          const step = fan.length > 1 ? index / (fan.length - 1) : 0.5
-          return (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={`${url}-${index}`}
-              src={url}
-              alt=""
-              crossOrigin="anonymous"
-              style={{
-                position: "absolute",
-                left: `${step * 70}%`,
-                top: `${index % 2 === 0 ? 4 : 14}%`,
-                width: "30%",
-                height: "82%",
-                objectFit: "contain",
-                transform: `rotate(${(step - 0.5) * 18}deg)`,
-                zIndex: index % 2 === 0 ? 2 : 1,
-                filter: "drop-shadow(0 2cqw 2.4cqw rgba(0,0,0,0.3))",
-              }}
-            />
-          )
-        })}
       </div>
 
       <p
