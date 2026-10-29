@@ -315,6 +315,8 @@ export function useKitStories(input: {
 /** Bake a rendered Story node to a 1080-wide PNG (link-sticker guide left out). */
 export async function bakeStoryPng(node: HTMLElement): Promise<{ dataUrl: string; blob: Blob }> {
   const dataUrl = await toPng(node, {
+    // Proxied images differ only by query string; without this they all share one cache entry.
+    includeQueryParams: true,
     cacheBust: true,
     filter: storyExportFilter,
     pixelRatio: 1080 / Math.max(node.offsetWidth, 1),

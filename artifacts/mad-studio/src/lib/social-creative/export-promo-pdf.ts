@@ -15,6 +15,8 @@ export async function exportPromoPdf(
   config: WornLabelCampaignConfig
 ): Promise<void> {
   const dataUrl = await toPng(node, {
+    // Proxied images differ only by query string; without this they all share one cache entry.
+    includeQueryParams: true,
     cacheBust: true,
     pixelRatio: 2,
     width: A4_PRINT_WIDTH_PX,

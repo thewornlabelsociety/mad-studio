@@ -1088,6 +1088,8 @@ export function MultiPlatformSimulator({
 
       if (!node) return
       const dataUrl = await toPng(node, {
+        // Proxied images differ only by query string; without this they all share one cache entry.
+        includeQueryParams: true,
         filter: storyExportFilter,
         cacheBust: true,
         pixelRatio: 3,

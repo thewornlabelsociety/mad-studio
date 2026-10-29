@@ -8,6 +8,7 @@ import {
   Link2,
   Loader2,
   Pencil,
+  Plus,
   RefreshCw,
   Scissors,
   Share2,
@@ -114,6 +115,21 @@ export function MorningStoryFeed({
     [feedIds, stories]
   )
   const sharedCount = feed.filter((story) => sharedAt[story.row.marketingEntityId]).length
+
+  /** Unshared new arrivals not in the row yet, newest first. */
+  const waiting = useMemo(() => {
+    const shown = new Set(feedIds ?? [])
+    return eligible.filter(
+      (row) => !shown.has(row.marketingEntityId) && !row.usage.storySharedAt && !sharedAt[row.marketingEntityId]
+    )
+  }, [eligible, feedIds, sharedAt])
+
+  function showMore() {
+    setFeedIds((current) => [
+      ...(current ?? []),
+      ...waiting.slice(0, FEED_SIZE).map((row) => row.marketingEntityId),
+    ])
+  }
 
   function toggleCollapsed() {
     setCollapsed((current) => {
@@ -222,7 +238,8 @@ export function MorningStoryFeed({
         <div id="story-feed-body" className="border-t border-mad-black/15 px-3 pb-3 pt-2">
           <p className="mb-3 text-xs text-mad-black/65">
             Save each Story, post it from your phone, paste the shop link into a
-            link sticker, then tick it off.
+            link sticker, then tick it off. Shared Stories leave the row
+            tomorrow; tap More new arrivals at the end for the next ones.
           </p>
 
           {!loaded || (loading && feed.length === 0) ? (
@@ -372,6 +389,19 @@ export function MorningStoryFeed({
                   </li>
                 )
               })}
+              {waiting.length > 0 ? (
+                <li className={cn("flex shrink-0 snap-center", cardWidth)}>
+                  <button
+                    type="button"
+                    onClick={showMore}
+                    className="flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-mad-black/40 text-sm text-mad-black/70 hover:border-mad-black hover:text-mad-black"
+                  >
+                    <Plus className="size-6" aria-hidden />
+                    More new arrivals
+                    <span className="text-xs text-mad-black/55">{waiting.length} waiting</span>
+                  </button>
+                </li>
+              ) : null}
             </ul>
           )}
         </div>

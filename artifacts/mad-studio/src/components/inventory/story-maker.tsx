@@ -154,6 +154,8 @@ export function StoryMaker({
     setBusy("download")
     try {
       const dataUrl = await toPng(node, {
+        // Proxied images differ only by query string; without this they all share one cache entry.
+        includeQueryParams: true,
         cacheBust: true,
         filter: storyExportFilter,
         // Render at Instagram's 1080 × 1920 story size.
