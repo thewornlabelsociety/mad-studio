@@ -5,6 +5,7 @@ import { Link, useLocation } from "wouter"
 import { ArrowRight, Check, Link2, Loader2, RefreshCw, Scissors, Share2, Tag } from "lucide-react"
 import { toast } from "sonner"
 
+import { DotSpecialPanel } from "@/components/templates/dot-special"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { SaleCoverSlide, SaleItemSlide } from "@/components/templates/sale-slides"
 import { Button } from "@/components/ui/button"
@@ -348,6 +349,8 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
           </section>
         </>
       )}
+
+      <DotSpecialPanel entityId={entityId} entityName={entityName} kit={kit} />
     </div>
   )
 }
