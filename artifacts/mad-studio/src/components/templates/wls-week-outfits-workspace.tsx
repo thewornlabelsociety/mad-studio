@@ -44,6 +44,7 @@ import {
   type DayOutfit,
 } from "@/lib/templates/week-outfits"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
+import { useRememberedState } from "@/lib/use-remembered-state"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -129,14 +130,20 @@ export function WlsWeekOutfitsWorkspace({
 }: Props) {
   const [, navigate] = useLocation()
   const slideNodes = useRef<Array<HTMLDivElement | null>>([])
-  const [week, setWeek] = useState<DayOutfit[] | null>(null)
-  const [backgroundId, setBackgroundId] = useState<string | null>(null)
+  const range = useMemo(() => nextWeekRange(), [])
+  // The week's outfits, swaps and placements are kept as a draft for that
+  // week, so leaving the screen doesn't lose them.
+  const draftKey = `mad.weekDraft.${entityId}.${range.start.toDateString()}`
+  const [week, setWeek] = useRememberedState<DayOutfit[] | null>(`${draftKey}.week`, null)
+  const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`${draftKey}.background`, null)
   const [sending, setSending] = useState(false)
   // Hand placements per day (slide index - 1), keyed by piece id.
-  const [adjusts, setAdjusts] = useState<Record<number, Record<string, LayerAdjust>>>({})
+  const [adjusts, setAdjusts] = useRememberedState<Record<number, Record<string, LayerAdjust>>>(
+    `${draftKey}.placements`,
+    {}
+  )
   const [selected, setSelected] = useState<{ day: number; pieceId: string } | null>(null)
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
-  const range = useMemo(() => nextWeekRange(), [])
   const [cover, setCover] = useState<CoverText>(() => readCover(entityId) ?? COVER_PICKS[0].value)
   const dateLine = cover.dateLine ?? formatWeekRange(range)
 
@@ -201,6 +208,14 @@ export function WlsWeekOutfitsWorkspace({
       setWeek(buildWeekOutfits(pieces))
     }
   }, [loaded, loading, week, pieces])
+
+  // A kept draft may name pieces that have since sold: drop them.
+  useEffect(() => {
+    if (!loaded || loading || !week || allPieces.length === 0) return
+    const inStock = new Set(allPieces.map((piece) => piece.id))
+    if (week.every((day) => day.pieceIds.every((id) => inStock.has(id)))) return
+    setWeek(week.map((day) => ({ ...day, pieceIds: day.pieceIds.filter((id) => inStock.has(id)) })))
+  }, [loaded, loading, week, allPieces, setWeek])
 
   useEffect(() => {
     if (!selected) return
@@ -363,7 +378,8 @@ export function WlsWeekOutfitsWorkspace({
           <p className="mt-1 max-w-xl text-sm text-mad-black/70">
             Seven outfits built from what&apos;s on the racks. Drag any piece to
             move it, pull its corner to resize or its top dot to tilt. Then
-            send the slides to Studio to write the caption and schedule.
+            send the slides to Studio to write the caption and schedule. Your
+            changes are kept as a draft on this device until you rebuild.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
