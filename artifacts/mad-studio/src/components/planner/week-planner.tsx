@@ -14,6 +14,7 @@ import {
   Plus,
 } from "lucide-react"
 
+import { TodayToolLinks } from "@/components/today/today-tool-links"
 import { PlatformIcon } from "@/components/ui/app-icons"
 import { fetchCalendarPosts, type CalendarPost } from "@/lib/planner/calendar-posts"
 import {
@@ -312,6 +313,15 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
           ) : null}
         </section>
       </div>
+
+      {isWornLabel ? (
+        <section aria-labelledby="make-heading" className="mx-auto mt-8 grid max-w-6xl gap-2">
+          <h2 id="make-heading" className="font-typewriter text-xs uppercase tracking-widest">
+            Make a post
+          </h2>
+          <TodayToolLinks entityId={entityId} exclude={["/week"]} />
+        </section>
+      ) : null}
     </div>
   )
 }

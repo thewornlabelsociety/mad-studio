@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Link } from "wouter"
-import { PanelLeft, Settings } from "lucide-react"
+import { PanelLeft, Settings, type LucideIcon } from "lucide-react"
 
 import {
   DropdownMenu,
@@ -28,12 +28,22 @@ import { cn } from "@/lib/utils"
 
 const EXPANDED_KEY = "mad-studio-sidebar-expanded"
 
+export type SettingsAction = {
+  id: string
+  label: string
+  description: string
+  icon: LucideIcon
+  onSelect: () => void
+}
+
 type Props = {
   entities: AccessibleEntity[]
   activeEntityId: string | null
   className?: string
   /** Brand Brain / SOP / Account — rendered above the collapse control. */
   utilitySlot?: (expanded: boolean) => ReactNode
+  /** Extra Settings-menu entries that open something rather than a page. */
+  settingsActions?: SettingsAction[]
 }
 
 function NavIconLink({
@@ -108,10 +118,12 @@ function NavSection({
 /** Set-up-once pages live behind one button so the sidebar stays at four. */
 function SettingsMenu({
   items,
+  actions = [],
   pathname,
   expanded,
 }: {
   items: StudioNavItem[]
+  actions?: SettingsAction[]
   pathname: string
   expanded: boolean
 }) {
@@ -166,6 +178,22 @@ function SettingsMenu({
             </DropdownMenuItem>
           )
         })}
+        {actions.map((action) => {
+          const Icon = action.icon
+          return (
+            <DropdownMenuItem
+              key={action.id}
+              onSelect={action.onSelect}
+              className="flex items-start gap-2 rounded-none"
+            >
+              <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span className="flex flex-col">
+                <span>{action.label}</span>
+                <span className="text-xs text-neutral-500">{action.description}</span>
+              </span>
+            </DropdownMenuItem>
+          )
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -176,6 +204,7 @@ export function AppSidebar({
   activeEntityId,
   className,
   utilitySlot,
+  settingsActions,
 }: Props) {
   const pathname = usePathname()
   const [expanded, setExpanded] = useState(false)
@@ -234,6 +263,7 @@ export function AppSidebar({
           <div className="min-h-2 flex-1" aria-hidden />
           <SettingsMenu
             items={settings}
+            actions={settingsActions}
             pathname={pathname}
             expanded={expanded}
           />

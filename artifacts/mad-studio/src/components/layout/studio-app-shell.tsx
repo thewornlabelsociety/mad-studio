@@ -120,6 +120,15 @@ export function StudioAppShell({
       <AppSidebar
         entities={topbarProps.entities}
         activeEntityId={topbarProps.activeEntityId}
+        settingsActions={[
+          {
+            id: "team-sop",
+            label: "Team SOP",
+            description: "Posting guide for the team",
+            icon: BookOpen,
+            onSelect: () => setSopOpen(true),
+          },
+        ]}
         utilitySlot={(expanded) => (
           <div
             className={cn(
@@ -138,14 +147,6 @@ export function StudioAppShell({
                 <Brain className="size-[1.15rem] shrink-0" aria-hidden />
               </SidebarUtilityButton>
             ) : null}
-            <SidebarUtilityButton
-              expanded={expanded}
-              label="Team SOP"
-              tooltip="Team SOP & posting guide"
-              onClick={() => setSopOpen(true)}
-            >
-              <BookOpen className="size-[1.15rem] shrink-0" aria-hidden />
-            </SidebarUtilityButton>
             <AccountMenu
               userEmail={topbarProps.userEmail}
               isOrgAdmin={topbarProps.isOrgAdmin}

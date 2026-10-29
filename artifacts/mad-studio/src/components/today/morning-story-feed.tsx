@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner"
 
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
+import { parseApiJsonResponse } from "@/lib/api/parse-response"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import {
   bakeStoryPng,
@@ -24,6 +25,7 @@ import {
   useKitStories,
   type KitStory,
 } from "@/lib/templates/use-kit-stories"
+import { notifyInventorySynced } from "@/lib/studio/pull-new-arrivals-client"
 import { cn } from "@/lib/utils"
 
 /** How many new arrivals the morning feed offers at once. */
@@ -74,6 +76,7 @@ export function MorningStoryFeed({
   const nodes = useRef<Record<string, HTMLDivElement | null>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(readCollapsed)
+  const [syncing, setSyncing] = useState(false)
 
   // Ids shown in the feed are decided from the first load, then held steady
   // so marking one shared doesn't reshuffle the row.
@@ -141,9 +144,30 @@ export function MorningStoryFeed({
     }
   }
 
-  function onRefresh() {
-    setFeedIds(null)
-    void reload()
+  /** Pull new stock from the shop (also picks up markdowns), then rebuild the feed. */
+  async function onRefresh() {
+    setSyncing(true)
+    try {
+      const response = await fetch("/api/sync/pull-new-arrivals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entityId }),
+      })
+      const payload = await parseApiJsonResponse<{ imported?: number; message?: string; error?: string }>(response)
+      if (!response.ok) throw new Error(payload.error ?? "Couldn't check the shop.")
+      toast.success(
+        payload.imported
+          ? `${payload.imported} new arrival${payload.imported === 1 ? "" : "s"} from the shop.`
+          : "Up to date with the shop."
+      )
+      notifyInventorySynced(entityId)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't check the shop.")
+    } finally {
+      setSyncing(false)
+      setFeedIds(null)
+      void reload()
+    }
   }
 
   const cardWidth = compact ? "w-[168px]" : "w-[min(72vw,260px)]"
@@ -184,13 +208,13 @@ export function MorningStoryFeed({
         ) : null}
         <button
           type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          title="Check for new arrivals"
-          aria-label="Check for new arrivals"
+          onClick={() => void onRefresh()}
+          disabled={loading || syncing}
+          title="Check the shop for new arrivals"
+          aria-label="Check the shop for new arrivals"
           className="flex size-8 items-center justify-center border-2 border-mad-black/30 hover:border-mad-black disabled:opacity-40"
         >
-          {loading ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />}
+          {loading || syncing ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />}
         </button>
       </header>
 
