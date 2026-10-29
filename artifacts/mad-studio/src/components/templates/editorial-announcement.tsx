@@ -11,7 +11,7 @@ export const EDITORIAL_SCRIPT = "'Mrs Saint Delafield', 'Brush Script MT', cursi
 export type EditorialAccent = "none" | "brush" | "oval" | "arrow"
 
 /** Gold for the brush and script: deeper on light backgrounds, cream on mid-tones. */
-function gold(background: StoryBackground): string {
+export function gold(background: StoryBackground): string {
   const hex = background.color.replace("#", "")
   const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
   const light = 0.2126 * r + 0.7152 * g + 0.0722 * b
@@ -51,11 +51,11 @@ const smallCaps: CSSProperties = {
   fontWeight: 400,
 }
 
-function Rule({ color, width = 14 }: { color: string; width?: number }) {
+export function Rule({ color, width = 14 }: { color: string; width?: number }) {
   return <span style={{ display: "block", width: `${width}cqw`, height: "0.25cqw", background: color, opacity: 0.8 }} />
 }
 
-function Brush({ color }: { color: string }) {
+export function Brush({ color }: { color: string }) {
   return (
     <svg viewBox="0 0 200 18" style={{ width: "34cqw", height: "auto", display: "block" }} aria-hidden>
       <path

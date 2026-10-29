@@ -5,6 +5,7 @@ import {
   getActiveOrganizationId,
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
+import { BackButton } from "@/components/layout/back-button"
 import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import { WlsWeekOutfitsWorkspace } from "@/components/templates/wls-week-outfits-workspace"
@@ -88,6 +89,7 @@ export default async function WlsWeekOutfitsPage({ searchParams }: PageProps) {
         ) : null
       }
     >
+      <BackButton fallback={`/week?eid=${encodeURIComponent(activeSummary.id)}`} />
       <WlsWeekOutfitsWorkspace
         entityId={activeSummary.id}
         entityName={entityRow?.name ?? activeSummary.name}

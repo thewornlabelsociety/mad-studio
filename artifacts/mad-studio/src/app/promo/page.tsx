@@ -7,7 +7,8 @@ import {
 } from "@/lib/actions"
 import { CalendarTabs } from "@/components/layout/calendar-tabs"
 import { StudioAppShell } from "@/components/layout/studio-app-shell"
-import { WornLabelPromoBuilder } from "@/components/social-creative/worn-label-promo-builder"
+import { DotSpecialPanel } from "@/components/templates/dot-special"
+import { WLS_STORY_KIT } from "@/lib/brands/story-kit"
 import { resolveEntityType } from "@/lib/social-creative/resolve-entity-type"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_COOKIE } from "@/lib/types"
@@ -73,13 +74,17 @@ export default async function PromoPage({ searchParams }: PromoPageProps) {
           </h1>
           <p className="text-sm text-neutral-600">
             {entityType === "WORN_LABEL"
-              ? "Weekly Color Dot Special graphics for feed and story."
+              ? "Colour dot special: Story, feed card and an A4 sheet for the shop. Also on Sale rack."
               : "Hospitality deal builder arrives in Phase 2."}
           </p>
         </div>
 
         {entityType === "WORN_LABEL" ? (
-          <WornLabelPromoBuilder />
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+            <div className="mx-auto max-w-6xl">
+              <DotSpecialPanel entityId={activeSummary.id} entityName={activeSummary.name} kit={WLS_STORY_KIT} />
+            </div>
+          </div>
         ) : (
           <div className="mx-auto max-w-lg px-4 py-16 text-center">
             <p className="font-typewriter text-sm font-bold tracking-wider uppercase text-mad-black">

@@ -14,6 +14,8 @@ import {
   Plus,
 } from "lucide-react"
 
+import { ComingUp } from "@/components/planner/coming-up"
+import { momentsOnDay } from "@/lib/planner/nz-moments"
 import { TodayToolLinks } from "@/components/today/today-tool-links"
 import { PlatformIcon } from "@/components/ui/app-icons"
 import { fetchCalendarPosts, type CalendarPost } from "@/lib/planner/calendar-posts"
@@ -266,6 +268,27 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
                       ) : null}
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{day.slot.title}</p>
+                        {momentsOnDay(day.date).length > 0 ? (
+                          <div className="mb-0.5 mt-0.5 flex flex-wrap gap-1">
+                            {momentsOnDay(day.date).map((moment) => (
+                              <Link
+                                key={moment.id}
+                                href={`/dates?eid=${encodeURIComponent(entityId)}`}
+                                title={moment.why}
+                                className={cn(
+                                  "rounded-full px-2 py-px text-[10px] font-medium leading-4",
+                                  moment.kind === "school"
+                                    ? "bg-[#D7C4A6]/60 text-mad-black"
+                                    : moment.kind === "sale"
+                                      ? "bg-mad-black text-mad-white"
+                                      : "bg-mad-lime/50 text-mad-black"
+                                )}
+                              >
+                                {moment.name}
+                              </Link>
+                            ))}
+                          </div>
+                        ) : null}
                         <p className="truncate text-xs text-mad-black/60">
                           {day.posts.length > 0
                             ? day.posts
@@ -332,6 +355,12 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
           ) : null}
         </section>
       </div>
+
+      {isWornLabel ? (
+        <div className="mx-auto mt-8 max-w-6xl">
+          <ComingUp entityId={entityId} />
+        </div>
+      ) : null}
 
       {isWornLabel ? (
         <section aria-labelledby="make-heading" className="mx-auto mt-8 grid max-w-6xl gap-2">

@@ -5,6 +5,7 @@ import {
   getActiveOrganizationId,
   isCurrentUserOrgAdmin,
 } from "@/lib/actions"
+import { BackButton } from "@/components/layout/back-button"
 import { StudioAppShell } from "@/components/layout/studio-app-shell"
 import { TeamInviteModal } from "@/components/team/team-invite-modal"
 import { WlsDailyStoryWorkspace } from "@/components/templates/wls-daily-story-workspace"
@@ -90,6 +91,7 @@ export default async function WlsDailyStoryPage({ searchParams }: PageProps) {
         ) : null
       }
     >
+      <BackButton fallback={`/today?eid=${encodeURIComponent(activeSummary.id)}`} />
       <WlsDailyStoryWorkspace
         entityId={activeSummary.id}
         entityName={entityRow?.name ?? activeSummary.name}

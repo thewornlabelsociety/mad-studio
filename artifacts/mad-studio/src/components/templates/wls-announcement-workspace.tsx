@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "wouter"
-import { ArrowRight, Check, Loader2, Share2 } from "lucide-react"
+import { ArrowRight, Check, Globe, Loader2, Plus, Share2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
+import { findMoment } from "@/lib/planner/nz-moments"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
@@ -113,33 +114,122 @@ function draftKey(entityId: string): string {
   return `mad.announcement.${entityId}`
 }
 
-function readDraft(entityId: string): { value: Announcement; backgroundId: string | null } | null {
+type CardDraft = { id: string; value: Announcement; backgroundId: string | null }
+
+const MAX_CARDS = 10
+
+function newCardId(): string {
+  return `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+}
+
+function cleanCard(raw: { value?: Announcement; backgroundId?: string | null; id?: string }): CardDraft | null {
+  if (!raw.value || typeof raw.value.headline !== "string") return null
+  const details = padDetails(Array.isArray(raw.value.details) ? raw.value.details : [])
+  return {
+    id: raw.id ?? newCardId(),
+    value: { ...BLANK, ...raw.value, details },
+    backgroundId: raw.backgroundId ?? null,
+  }
+}
+
+function readDraft(entityId: string): CardDraft[] | null {
   try {
     const raw = window.localStorage.getItem(draftKey(entityId))
     if (!raw) return null
-    const parsed = JSON.parse(raw) as { value?: Announcement; backgroundId?: string | null }
-    if (!parsed.value || typeof parsed.value.headline !== "string") return null
-    const details = padDetails(Array.isArray(parsed.value.details) ? parsed.value.details : [])
-    return { value: { ...BLANK, ...parsed.value, details }, backgroundId: parsed.backgroundId ?? null }
+    const parsed = JSON.parse(raw) as {
+      cards?: Array<{ id?: string; value?: Announcement; backgroundId?: string | null }>
+      value?: Announcement
+      backgroundId?: string | null
+    }
+    const list = Array.isArray(parsed.cards) ? parsed.cards : [parsed]
+    const cards = list.map(cleanCard).filter((card): card is CardDraft => card != null)
+    return cards.length > 0 ? cards.slice(0, MAX_CARDS) : null
   } catch {
     return null
   }
 }
 
+function fromPreset(preset: Preset): CardDraft {
+  return {
+    id: newCardId(),
+    value: { ...preset.value, details: padDetails(preset.value.details) },
+    backgroundId: preset.background,
+  }
+}
+
+/** The card for `?moment=` (an NZ date from Coming up), or null. */
+function cardForMoment(): CardDraft | null {
+  if (typeof window === "undefined") return null
+  const id = new URLSearchParams(window.location.search).get("moment")
+  const moment = id ? findMoment(id, new Date()) : null
+  if (!moment) return null
+  const base = EDITORIAL_PRESETS[0].value
+  return {
+    id: newCardId(),
+    value: {
+      ...base,
+      kicker: moment.card.kicker ?? "",
+      headline: moment.card.headline,
+      script: moment.card.script ?? "",
+      headlineFont: moment.card.headlineFont ?? "serif",
+      accent: "brush",
+      align: "center",
+      details: padDetails(moment.card.details),
+    },
+    backgroundId: moment.card.background,
+  }
+}
+
+/** The headline as one line, for captions and file names. */
+function oneLine(text: string): string {
+  return text.split(/\n/).map((part) => part.trim()).filter(Boolean).join(" ")
+}
+
 /** Sales, opening hours, events: a type-only Story and feed card in the kit. */
 export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null, brandIdentity = null }: Props) {
   const [, navigate] = useLocation()
-  const storyRef = useRef<HTMLDivElement>(null)
-  const cardRef = useRef<HTMLDivElement>(null)
-  const [initial] = useState(() => readDraft(entityId))
-  const [value, setValue] = useState<Announcement>(initial?.value ?? EDITORIAL_PRESETS[0].value)
-  const [backgroundId, setBackgroundId] = useState<string | null>(
-    initial?.backgroundId ?? EDITORIAL_PRESETS[0].background
-  )
+  // Every card renders off screen too, so all of them can be saved at once.
+  const storyRefs = useRef(new Map<string, HTMLDivElement>())
+  const cardRefs = useRef(new Map<string, HTMLDivElement>())
+  // Opened from Coming up: the moment's card joins the set, ready to edit.
+  const [momentCard] = useState(() => cardForMoment())
+  const [cards, setCards] = useState<CardDraft[]>(() => {
+    const saved = readDraft(entityId) ?? []
+    const list = momentCard ? [...saved, momentCard] : saved
+    return list.length > 0 ? list.slice(-MAX_CARDS) : [fromPreset(EDITORIAL_PRESETS[0])]
+  })
+  const [activeId, setActiveId] = useState(() => momentCard?.id ?? cards[0].id)
+
+  useEffect(() => {
+    if (!momentCard) return
+    // Drop ?moment= so a reload doesn't add the card again.
+    const url = new URL(window.location.href)
+    url.searchParams.delete("moment")
+    window.history.replaceState(window.history.state, "", url.toString())
+  }, [momentCard])
+  const active = cards.find((card) => card.id === activeId) ?? cards[0]
+  const value = active.value
+  const backgroundId = active.backgroundId
+
+  function updateActive(patch: (card: CardDraft) => CardDraft) {
+    setCards((current) => current.map((card) => (card.id === active.id ? patch(card) : card)))
+  }
+  function setValue(next: Announcement | ((current: Announcement) => Announcement)) {
+    updateActive((card) => ({ ...card, value: typeof next === "function" ? next(card.value) : next }))
+  }
+  function setBackgroundId(next: string | null) {
+    updateActive((card) => ({ ...card, backgroundId: next }))
+  }
   const editorial = value.style === "editorial"
   const presets = editorial ? EDITORIAL_PRESETS : PRESETS
   const [linkSpace, setLinkSpace] = useState(true)
-  const [busy, setBusy] = useState<"story" | "studio" | null>(null)
+  const [busy, setBusy] = useState<"story" | "studio" | "website" | null>(null)
+  const [siteLink, setSiteLink] = useState("")
+  const [siteUntil, setSiteUntil] = useState(() => {
+    const until = new Date()
+    until.setDate(until.getDate() + 14)
+    return until.toISOString().slice(0, 10)
+  })
 
   const kit = useMemo(
     () =>
@@ -149,15 +239,34 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
       }),
     [entityName, industry, brandIdentity]
   )
-  const background = kit.find((bg) => bg.id === backgroundId) ?? kit[0]
+  const backgroundFor = (id: string | null) => kit.find((bg) => bg.id === id) ?? kit[0]
+  const background = backgroundFor(backgroundId)
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(draftKey(entityId), JSON.stringify({ value, backgroundId }))
+      window.localStorage.setItem(draftKey(entityId), JSON.stringify({ cards }))
     } catch {
       /* the draft just isn't remembered */
     }
-  }, [entityId, value, backgroundId])
+  }, [entityId, cards])
+
+  /** A new card in the same style: the next starting point, so the set varies. */
+  function addCard() {
+    const list = editorial ? EDITORIAL_PRESETS : PRESETS
+    const used = new Set(cards.map((card) => oneLine(card.value.headline)))
+    const preset = list.find((row) => !used.has(oneLine(row.value.headline))) ?? list[cards.length % list.length]
+    const card = fromPreset(preset)
+    setCards((current) => [...current, card].slice(0, MAX_CARDS))
+    setActiveId(card.id)
+  }
+
+  function removeCard(id: string) {
+    if (cards.length <= 1) return
+    const index = cards.findIndex((card) => card.id === id)
+    const next = cards.filter((card) => card.id !== id)
+    setCards(next)
+    if (id === active.id) setActiveId(next[Math.max(0, index - 1)].id)
+  }
 
   function set<K extends keyof Announcement>(key: K, next: Announcement[K]) {
     setValue((current) => ({ ...current, [key]: next }))
@@ -170,13 +279,33 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
     }))
   }
 
+  const readyCards = cards.filter((card) => card.value.headline.trim())
+
   async function saveStory() {
-    if (!storyRef.current) return
     setBusy("story")
     try {
-      const baked = await bakeStoryPng(storyRef.current)
-      const result = await shareOrDownloadStory({ ...baked, filename: "wls-announcement.png" })
-      if (result === "downloaded") toast.success("Story image saved.")
+      const baked: Array<{ dataUrl: string; blob: Blob; filename: string }> = []
+      for (const [index, card] of readyCards.entries()) {
+        const node = storyRefs.current.get(card.id)
+        if (!node) continue
+        baked.push({ ...(await bakeStoryPng(node)), filename: `wls-announcement-${index + 1}.png` })
+      }
+      if (baked.length === 0) return
+      // Phone: one share sheet with every Story. Desktop: one download each.
+      const files = baked.map((row) => new File([row.blob], row.filename, { type: "image/png" }))
+      if (baked.length > 1 && navigator.canShare?.({ files })) {
+        try {
+          await navigator.share({ files })
+        } catch (error) {
+          if (!(error instanceof DOMException && error.name === "AbortError")) throw error
+        }
+        return
+      }
+      let downloaded = 0
+      for (const row of baked) {
+        if ((await shareOrDownloadStory(row)) === "downloaded") downloaded++
+      }
+      if (downloaded > 0) toast.success(downloaded === 1 ? "Story image saved." : `${downloaded} Story images saved.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the image.")
     } finally {
@@ -185,20 +314,25 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
   }
 
   async function sendCard() {
-    if (!cardRef.current) return
     setBusy("studio")
     try {
-      const { blob } = await bakeStoryPng(cardRef.current)
-      const url = await uploadRenderedPng(blob, entityId)
-      const lines = value.details.map((line) => line.trim()).filter(Boolean)
-      const oneLine = (text: string) =>
-        text.split(/\n/).map((part) => part.trim()).filter(Boolean).join(" ")
+      const urls: string[] = []
+      for (const card of readyCards) {
+        const node = cardRefs.current.get(card.id)
+        if (!node) continue
+        const { blob } = await bakeStoryPng(node)
+        urls.push(await uploadRenderedPng(blob, entityId))
+      }
+      if (urls.length === 0) throw new Error("Add a headline first.")
+      // The caption follows the first card; more cards make a carousel.
+      const first = readyCards[0].value
+      const lines = first.details.map((line) => line.trim()).filter(Boolean)
       const caption = [
-        [oneLine(value.kicker), oneLine(value.headline), value.script?.trim()].filter(Boolean).join(" "),
+        [oneLine(first.kicker), oneLine(first.headline), first.script?.trim()].filter(Boolean).join(" "),
         "",
         ...lines,
       ].join("\n").trim()
-      saveStudioSlidesHandoff(entityId, { urls: [url], caption })
+      saveStudioSlidesHandoff(entityId, { urls, caption })
       navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the card.")
@@ -206,7 +340,40 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
     }
   }
 
-  const ready = value.headline.trim().length > 0
+  /** The card being edited goes on the website home page until the date set. */
+  async function putOnWebsite() {
+    const node = cardRefs.current.get(active.id)
+    if (!node || !value.headline.trim()) return
+    setBusy("website")
+    try {
+      const { blob } = await bakeStoryPng(node)
+      const imageUrl = await uploadRenderedPng(blob, entityId)
+      const ends = siteUntil ? new Date(`${siteUntil}T23:59:59`) : null
+      const response = await fetch("/api/website/announcement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityId,
+          externalId: `announcement-${active.id}`,
+          imageUrl,
+          headline: [oneLine(value.headline), value.script?.trim()].filter(Boolean).join(" "),
+          body: value.details.map((line) => line.trim()).filter(Boolean).join(" · ") || undefined,
+          linkUrl: siteLink.trim() || undefined,
+          endsAt: ends && !Number.isNaN(ends.getTime()) ? ends.toISOString() : undefined,
+        }),
+      })
+      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      if (!response.ok) throw new Error(payload.error || "Couldn't reach the website.")
+      toast.success("On the website home page.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't put it on the website.")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const ready = readyCards.length > 0
+  const count = readyCards.length
   const field = "h-9 w-full border-2 border-mad-black bg-white px-2 text-sm"
 
   return (
@@ -407,10 +574,52 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
           <h2 id="announce-previews" className="font-typewriter text-xs uppercase tracking-widest">
             Story and feed card
           </h2>
+          <ol className="flex flex-wrap items-start gap-2" aria-label="Cards">
+            {cards.map((card, index) => (
+              <li key={card.id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setActiveId(card.id)}
+                  aria-pressed={card.id === active.id}
+                  aria-label={`Edit card ${index + 1}`}
+                  title={oneLine(card.value.headline) || `Card ${index + 1}`}
+                  className={cn(
+                    "block w-14 overflow-hidden rounded-sm border-2",
+                    card.id === active.id ? "border-mad-black" : "border-transparent opacity-70 hover:opacity-100"
+                  )}
+                >
+                  <AnnouncementCard background={backgroundFor(card.backgroundId)} brandName={entityName} announcement={card.value} />
+                </button>
+                {cards.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => removeCard(card.id)}
+                    title="Remove this card"
+                    aria-label={`Remove card ${index + 1}`}
+                    className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full border border-mad-black bg-white text-mad-black hover:bg-mad-black hover:text-mad-white"
+                  >
+                    <X className="size-3" aria-hidden />
+                  </button>
+                ) : null}
+              </li>
+            ))}
+            {cards.length < MAX_CARDS ? (
+              <li>
+                <button
+                  type="button"
+                  onClick={addCard}
+                  title="Add another card"
+                  aria-label="Add another card"
+                  className="flex h-[4.4rem] w-14 items-center justify-center rounded-sm border-2 border-dashed border-mad-black/40 text-mad-black/70 hover:border-mad-black hover:text-mad-black"
+                >
+                  <Plus className="size-5" aria-hidden />
+                </button>
+              </li>
+            ) : null}
+          </ol>
           <div className="flex flex-wrap items-start gap-5">
             <div className="flex w-[230px] flex-col gap-2">
               <AnnouncementStory
-                ref={storyRef}
                 background={background}
                 brandName={entityName}
                 announcement={value}
@@ -424,12 +633,11 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
                 onClick={() => void saveStory()}
               >
                 {busy === "story" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Share2 className="mr-2 size-4" />}
-                Save Story image
+                {count > 1 ? `Save ${count} Story images` : "Save Story image"}
               </Button>
             </div>
             <div className="flex w-[280px] flex-col gap-2">
               <AnnouncementCard
-                ref={cardRef}
                 background={background}
                 brandName={entityName}
                 announcement={value}
@@ -441,14 +649,87 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
                 className="border-2 border-mad-black"
                 disabled={!ready || busy != null}
                 onClick={() => void sendCard()}
-                title="Open the card in Studio to schedule it"
+                title={count > 1 ? "Open the cards in Studio as a carousel" : "Open the card in Studio to schedule it"}
               >
                 {busy === "studio" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-                Send card to Studio
+                {count > 1 ? `Send ${count} cards to Studio` : "Send card to Studio"}
               </Button>
             </div>
           </div>
+          <div className="grid max-w-[535px] gap-2 border-2 border-mad-black/15 bg-white p-3">
+            <h3 className="flex items-center gap-1.5 font-typewriter text-xs uppercase tracking-widest">
+              <Globe className="size-3.5" aria-hidden />
+              Website home page
+            </h3>
+            <p className="text-xs text-mad-black/65">
+              Shows the card you&apos;re editing on wornlabelsociety.co.nz until the date below.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <label className="grid gap-1 text-xs">
+                <span className="font-typewriter uppercase tracking-widest">Link to (optional)</span>
+                <input
+                  id="announce-site-link"
+                  className={field}
+                  value={siteLink}
+                  maxLength={500}
+                  placeholder="e.g. /shop or a product link"
+                  onChange={(e) => setSiteLink(e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-xs">
+                <span className="font-typewriter uppercase tracking-widest">Show until</span>
+                <input
+                  id="announce-site-until"
+                  type="date"
+                  className={field}
+                  value={siteUntil}
+                  onChange={(e) => setSiteUntil(e.target.value)}
+                />
+              </label>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-self-start border-2 border-mad-black"
+              disabled={!value.headline.trim() || busy != null}
+              onClick={() => void putOnWebsite()}
+            >
+              {busy === "website" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Globe className="mr-2 size-4" />}
+              Put on website
+            </Button>
+          </div>
         </section>
+      </div>
+
+      {/* Full-size copies of every card for saving; never shown. */}
+      <div aria-hidden className="pointer-events-none fixed -left-[10000px] top-0" data-export-ignore="true">
+        {cards.map((card) => (
+          <div key={card.id} className="flex gap-4">
+            <div className="w-[230px]">
+              <AnnouncementStory
+                ref={(node) => {
+                  if (node) storyRefs.current.set(card.id, node)
+                  else storyRefs.current.delete(card.id)
+                }}
+                background={backgroundFor(card.backgroundId)}
+                brandName={entityName}
+                announcement={card.value}
+                linkSpace={linkSpace}
+              />
+            </div>
+            <div className="w-[280px]">
+              <AnnouncementCard
+                ref={(node) => {
+                  if (node) cardRefs.current.set(card.id, node)
+                  else cardRefs.current.delete(card.id)
+                }}
+                background={backgroundFor(card.backgroundId)}
+                brandName={entityName}
+                announcement={card.value}
+              />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
