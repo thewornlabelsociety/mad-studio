@@ -221,24 +221,23 @@ export const OutfitSlide = forwardRef<
   )
 })
 
-/** Slide 1: A WEEK OF OUTFITS, the dates, and the week's pieces fanned out. */
+/** Slide 1, type only: A WEEK OF OUTFITS, the dates, and each day with its vibe. */
 export const OutfitCoverSlide = forwardRef<
   HTMLDivElement,
   {
     background: StoryBackground
     brandName: string
     dateRange: string
-    imageUrls: string[]
+    days: Array<{ day: string; vibe: string | null }>
     className?: string
   }
->(function OutfitCoverSlide({ background, brandName, dateRange, imageUrls, className }, ref) {
-  const fan = imageUrls.slice(0, 7)
+>(function OutfitCoverSlide({ background, brandName, dateRange, days, className }, ref) {
   return (
     <div ref={ref} className={className} style={frame(background)}>
       <div style={{ position: "absolute", top: "6cqw", right: "6cqw" }}>
         <Wordmark brandName={brandName} accent={background.accent_color} />
       </div>
-      <div style={{ position: "absolute", left: "6cqw", right: "6cqw", top: "14%" }}>
+      <div style={{ position: "absolute", left: "6cqw", right: "6cqw", top: "16%" }}>
         <p style={{ ...caps, fontSize: "5cqw", letterSpacing: "0.3em", color: background.accent_color }}>A week of</p>
         <p style={{ ...caps, fontWeight: 700, fontSize: "17cqw", letterSpacing: "0.04em", lineHeight: 0.95, marginTop: "1cqw" }}>
           Outfits
@@ -246,31 +245,32 @@ export const OutfitCoverSlide = forwardRef<
         <p style={{ ...caps, fontSize: "3.6cqw", letterSpacing: "0.22em", marginTop: "3cqw" }}>{dateRange}</p>
       </div>
 
-      <div style={{ position: "absolute", left: "4cqw", right: "4cqw", top: "48%", bottom: "16cqw" }}>
-        {fan.map((url, index) => {
-          const step = fan.length > 1 ? index / (fan.length - 1) : 0.5
-          return (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={`${url}-${index}`}
-              src={url}
-              alt=""
-              crossOrigin="anonymous"
-              style={{
-                position: "absolute",
-                left: `${step * 70}%`,
-                top: `${index % 2 === 0 ? 4 : 14}%`,
-                width: "30%",
-                height: "82%",
-                objectFit: "contain",
-                transform: `rotate(${(step - 0.5) * 18}deg)`,
-                zIndex: index % 2 === 0 ? 2 : 1,
-                filter: "drop-shadow(0 2cqw 2.4cqw rgba(0,0,0,0.3))",
-              }}
-            />
-          )
-        })}
-      </div>
+      <ol
+        style={{
+          position: "absolute",
+          left: "6cqw",
+          right: "6cqw",
+          top: "45%",
+          margin: 0,
+          padding: 0,
+          listStyle: "none",
+          display: "grid",
+          gap: "2.2cqw",
+          borderTop: `0.3cqw solid ${background.text_color}`,
+          paddingTop: "3.4cqw",
+        }}
+      >
+        {days.map((row) => (
+          <li key={row.day} style={{ display: "flex", gap: "4cqw", alignItems: "baseline" }}>
+            <span style={{ ...caps, fontWeight: 700, fontSize: "3.4cqw", letterSpacing: "0.2em", width: "14cqw", flexShrink: 0 }}>
+              {row.day.slice(0, 3)}
+            </span>
+            <span style={{ ...caps, fontSize: "3.2cqw", letterSpacing: "0.2em", color: background.accent_color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {row.vibe ?? "Outfit of the day"}
+            </span>
+          </li>
+        ))}
+      </ol>
 
       <p
         style={{
