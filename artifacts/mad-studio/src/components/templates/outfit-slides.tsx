@@ -221,56 +221,28 @@ export const OutfitSlide = forwardRef<
   )
 })
 
-/** Slide 1, type only: A WEEK OF OUTFITS, the dates, and each day with its vibe. */
+/** Slide 1, type only: A WEEK OF OUTFITS and the dates. */
 export const OutfitCoverSlide = forwardRef<
   HTMLDivElement,
   {
     background: StoryBackground
     brandName: string
     dateRange: string
-    days: Array<{ day: string; vibe: string | null }>
     className?: string
   }
->(function OutfitCoverSlide({ background, brandName, dateRange, days, className }, ref) {
+>(function OutfitCoverSlide({ background, brandName, dateRange, className }, ref) {
   return (
     <div ref={ref} className={className} style={frame(background)}>
       <div style={{ position: "absolute", top: "6cqw", right: "6cqw" }}>
         <Wordmark brandName={brandName} accent={background.accent_color} />
       </div>
-      <div style={{ position: "absolute", left: "6cqw", right: "6cqw", top: "16%" }}>
+      <div style={{ position: "absolute", left: "6cqw", right: "6cqw", top: "50%", transform: "translateY(-50%)" }}>
         <p style={{ ...caps, fontSize: "5cqw", letterSpacing: "0.3em", color: background.accent_color }}>A week of</p>
         <p style={{ ...caps, fontWeight: 700, fontSize: "17cqw", letterSpacing: "0.04em", lineHeight: 0.95, marginTop: "1cqw" }}>
           Outfits
         </p>
         <p style={{ ...caps, fontSize: "3.6cqw", letterSpacing: "0.22em", marginTop: "3cqw" }}>{dateRange}</p>
       </div>
-
-      <ol
-        style={{
-          position: "absolute",
-          left: "6cqw",
-          right: "6cqw",
-          top: "45%",
-          margin: 0,
-          padding: 0,
-          listStyle: "none",
-          display: "grid",
-          gap: "2.2cqw",
-          borderTop: `0.3cqw solid ${background.text_color}`,
-          paddingTop: "3.4cqw",
-        }}
-      >
-        {days.map((row) => (
-          <li key={row.day} style={{ display: "flex", gap: "4cqw", alignItems: "baseline" }}>
-            <span style={{ ...caps, fontWeight: 700, fontSize: "3.4cqw", letterSpacing: "0.2em", width: "14cqw", flexShrink: 0 }}>
-              {row.day.slice(0, 3)}
-            </span>
-            <span style={{ ...caps, fontSize: "3.2cqw", letterSpacing: "0.2em", color: background.accent_color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {row.vibe ?? "Outfit of the day"}
-            </span>
-          </li>
-        ))}
-      </ol>
 
       <p
         style={{

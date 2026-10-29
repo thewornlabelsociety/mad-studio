@@ -224,7 +224,6 @@ export function WlsWeekOutfitsWorkspace({
     )
   }
 
-  const coverDays = (week ?? []).map((day) => ({ day: day.day, vibe: dayVibe(day) }))
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
@@ -323,7 +322,6 @@ export function WlsWeekOutfitsWorkspace({
               background={background}
               brandName={entityName}
               dateRange={formatWeekRange(range)}
-              days={coverDays}
               className="rounded-sm shadow-md"
             />
             <p className="font-typewriter text-[10px] uppercase tracking-widest text-mad-black/55">Slide 1 · Cover</p>
