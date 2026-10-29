@@ -1,7 +1,7 @@
 /**
- * Step 1 lives on `/today`. Create rail is Media → Canvas → Intent → Copy → Schedule.
- * URL `?step=` uses these ids (2–6). The Create chrome numbers the rail 1–5 in order,
- * so Canvas is rail step 2 (`?step=3`).
+ * Step 1 lives on `/today`. Create rail is Pick → Make → Post: Media, Canvas,
+ * then Copy (who it's for + caption) running on into Schedule (channels and
+ * times). Intent is folded into Copy; `?step=4` lands on Copy.
  */
 export const WORKBENCH_STEP_TODAY = 1 as const
 export const WORKBENCH_STEP_MEDIA = 2 as const
@@ -24,19 +24,24 @@ export type WorkbenchFlowStep =
   | typeof WORKBENCH_STEP_CHANNELS
 
 export const STUDIO_WIZARD_STEPS = [
-  { id: WORKBENCH_STEP_MEDIA, label: "Media" },
-  { id: WORKBENCH_STEP_CANVAS, label: "Canvas" },
-  { id: WORKBENCH_STEP_INTENT, label: "Intent" },
-  { id: WORKBENCH_STEP_COPY, label: "Copy" },
-  { id: WORKBENCH_STEP_CHANNELS, label: "Schedule" },
+  { id: WORKBENCH_STEP_MEDIA, label: "Pick" },
+  { id: WORKBENCH_STEP_CANVAS, label: "Make" },
+  { id: WORKBENCH_STEP_COPY, label: "Post" },
 ] as const
+
+/** The rail step to light up: Schedule is the end of Post. */
+export function wizardRailStep(step: WorkbenchFlowStep): WorkbenchFlowStep {
+  if (step === WORKBENCH_STEP_CHANNELS || step === WORKBENCH_STEP_INTENT) {
+    return WORKBENCH_STEP_COPY
+  }
+  return step
+}
 
 export function clampWorkbenchStep(value: number): WorkbenchFlowStep {
   if (value <= 1) return WORKBENCH_STEP_TODAY
   if (value === 2) return WORKBENCH_STEP_MEDIA
   if (value === 3) return WORKBENCH_STEP_CANVAS
-  if (value === 4) return WORKBENCH_STEP_INTENT
-  if (value === 5) return WORKBENCH_STEP_COPY
+  if (value === 4 || value === 5) return WORKBENCH_STEP_COPY
   return WORKBENCH_STEP_CHANNELS
 }
 
@@ -50,16 +55,18 @@ export function parseWorkbenchStepParam(
 
 export function nextWorkbenchStep(step: WorkbenchFlowStep): WorkbenchFlowStep {
   if (step === WORKBENCH_STEP_MEDIA) return WORKBENCH_STEP_CANVAS
-  if (step === WORKBENCH_STEP_CANVAS) return WORKBENCH_STEP_INTENT
-  if (step === WORKBENCH_STEP_INTENT) return WORKBENCH_STEP_COPY
+  if (step === WORKBENCH_STEP_CANVAS || step === WORKBENCH_STEP_INTENT) {
+    return WORKBENCH_STEP_COPY
+  }
   if (step === WORKBENCH_STEP_COPY) return WORKBENCH_STEP_CHANNELS
   return step
 }
 
 export function prevWorkbenchStep(step: WorkbenchFlowStep): WorkbenchFlowStep {
   if (step === WORKBENCH_STEP_CHANNELS) return WORKBENCH_STEP_COPY
-  if (step === WORKBENCH_STEP_COPY) return WORKBENCH_STEP_INTENT
-  if (step === WORKBENCH_STEP_INTENT) return WORKBENCH_STEP_CANVAS
+  if (step === WORKBENCH_STEP_COPY || step === WORKBENCH_STEP_INTENT) {
+    return WORKBENCH_STEP_CANVAS
+  }
   if (step === WORKBENCH_STEP_CANVAS) return WORKBENCH_STEP_MEDIA
   return step
 }

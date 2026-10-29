@@ -62,9 +62,9 @@ export function StepMedia({
     <StudioStepPanel
       compactHeader
       className={className}
-      kicker="I · Media"
-      title="Photos, reels & library"
-      description="Upload or pick from the library, or start from a brand template. WLS listings you choose below appear in the media tray first."
+      kicker="1 · Pick"
+      title="Photos and video"
+      description="Upload, open the library, or tap shop items below to add them."
       scrollBody={false}
     >
       {templatePickerSlot}

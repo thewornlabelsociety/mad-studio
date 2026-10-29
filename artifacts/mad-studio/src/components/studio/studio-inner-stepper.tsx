@@ -4,6 +4,7 @@ import { CircleHelp } from "lucide-react"
 
 import {
   STUDIO_WIZARD_STEPS,
+  wizardRailStep,
   type WorkbenchFlowStep,
 } from "@/lib/studio/workbench-steps"
 import { studioWizardSopForStep } from "@/lib/studio/studio-wizard-sop"
@@ -33,8 +34,8 @@ export function StudioInnerStepper({ step, onStepChange, className }: Props) {
       >
         <ol className="flex gap-0.5 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] md:gap-1 [&::-webkit-scrollbar]:hidden">
           {STUDIO_WIZARD_STEPS.map((item, index) => {
-            const active = step === item.id
-            const complete = step > item.id
+            const active = wizardRailStep(step) === item.id
+            const complete = wizardRailStep(step) > item.id
             const itemSop = studioWizardSopForStep(item.id)
             const tabButton = (
               <button

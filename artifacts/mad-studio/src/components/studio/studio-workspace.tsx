@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { Link } from "wouter"
 import { useRouter, useSearchParams } from "@/lib/next-compat"
-import { ChevronDown, Loader2 } from "lucide-react"
+import { ChevronDown, Loader2, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -377,6 +377,8 @@ export function StudioWorkspace({
   const [visualInspection, setVisualInspection] =
     useState<MediaVisualInspection | null>(null)
   const [pack, setPack] = useState<CampaignPack | null>(null)
+  /** The caption a quick (no-AI) pack was built from; null for AI or restored packs. */
+  const quickPackCaption = useRef<string | null>(null)
   const [campaignId, setCampaignId] = useState<string | null>(null)
   const [editorSession, setEditorSession] = useState(0)
   const [multiplexing, setMultiplexing] = useState(false)
@@ -2287,7 +2289,7 @@ export function StudioWorkspace({
     if (plannerHandoff) {
       setRawSpark(buildPlannerStudioSpark(plannerHandoff))
       setWorkbenchHeadline(plannerHandoff.hook.slice(0, 200))
-      setWorkbenchStep(WORKBENCH_STEP_INTENT)
+      setWorkbenchStep(WORKBENCH_STEP_COPY)
       const fromUrl = searchParams.get("prompt")?.trim() ?? ""
       if (fromUrl) {
         const params = new URLSearchParams(searchParams.toString())
@@ -2400,15 +2402,22 @@ export function StudioWorkspace({
           .slice(0, 80) || undefined,
     })
 
-    setPack(withStudioTags(nextPack))
+    // The caption written on Post is exactly what publishes; the formula
+    // only fills the spoken hook and on-screen line.
+    setPack(
+      withStudioTags({
+        ...nextPack,
+        seo_caption: { ...nextPack.seo_caption, caption_body: spark.slice(0, 2200) },
+      })
+    )
+    quickPackCaption.current = spark
     setCampaignId(null)
     setRedirectSlugSeed(
       isFudi ? buildFudiRedirectSlugSeed(fudiTrack, spark) : null
     )
     setEditorSession((value) => value + 1)
     setRestoredAt(null)
-    setWorkbenchStep(WORKBENCH_STEP_INTENT)
-    toast.success("Formula pack rendered — zero AI tokens.")
+    setWorkbenchStep(WORKBENCH_STEP_CHANNELS)
   }
 
   function withStudioTags(next: CampaignPack): CampaignPack {
@@ -2487,6 +2496,7 @@ export function StudioWorkspace({
         (isFudi ? buildFudiRedirectSlugSeed(fudiTrack, spark) : null)
 
       setPack(withStudioTags(payload.pack))
+      quickPackCaption.current = null
       setCampaignId(nextCampaignId)
       setRedirectSlugSeed(nextSlugSeed)
       // The server echoes the first photo back; only adopt it for a single
@@ -2848,6 +2858,7 @@ export function StudioWorkspace({
       setPersonaId(personas[0]?.id ?? "")
     }
     setActiveHookId(null)
+    quickPackCaption.current = null
     setWorkbenchStep(WORKBENCH_STEP_MEDIA)
     syncPackUrl(null)
   }
@@ -2859,9 +2870,20 @@ export function StudioWorkspace({
   function onStudioNext() {
     if (workbenchStep === WORKBENCH_STEP_COPY) {
       if (rawSpark.trim().length < 8) {
-        toast.message("Add a short spark (at least 8 characters) before schedule.")
+        toast.message("Write a short caption first (at least 8 characters).")
         return
       }
+      // Build the post from this caption (no AI) unless there's already one
+      // for it; an AI-written or restored post is kept as it is.
+      const stale =
+        quickPackCaption.current != null &&
+        quickPackCaption.current !== rawSpark.trim()
+      if (!pack || stale) {
+        renderFormulaPack()
+        return
+      }
+      setWorkbenchStep(WORKBENCH_STEP_CHANNELS)
+      return
     }
     if (workbenchStep === WORKBENCH_STEP_CHANNELS) {
       void activateMultiplexer()
@@ -3014,7 +3036,7 @@ export function StudioWorkspace({
     if (textOverlay.animation !== "none") parts.push("Motion")
     if (textOverlay.shadow !== "none") parts.push("Shadow")
     if (textOverlay.highlight !== "none") parts.push("Highlight")
-    return parts.length > 0 ? parts.join(" · ") : "No on-canvas text"
+    return parts.length > 0 ? parts.join(" · ") : "No words on the picture"
   })()
   const copyStepSummary =
     workbenchHeadline.trim() || rawSpark.trim()
@@ -3146,7 +3168,7 @@ export function StudioWorkspace({
         textOverlay={textOverlay}
         onTextOverlayChange={setTextOverlay}
         tagsSlot={
-          phase === "copy" ? (
+          phase === "copy" || phase === "post" ? (
             <OptimizationTagsEditor
               entityId={activeEntity.id}
               tags={optimizationTags}
@@ -3196,6 +3218,7 @@ export function StudioWorkspace({
           ) : null
         }
         intentFieldSet={isFudi ? "full" : "focus"}
+        intentSummary={intentStepSummary}
         audienceToneCue={toneGoalSuffix}
         postFocusLabel={resolvedFocusChip?.label ?? null}
         stillPhotoCount={
@@ -3206,7 +3229,29 @@ export function StudioWorkspace({
         carouselMergedVision={
           carouselMergedVision.visualDescription || null
         }
-        footerSlot={null}
+        footerSlot={
+          phase === "post" ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-mad-black/15 pt-3">
+              <p className="text-xs text-neutral-600">
+                Or let AI write the whole post: a caption for each channel and
+                a video script.
+              </p>
+              <button
+                type="button"
+                onClick={() => void activateMultiplexer()}
+                disabled={multiplexing || pending || rehydrating}
+                className="inline-flex items-center gap-1.5 border border-mad-black/40 px-3 py-1.5 text-xs font-medium text-mad-black hover:border-mad-black disabled:opacity-50"
+              >
+                {multiplexing ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles className="size-3.5" aria-hidden />
+                )}
+                {multiplexing ? "Writing…" : "Write it with AI"}
+              </button>
+            </div>
+          ) : null
+        }
         canvasSlot={
           phase === "canvas" ? (
             <div className="space-y-3">
@@ -3366,15 +3411,15 @@ export function StudioWorkspace({
             nextBusy={multiplexing || (pending && !arming)}
             nextLabel={
               workbenchStep === WORKBENCH_STEP_MEDIA
-                ? "Continue to Canvas"
+                ? "Next: Make"
                 : workbenchStep === WORKBENCH_STEP_CANVAS
-                  ? "Continue to Intent"
+                  ? "Next: Post"
                   : workbenchStep === WORKBENCH_STEP_INTENT
-                    ? "Continue to Copy"
+                    ? "Next: Post"
                     : workbenchStep === WORKBENCH_STEP_COPY
-                      ? "Continue to Schedule"
+                      ? "Channels & time"
                       : workbenchStep === WORKBENCH_STEP_CHANNELS && !showStudio
-                        ? "Generate pack"
+                        ? "Write it with AI"
                         : undefined
             }
             nextDisabled={
@@ -3499,19 +3544,11 @@ export function StudioWorkspace({
         }
         controls={
           <div className="flex min-h-0 w-full flex-col gap-2">
-            {workbenchStep === WORKBENCH_STEP_INTENT ||
-            workbenchStep === WORKBENCH_STEP_COPY ? (
-              <StudioStepSummary
-                title="Canvas"
-                summary={canvasStepSummary}
-                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_CANVAS)}
-              />
-            ) : null}
             {workbenchStep === WORKBENCH_STEP_COPY ? (
               <StudioStepSummary
-                title="Intent"
-                summary={intentStepSummary}
-                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_INTENT)}
+                title="Make"
+                summary={canvasStepSummary}
+                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_CANVAS)}
               />
             ) : null}
             <div className="flex min-h-0 w-full flex-col pb-1">
@@ -3563,7 +3600,7 @@ export function StudioWorkspace({
           ? renderCustomizePhase("canvas")
           : null}
         {workbenchStep === WORKBENCH_STEP_COPY
-          ? renderCustomizePhase("copy")
+          ? renderCustomizePhase("post")
           : null}
 
         {workbenchStep === WORKBENCH_STEP_CHANNELS ? (

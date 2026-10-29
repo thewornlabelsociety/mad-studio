@@ -23,7 +23,7 @@ export const STUDIO_WIZARD_STEP_SOP: Record<
   StudioWizardStepSop
 > = {
   [WORKBENCH_STEP_MEDIA]: {
-    hint: "Add at least one still or reel from the library or upload — then polish on Canvas.",
+    hint: "Pick the photos or video for this post.",
     checklist: [
       "Open Add → pick intake or uploads (carousel = 2+ stills).",
       "Select the hero clip in the tray; drag thumbnails to set carousel order; use CapCut / PhotoRoom if you need an edit.",
@@ -41,7 +41,7 @@ export const STUDIO_WIZARD_STEP_SOP: Record<
     ],
   },
   [WORKBENCH_STEP_CANVAS]: {
-    hint: "Story tools (cutout, CapCut, PhotoRoom) + drag on-image text — caption on Copy.",
+    hint: "Cut out, choose the background and place the words on the picture.",
     checklist: [
       "Use **Story tools**: CapCut, PhotoRoom, and **Cut out item** for IG Story.",
       "After cutout, set Story card background, item size, and position.",
@@ -50,12 +50,12 @@ export const STUDIO_WIZARD_STEP_SOP: Record<
     ],
   },
   [WORKBENCH_STEP_COPY]: {
-    hint: "Brain hooks for opening line; Suggest with AI for caption (media + Intent).",
+    hint: "Write the caption, check who it's for, then pick channels and times.",
     checklist: [
-      "Tap an opening line from Brain (built from media + Intent) — no duplicate hook AI.",
-      "Caption: Suggest with AI uses vision, pillar, persona, CTA, and on-canvas text.",
-      "Use AI assist or formula slots for $0 render packs.",
-      "Confirm trackable destination / spark text before scheduling.",
+      "The caption you write here is exactly what posts.",
+      "Suggest with AI drafts one from the photo; edit before posting.",
+      "Who it's for (tone, focus, topic) only steers AI suggestions.",
+      "Next: choose channels and times, then Review & schedule.",
     ],
   },
   [WORKBENCH_STEP_CHANNELS]: {
