@@ -7,8 +7,10 @@ import {
   Copy,
   Download,
   Loader2,
+  Move,
   Pencil,
   RefreshCw,
+  RotateCcw,
   Save,
   Scissors,
   Share2,
@@ -17,6 +19,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { isAdjusted } from "@/components/templates/adjustable-layer"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
@@ -68,6 +71,7 @@ export function WlsDailyStoryWorkspace({
   const [studioPickIds, setStudioPickIds] = useState<string[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
+  const [subjectSelected, setSubjectSelected] = useState(false)
 
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
 
@@ -100,6 +104,7 @@ export function WlsDailyStoryWorkspace({
 
   useEffect(() => {
     setFailure(null)
+    setSubjectSelected(false)
   }, [selectedId])
 
   const story = selectedId ? stories.get(selectedId) ?? null : null
@@ -315,8 +320,10 @@ export function WlsDailyStoryWorkspace({
                 vibe={story.vibe}
                 designer={story.designer}
                 sizeLabel={story.sizeLabel}
-                subjectScale={story.subjectScale}
-                subjectOffsetY={story.subjectOffsetY}
+                subject={story.subject}
+                onSubjectChange={(next) => selectedId && patch(selectedId, { subject: next })}
+                subjectSelected={subjectSelected}
+                onSubjectSelect={setSubjectSelected}
               />
             ) : (
               <div
@@ -414,36 +421,23 @@ export function WlsDailyStoryWorkspace({
           </dl>
 
           <div className="grid gap-3 text-xs">
-            <label className="grid gap-1">
-              <span className="font-typewriter uppercase tracking-widest">Item size</span>
-              <input
-                id="story-scale"
-                type="range"
-                min={0.7}
-                max={1.3}
-                step={0.01}
-                disabled={!story}
-                value={story?.subjectScale ?? 1}
-                onChange={(event) =>
-                  selectedId && patch(selectedId, { subjectScale: Number(event.target.value) })
-                }
-              />
-            </label>
-            <label className="grid gap-1">
-              <span className="font-typewriter uppercase tracking-widest">Move up or down</span>
-              <input
-                id="story-offset"
-                type="range"
-                min={-10}
-                max={10}
-                step={1}
-                disabled={!story}
-                value={story?.subjectOffsetY ?? 0}
-                onChange={(event) =>
-                  selectedId && patch(selectedId, { subjectOffsetY: Number(event.target.value) })
-                }
-              />
-            </label>
+            <div className="flex items-start justify-between gap-3">
+              <p className="flex items-start gap-1.5 text-mad-black/65">
+                <Move className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                Drag the item on the Story to move it. Pull its corner to
+                resize, or the dot above it to tilt.
+              </p>
+              <button
+                type="button"
+                disabled={!story || !isAdjusted(story.subject)}
+                onClick={() => selectedId && patch(selectedId, { subject: undefined })}
+                title="Put the item back in the middle"
+                aria-label="Reset the item position"
+                className="flex size-8 shrink-0 items-center justify-center border-2 border-mad-black/30 hover:border-mad-black disabled:opacity-30"
+              >
+                <RotateCcw className="size-3.5" aria-hidden />
+              </button>
+            </div>
             {story?.cutoutUrl ? (
               <label className="flex items-center gap-2 text-sm">
                 <input

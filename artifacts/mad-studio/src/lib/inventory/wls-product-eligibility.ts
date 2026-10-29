@@ -6,6 +6,10 @@ import {
 } from "./listing-availability.ts"
 import { compareNewestArrival } from "./arrival-order.ts"
 import {
+  categoryFromDescription,
+  type GarmentGender,
+} from "./listing-garment.ts"
+import {
   mapMarketingEntityRow,
   type MarketingEntity,
   type MarketingEntityStatus,
@@ -56,6 +60,9 @@ export type WlsProductSelection = {
   description: string | null
   /** Shop-by-Vibe label from the website listing, when it has one. */
   vibe?: string | null
+  /** Marketplace category ("Tops", "Bottoms"), from the listing or its description. */
+  category?: string | null
+  gender?: GarmentGender | null
   /** Explicit listing size only — never invented. */
   size: string | null
   price: number | null
@@ -306,6 +313,8 @@ export function evaluateWlsProductEligibility(
     title,
     description: item.description,
     vibe: item.vibe ?? null,
+    category: item.listing_category ?? categoryFromDescription(item.description),
+    gender: item.listing_gender ?? null,
     size: verifiedSize,
     price: item.price == null ? null : Number(item.price),
     currency: item.listing_currency,

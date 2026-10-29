@@ -35,6 +35,9 @@ export type PulledArrival = {
   images: string[]
   vibe: string | null
   aesthetic_slugs: string[]
+  /** Marketplace category and gender (Worn Label feeds). */
+  category?: string | null
+  gender?: string | null
   availability: ListingAvailability
   listing_url: string | null
 }
@@ -374,6 +377,8 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
         images: collectImages(record),
         vibe: aesthetics.vibe,
         aesthetic_slugs: aesthetics.aesthetic_slugs,
+        category: stringField(record, "category", "subCategory"),
+        gender: stringField(record, "gender", "department"),
         availability: classifyWornLabelAvailability(record),
         listing_url: listingUrlFromRecord(record),
       })
@@ -425,6 +430,8 @@ function parseWornLabelItems(payload: unknown): PulledArrival[] {
         images: collectImages(record),
         vibe: aesthetics.vibe,
         aesthetic_slugs: aesthetics.aesthetic_slugs,
+        category: stringField(record, "category", "subCategory"),
+        gender: stringField(record, "gender", "department"),
         availability: classifyWornLabelAvailability(record),
         listing_url: listingUrlFromRecord(record),
       })

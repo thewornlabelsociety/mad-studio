@@ -1,5 +1,6 @@
 import { forwardRef, type CSSProperties } from "react"
 
+import { AdjustableLayer, NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
 const DISPLAY = "'Josefin Sans', 'Century Gothic', Futura, system-ui, sans-serif"
@@ -14,10 +15,12 @@ type Props = {
   vibe: string
   designer: string
   sizeLabel: string | null
-  /** 0.7–1.3 */
-  subjectScale?: number
-  /** Percent of the frame height, negative moves up. */
-  subjectOffsetY?: number
+  /** Hand placement of the cutout. */
+  subject?: LayerAdjust
+  /** Given, the cutout can be dragged, resized and tilted. */
+  onSubjectChange?: (next: LayerAdjust) => void
+  subjectSelected?: boolean
+  onSubjectSelect?: (selected: boolean) => void
   /** Dashed link-sticker zone; never baked into the export. */
   showLinkGuide?: boolean
   className?: string
@@ -43,8 +46,10 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
     vibe,
     designer,
     sizeLabel,
-    subjectScale = 1,
-    subjectOffsetY = 0,
+    subject = NO_ADJUST,
+    onSubjectChange,
+    subjectSelected = false,
+    onSubjectSelect,
     showLinkGuide = true,
     className,
   },
@@ -68,6 +73,7 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
         color: fg,
         containerType: "inline-size",
       }}
+      onPointerDown={onSubjectChange ? () => onSubjectSelect?.(false) : undefined}
     >
       <div
         style={{
@@ -115,21 +121,31 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
       >
         <div style={{ position: "relative", flex: "1 1 0", minHeight: 0, margin: "0 4cqw" }}>
           {imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl}
-              alt=""
-              crossOrigin="anonymous"
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                transform: `translateY(${subjectOffsetY}%) scale(${subjectScale})`,
-                filter: "drop-shadow(0 4cqw 4cqw rgba(0,0,0,0.28))",
-              }}
-            />
+            <AdjustableLayer
+              base={{ left: 0, top: 0, width: 100, height: 100 }}
+              adjust={subject}
+              zIndex={1}
+              editable={Boolean(onSubjectChange)}
+              selected={subjectSelected}
+              label="Item"
+              onSelect={() => onSubjectSelect?.(true)}
+              onChange={onSubjectChange}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt=""
+                crossOrigin="anonymous"
+                draggable={false}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  pointerEvents: "none",
+                  filter: "drop-shadow(0 4cqw 4cqw rgba(0,0,0,0.28))",
+                }}
+              />
+            </AdjustableLayer>
           ) : null}
         </div>
 

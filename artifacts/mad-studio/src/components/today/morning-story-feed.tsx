@@ -237,8 +237,7 @@ export function MorningStoryFeed({
                           vibe={story.vibe}
                           designer={story.designer}
                           sizeLabel={story.sizeLabel}
-                          subjectScale={story.subjectScale}
-                          subjectOffsetY={story.subjectOffsetY}
+                          subject={story.subject}
                           showLinkGuide={!compact}
                         />
                       ) : null}
