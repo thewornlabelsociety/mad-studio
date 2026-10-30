@@ -9,6 +9,7 @@ import {
   ArrowRight,
   BringToFront,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ImagePlus,
@@ -319,6 +320,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   // The card the colour dots are recolouring, picked by clicking it.
   const [pickedCard, setPickedCard] = useState<string | null>(null)
   const [searchNew, setSearchNew] = useState(true)
+  // The title page's options fold away; the summary line shows what's set.
+  const [titleOpen, setTitleOpen] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoSlideBusy, setPhotoSlideBusy] = useState(false)
@@ -708,24 +711,32 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
             {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
             Reload
           </Button>
-          <Button
-            type="button"
-            className="border-2 border-mad-black bg-mad-black text-mad-white"
-            disabled={slides.length === 0 || waiting.length > 0 || sending}
-            onClick={() => void sendToStudio()}
-            title={waiting.length > 0 ? "Waiting for cutouts" : "Open the carousel in Studio"}
-          >
-            {sending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-            {sending ? "Preparing slides…" : "Send to Studio"}
-          </Button>
         </div>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section aria-labelledby="edit-title" className="grid content-start gap-3">
-          <h2 id="edit-title" className="font-typewriter text-xs uppercase tracking-widest">
-            Title page
-          </h2>
+          <button
+            type="button"
+            onClick={() => setTitleOpen((open) => !open)}
+            aria-expanded={titleOpen}
+            aria-controls="edit-title-options"
+            className="flex w-full items-center justify-between gap-3 border-2 border-mad-black bg-white px-3 py-2.5 text-left hover:bg-[#F4EFE6]"
+          >
+            <span className="min-w-0">
+              <span id="edit-title" className="block font-typewriter text-xs font-bold uppercase tracking-widest">
+                Title page
+              </span>
+              <span className="block truncate text-xs text-mad-black/65">
+                {[editLabel, title.style === "editorial" ? "Editorial" : "Kit", title.photo ? "photo behind" : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </span>
+            <ChevronDown className={cn("size-4 shrink-0 transition-transform", titleOpen && "rotate-180")} aria-hidden />
+          </button>
+          {titleOpen ? (
+          <div id="edit-title-options" className="grid gap-3">
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Title starting points">
             {TITLE_PICKS.map((pick) => (
               <button
@@ -808,6 +819,9 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
               )}
             </div>
           </div>
+          </div>
+          ) : null}
+          {/* Kept out of the dropdown so it's always to hand. */}
           <div className="flex flex-wrap items-center gap-2">
             <label
               className={cn(
@@ -1385,6 +1399,34 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
             )
           })}
         </ul>
+      </section>
+
+      <section
+        aria-labelledby="edit-send"
+        className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-mad-black pt-4 pb-2"
+      >
+        <div className="min-w-0">
+          <h2 id="edit-send" className="font-typewriter text-xs uppercase tracking-widest">
+            Last step
+          </h2>
+          <p className="text-sm text-mad-black/70">
+            {waiting.length > 0
+              ? "Waiting for the pieces to be cut out…"
+              : slides.length === 0
+                ? "Add a piece or a photo slide first."
+                : `The ${slideCount}-slide carousel and its caption go to Studio, ready to schedule.`}
+          </p>
+        </div>
+        <Button
+          type="button"
+          className="border-2 border-mad-black bg-mad-black text-mad-white"
+          disabled={slides.length === 0 || waiting.length > 0 || sending}
+          onClick={() => void sendToStudio()}
+          title={waiting.length > 0 ? "Waiting for cutouts" : "Open the carousel in Studio"}
+        >
+          {sending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
+          {sending ? "Preparing slides…" : "Send to Studio"}
+        </Button>
       </section>
     </div>
   )
