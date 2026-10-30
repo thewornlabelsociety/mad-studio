@@ -32,7 +32,6 @@ import {
   type PillFill,
   type PillShape,
 } from "@/components/templates/edit-slides"
-import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { OutfitSlide, type SlidePiece } from "@/components/templates/outfit-slides"
 import { PiecePicker, type PickerOption } from "@/components/templates/piece-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -297,7 +296,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   const [cardFields, setCardFields] = useRememberedState<Record<CardField, boolean>>(`${draftKey}.cardFields`, DEFAULT_CARD_FIELDS)
   const [cardAlign, setCardAlign] = useRememberedState<CardAlign>(`${draftKey}.cardAlign`, "center")
   // The fabric pill's own alignment, colour and shape.
-  const [pillAlign, setPillAlign] = useRememberedState<CardAlign>(`${draftKey}.pillAlign`, "center")
+  const [pillAlign, setPillAlign] = useRememberedState<CardAlign>(`${draftKey}.pillCorner`, "right")
   const [pillFill, setPillFill] = useRememberedState<PillFill>(`${draftKey}.pillFill`, "outline")
   const [pillShape, setPillShape] = useRememberedState<PillShape>(`${draftKey}.pillShape`, "round")
   // Eyebrow per piece; blank uses "No. 01" and so on.
@@ -588,6 +587,29 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
       toast.error(error instanceof Error ? error.message : "Couldn't save the image.")
     } finally {
       setSavingId(null)
+    }
+  }
+
+  /** Everything a piece card shows, the same for its feed slide and its Story. */
+  function cardProps(id: string, story: KitStory) {
+    return {
+      background,
+      brandName: entityName,
+      editLabel,
+      eyebrow: cardFields.number ? eyebrowFor(id) : null,
+      editorial: title.style === "editorial",
+      align: cardAlign,
+      imageUrl: ready(story) ? story.imageUrl : null,
+      designer: cardFields.brand ? story.designer : null,
+      categoryLabel: cardFields.category ? pieceType(story.row.title, story.row.brand) : null,
+      vibeLabel: cardFields.vibe ? story.vibe : null,
+      sizeLabel: cardFields.size ? story.sizeLabel : null,
+      fabricLabel: fabrics[id] ?? null,
+      pillAlign,
+      pillFill,
+      pillShape,
+      priceLabel: cardFields.price ? shortPrice(story.priceLabel) : null,
+      wasLabel: cardFields.price && story.row.wasPrice != null ? money(story.row.wasPrice) : null,
     }
   }
 
@@ -1156,23 +1178,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
               {slide.story ? (
                 <EditItemSlide
                   ref={slideRef(firstItemSlide + index)}
-                  background={background}
-                  brandName={entityName}
-                  editLabel={editLabel}
-                  eyebrow={cardFields.number ? eyebrowFor(slide.id) : null}
-                  editorial={title.style === "editorial"}
-                  align={cardAlign}
-                  imageUrl={ready(slide.story) ? slide.story.imageUrl : null}
-                  designer={cardFields.brand ? slide.story.designer : null}
-                  categoryLabel={cardFields.category ? pieceType(slide.story.row.title, slide.story.row.brand) : null}
-                  vibeLabel={cardFields.vibe ? slide.story.vibe : null}
-                  sizeLabel={cardFields.size ? slide.story.sizeLabel : null}
-                  fabricLabel={fabrics[slide.id] ?? null}
-                  pillAlign={pillAlign}
-                  pillFill={pillFill}
-                  pillShape={pillShape}
-                  priceLabel={cardFields.price ? shortPrice(slide.story.priceLabel) : null}
-                  wasLabel={cardFields.price && slide.story.row.wasPrice != null ? money(slide.story.row.wasPrice) : null}
+                  {...cardProps(slide.id, slide.story)}
                   className="rounded-sm shadow-md"
                 />
               ) : slide.kind === "photo" ? (
@@ -1248,24 +1254,12 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
             return (
               <li key={id} className="flex w-[200px] shrink-0 snap-start flex-col gap-2">
                 <div className="overflow-hidden rounded-md shadow-md">
-                  <KitStoryCanvas
+                  <EditItemSlide
                     ref={(node) => {
                       storyNodes.current[id] = node
                     }}
-                    background={background}
-                    brandName={entityName}
-                    tag={editLabel}
-                    imageUrl={ready(story) ? story.imageUrl : null}
-                    vibe={story.vibe}
-                    designer={story.designer}
-                    sizeLabel={story.sizeLabel}
-                    fabricLabel={fabrics[id] ?? null}
-                    priceLine={
-                      story.row.wasPrice != null && story.row.price != null
-                        ? { was: money(story.row.wasPrice), now: money(Number(story.row.price)) }
-                        : null
-                    }
-                    showLinkGuide={false}
+                    {...cardProps(id, story)}
+                    story
                   />
                 </div>
                 <button

@@ -43,10 +43,12 @@ export const EditItemSlide = forwardRef<
     priceLabel: string | null
     /** Marked down: the old price, struck through before the new one. */
     wasLabel?: string | null
+    /** 9:16 for Stories; 4:5 for the feed. */
+    story?: boolean
     className?: string
   }
 >(function EditItemSlide(
-  { background, brandName, editLabel, eyebrow = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "center", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, className },
+  { background, brandName, editLabel, eyebrow = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, className },
   ref
 ) {
   const ink = background.text_color
@@ -75,17 +77,25 @@ export const EditItemSlide = forwardRef<
   const hasLine = Boolean(priceLabel)
   const toFlex = (side: CardAlign) => (side === "left" ? "flex-start" : side === "right" ? "flex-end" : "center")
   const flexAlign = toFlex(align)
+  // Stories keep clear of Instagram's top bar and the reply box at the bottom.
+  const top = story ? 13 : 6
   return (
-    <div ref={ref} className={className} style={frame(background)}>
-      <div style={{ position: "absolute", left: "7cqw", right: "7cqw", top: "6cqw" }}>
+    <div ref={ref} className={className} style={frame(background, story ? "9 / 16" : "4 / 5")}>
+      <div style={{ position: "absolute", left: "7cqw", right: "7cqw", top: `${top}cqw` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "4cqw" }}>
           <p style={{ ...caps, fontSize: "2.4cqw", letterSpacing: "0.34em", lineHeight: 1.4, color: accent }}>{editLabel}</p>
           <Wordmark brandName={brandName} accent={accent} size={2.6} />
         </div>
         <span style={{ display: "block", height: "0.25cqw", background: ink, opacity: 0.5, marginTop: "2.4cqw" }} />
+        {/* The fabric pill sits under the header, top right unless moved. */}
+        {fabricLabel ? (
+          <div style={{ display: "flex", justifyContent: toFlex(pillAlign), marginTop: "3cqw" }}>
+            <p style={pill}>{fabricLabel}</p>
+          </div>
+        ) : null}
       </div>
 
-      <div style={{ position: "absolute", left: "12cqw", right: "12cqw", top: "17%", bottom: "35%" }}>
+      <div style={{ position: "absolute", left: "12cqw", right: "12cqw", top: story ? "22%" : "21%", bottom: story ? "30%" : "35%" }}>
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -107,7 +117,7 @@ export const EditItemSlide = forwardRef<
           position: "absolute",
           left: "7cqw",
           right: "7cqw",
-          bottom: "7cqw",
+          bottom: story ? "22cqw" : "7cqw",
           display: "flex",
           flexDirection: "column",
           alignItems: flexAlign,
@@ -115,11 +125,6 @@ export const EditItemSlide = forwardRef<
           gap: "2.4cqw",
         }}
       >
-        {fabricLabel ? (
-          <div style={{ alignSelf: "stretch", display: "flex", justifyContent: toFlex(pillAlign), marginBottom: "0.8cqw" }}>
-            <p style={pill}>{fabricLabel}</p>
-          </div>
-        ) : null}
         {eyebrow?.trim() ? (
           <p style={{ ...caps, fontSize: "2.2cqw", letterSpacing: "0.34em", color: accent }}>{eyebrow.trim()}</p>
         ) : null}
