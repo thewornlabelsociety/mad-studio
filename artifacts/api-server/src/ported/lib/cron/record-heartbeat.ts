@@ -8,15 +8,16 @@ export async function recordCronHeartbeat(input: {
 }): Promise<void> {
   try {
     const admin = createAdminClient()
-    await admin.from("cron_heartbeats").upsert(
+    const { error } = await admin.from("cron_heartbeats").upsert(
       {
         job_name: input.jobName,
         last_run_at: new Date().toISOString(),
-        last_status: input.status,
-        detail: (input.detail ?? {}) as Json,
+        status: input.status,
+        details: (input.detail ?? {}) as Json,
       },
       { onConflict: "job_name" }
     )
+    if (error) throw error
   } catch (error) {
     console.warn("[cron] heartbeat skipped", error)
   }
