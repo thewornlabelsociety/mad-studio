@@ -77,6 +77,7 @@ import {
 } from "@/components/marketing/media-tray"
 import { StepCustomize } from "@/components/studio/steps/step-customize"
 import { StepMedia } from "@/components/studio/steps/step-media"
+import { TodayToolLinks } from "@/components/today/today-tool-links"
 import type { PostIntentState } from "@/lib/inventory/post-intent"
 import { stripDuplicateHookFromCaption } from "@/lib/inventory/sop"
 import { OptimizationTagsEditor } from "@/components/inventory/optimization-tags-editor"
@@ -914,6 +915,14 @@ export function StudioWorkspace({
   }
 
   const isFashionBrand = brandProfileId === "worn_label"
+  // Worn Label starts from a template; picking by hand folds away until asked
+  // for, or until the post already has media or a brand template.
+  const [manualOpen, setManualOpen] = useState(false)
+  const hasManualWork = mediaAssets.length > 0 || Boolean(templateInstanceId)
+  useEffect(() => {
+    if (hasManualWork) setManualOpen(true)
+  }, [hasManualWork])
+  const showManualPick = !isFashionBrand || manualOpen
   const mediaAssetsRef = useRef(mediaAssets)
   mediaAssetsRef.current = mediaAssets
 
@@ -3483,7 +3492,7 @@ export function StudioWorkspace({
         }
         footer={
           isFashionBrand &&
-          (workbenchStep === WORKBENCH_STEP_MEDIA ||
+          ((workbenchStep === WORKBENCH_STEP_MEDIA && showManualPick) ||
             workbenchStep === WORKBENCH_STEP_CANVAS) ? (
             <WlsEligibleProductStrip
               entityId={activeEntity.id}
@@ -3587,6 +3596,13 @@ export function StudioWorkspace({
         {workbenchStep === WORKBENCH_STEP_MEDIA ? (
           <StepMedia
             entityId={activeEntity.id}
+            templatesSlot={
+              isFashionBrand ? (
+                <TodayToolLinks entityId={activeEntity.id} exclude={["/week"]} stacked />
+              ) : null
+            }
+            manualOpen={showManualPick}
+            onManualOpenChange={setManualOpen}
             templatePickerSlot={
               <StudioTemplatePicker
                 entityId={activeEntity.id}

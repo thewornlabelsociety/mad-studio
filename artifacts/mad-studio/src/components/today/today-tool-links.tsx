@@ -54,15 +54,18 @@ const TOOLS: Array<{ path: string; icon: LucideIcon; title: string; detail: stri
 export function TodayToolLinks({
   entityId,
   exclude = [],
+  stacked = false,
   className,
 }: {
   entityId: string
   exclude?: string[]
+  /** One per row, for narrow panels. */
+  stacked?: boolean
   className?: string
 }) {
   const tools = TOOLS.filter((tool) => !exclude.includes(tool.path))
   return (
-    <nav aria-label="Weekly posts" className={cn("grid gap-2 sm:grid-cols-2 xl:grid-cols-4", className)}>
+    <nav aria-label="Weekly posts" className={cn("grid gap-2", !stacked && "sm:grid-cols-2 xl:grid-cols-4", className)}>
       {tools.map(({ path, icon: Icon, title, detail }) => (
         <Link
           key={path}
