@@ -88,6 +88,12 @@ export const OutfitSlide = forwardRef<
 
       {/* Isolated so "send to back" stays above the slide colour. */}
       <div style={{ position: "absolute", left: "5cqw", top: "27%", width: "60%", bottom: "6cqw", isolation: "isolate" }}>
+        {pieces.length === 0 ? (
+          <div
+            data-export-ignore
+            style={{ position: "absolute", inset: 0, border: `0.4cqw dashed ${background.text_color}`, opacity: 0.35 }}
+          />
+        ) : null}
         {pieces.map((piece) => {
           const place = PLACEMENT[piece.slot]
           return piece.imageUrl ? (

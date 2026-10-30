@@ -23,6 +23,7 @@ export function PiecePicker({
   onPick,
   adding = false,
   addText,
+  quiet = false,
 }: {
   /** e.g. "top", for the button's name and the search placeholder. */
   label: string
@@ -30,6 +31,8 @@ export function PiecePicker({
   adding?: boolean
   /** Words on the add button; "Add a {label}" by default. */
   addText?: string
+  /** A smaller outlined add button, for a row of them. */
+  quiet?: boolean
   options: PickerOption[]
   onPick: (id: string) => void
 }) {
@@ -52,8 +55,12 @@ export function PiecePicker({
         {adding ? (
           <button
             type="button"
-            title={`Search the stock for a ${label} to add`}
-            className="flex h-9 items-center gap-2 border-2 border-mad-black bg-mad-black px-3 text-sm text-mad-white hover:bg-neutral-800"
+            title={addText ? `Search the stock: ${addText.toLowerCase()}` : `Search the stock for a ${label} to add`}
+            className={
+              quiet
+                ? "flex h-8 items-center gap-1.5 border-2 border-mad-black bg-white px-2.5 text-xs hover:bg-[#F4EFE6]"
+                : "flex h-9 items-center gap-2 border-2 border-mad-black bg-mad-black px-3 text-sm text-mad-white hover:bg-neutral-800"
+            }
           >
             <Plus className="size-4" aria-hidden />
             {addText ?? `Add a ${label}`}

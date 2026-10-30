@@ -28,6 +28,7 @@ import { OutfitSlide, type SlidePiece } from "@/components/templates/outfit-slid
 import { PiecePicker, type PickerOption } from "@/components/templates/piece-picker"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
+import type { GarmentSlot } from "@/lib/inventory/listing-garment"
 import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
@@ -42,6 +43,15 @@ import { cn } from "@/lib/utils"
 const EDIT_SLIDES_MAX = 8
 /** More than this crowds the flatlay. */
 const FLATLAY_PIECES_MAX = 6
+/** The flatlay's add buttons, each searching that kind of piece. */
+const FLATLAY_KINDS: Array<{ label: string; slots: GarmentSlot[] }> = [
+  { label: "Top", slots: ["top"] },
+  { label: "Bottom", slots: ["bottom"] },
+  { label: "Dress", slots: ["dress"] },
+  { label: "Layer", slots: ["outerwear"] },
+  { label: "Accessory", slots: ["accessory", "other"] },
+  { label: "Footwear", slots: ["shoes"] },
+]
 /** "New arrivals" in the search: this many of the newest pieces. */
 const NEW_ARRIVALS_COUNT = 40
 
@@ -95,8 +105,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   const draftKey = `mad.editDraft.${entityId}`
   const [title, setTitle] = useRememberedState<Announcement>(`${draftKey}.title`, DEFAULT_TITLE)
   const [entries, setEntries] = useRememberedState<EditEntry[]>(`${draftKey}.slides`, [])
-  // The flatlay's own pieces (null = no flatlay slide). They start as the
-  // edit's first pieces, and any piece in stock can be added or taken off.
+  // The flatlay's own pieces (null = no flatlay slide). It starts blank;
+  // pieces are added by kind (top, bottom, layer…) from the edit or stock.
   const [flatlayIds, setFlatlayIds] = useRememberedState<string[] | null>(`${draftKey}.flatlayPieces`, null)
   const pieceIds = useMemo(() => entries.flatMap((entry) => (entry.kind === "piece" ? [entry.id] : [])), [entries])
   // Pieces on slides first, then any that are only on the flatlay.
@@ -232,9 +242,9 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     })
   }, [eligible, searchNew, pieceIds, flatlayIds, stories, entityId])
 
-  /** Add the flatlay slide, starting from the edit's first pieces. */
+  /** Add a blank flatlay slide; pieces go on it by kind. */
   function addFlatlay() {
-    setFlatlayIds(pieceIds.slice(0, FLATLAY_PIECES_MAX))
+    setFlatlayIds([])
   }
 
   function removeFlatlay() {
@@ -349,6 +359,10 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   }
 
   async function sendToStudio() {
+    if (flatlayIds !== null && flatlayPieces.length === 0) {
+      toast.message("The flatlay is blank. Add pieces to it, or remove it with the bin.")
+      return
+    }
     setSelected(null)
     setSending(true)
     try {
@@ -392,7 +406,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     )
   }
 
-  const flatlayShown = flatlayIds !== null && flatlayPieces.length > 0
+  const flatlayShown = flatlayIds !== null
   const firstItemSlide = flatlayShown ? 2 : 1
   const slideCount = firstItemSlide + slides.length
   /** Ref for the slide at this place in the carousel. */
@@ -709,30 +723,37 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                   <h3 className="font-typewriter text-xs uppercase tracking-widest">
                     Flatlay, slide 2 · {flatlayIds.length} of {FLATLAY_PIECES_MAX}
                   </h3>
-                  <div className="flex items-center gap-2">
-                    {flatlayIds.length < FLATLAY_PIECES_MAX ? (
-                      <PiecePicker
-                        label="piece"
-                        addText="Add to flatlay"
-                        options={flatlayOptions}
-                        onPick={addToFlatlay}
-                        adding
-                      />
-                    ) : null}
-                    <button
+                  <button
                       type="button"
                       onClick={removeFlatlay}
                       title="Remove the flatlay slide"
                       aria-label="Remove the flatlay slide"
                       className="flex size-9 items-center justify-center border-2 border-mad-black hover:bg-[#F4EFE6]"
                     >
-                      <Trash2 className="size-4" aria-hidden />
-                    </button>
-                  </div>
+                    <Trash2 className="size-4" aria-hidden />
+                  </button>
                 </div>
+                {flatlayIds.length < FLATLAY_PIECES_MAX ? (
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Add to the flatlay">
+                    {FLATLAY_KINDS.map((kind) => (
+                      <PiecePicker
+                        key={kind.label}
+                        label={kind.label.toLowerCase()}
+                        addText={kind.label}
+                        options={flatlayOptions.filter((option) => {
+                          const slot = pieceById.get(option.id)?.slot
+                          return slot != null && kind.slots.includes(slot)
+                        })}
+                        onPick={addToFlatlay}
+                        adding
+                        quiet
+                      />
+                    ))}
+                  </div>
+                ) : null}
                 {flatlayStories.length === 0 ? (
                   <p className="text-xs text-mad-black/60">
-                    Add pieces to the flatlay: any piece in the edit, or anything in stock.
+                    Blank for now. Add a top, bottom, dress, layer, accessory or footwear, from the edit or from stock.
                   </p>
                 ) : (
                   <ul className="flex flex-wrap gap-1.5">
