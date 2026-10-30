@@ -36,7 +36,9 @@ import {
   onTouchDevice,
   copyStoryLink,
   shareOrDownloadStory,
+  shareStoryFiles,
   useKitStories,
+  warmStoryNode,
   type KitStory,
 } from "@/lib/templates/use-kit-stories"
 import { notifyInventorySynced } from "@/lib/studio/pull-new-arrivals-client"
@@ -46,6 +48,8 @@ import { cn } from "@/lib/utils"
 const FEED_SIZE = 6
 /** How many more Stories "Show more" adds to the row. */
 const MORE_SIZE = 10
+/** How many Stories Save all builds at once. */
+const BAKE_AT_ONCE = 3
 const COLLAPSE_KEY = "mad.today.storyFeed.collapsed"
 
 /** Stories saved today on this device, so each card can show a Saved tick. */
@@ -200,6 +204,16 @@ export function MorningStoryFeed({
         .filter((story): story is KitStory => Boolean(story)),
     [feedIds, stories]
   )
+  // On a computer, get the row ready to save in the background (photos and fonts).
+  const feedKey = feed.map((story) => `${story.row.marketingEntityId}:${story.cutoutUrl ?? ""}`).join("|")
+  useEffect(() => {
+    if (onPhone || !feedKey) return
+    const timer = window.setTimeout(() => {
+      for (const node of Object.values(nodes.current)) if (node) warmStoryNode(node)
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, [onPhone, feedKey])
+
   const sharedCount = feed.filter((story) => sharedAt[story.row.marketingEntityId]).length
 
   /** Unshared new arrivals not in the row yet, newest first. */
@@ -244,12 +258,16 @@ export function MorningStoryFeed({
         toast.success(`Saved to ${folder.name} › ${sub}`)
         return
       }
-      const result = await shareOrDownloadStory({
-        ...baked,
-        filename: `wls-story-${story.row.websiteItemId}.png`,
-      })
-      if (result === "downloaded") toast.success("Story image downloaded.")
-      if (result !== "cancelled") markSaved([story.row.marketingEntityId])
+      const id = story.row.marketingEntityId
+      // A Save tapped later (phone) marks it saved then.
+      const result = await shareOrDownloadStory(
+        { ...baked, filename: `wls-story-${story.row.websiteItemId}.png` },
+        () => markSaved([id])
+      )
+      if (result === "downloaded") {
+        toast.success("Story image downloaded.")
+        markSaved([id])
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the image.")
     } finally {
@@ -278,12 +296,21 @@ export function MorningStoryFeed({
     const folder = useFolder ? await folderOrAsk() : null
     setSavingAll({ done: 0, total: stories.length })
     try {
+      // A few at a time, so one photo downloads while another is drawn.
       const baked: Array<{ dataUrl: string; blob: Blob; filename: string }> = []
-      for (const story of stories) {
-        const node = nodes.current[story.row.marketingEntityId]
-        if (!node) continue
-        baked.push({ ...(await bakeStoryPng(node)), filename: `wls-story-${story.row.websiteItemId}.png` })
-        setSavingAll({ done: baked.length, total: stories.length })
+      let done = 0
+      for (let start = 0; start < stories.length; start += BAKE_AT_ONCE) {
+        const batch = await Promise.all(
+          stories.slice(start, start + BAKE_AT_ONCE).map(async (story) => {
+            const node = nodes.current[story.row.marketingEntityId]
+            if (!node) return null
+            const image = await bakeStoryPng(node)
+            done++
+            setSavingAll({ done, total: stories.length })
+            return { ...image, filename: `wls-story-${story.row.websiteItemId}.png` }
+          })
+        )
+        for (const row of batch) if (row) baked.push(row)
       }
       const files = baked.map((row) => new File([row.blob], row.filename, { type: "image/png" }))
       const ids = stories.map((story) => story.row.marketingEntityId)
@@ -296,13 +323,10 @@ export function MorningStoryFeed({
         return
       }
       if (onPhone && navigator.canShare?.({ files })) {
-        try {
-          await navigator.share({ files })
+        await shareStoryFiles(files, () => {
           markSaved(ids)
           setSelected(new Set())
-        } catch (error) {
-          if (!(error instanceof DOMException && error.name === "AbortError")) throw error
-        }
+        })
         return
       }
       await downloadImages(baked)

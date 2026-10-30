@@ -67,7 +67,8 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "private, max-age=300",
+        // A day: Stories and cutouts reuse the photo on screen instead of fetching it again.
+        "Cache-Control": "private, max-age=86400",
       },
     })
   } catch (error) {
