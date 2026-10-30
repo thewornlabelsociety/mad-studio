@@ -14,13 +14,15 @@ export const EditItemSlide = forwardRef<
     imageUrl: string | null
     designer: string
     sizeLabel: string | null
+    /** e.g. LINEN: a second pill beside the size. */
+    fabricLabel?: string | null
     priceLabel: string | null
     /** Marked down: the old price, struck through before the new one. */
     wasLabel?: string | null
     className?: string
   }
 >(function EditItemSlide(
-  { background, brandName, editLabel, imageUrl, designer, sizeLabel, priceLabel, wasLabel = null, className },
+  { background, brandName, editLabel, imageUrl, designer, sizeLabel, fabricLabel = null, priceLabel, wasLabel = null, className },
   ref
 ) {
   return (
@@ -55,6 +57,11 @@ export const EditItemSlide = forwardRef<
           {sizeLabel ? (
             <p style={{ ...caps, fontWeight: 600, fontSize: "3.6cqw", letterSpacing: "0.2em", padding: "1.2cqw 2.8cqw 0.8cqw", border: "0.4cqw solid currentColor", borderRadius: 999 }}>
               {sizeLabel}
+            </p>
+          ) : null}
+          {fabricLabel ? (
+            <p style={{ ...caps, fontWeight: 600, fontSize: "3.6cqw", letterSpacing: "0.2em", padding: "1.2cqw 2.8cqw 0.8cqw", border: "0.4cqw solid currentColor", borderRadius: 999 }}>
+              {fabricLabel}
             </p>
           ) : null}
           {wasLabel ? (

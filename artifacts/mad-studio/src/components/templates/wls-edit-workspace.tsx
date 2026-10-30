@@ -26,6 +26,7 @@ import { EditItemSlide, EditPhotoSlide } from "@/components/templates/edit-slide
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { OutfitSlide, type SlidePiece } from "@/components/templates/outfit-slides"
 import { PiecePicker, type PickerOption } from "@/components/templates/piece-picker"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import type { GarmentSlot } from "@/lib/inventory/listing-garment"
@@ -52,6 +53,109 @@ const FLATLAY_KINDS: Array<{ label: string; slots: GarmentSlot[] }> = [
   { label: "Accessory", slots: ["accessory", "other"] },
   { label: "Footwear", slots: ["shoes"] },
 ]
+/** Quick picks for a piece's fabric pill; anything else can be typed. */
+const FABRIC_PICKS = ["Linen", "Silk", "Cotton", "Wool", "Cashmere", "Leather", "Denim", "Satin", "Lace", "Velvet", "Viscose", "Suede"]
+
+/** The fabric the shop listing names, if any (its "Material:" line, or a known fabric in the text). */
+function listingFabric(text: string): string | null {
+  const material = text.match(/Material:\s*([^·\n]+)/i)?.[1]?.trim()
+  if (material) return material.split(/[,/]/)[0].trim().slice(0, 20) || null
+  const known = FABRIC_PICKS.find((fabric) => new RegExp(`\\b${fabric}\\b`, "i").test(text))
+  return known ?? null
+}
+
+/** Click to set a piece's fabric: a suggestion from the listing, quick picks, or your own word. */
+function FabricPicker({
+  value,
+  suggestion,
+  pieceName,
+  onChange,
+}: {
+  value: string | null
+  suggestion: string | null
+  pieceName: string
+  onChange: (next: string | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [custom, setCustom] = useState("")
+  const picks = suggestion && !FABRIC_PICKS.some((pick) => pick.toLowerCase() === suggestion.toLowerCase())
+    ? [suggestion, ...FABRIC_PICKS]
+    : FABRIC_PICKS
+  function choose(next: string | null) {
+    onChange(next)
+    setOpen(false)
+    setCustom("")
+  }
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title={value ? "Change the fabric pill" : "Add a fabric pill, e.g. linen or silk"}
+          aria-label={value ? `Fabric for ${pieceName}: ${value}. Change it` : `Add a fabric for ${pieceName}`}
+          className={cn(
+            "flex h-7 shrink-0 items-center gap-1 rounded-full border-2 border-mad-black px-2 text-[11px] uppercase tracking-wider",
+            value ? "bg-mad-black text-mad-white" : "border-dashed text-mad-black/70 hover:bg-[#F4EFE6]"
+          )}
+        >
+          {value ?? (
+            <>
+              <Plus className="size-3" aria-hidden /> Fabric
+            </>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 rounded-none border-2 border-mad-black p-2">
+        <p className="mb-1.5 text-[11px] text-mad-black/60">
+          {suggestion ? `The listing says ${suggestion.toLowerCase()}.` : "Pick the fabric, or type your own."}
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {picks.map((pick) => (
+            <button
+              key={pick}
+              type="button"
+              onClick={() => choose(pick)}
+              aria-pressed={value?.toLowerCase() === pick.toLowerCase()}
+              className={cn(
+                "rounded-full border-2 border-mad-black px-2 py-0.5 text-[11px] uppercase tracking-wider",
+                value?.toLowerCase() === pick.toLowerCase() ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]",
+                pick === suggestion && "border-mad-vermillion"
+              )}
+            >
+              {pick}
+            </button>
+          ))}
+        </div>
+        <form
+          className="mt-2 flex gap-1"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (custom.trim()) choose(custom.trim().slice(0, 20))
+          }}
+        >
+          <input
+            type="text"
+            value={custom}
+            onChange={(event) => setCustom(event.target.value)}
+            placeholder="Other, e.g. Merino"
+            aria-label="Type a fabric"
+            maxLength={20}
+            className="h-8 min-w-0 flex-1 border-2 border-mad-black px-2 text-xs"
+          />
+          <button type="submit" className="h-8 border-2 border-mad-black px-2 text-xs hover:bg-[#F4EFE6]">
+            Add
+          </button>
+        </form>
+        {value ? (
+          <button type="button" onClick={() => choose(null)} className="mt-2 text-[11px] underline">
+            No fabric pill
+          </button>
+        ) : null}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 /** "New arrivals" in the search: this many of the newest pieces. */
 const NEW_ARRIVALS_COUNT = 40
 
@@ -115,6 +219,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     [pieceIds, flatlayIds]
   )
   const [adjusts, setAdjusts] = useRememberedState<Record<string, LayerAdjust>>(`${draftKey}.placements`, {})
+  // Fabric pill per piece, e.g. LINEN; none until clicked.
+  const [fabrics, setFabrics] = useRememberedState<Record<string, string>>(`${draftKey}.fabrics`, {})
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`${draftKey}.background`, null)
   const [searchNew, setSearchNew] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
@@ -346,7 +452,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     const lines = everyPiece.flatMap((story, index) => {
       const piece = pieceById.get(story.row.marketingEntityId)
       if (!piece) return []
-      const details = [formatSizeForText(story.row.size), shortPrice(story.priceLabel)].filter(Boolean).join(", ")
+      const fabric = fabrics[story.row.marketingEntityId]?.toLowerCase()
+      const details = [formatSizeForText(story.row.size), fabric, shortPrice(story.priceLabel)].filter(Boolean).join(", ")
       return [`${index + 1}. ${story.designer} ${OUTFIT_SLOT_LABELS[piece.slot].toLowerCase()}${details ? ` (${details})` : ""}`]
     })
     return [
@@ -669,6 +776,21 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                         {story ? story.row.title : "Your photo, full bleed"}
                       </span>
                     </span>
+                    {story ? (
+                      <FabricPicker
+                        value={fabrics[id] ?? null}
+                        suggestion={listingFabric([story.row.title, story.row.description].filter(Boolean).join(" "))}
+                        pieceName={story.designer}
+                        onChange={(next) =>
+                          setFabrics((current) => {
+                            const out = { ...current }
+                            if (next) out[id] = next
+                            else delete out[id]
+                            return out
+                          })
+                        }
+                      />
+                    ) : null}
                     {story && !ready(story) ? (
                       <span className="text-[11px] text-mad-black/55">{cuttingId === id ? "Cutting out…" : "Waiting"}</span>
                     ) : null}
@@ -859,6 +981,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                   imageUrl={ready(slide.story) ? slide.story.imageUrl : null}
                   designer={slide.story.designer}
                   sizeLabel={slide.story.sizeLabel}
+                  fabricLabel={fabrics[slide.id] ?? null}
                   priceLabel={shortPrice(slide.story.priceLabel)}
                   wasLabel={slide.story.row.wasPrice != null ? money(slide.story.row.wasPrice) : null}
                   className="rounded-sm shadow-md"
@@ -947,6 +1070,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                     vibe={story.vibe}
                     designer={story.designer}
                     sizeLabel={story.sizeLabel}
+                    fabricLabel={fabrics[id] ?? null}
                     priceLine={
                       story.row.wasPrice != null && story.row.price != null
                         ? { was: money(story.row.wasPrice), now: money(Number(story.row.price)) }
