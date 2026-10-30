@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "wouter"
-import { ArrowRight, Check, Globe, Loader2, Plus, Share2, X } from "lucide-react"
+import { ArrowRight, Check, Globe, ImagePlus, Loader2, Plus, Share2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -196,6 +196,36 @@ function cardForMoment(): CardDraft | null {
   }
 }
 
+/** A phone photo shrunk to at most 1600px on its long side, as a JPEG for upload. */
+async function shrinkPhoto(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  const context = canvas.getContext("2d")
+  if (context) {
+    // See-through PNGs get a white backing (JPEG would turn them black).
+    context.fillStyle = "#FFFFFF"
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  }
+  bitmap.close()
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't read the photo."))), "image/jpeg", 0.86)
+  )
+}
+
+async function uploadPhoto(blob: Blob, entityId: string): Promise<string> {
+  const form = new FormData()
+  form.append("file", blob, "photo.jpg")
+  form.append("entityId", entityId)
+  const response = await fetch("/api/media/upload-cutout", { method: "POST", body: form })
+  const payload = (await response.json().catch(() => ({}))) as { transparentUrl?: string }
+  if (!response.ok || !payload.transparentUrl) throw new Error("Couldn't upload the photo.")
+  return payload.transparentUrl
+}
+
 /** The headline as one line, for captions and file names. */
 function oneLine(text: string): string {
   return text.split(/\n/).map((part) => part.trim()).filter(Boolean).join(" ")
@@ -237,6 +267,38 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
   function setBackgroundId(next: string | null) {
     updateActive((card) => ({ ...card, backgroundId: next }))
   }
+  /** A new starting point keeps the card's photo. */
+  function startFrom(next: Announcement) {
+    setValue((current) => ({ ...next, photo: current.photo, photoShade: current.photoShade, photoText: current.photoText }))
+  }
+  const [photoBusy, setPhotoBusy] = useState(false)
+  async function onPhoto(file: File | undefined) {
+    if (!file) return
+    setPhotoBusy(true)
+    try {
+      const url = await uploadPhoto(await shrinkPhoto(file), entityId)
+      const photo = `/api/media/image-proxy?url=${encodeURIComponent(url)}&entityId=${encodeURIComponent(entityId)}`
+      setValue((current) => ({ ...current, photo, photoShade: current.photoShade ?? 35, photoText: current.photoText ?? "light" }))
+    } catch {
+      toast.error("Couldn't add the photo. Try another one.")
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+  function removePhoto() {
+    setValue((current) => ({ ...current, photo: undefined, photoShade: undefined, photoText: undefined }))
+  }
+  const photoInput = (
+    <input
+      type="file"
+      accept="image/*"
+      className="sr-only"
+      onChange={(e) => {
+        void onPhoto(e.target.files?.[0])
+        e.target.value = ""
+      }}
+    />
+  )
   const editorial = value.style === "editorial"
   const presets = editorial ? EDITORIAL_PRESETS : PRESETS
   const [linkSpace, setLinkSpace] = useState(true)
@@ -409,21 +471,42 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
             <button
               key={bg.id}
               type="button"
-              onClick={() => setBackgroundId(bg.id)}
+              onClick={() => {
+                setBackgroundId(bg.id)
+                if (value.photo) removePhoto()
+              }}
               title={bg.name}
               aria-label={`Use ${bg.name}`}
-              aria-pressed={bg.id === background.id}
+              aria-pressed={!value.photo && bg.id === background.id}
               className={cn(
                 "relative size-8 rounded-full border border-black/15",
-                bg.id === background.id && "ring-2 ring-mad-black ring-offset-2"
+                !value.photo && bg.id === background.id && "ring-2 ring-mad-black ring-offset-2"
               )}
               style={{ background: bg.color }}
             >
-              {bg.id === background.id ? (
+              {!value.photo && bg.id === background.id ? (
                 <Check className="absolute inset-0 m-auto size-3.5" style={{ color: bg.text_color }} aria-hidden />
               ) : null}
             </button>
           ))}
+          <label
+            title={value.photo ? "Change the photo behind the words" : "Photo behind the words"}
+            aria-label={value.photo ? "Change the photo behind the words" : "Add a photo behind the words"}
+            className={cn(
+              "relative flex size-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-mad-black/50 bg-white hover:border-mad-black",
+              value.photo && "border-solid ring-2 ring-mad-black ring-offset-2"
+            )}
+          >
+            {photoBusy ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : value.photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={value.photo} alt="" className="size-full object-cover" />
+            ) : (
+              <ImagePlus className="size-3.5" aria-hidden />
+            )}
+            {photoInput}
+          </label>
         </div>
       </header>
 
@@ -437,7 +520,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
                 aria-pressed={(value.style ?? "kit") === style}
                 onClick={() => {
                   const first = (style === "editorial" ? EDITORIAL_PRESETS : PRESETS)[0]
-                  setValue({ ...first.value, details: padDetails(first.value.details) })
+                  startFrom({ ...first.value, details: padDetails(first.value.details) })
                   setBackgroundId(first.background)
                 }}
                 className={cn(
@@ -457,7 +540,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
                 key={preset.id}
                 type="button"
                 onClick={() => {
-                  setValue({ ...preset.value, details: padDetails(preset.value.details) })
+                  startFrom({ ...preset.value, details: padDetails(preset.value.details) })
                   setBackgroundId(preset.background)
                 }}
                 className="border border-mad-black/30 px-2.5 py-1 text-xs hover:border-mad-black"
@@ -468,7 +551,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
             <button
               type="button"
               onClick={() =>
-                setValue(
+                startFrom(
                   editorial
                     ? { ...EDITORIAL_PRESETS[0].value, kicker: "", headline: "", script: "", details: padDetails([]) }
                     : BLANK
@@ -479,6 +562,47 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
               Blank
             </button>
           </div>
+
+          {value.photo ? (
+            <div className="grid gap-2 border-2 border-mad-black bg-white p-2.5">
+              <div className="flex items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={value.photo} alt="" className="size-10 shrink-0 object-cover" />
+                <span className="flex-1 font-typewriter text-xs uppercase tracking-widest">Photo behind the words</span>
+                <label className="cursor-pointer border border-mad-black/30 px-2.5 py-1 text-xs hover:border-mad-black">
+                  Change
+                  {photoInput}
+                </label>
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  title="Remove the photo (back to the plain colour)"
+                  aria-label="Remove the photo"
+                  className="flex size-7 items-center justify-center border border-mad-black/30 hover:border-mad-black"
+                >
+                  <X className="size-3.5" aria-hidden />
+                </button>
+              </div>
+              <label className="grid gap-1 text-xs">
+                <span className="font-typewriter uppercase tracking-widest">Shade</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={80}
+                  step={5}
+                  value={value.photoShade ?? 35}
+                  onChange={(e) => set("photoShade", Number(e.target.value))}
+                  className="accent-mad-black"
+                />
+              </label>
+              <Choice
+                label="Words"
+                value={value.photoText ?? "light"}
+                options={[["light", "Light"], ["dark", "Dark"]]}
+                onChange={(next) => set("photoText", next)}
+              />
+            </div>
+          ) : null}
 
           <h2 id="announce-words" className="sr-only">Words</h2>
           {editorial ? (
