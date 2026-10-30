@@ -6,6 +6,7 @@ import { toast } from "sonner"
 
 import { storyExportFilter } from "@/components/marketing/story-canvas"
 import { completeStepsFor } from "@/lib/planner/campaign-progress"
+import { storyFontCss } from "@/lib/media/story-fonts"
 import { NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import {
   detectItemTraits,
@@ -348,7 +349,8 @@ export async function bakeStoryPng(node: HTMLElement): Promise<{ dataUrl: string
   const dataUrl = await toPng(node, {
     // Proxied images differ only by query string; without this they all share one cache entry.
     includeQueryParams: true,
-    cacheBust: true,
+    // Only the fonts this Story uses; embedding every web font made each save take seconds.
+    fontEmbedCSS: await storyFontCss(node),
     filter: storyExportFilter,
     pixelRatio: 1080 / Math.max(node.offsetWidth, 1),
     width: node.offsetWidth,
@@ -356,6 +358,24 @@ export async function bakeStoryPng(node: HTMLElement): Promise<{ dataUrl: string
   })
   const blob = await (await fetch(dataUrl)).blob()
   return { dataUrl, blob }
+}
+
+const warmed = new Set<string>()
+
+/**
+ * Fetch a Story's photos and fonts ahead of saving, so Save doesn't wait on them.
+ * The photo on screen isn't reused by the export; this fills the cache it reads.
+ */
+export function warmStoryNode(node: HTMLElement): void {
+  void storyFontCss(node).catch(() => undefined)
+  for (const image of Array.from(node.querySelectorAll("img"))) {
+    const src = image.currentSrc || image.src
+    if (!src || src.startsWith("data:") || warmed.has(src)) continue
+    warmed.add(src)
+    void fetch(src, { priority: "low" } as RequestInit)
+      .then((response) => response.blob())
+      .catch(() => warmed.delete(src))
+  }
 }
 
 /** True on a phone or tablet (touch screen), where the share sheet beats a download. */
@@ -374,21 +394,54 @@ export async function downloadImages(rows: Array<{ dataUrl: string; filename: st
   }
 }
 
+/**
+ * Open the phone's share sheet (Save Image, Save to Files › Dropbox, Instagram).
+ * Phones only allow it straight after a tap, and building a Story can take
+ * longer than that; then a Save button appears so the next tap opens it.
+ */
+export async function shareStoryFiles(
+  files: File[],
+  onShared?: () => void
+): Promise<"shared" | "cancelled" | "waiting-for-tap"> {
+  try {
+    await navigator.share({ files })
+    onShared?.()
+    return "shared"
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancelled"
+    if (!(error instanceof DOMException && error.name === "NotAllowedError")) throw error
+  }
+  toast(files.length === 1 ? "Your Story is ready" : `${files.length} Stories are ready`, {
+    description: "Tap Save, then Save Image (Photos) or Save to Files (Dropbox).",
+    duration: Infinity,
+    action: {
+      label: "Save",
+      onClick: () =>
+        void navigator
+          .share({ files })
+          .then(() => onShared?.())
+          .catch((error: unknown) => {
+            if (!(error instanceof DOMException && error.name === "AbortError")) {
+              toast.error(error instanceof Error ? error.message : "Couldn't open the share sheet.")
+            }
+          }),
+    },
+  })
+  return "waiting-for-tap"
+}
+
 /** Phone: open the share sheet (Instagram, Photos). Computer: always download. */
-export async function shareOrDownloadStory(input: {
-  dataUrl: string
-  blob: Blob
-  filename: string
-}): Promise<"shared" | "downloaded" | "cancelled"> {
+export async function shareOrDownloadStory(
+  input: {
+    dataUrl: string
+    blob: Blob
+    filename: string
+  },
+  onShared?: () => void
+): Promise<"shared" | "downloaded" | "cancelled" | "waiting-for-tap"> {
   const file = new File([input.blob], input.filename, { type: "image/png" })
   if (onTouchDevice() && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file] })
-      return "shared"
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return "cancelled"
-      throw error
-    }
+    return shareStoryFiles([file], onShared)
   }
   const anchor = document.createElement("a")
   anchor.href = input.dataUrl
