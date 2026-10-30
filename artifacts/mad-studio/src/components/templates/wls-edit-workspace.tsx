@@ -51,8 +51,8 @@ import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { useRememberedState } from "@/lib/use-remembered-state"
 import { cn } from "@/lib/utils"
 
-/** Title, flatlay and eight more (pieces and photos) fill a ten-slide carousel. */
-const EDIT_SLIDES_MAX = 8
+/** The title and nine more slides (pieces, flatlays, photos) fill a ten-slide carousel. */
+const EDIT_SLIDES_MAX = 9
 /** More than this crowds the flatlay. */
 const FLATLAY_PIECES_MAX = 6
 /** The flatlay's add buttons, each searching that kind of piece. */
@@ -249,10 +249,16 @@ const NEW_ARRIVALS_COUNT = 40
 /** Starting points for the title; every word stays editable. */
 const TITLE_PICKS = ["Race day ready", "Wedding guest", "Back to work", "Date night", "Long weekend", "Festival edit"]
 
-/** A slide after the title: a shop piece, or a photo of your own. */
-type EditEntry = { kind: "piece"; id: string } | { kind: "photo"; id: string; url: string }
+/** A slide after the title: a shop piece, a flatlay of pieces, or a photo of your own. */
+type EditEntry =
+  | { kind: "piece"; id: string }
+  | { kind: "flatlay"; id: string; pieceIds: string[] }
+  | { kind: "photo"; id: string; url: string }
 /** An entry ready to draw: pieces carry their Story data. */
-type EditSlide = { kind: "piece"; id: string; story: KitStory } | { kind: "photo"; id: string; url: string; story: null }
+type EditSlide =
+  | { kind: "piece"; id: string; story: KitStory }
+  | { kind: "flatlay"; id: string; pieceIds: string[]; story: null }
+  | { kind: "photo"; id: string; url: string; story: null }
 
 type Props = {
   entityId: string
@@ -296,15 +302,12 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   const draftKey = `mad.editDraft.${entityId}`
   const [title, setTitle] = useRememberedState<Announcement>(`${draftKey}.title`, DEFAULT_TITLE)
   const [entries, setEntries] = useRememberedState<EditEntry[]>(`${draftKey}.slides`, [])
-  // The flatlay's own pieces (null = no flatlay slide). It starts blank;
-  // pieces are added by kind (top, bottom, layer…) from the edit or stock.
-  const [flatlayIds, setFlatlayIds] = useRememberedState<string[] | null>(`${draftKey}.flatlayPieces`, null)
   const pieceIds = useMemo(() => entries.flatMap((entry) => (entry.kind === "piece" ? [entry.id] : [])), [entries])
-  // Pieces on slides first, then any that are only on the flatlay.
-  const allPieceIds = useMemo(
-    () => [...pieceIds, ...(flatlayIds ?? []).filter((id) => !pieceIds.includes(id))],
-    [pieceIds, flatlayIds]
-  )
+  // Pieces on slides first, then any that are only on a flatlay.
+  const allPieceIds = useMemo(() => {
+    const onFlatlays = entries.flatMap((entry) => (entry.kind === "flatlay" ? entry.pieceIds : []))
+    return [...new Set([...pieceIds, ...onFlatlays])]
+  }, [entries, pieceIds])
   const [adjusts, setAdjusts] = useRememberedState<Record<string, LayerAdjust>>(`${draftKey}.placements`, {})
   const [cardFields, setCardFields] = useRememberedState<Record<CardField, boolean>>(`${draftKey}.cardFields`, DEFAULT_CARD_FIELDS)
   const [cardAlign, setCardAlign] = useRememberedState<CardAlign>(`${draftKey}.cardAlign`, "center")
@@ -345,13 +348,49 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
 
   const pieceById = useMemo(() => new Map(eligible.map((row) => [row.marketingEntityId, toOutfitPiece(row)])), [eligible])
 
+  // Earlier drafts kept one flatlay apart from the slides: bring it into the
+  // list as the first slide after the title, placements and all.
+  useEffect(() => {
+    try {
+      const key = `${draftKey}.flatlayPieces`
+      const raw = window.localStorage.getItem(key)
+      if (raw == null) return
+      window.localStorage.removeItem(key)
+      const old = JSON.parse(raw) as unknown
+      if (!Array.isArray(old)) return
+      const ids = old.filter((id): id is string => typeof id === "string")
+      setEntries((current) =>
+        current.some((entry) => entry.kind === "flatlay")
+          ? current
+          : [{ kind: "flatlay", id: "flatlay", pieceIds: ids }, ...current]
+      )
+      setAdjusts((current) => {
+        const out = { ...current }
+        for (const id of ids) {
+          if (out[id] && !out[`flatlay:${id}`]) {
+            out[`flatlay:${id}`] = out[id]
+            delete out[id]
+          }
+        }
+        return out
+      })
+    } catch {
+      /* nothing to bring across */
+    }
+  }, [draftKey, setEntries, setAdjusts])
+
   // A kept draft may name pieces that have since sold: drop them.
   useEffect(() => {
     if (!loaded || loading || eligible.length === 0) return
     if (allPieceIds.every((id) => pieceById.has(id))) return
-    setEntries(entries.filter((entry) => entry.kind !== "piece" || pieceById.has(entry.id)))
-    if (flatlayIds) setFlatlayIds(flatlayIds.filter((id) => pieceById.has(id)))
-  }, [loaded, loading, eligible.length, entries, allPieceIds, flatlayIds, pieceById, setEntries, setFlatlayIds])
+    setEntries(
+      entries.flatMap((entry): EditEntry[] => {
+        if (entry.kind === "piece") return pieceById.has(entry.id) ? [entry] : []
+        if (entry.kind === "flatlay") return [{ ...entry, pieceIds: entry.pieceIds.filter((id) => pieceById.has(id)) }]
+        return [entry]
+      })
+    )
+  }, [loaded, loading, eligible.length, entries, allPieceIds, pieceById, setEntries])
 
   useEffect(() => {
     if (!selected) return
@@ -375,7 +414,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
 
   function cardName(cardId: string): string {
     if (cardId === "title") return "title page"
-    if (cardId === "flatlay") return "flatlay"
+    if (entries.some((entry) => entry.id === cardId && entry.kind === "flatlay")) return "flatlay"
     return stories.get(cardId)?.designer ?? "piece"
   }
 
@@ -412,7 +451,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   })
   // Every slide after the title, in carousel order.
   const slides: EditSlide[] = entries.flatMap((entry): EditSlide[] => {
-    if (entry.kind === "photo") return [{ ...entry, story: null }]
+    if (entry.kind === "photo" || entry.kind === "flatlay") return [{ ...entry, story: null }]
     const story = stories.get(entry.id)
     return story ? [{ ...entry, story }] : []
   })
@@ -423,24 +462,34 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   })
   const waiting = everyPiece.filter((story) => !ready(story))
 
-  const flatlayStories = (flatlayIds ?? []).flatMap((id) => {
-    const story = stories.get(id)
-    return story ? [story] : []
-  })
-  const flatlayPieces: SlidePiece[] = flatlayStories.flatMap((story) => {
-    const piece = pieceById.get(story.row.marketingEntityId)
-    if (!piece) return []
-    return [
-      {
-        id: piece.id,
-        slot: piece.slot,
-        imageUrl: story.cutoutUrl ? story.imageUrl : null,
-        brand: story.designer,
-        sizeLabel: story.sizeLabel,
-        priceLabel: shortPrice(story.priceLabel),
-      },
-    ]
-  })
+  /** A flatlay's pieces with their Story data. */
+  function flatlayStories(pieceList: string[]): KitStory[] {
+    return pieceList.flatMap((id) => {
+      const story = stories.get(id)
+      return story ? [story] : []
+    })
+  }
+
+  /**
+   * A flatlay's pieces, ready to draw. Each layer is keyed by flatlay and
+   * piece, so the same piece can sit differently on two flatlays.
+   */
+  function flatlayLayers(flat: { id: string; pieceIds: string[] }): SlidePiece[] {
+    return flatlayStories(flat.pieceIds).flatMap((story) => {
+      const piece = pieceById.get(story.row.marketingEntityId)
+      if (!piece) return []
+      return [
+        {
+          id: `${flat.id}:${piece.id}`,
+          slot: piece.slot,
+          imageUrl: story.cutoutUrl ? story.imageUrl : null,
+          brand: story.designer,
+          sizeLabel: story.sizeLabel,
+          priceLabel: shortPrice(story.priceLabel),
+        },
+      ]
+    })
+  }
 
   /** Stock not already in the edit, newest first; "New arrivals" keeps the newest only. */
   const options: PickerOption[] = useMemo(() => {
@@ -463,9 +512,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     })
   }, [eligible, searchNew, pieceIds, stories, entityId])
 
-  /** For the flatlay: the edit's own pieces first, then the stock search. */
-  const flatlayOptions: PickerOption[] = useMemo(() => {
-    const onFlatlay = new Set(flatlayIds ?? [])
+  /** For a flatlay: the edit's own pieces first, then the stock search. */
+  function flatlayOptions(onFlatlay: string[]): PickerOption[] {
     const pool = searchNew ? eligible.slice(0, NEW_ARRIVALS_COUNT) : eligible
     const rows = [
       ...pieceIds.flatMap((id) => {
@@ -475,7 +523,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
       ...pool.filter((row) => !pieceIds.includes(row.marketingEntityId)),
     ]
     return rows.flatMap((row) => {
-      if (onFlatlay.has(row.marketingEntityId)) return []
+      if (onFlatlay.includes(row.marketingEntityId)) return []
       const story = stories.get(row.marketingEntityId)
       if (!story) return []
       const image = story.cutoutUrl ?? row.sourceImageUrls[0] ?? null
@@ -493,31 +541,33 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
         },
       ]
     })
-  }, [eligible, searchNew, pieceIds, flatlayIds, stories, entityId])
+  }
 
-  /** Add a blank flatlay slide; pieces go on it by kind. */
+  /** Add a blank flatlay slide at the end; pieces go on it by kind. */
   function addFlatlay() {
-    setFlatlayIds([])
+    if (hasRoom()) setEntries([...entries, { kind: "flatlay", id: `flatlay-${Date.now()}`, pieceIds: [] }])
   }
 
-  function removeFlatlay() {
-    setFlatlayIds(null)
-    if (selected) setSelected(null)
+  function setFlatlayPieces(flatId: string, next: (current: string[]) => string[]) {
+    setEntries((current) =>
+      current.map((entry) => (entry.kind === "flatlay" && entry.id === flatId ? { ...entry, pieceIds: next(entry.pieceIds) } : entry))
+    )
   }
 
-  function addToFlatlay(id: string) {
-    const current = flatlayIds ?? []
-    if (current.length >= FLATLAY_PIECES_MAX) {
-      toast.message(`The flatlay takes up to ${FLATLAY_PIECES_MAX} pieces.`)
+  function addToFlatlay(flatId: string, pieceId: string) {
+    const flat = entries.find((entry) => entry.kind === "flatlay" && entry.id === flatId)
+    if (flat?.kind === "flatlay" && flat.pieceIds.length >= FLATLAY_PIECES_MAX) {
+      toast.message(`A flatlay takes up to ${FLATLAY_PIECES_MAX} pieces.`)
       return
     }
-    setFlatlayIds([...current, id])
+    setFlatlayPieces(flatId, (current) => [...current, pieceId])
   }
 
-  function removeFromFlatlay(id: string) {
-    setFlatlayIds((flatlayIds ?? []).filter((row) => row !== id))
-    setAdjust(id, null)
-    if (selected === id) setSelected(null)
+  function removeFromFlatlay(flatId: string, pieceId: string) {
+    setFlatlayPieces(flatId, (current) => current.filter((id) => id !== pieceId))
+    const layerId = `${flatId}:${pieceId}`
+    setAdjust(layerId, null)
+    if (selected === layerId) setSelected(null)
   }
 
   function hasRoom(): boolean {
@@ -572,7 +622,9 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   /** Bring the selected piece to the front (+1) or send it to the back (-1). */
   function restack(direction: 1 | -1) {
     if (!selected) return
-    const levels = flatlayPieces.map((piece) => adjusts[piece.id]?.z ?? 0)
+    const flat = entries.find((entry) => entry.kind === "flatlay" && selected.startsWith(`${entry.id}:`))
+    const layers = flat?.kind === "flatlay" ? flat.pieceIds.map((id) => `${flat.id}:${id}`) : [selected]
+    const levels = layers.map((id) => adjusts[id]?.z ?? 0)
     const z = direction === 1 ? Math.max(...levels, 5) + 1 : Math.min(...levels, 0) - 1
     setAdjust(selected, { ...(adjusts[selected] ?? NO_ADJUST), z })
   }
@@ -613,8 +665,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   }
 
   async function sendToStudio() {
-    if (flatlayIds !== null && flatlayPieces.length === 0) {
-      toast.message("The flatlay is blank. Add pieces to it, or remove it with the bin.")
+    if (entries.some((entry) => entry.kind === "flatlay" && flatlayLayers(entry).length === 0)) {
+      toast.message("A flatlay is blank. Add pieces to it, or take it out.")
       return
     }
     setSelected(null)
@@ -683,8 +735,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     )
   }
 
-  const flatlayShown = flatlayIds !== null
-  const firstItemSlide = flatlayShown ? 2 : 1
+  const firstItemSlide = 1
   const slideCount = firstItemSlide + slides.length
   /** Ref for the slide at this place in the carousel. */
   const slideRef = (index: number) => (node: HTMLDivElement | null) => {
@@ -868,8 +919,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                           id: "flatlay",
                           Icon: LayoutGrid,
                           label: "Flatlay",
-                          detail: flatlayIds === null ? "A blank flatlay as slide 2, built by top, bottom…" : "Already in the edit",
-                          disabled: flatlayIds !== null,
+                          detail: "A blank flatlay, built by top, bottom, layer…",
+                          disabled: entries.length >= EDIT_SLIDES_MAX,
                           run: () => {
                             addFlatlay()
                             setAddOpen(false)
@@ -971,18 +1022,24 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
               {slides.map((slide, index) => {
                 const id = slide.id
                 const story = slide.story
-                const name = story ? story.designer : "Photo slide"
+                const name = story ? story.designer : slide.kind === "flatlay" ? "Flatlay" : "Photo slide"
                 return (
                   <li key={id} className="flex items-center gap-2 border-2 border-mad-black bg-white px-2 py-1.5">
                     <span className="w-4 text-center font-typewriter text-xs">{index + 1}</span>
                     {slide.kind === "photo" ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={slide.url} alt="" className="h-9 w-7 shrink-0 object-cover" />
+                    ) : slide.kind === "flatlay" ? (
+                      <LayoutGrid className="size-4 shrink-0" aria-hidden />
                     ) : null}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-medium">{name}</span>
                       <span className="block truncate text-[11px] text-mad-black/60">
-                        {story ? story.row.title : "Your photo, full bleed"}
+                        {story
+                          ? story.row.title
+                          : slide.kind === "flatlay"
+                            ? `${slide.pieceIds.length} of ${FLATLAY_PIECES_MAX} pieces, set them up below`
+                            : "Your photo, full bleed"}
                       </span>
                     </span>
                     {story ? (
@@ -1057,50 +1114,51 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
               })}
             </ol>
           )}
-          <div className="grid gap-2 border-t-2 border-mad-black/15 pt-3">
-            {flatlayIds === null ? (
-              <p className="text-xs text-mad-black/55">No flatlay. Add one from + Add.</p>
-            ) : (
-              <>
+          {slides.map((slide, index) => {
+            if (slide.kind !== "flatlay") return null
+            const flatStories = flatlayStories(slide.pieceIds)
+            const options = flatlayOptions(slide.pieceIds)
+            return (
+              <div key={slide.id} className="grid gap-2 border-t-2 border-mad-black/15 pt-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-typewriter text-xs uppercase tracking-widest">
-                    Flatlay, slide 2 · {flatlayIds.length} of {FLATLAY_PIECES_MAX}
+                    Flatlay, slide {index + 2} · {slide.pieceIds.length} of {FLATLAY_PIECES_MAX}
                   </h3>
                   <button
-                      type="button"
-                      onClick={removeFlatlay}
-                      title="Remove the flatlay slide"
-                      aria-label="Remove the flatlay slide"
-                      className="flex size-9 items-center justify-center border-2 border-mad-black hover:bg-[#F4EFE6]"
-                    >
+                    type="button"
+                    onClick={() => removeEntry(slide.id)}
+                    title="Remove this flatlay slide"
+                    aria-label={`Remove the flatlay on slide ${index + 2}`}
+                    className="flex size-9 items-center justify-center border-2 border-mad-black hover:bg-[#F4EFE6]"
+                  >
                     <Trash2 className="size-4" aria-hidden />
                   </button>
                 </div>
-                {flatlayIds.length < FLATLAY_PIECES_MAX ? (
-                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Add to the flatlay">
+                {slide.pieceIds.length < FLATLAY_PIECES_MAX ? (
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Add to the flatlay on slide ${index + 2}`}>
                     {FLATLAY_KINDS.map((kind) => (
                       <PiecePicker
                         key={kind.label}
                         label={kind.label.toLowerCase()}
                         addText={kind.label}
-                        options={flatlayOptions.filter((option) => {
+                        options={options.filter((option) => {
                           const slot = pieceById.get(option.id)?.slot
                           return slot != null && kind.slots.includes(slot)
                         })}
-                        onPick={addToFlatlay}
+                        onPick={(pieceId) => addToFlatlay(slide.id, pieceId)}
                         adding
                         quiet
                       />
                     ))}
                   </div>
                 ) : null}
-                {flatlayStories.length === 0 ? (
+                {flatStories.length === 0 ? (
                   <p className="text-xs text-mad-black/60">
                     Blank for now. Add a top, bottom, dress, layer, accessory or footwear, from the edit or from stock.
                   </p>
                 ) : (
                   <ul className="flex flex-wrap gap-1.5">
-                    {flatlayStories.map((story) => {
+                    {flatStories.map((story) => {
                       const id = story.row.marketingEntityId
                       const image = story.cutoutUrl ?? story.row.sourceImageUrls[0] ?? null
                       return (
@@ -1114,7 +1172,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                           <span className="max-w-[7rem] truncate text-xs">{story.designer}</span>
                           <button
                             type="button"
-                            onClick={() => removeFromFlatlay(id)}
+                            onClick={() => removeFromFlatlay(slide.id, id)}
                             title="Take off the flatlay"
                             aria-label={`Take ${story.designer} off the flatlay`}
                             className="flex size-6 items-center justify-center text-mad-black/60 hover:text-mad-black"
@@ -1126,9 +1184,9 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                     })}
                   </ul>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            )
+          })}
         </section>
       </div>
 
@@ -1353,25 +1411,6 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
               <AnnouncementCard ref={slideRef(0)} background={bgFor("title")} brandName={entityName} announcement={title} className="rounded-sm shadow-md" />
             </div>
           </li>
-          {flatlayShown ? (
-            <li className="min-w-0">
-              <div {...pickable("flatlay", "flatlay")}>
-              <OutfitSlide
-                ref={slideRef(1)}
-                background={bgFor("flatlay")}
-                brandName={entityName}
-                day={editLabel}
-                vibe={title.kicker.trim() || "The edit"}
-                pieces={flatlayPieces}
-                adjust={adjusts}
-                onAdjust={(pieceId, next) => setAdjust(pieceId, next)}
-                selectedId={selected}
-                onSelect={setSelected}
-                className="rounded-sm shadow-md"
-              />
-              </div>
-            </li>
-          ) : null}
           {slides.map((slide, index) => (
             <li key={slide.id} className="min-w-0">
               {slide.story ? (
@@ -1379,6 +1418,22 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                   <EditItemSlide
                     ref={slideRef(firstItemSlide + index)}
                     {...cardProps(slide.id, slide.story)}
+                    className="rounded-sm shadow-md"
+                  />
+                </div>
+              ) : slide.kind === "flatlay" ? (
+                <div {...pickable(slide.id, "flatlay")}>
+                  <OutfitSlide
+                    ref={slideRef(firstItemSlide + index)}
+                    background={bgFor(slide.id)}
+                    brandName={entityName}
+                    day={editLabel}
+                    vibe={title.kicker.trim() || "The edit"}
+                    pieces={flatlayLayers(slide)}
+                    adjust={adjusts}
+                    onAdjust={(layerId, next) => setAdjust(layerId, next)}
+                    selectedId={selected}
+                    onSelect={setSelected}
                     className="rounded-sm shadow-md"
                   />
                 </div>
@@ -1427,6 +1482,37 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           {slides.map((slide, index) => {
             const id = slide.id
             const story = slide.story
+            if (slide.kind === "flatlay") {
+              return (
+                <li key={id} className="flex w-[200px] shrink-0 snap-start flex-col gap-2">
+                  <div {...pickable(id, "flatlay")}>
+                    <div className="overflow-hidden rounded-md shadow-md">
+                      <OutfitSlide
+                        ref={(node) => {
+                          storyNodes.current[id] = node
+                        }}
+                        background={bgFor(id)}
+                        brandName={entityName}
+                        day={editLabel}
+                        vibe={title.kicker.trim() || "The edit"}
+                        pieces={flatlayLayers(slide)}
+                        adjust={adjusts}
+                        story
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void saveStory(id, `wls-edit-flatlay-${index + 2}.png`)}
+                    disabled={savingId != null || flatlayLayers(slide).length === 0}
+                    className="flex h-8 items-center justify-center gap-1.5 bg-mad-black text-xs text-mad-white disabled:opacity-40"
+                  >
+                    {savingId === id ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Share2 className="size-3.5" aria-hidden />}
+                    Story {index + 2}
+                  </button>
+                </li>
+              )
+            }
             if (!story) {
               if (slide.kind !== "photo") return null
               return (

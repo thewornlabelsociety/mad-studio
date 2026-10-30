@@ -60,10 +60,12 @@ export const OutfitSlide = forwardRef<
     onAdjust?: (pieceId: string, next: LayerAdjust) => void
     selectedId?: string | null
     onSelect?: (pieceId: string | null) => void
+    /** 9:16 for Stories, clear of Instagram's top bar and reply box; 4:5 for the feed. */
+    story?: boolean
     className?: string
   }
 >(function OutfitSlide(
-  { background, brandName, day, vibe, pieces, adjust, onAdjust, selectedId = null, onSelect, className },
+  { background, brandName, day, vibe, pieces, adjust, onAdjust, selectedId = null, onSelect, story = false, className },
   ref
 ) {
   const editable = Boolean(onAdjust)
@@ -71,10 +73,10 @@ export const OutfitSlide = forwardRef<
     <div
       ref={ref}
       className={className}
-      style={frame(background)}
+      style={frame(background, story ? "9 / 16" : "4 / 5")}
       onPointerDown={editable ? () => onSelect?.(null) : undefined}
     >
-      <div style={{ position: "absolute", inset: "6cqw 6cqw auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div style={{ position: "absolute", inset: story ? "14cqw 6cqw auto" : "6cqw 6cqw auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <p style={{ ...caps, fontWeight: 700, fontSize: "9cqw", letterSpacing: "0.08em", lineHeight: 1 }}>{day}</p>
           {vibe ? (
@@ -87,7 +89,7 @@ export const OutfitSlide = forwardRef<
       </div>
 
       {/* Isolated so "send to back" stays above the slide colour. */}
-      <div style={{ position: "absolute", left: "5cqw", top: "27%", width: "60%", bottom: "6cqw", isolation: "isolate" }}>
+      <div style={{ position: "absolute", left: "5cqw", top: story ? "26%" : "27%", width: "60%", bottom: story ? "22cqw" : "6cqw", isolation: "isolate" }}>
         {pieces.length === 0 ? (
           <div
             data-export-ignore
@@ -159,8 +161,8 @@ export const OutfitSlide = forwardRef<
           position: "absolute",
           right: "5cqw",
           width: "32%",
-          top: "27%",
-          bottom: "6cqw",
+          top: story ? "26%" : "27%",
+          bottom: story ? "22cqw" : "6cqw",
           margin: 0,
           padding: 0,
           listStyle: "none",
