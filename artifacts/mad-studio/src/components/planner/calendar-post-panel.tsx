@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "wouter"
-import { CalendarClock, EyeOff, Loader2, Pencil, Send, Trash2, X } from "lucide-react"
+import { CalendarClock, Check, EyeOff, Loader2, Pencil, Send, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { PlatformIcon } from "@/components/ui/app-icons"
@@ -61,10 +61,13 @@ type Props = {
  */
 export function CalendarPostPanel({ entityId, post, open, onOpenChange, onChanged }: Props) {
   const [when, setWhen] = useState("")
-  const [busy, setBusy] = useState<"move" | "cancel" | "now" | "hide" | null>(null)
+  const [busy, setBusy] = useState<"move" | "cancel" | "now" | "hide" | "slot" | null>(null)
+  /** The one platform whose time is being changed on its own. */
+  const [slotEdit, setSlotEdit] = useState<{ id: string; when: string } | null>(null)
 
   useEffect(() => {
     if (post) setWhen(toLocalInput(post.time))
+    setSlotEdit(null)
   }, [post])
 
   if (!post) return null
@@ -96,6 +99,37 @@ export function CalendarPostPanel({ entityId, post, open, onOpenChange, onChange
         if (!result?.ok) throw new Error(result?.error ?? "Couldn't move this post.")
       }
       toast.success("Moved")
+      onChanged()
+      onOpenChange(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't move this post.")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /** Move one platform only (the others keep their times). */
+  async function moveSlot() {
+    if (!slotEdit) return
+    const target = new Date(slotEdit.when)
+    if (Number.isNaN(target.getTime())) {
+      toast.error("Pick a date and time.")
+      return
+    }
+    if (target.getTime() < Date.now() + 2 * 60 * 1000) {
+      toast.error("That time has already passed — pick a later time, or use Post now.")
+      return
+    }
+    setBusy("slot")
+    try {
+      const result = (await rescheduleScheduledPost({
+        entityId,
+        postId: slotEdit.id,
+        scheduledTime: target.toISOString(),
+      })) as { ok?: boolean; error?: string }
+      if (!result?.ok) throw new Error(result?.error ?? "Couldn't move this post.")
+      toast.success("Moved")
+      setSlotEdit(null)
       onChanged()
       onOpenChange(false)
     } catch (error) {
@@ -236,7 +270,7 @@ export function CalendarPostPanel({ entityId, post, open, onOpenChange, onChange
 
           <ul className="divide-y divide-neutral-200 border-2 border-mad-black">
             {post.slots.map((slot) => (
-              <li key={slot.id} className="flex items-start gap-2 px-3 py-2 text-sm">
+              <li key={slot.id} className="flex flex-wrap items-start gap-2 px-3 py-2 text-sm">
                 <PlatformIcon platform={slot.platform} className="mt-0.5 size-4 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{platformLabel(slot.platform)}</p>
@@ -257,6 +291,51 @@ export function CalendarPostPanel({ entityId, post, open, onOpenChange, onChange
                 >
                   {STATUS_STYLES[slot.status].label}
                 </span>
+                {slot.status === "scheduled" || slot.status === "failed" ? (
+                  <button
+                    type="button"
+                    disabled={busy !== null}
+                    onClick={() =>
+                      setSlotEdit((current) =>
+                        current?.id === slot.id ? null : { id: slot.id, when: toLocalInput(slot.time) }
+                      )
+                    }
+                    title={`Change the ${platformLabel(slot.platform)} time only`}
+                    aria-label={`Change the ${platformLabel(slot.platform)} time only`}
+                    aria-expanded={slotEdit?.id === slot.id}
+                    className={cn(
+                      "-my-1 flex size-8 shrink-0 items-center justify-center border-2 border-transparent hover:border-mad-black disabled:opacity-40",
+                      slotEdit?.id === slot.id && "border-mad-black bg-mad-lime"
+                    )}
+                  >
+                    <CalendarClock className="size-4" aria-hidden />
+                  </button>
+                ) : null}
+                {slotEdit?.id === slot.id ? (
+                  <div className="flex w-full items-center gap-2 pt-1">
+                    <input
+                      type="datetime-local"
+                      value={slotEdit.when}
+                      onChange={(event) => setSlotEdit({ id: slot.id, when: event.target.value })}
+                      aria-label={`New time for ${platformLabel(slot.platform)}`}
+                      className="h-9 min-w-0 flex-1 border-2 border-mad-black px-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => void moveSlot()}
+                      title="Save this time"
+                      aria-label="Save this time"
+                      className="flex size-9 shrink-0 items-center justify-center border-2 border-mad-black bg-mad-black text-mad-white hover:bg-mad-vermillion disabled:opacity-40"
+                    >
+                      {busy === "slot" ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Check className="size-4" aria-hidden />
+                      )}
+                    </button>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -277,7 +356,7 @@ export function CalendarPostPanel({ entityId, post, open, onOpenChange, onChange
                 <div className="flex items-end gap-2">
                   <label className="grid flex-1 gap-1">
                     <span className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase">
-                      Move to
+                      {post.slots.length > 1 ? "Move all to" : "Move to"}
                     </span>
                     <input
                       type="datetime-local"

@@ -144,7 +144,9 @@ export function isPublicHttpUrl(value: string): boolean {
 
 export function siteOrigin(): string {
   const raw =
-    import.meta.env.VITE_SITE_URL?.trim() ||
+    // The server has no import.meta.env (reading it crashed every Meta post).
+    process.env.VITE_SITE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
     "http://localhost:3000"
   if (raw.startsWith("http://") || raw.startsWith("https://")) {
     return raw.replace(/\/$/, "")
@@ -199,7 +201,7 @@ export function createTrackableSlug(seed?: string): string {
 }
 
 export function metaGraphVersion(): string {
-  return import.meta.env.VITE_META_GRAPH_API_VERSION?.trim() || "v21.0"
+  return process.env.VITE_META_GRAPH_API_VERSION?.trim() || "v21.0"
 }
 
 export function metaGraphBase(): string {

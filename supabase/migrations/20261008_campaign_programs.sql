@@ -63,8 +63,8 @@ CREATE INDEX IF NOT EXISTS idx_scheduled_posts_program_day
 CREATE TABLE IF NOT EXISTS public.cron_heartbeats (
   job_name text PRIMARY KEY,
   last_run_at timestamptz NOT NULL DEFAULT now(),
-  last_status text,
-  detail jsonb DEFAULT '{}'::jsonb
+  status text NOT NULL DEFAULT 'ok',
+  details jsonb DEFAULT '{}'::jsonb
 );
 
 ALTER TABLE public.campaign_programs ENABLE ROW LEVEL SECURITY;

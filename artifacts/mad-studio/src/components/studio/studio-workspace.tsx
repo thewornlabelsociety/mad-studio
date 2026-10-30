@@ -382,6 +382,8 @@ export function StudioWorkspace({
   /** The caption a quick (no-AI) pack was built from; null for AI or restored packs. */
   const quickPackCaption = useRef<string | null>(null)
   const [campaignId, setCampaignId] = useState<string | null>(null)
+  /** The campaign a template handoff let go of (see forgetPreviousPost). */
+  const forgottenCampaignId = useRef<string | null>(null)
   const [editorSession, setEditorSession] = useState(0)
   const [multiplexing, setMultiplexing] = useState(false)
   const [rehydrating, setRehydrating] = useState(true)
@@ -1101,6 +1103,9 @@ export function StudioWorkspace({
   const applyStudioTemplateHandoff = useCallback(
     (handoff: StudioTemplateHandoffResponse) => {
       const { template } = handoff
+      // A template's content is a new post, not an edit of the last campaign.
+      setPack(null)
+      setCampaignId(null)
       setTemplateInstanceId(template.templateInstanceId)
       setTemplateVersionId(String(template.templateVersion))
       setTemplateDisplayName(template.templateName)
@@ -1466,6 +1471,7 @@ export function StudioWorkspace({
       destinationUrl: handoff.destinationUrl ?? null,
       intakeCaption: index === 0 ? handoff.caption : null,
     }))
+    forgetPreviousPost()
     onMediaAssetsChange(tray)
     applyIntakeFromTray(tray, { forceCaption: true })
     setActiveMediaId(tray[0].id)
@@ -1525,6 +1531,7 @@ export function StudioWorkspace({
           return
         }
         const tray = assets.slice(0, 10)
+        forgetPreviousPost()
         onMediaAssetsChange(tray)
         applyIntakeFromTray(tray, { forceCaption: true })
         setActiveMediaId(tray[0].id)
@@ -2326,7 +2333,10 @@ export function StudioWorkspace({
   }, [rehydrating, activeEntity.id])
 
   useEffect(() => {
+    if (!campaignId) forgottenCampaignId.current = null
     if (!pack || !campaignId) return
+    // Still the render before forgetPreviousPost's reset lands: don't save it back.
+    if (campaignId === forgottenCampaignId.current) return
     writeLocalBuffer({
       packId: campaignId,
       pack,
@@ -2839,6 +2849,21 @@ export function StudioWorkspace({
         `/campaigns?eid=${encodeURIComponent(activeEntity.id)}&toast=armed`
       )
     })
+  }
+
+  /**
+   * New artwork arriving from a template or Today is a new post: let go of the
+   * last campaign so scheduling it can't replace that one's queued posts.
+   */
+  function forgetPreviousPost() {
+    forgottenCampaignId.current = campaignId
+    clearActiveMultiplexerBuffer(activeEntity.id)
+    setPack(null)
+    setCampaignId(null)
+    setRestoredAt(null)
+    setActiveHookId(null)
+    quickPackCaption.current = null
+    syncPackUrl(null)
   }
 
   function startNewPack() {
