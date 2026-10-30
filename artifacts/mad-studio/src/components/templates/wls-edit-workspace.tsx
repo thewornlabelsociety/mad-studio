@@ -978,6 +978,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                   background={background}
                   brandName={entityName}
                   editLabel={editLabel}
+                  index={pieceIds.indexOf(slide.id) + 1}
+                  editorial={title.style === "editorial"}
                   imageUrl={ready(slide.story) ? slide.story.imageUrl : null}
                   designer={slide.story.designer}
                   sizeLabel={slide.story.sizeLabel}
