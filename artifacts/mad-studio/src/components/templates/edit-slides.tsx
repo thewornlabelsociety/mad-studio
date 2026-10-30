@@ -4,11 +4,16 @@ import { EDITORIAL_SERIF } from "@/components/templates/editorial-announcement"
 import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
+export type CardAlign = "left" | "center" | "right"
+/** The fabric pill's look: outlined, or filled in the accent, the text colour or cream. */
+export type PillFill = "outline" | "accent" | "ink" | "cream"
+export type PillShape = "round" | "soft" | "square"
+
 /**
  * One piece of a themed edit, 4:5, laid out like a magazine page: a ruled
- * header, the cutout centred, then the eyebrow, designer, type and vibe, a
- * short rule and one line of size, fabric and price, all on the centre line.
- * Any line given as null is left out.
+ * header, the cutout centred, then the eyebrow, the designer with its size
+ * stacked under it, type and vibe, a short rule, and fabric and price, all
+ * aligned left, centre or right. Any line given as null is left out.
  */
 export const EditItemSlide = forwardRef<
   HTMLDivElement,
@@ -21,39 +26,55 @@ export const EditItemSlide = forwardRef<
     eyebrow?: string | null
     /** The title page's style: editorial sets the designer in the tall serif. */
     editorial?: boolean
+    /** Where the words sit under the piece. */
+    align?: CardAlign
     imageUrl: string | null
     designer: string | null
     /** The kind of piece, e.g. FORMAL DRESS. */
     categoryLabel?: string | null
     vibeLabel?: string | null
     sizeLabel: string | null
-    /** e.g. LINEN: a pill beside the size. */
+    /** e.g. LINEN: a pill on its own row above the words. */
     fabricLabel?: string | null
+    /** The pill lines up on its own, apart from the words. */
+    pillAlign?: CardAlign
+    pillFill?: PillFill
+    pillShape?: PillShape
     priceLabel: string | null
     /** Marked down: the old price, struck through before the new one. */
     wasLabel?: string | null
     className?: string
   }
 >(function EditItemSlide(
-  { background, brandName, editLabel, eyebrow = null, editorial = false, imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, priceLabel, wasLabel = null, className },
+  { background, brandName, editLabel, eyebrow = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "center", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, className },
   ref
 ) {
   const ink = background.text_color
   const accent = background.accent_color
+  const pillColours: Record<PillFill, { background: string; color: string; borderColor: string }> = {
+    outline: { background: "transparent", color: ink, borderColor: ink },
+    accent: { background: accent, color: background.color, borderColor: accent },
+    ink: { background: ink, color: background.color, borderColor: ink },
+    cream: { background: "#F4F1EA", color: "#1A1A1A", borderColor: "#F4F1EA" },
+  }
   const pill = {
     ...caps,
+    ...pillColours[pillFill],
     fontWeight: 600,
     fontSize: "2.6cqw",
     letterSpacing: "0.22em",
     padding: "1cqw 2.4cqw 0.7cqw",
-    border: "0.3cqw solid currentColor",
-    borderRadius: 999,
+    borderWidth: "0.3cqw",
+    borderStyle: "solid",
+    borderRadius: pillShape === "round" ? 999 : pillShape === "soft" ? "1.2cqw" : 0,
   }
   // The designer fits one line where it can, stepping down for long names.
   const name = designer?.trim() ?? ""
   const designerSize = Math.min(editorial ? 6 : 4.8, 84 / Math.max(name.length * (editorial ? 0.62 : 0.72), 1))
   const meta = [categoryLabel, vibeLabel].map((part) => part?.trim()).filter(Boolean).join(" · ")
-  const hasLine = Boolean(sizeLabel || fabricLabel || priceLabel)
+  const hasLine = Boolean(priceLabel)
+  const toFlex = (side: CardAlign) => (side === "left" ? "flex-start" : side === "right" ? "flex-end" : "center")
+  const flexAlign = toFlex(align)
   return (
     <div ref={ref} className={className} style={frame(background)}>
       <div style={{ position: "absolute", left: "7cqw", right: "7cqw", top: "6cqw" }}>
@@ -89,32 +110,43 @@ export const EditItemSlide = forwardRef<
           bottom: "7cqw",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          textAlign: "center",
+          alignItems: flexAlign,
+          textAlign: align,
           gap: "2.4cqw",
         }}
       >
+        {fabricLabel ? (
+          <div style={{ alignSelf: "stretch", display: "flex", justifyContent: toFlex(pillAlign), marginBottom: "0.8cqw" }}>
+            <p style={pill}>{fabricLabel}</p>
+          </div>
+        ) : null}
         {eyebrow?.trim() ? (
           <p style={{ ...caps, fontSize: "2.2cqw", letterSpacing: "0.34em", color: accent }}>{eyebrow.trim()}</p>
         ) : null}
-        {name ? (
-          <p
-            style={
-              editorial
-                ? { margin: 0, fontFamily: EDITORIAL_SERIF, textTransform: "uppercase", fontWeight: 500, fontSize: `${designerSize}cqw`, letterSpacing: "0.04em", lineHeight: 1.05 }
-                : { ...caps, fontWeight: 600, fontSize: `${designerSize}cqw`, letterSpacing: "0.16em", lineHeight: 1.1 }
-            }
-          >
-            {name}
-          </p>
+        {/* Brand with its size stacked under it, no pill. */}
+        {name || sizeLabel ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: flexAlign, gap: "1.2cqw" }}>
+            {name ? (
+              <p
+                style={
+                  editorial
+                    ? { margin: 0, fontFamily: EDITORIAL_SERIF, textTransform: "uppercase", fontWeight: 500, fontSize: `${designerSize}cqw`, letterSpacing: "0.04em", lineHeight: 1.05 }
+                    : { ...caps, fontWeight: 600, fontSize: `${designerSize}cqw`, letterSpacing: "0.16em", lineHeight: 1.1 }
+                }
+              >
+                {name}
+              </p>
+            ) : null}
+            {sizeLabel ? (
+              <p style={{ ...caps, fontSize: "2.5cqw", letterSpacing: "0.3em" }}>{sizeLabel}</p>
+            ) : null}
+          </div>
         ) : null}
         {meta ? (
           <p style={{ ...caps, fontSize: "2.3cqw", letterSpacing: "0.26em", opacity: 0.85 }}>{meta}</p>
         ) : null}
         {hasLine ? <span style={{ display: "block", width: "10cqw", height: "0.25cqw", background: accent }} /> : null}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "2.4cqw", flexWrap: "wrap" }}>
-          {sizeLabel ? <p style={pill}>{sizeLabel}</p> : null}
-          {fabricLabel ? <p style={pill}>{fabricLabel}</p> : null}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: flexAlign, gap: "2.4cqw", flexWrap: "wrap" }}>
           {wasLabel ? (
             <p style={{ ...caps, fontSize: "3cqw", letterSpacing: "0.14em", textDecoration: "line-through", opacity: 0.6 }}>{wasLabel}</p>
           ) : null}

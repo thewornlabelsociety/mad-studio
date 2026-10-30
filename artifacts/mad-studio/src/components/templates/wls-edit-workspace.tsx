@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "wouter"
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   ArrowRight,
   BringToFront,
   Check,
@@ -22,7 +25,13 @@ import { toast } from "sonner"
 
 import { isAdjusted, NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import { AnnouncementCard, AnnouncementStory, type Announcement } from "@/components/templates/announcement-slides"
-import { EditItemSlide, EditPhotoSlide } from "@/components/templates/edit-slides"
+import {
+  EditItemSlide,
+  EditPhotoSlide,
+  type CardAlign,
+  type PillFill,
+  type PillShape,
+} from "@/components/templates/edit-slides"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { OutfitSlide, type SlidePiece } from "@/components/templates/outfit-slides"
 import { PiecePicker, type PickerOption } from "@/components/templates/piece-picker"
@@ -70,6 +79,45 @@ const DEFAULT_CARD_FIELDS: Record<CardField, boolean> = {
   vibe: false,
   size: true,
   price: true,
+}
+
+const PILL_FILLS: Array<{ id: PillFill; label: string }> = [
+  { id: "outline", label: "Outline" },
+  { id: "accent", label: "Accent colour" },
+  { id: "ink", label: "Text colour" },
+  { id: "cream", label: "Cream" },
+]
+const PILL_SHAPES: Array<{ id: PillShape; label: string }> = [
+  { id: "round", label: "Round" },
+  { id: "soft", label: "Soft corner" },
+  { id: "square", label: "Square" },
+]
+
+/** Left, centre and right buttons for something on the cards. */
+function AlignButtons({ value, onChange, what }: { value: CardAlign; onChange: (next: CardAlign) => void; what: string }) {
+  return (
+    <div className="flex border-2 border-mad-black" role="group" aria-label={`Line up ${what}`}>
+      {(
+        [
+          { side: "left", label: "Left", Icon: AlignLeft },
+          { side: "center", label: "Centre", Icon: AlignCenter },
+          { side: "right", label: "Right", Icon: AlignRight },
+        ] as const
+      ).map(({ side, label, Icon }) => (
+        <button
+          key={side}
+          type="button"
+          onClick={() => onChange(side)}
+          aria-pressed={value === side}
+          title={`${label}-align ${what}`}
+          aria-label={`${label}-align ${what}`}
+          className={cn("flex size-7 items-center justify-center", value === side ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]")}
+        >
+          <Icon className="size-4" aria-hidden />
+        </button>
+      ))}
+    </div>
+  )
 }
 
 /** The kind of piece from its shop title: "Formal Dress Karen Millen in Brown" gives "Formal Dress". */
@@ -247,6 +295,11 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   )
   const [adjusts, setAdjusts] = useRememberedState<Record<string, LayerAdjust>>(`${draftKey}.placements`, {})
   const [cardFields, setCardFields] = useRememberedState<Record<CardField, boolean>>(`${draftKey}.cardFields`, DEFAULT_CARD_FIELDS)
+  const [cardAlign, setCardAlign] = useRememberedState<CardAlign>(`${draftKey}.cardAlign`, "center")
+  // The fabric pill's own alignment, colour and shape.
+  const [pillAlign, setPillAlign] = useRememberedState<CardAlign>(`${draftKey}.pillAlign`, "center")
+  const [pillFill, setPillFill] = useRememberedState<PillFill>(`${draftKey}.pillFill`, "outline")
+  const [pillShape, setPillShape] = useRememberedState<PillShape>(`${draftKey}.pillShape`, "round")
   // Eyebrow per piece; blank uses "No. 01" and so on.
   const [eyebrows, setEyebrows] = useRememberedState<Record<string, string>>(`${draftKey}.eyebrows`, {})
   // Fabric pill per piece, e.g. LINEN; none until clicked.
@@ -970,6 +1023,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
             Feed carousel · {slideCount} slides
           </h2>
           <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="On the piece cards">
+            <AlignButtons value={cardAlign} onChange={setCardAlign} what="the words" />
             <span className="text-xs text-mad-black/60">On the cards:</span>
             {CARD_FIELDS.map((field) => (
               <button
@@ -1021,6 +1075,61 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
             </div>
           ) : null}
         </div>
+        <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Fabric pill">
+          <span className="text-xs text-mad-black/60">Fabric pill:</span>
+          <AlignButtons value={pillAlign} onChange={setPillAlign} what="the fabric pill" />
+          <div className="flex items-center gap-1" role="group" aria-label="Pill colour">
+            {PILL_FILLS.map((fill) => {
+              const look =
+                fill.id === "outline"
+                  ? { background: "transparent", borderColor: background.text_color }
+                  : fill.id === "accent"
+                    ? { background: background.accent_color, borderColor: background.accent_color }
+                    : fill.id === "ink"
+                      ? { background: background.text_color, borderColor: background.text_color }
+                      : { background: "#F4F1EA", borderColor: "#F4F1EA" }
+              return (
+                <button
+                  key={fill.id}
+                  type="button"
+                  onClick={() => setPillFill(fill.id)}
+                  aria-pressed={pillFill === fill.id}
+                  title={`${fill.label} pill`}
+                  aria-label={`${fill.label} pill`}
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-full",
+                    pillFill === fill.id && "ring-2 ring-mad-black ring-offset-1"
+                  )}
+                  style={{ background: background.color }}
+                >
+                  <span className="block h-3 w-5 rounded-full border-2" style={look} />
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex border-2 border-mad-black" role="group" aria-label="Pill shape">
+            {PILL_SHAPES.map((shape) => (
+              <button
+                key={shape.id}
+                type="button"
+                onClick={() => setPillShape(shape.id)}
+                aria-pressed={pillShape === shape.id}
+                title={`${shape.label} pill`}
+                aria-label={`${shape.label} pill`}
+                className={cn(
+                  "flex h-7 w-9 items-center justify-center",
+                  pillShape === shape.id ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]"
+                )}
+              >
+                <span
+                  aria-hidden
+                  className="block h-3 w-5 border-2 border-current"
+                  style={{ borderRadius: shape.id === "round" ? 999 : shape.id === "soft" ? 3 : 0 }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
         <ol className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           <li className="min-w-0">
             <AnnouncementCard ref={slideRef(0)} background={background} brandName={entityName} announcement={title} className="rounded-sm shadow-md" />
@@ -1052,12 +1161,16 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                   editLabel={editLabel}
                   eyebrow={cardFields.number ? eyebrowFor(slide.id) : null}
                   editorial={title.style === "editorial"}
+                  align={cardAlign}
                   imageUrl={ready(slide.story) ? slide.story.imageUrl : null}
                   designer={cardFields.brand ? slide.story.designer : null}
                   categoryLabel={cardFields.category ? pieceType(slide.story.row.title, slide.story.row.brand) : null}
                   vibeLabel={cardFields.vibe ? slide.story.vibe : null}
                   sizeLabel={cardFields.size ? slide.story.sizeLabel : null}
                   fabricLabel={fabrics[slide.id] ?? null}
+                  pillAlign={pillAlign}
+                  pillFill={pillFill}
+                  pillShape={pillShape}
                   priceLabel={cardFields.price ? shortPrice(slide.story.priceLabel) : null}
                   wasLabel={cardFields.price && slide.story.row.wasPrice != null ? money(slide.story.row.wasPrice) : null}
                   className="rounded-sm shadow-md"
