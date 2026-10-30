@@ -92,6 +92,16 @@ const PILL_SHAPES: Array<{ id: PillShape; label: string }> = [
   { id: "square", label: "Square" },
 ]
 
+/** One labelled line of the Card style panel. */
+function StyleRow({ label, wide = false, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
+  return (
+    <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-2", wide && "md:col-span-2")}>
+      <span className="w-20 shrink-0 font-typewriter text-[10px] uppercase tracking-widest text-mad-black/60">{label}</span>
+      {children}
+    </div>
+  )
+}
+
 /** Left, centre and right buttons for something on the cards. */
 function AlignButtons({ value, onChange, what }: { value: CardAlign; onChange: (next: CardAlign) => void; what: string }) {
   return (
@@ -687,31 +697,6 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5" role="group" aria-label="Background">
-            {kit.map((bg) => (
-              <button
-                key={bg.id}
-                type="button"
-                onClick={() =>
-                  pickedCard
-                    ? setCardBackgrounds((current) => ({ ...current, [pickedCard]: bg.id }))
-                    : setBackgroundId(bg.id)
-                }
-                title={bg.name}
-                aria-label={pickedCard ? `Use ${bg.name} for the picked card` : `Use ${bg.name} for the edit`}
-                aria-pressed={bg.id === (pickedCard ? bgFor(pickedCard) : background).id}
-                className={cn(
-                  "relative size-8 rounded-full border border-black/15",
-                  bg.id === (pickedCard ? bgFor(pickedCard) : background).id && "ring-2 ring-mad-black ring-offset-2"
-                )}
-                style={{ background: bg.color }}
-              >
-                {bg.id === (pickedCard ? bgFor(pickedCard) : background).id ? (
-                  <Check className="absolute inset-0 m-auto size-3.5" style={{ color: bg.text_color }} aria-hidden />
-                ) : null}
-              </button>
-            ))}
-          </div>
           <Button
             type="button"
             variant="outline"
@@ -735,36 +720,6 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           </Button>
         </div>
       </header>
-
-      {pickedCard ? (
-        <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 border-2 border-mad-black bg-[#F4EFE6] px-3 py-2 text-sm">
-          <span className="min-w-0 flex-1">
-            Colour for the <strong>{cardName(pickedCard)}</strong> card: pick a dot at the top.
-          </span>
-          {cardBackgrounds[pickedCard] ? (
-            <button
-              type="button"
-              onClick={() =>
-                setCardBackgrounds((current) => {
-                  const out = { ...current }
-                  delete out[pickedCard]
-                  return out
-                })
-              }
-              className="h-8 border-2 border-mad-black bg-white px-2.5 text-xs hover:bg-[#FAF7F1]"
-            >
-              Same as the rest
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setPickedCard(null)}
-            className="h-8 border-2 border-mad-black bg-mad-black px-3 text-xs text-mad-white"
-          >
-            Done
-          </button>
-        </div>
-      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section aria-labelledby="edit-title" className="grid content-start gap-3">
@@ -1121,26 +1076,6 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           <h2 id="edit-carousel" className="font-typewriter text-xs uppercase tracking-widest">
             Feed carousel · {slideCount} slides
           </h2>
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="On the piece cards">
-            <AlignButtons value={cardAlign} onChange={setCardAlign} what="the words" />
-            <span className="text-xs text-mad-black/60">On the cards:</span>
-            {CARD_FIELDS.map((field) => (
-              <button
-                key={field.id}
-                type="button"
-                onClick={() => setCardFields((current) => ({ ...current, [field.id]: !current[field.id] }))}
-                aria-pressed={cardFields[field.id]}
-                title={cardFields[field.id] ? `Hide ${field.label.toLowerCase()} on the cards` : `Show ${field.label.toLowerCase()} on the cards`}
-                className={cn(
-                  "flex h-7 items-center gap-1 rounded-full border-2 border-mad-black px-2.5 text-[11px] uppercase tracking-wider",
-                  cardFields[field.id] ? "bg-mad-black text-mad-white" : "border-dashed text-mad-black/70 hover:bg-[#F4EFE6]"
-                )}
-              >
-                {cardFields[field.id] ? <Check className="size-3" aria-hidden /> : <Plus className="size-3" aria-hidden />}
-                {field.label}
-              </button>
-            ))}
-          </div>
           {selected ? (
             <div className="flex items-center gap-1.5">
               <button
@@ -1174,60 +1109,148 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
             </div>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Fabric pill">
-          <span className="text-xs text-mad-black/60">Fabric pill:</span>
-          <AlignButtons value={pillAlign} onChange={setPillAlign} what="the fabric pill" />
-          <div className="flex items-center gap-1" role="group" aria-label="Pill colour">
-            {PILL_FILLS.map((fill) => {
-              const look =
-                fill.id === "outline"
-                  ? { background: "transparent", borderColor: background.text_color }
-                  : fill.id === "accent"
-                    ? { background: background.accent_color, borderColor: background.accent_color }
-                    : fill.id === "ink"
-                      ? { background: background.text_color, borderColor: background.text_color }
-                      : { background: "#F4F1EA", borderColor: "#F4F1EA" }
-              return (
-                <button
-                  key={fill.id}
-                  type="button"
-                  onClick={() => setPillFill(fill.id)}
-                  aria-pressed={pillFill === fill.id}
-                  title={`${fill.label} pill`}
-                  aria-label={`${fill.label} pill`}
-                  className={cn(
-                    "flex size-7 items-center justify-center rounded-full",
-                    pillFill === fill.id && "ring-2 ring-mad-black ring-offset-1"
-                  )}
-                  style={{ background: background.color }}
-                >
-                  <span className="block h-3 w-5 rounded-full border-2" style={look} />
+
+        {/* Card style: one panel for colour, words, what shows and the fabric pill. Stays in view while scrolling the cards. */}
+        <div
+          role="group"
+          aria-label="Card style"
+          className="sticky top-0 z-20 grid gap-x-8 gap-y-3 border-2 border-mad-black bg-white p-3 md:grid-cols-2"
+        >
+          <StyleRow label="Colour">
+            <div className="flex items-center gap-1.5" role="group" aria-label="Background">
+              {kit.map((bg) => {
+                const current = (pickedCard ? bgFor(pickedCard) : background).id === bg.id
+                return (
+                  <button
+                    key={bg.id}
+                    type="button"
+                    onClick={() =>
+                      pickedCard
+                        ? setCardBackgrounds((now) => ({ ...now, [pickedCard]: bg.id }))
+                        : setBackgroundId(bg.id)
+                    }
+                    title={bg.name}
+                    aria-label={pickedCard ? `Use ${bg.name} for the picked card` : `Use ${bg.name} for the edit`}
+                    aria-pressed={current}
+                    className={cn(
+                      "relative size-7 rounded-full border border-black/15",
+                      current && "ring-2 ring-mad-black ring-offset-2"
+                    )}
+                    style={{ background: bg.color }}
+                  >
+                    {current ? (
+                      <Check className="absolute inset-0 m-auto size-3.5" style={{ color: bg.text_color }} aria-hidden />
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+            {pickedCard ? (
+              <span className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="rounded-full bg-mad-vermillion px-2 py-0.5 text-white">{cardName(pickedCard)} card</span>
+                {cardBackgrounds[pickedCard] ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCardBackgrounds((now) => {
+                        const out = { ...now }
+                        delete out[pickedCard]
+                        return out
+                      })
+                    }
+                    className="underline"
+                  >
+                    Same as the rest
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => setPickedCard(null)} className="font-medium underline">
+                  Done
                 </button>
-              )
-            })}
-          </div>
-          <div className="flex border-2 border-mad-black" role="group" aria-label="Pill shape">
-            {PILL_SHAPES.map((shape) => (
-              <button
-                key={shape.id}
-                type="button"
-                onClick={() => setPillShape(shape.id)}
-                aria-pressed={pillShape === shape.id}
-                title={`${shape.label} pill`}
-                aria-label={`${shape.label} pill`}
-                className={cn(
-                  "flex h-7 w-9 items-center justify-center",
-                  pillShape === shape.id ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]"
-                )}
-              >
-                <span
-                  aria-hidden
-                  className="block h-3 w-5 border-2 border-current"
-                  style={{ borderRadius: shape.id === "round" ? 999 : shape.id === "soft" ? 3 : 0 }}
-                />
-              </button>
-            ))}
-          </div>
+              </span>
+            ) : (
+              <span className="text-xs text-mad-black/55">All cards. Click a card to colour just that one.</span>
+            )}
+          </StyleRow>
+
+          <StyleRow label="Words">
+            <AlignButtons value={cardAlign} onChange={setCardAlign} what="the words" />
+          </StyleRow>
+
+          <StyleRow label="Show" wide>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="On the piece cards">
+              {CARD_FIELDS.map((field) => (
+                <button
+                  key={field.id}
+                  type="button"
+                  onClick={() => setCardFields((now) => ({ ...now, [field.id]: !now[field.id] }))}
+                  aria-pressed={cardFields[field.id]}
+                  title={cardFields[field.id] ? `Hide ${field.label.toLowerCase()} on the cards` : `Show ${field.label.toLowerCase()} on the cards`}
+                  className={cn(
+                    "flex h-7 items-center gap-1 rounded-full border-2 border-mad-black px-2.5 text-[11px] uppercase tracking-wider",
+                    cardFields[field.id] ? "bg-mad-black text-mad-white" : "border-dashed text-mad-black/70 hover:bg-[#F4EFE6]"
+                  )}
+                >
+                  {cardFields[field.id] ? <Check className="size-3" aria-hidden /> : <Plus className="size-3" aria-hidden />}
+                  {field.label}
+                </button>
+              ))}
+            </div>
+          </StyleRow>
+
+          <StyleRow label="Fabric pill" wide>
+            <AlignButtons value={pillAlign} onChange={setPillAlign} what="the fabric pill" />
+            <div className="flex items-center gap-1" role="group" aria-label="Pill colour">
+              {PILL_FILLS.map((fill) => {
+                const look =
+                  fill.id === "outline"
+                    ? { background: "transparent", borderColor: background.text_color }
+                    : fill.id === "accent"
+                      ? { background: background.accent_color, borderColor: background.accent_color }
+                      : fill.id === "ink"
+                        ? { background: background.text_color, borderColor: background.text_color }
+                        : { background: "#F4F1EA", borderColor: "#F4F1EA" }
+                return (
+                  <button
+                    key={fill.id}
+                    type="button"
+                    onClick={() => setPillFill(fill.id)}
+                    aria-pressed={pillFill === fill.id}
+                    title={`${fill.label} pill`}
+                    aria-label={`${fill.label} pill`}
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-full",
+                      pillFill === fill.id && "ring-2 ring-mad-black ring-offset-1"
+                    )}
+                    style={{ background: background.color }}
+                  >
+                    <span className="block h-3 w-5 rounded-full border-2" style={look} />
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex border-2 border-mad-black" role="group" aria-label="Pill shape">
+              {PILL_SHAPES.map((shape) => (
+                <button
+                  key={shape.id}
+                  type="button"
+                  onClick={() => setPillShape(shape.id)}
+                  aria-pressed={pillShape === shape.id}
+                  title={`${shape.label} pill`}
+                  aria-label={`${shape.label} pill`}
+                  className={cn(
+                    "flex h-7 w-9 items-center justify-center",
+                    pillShape === shape.id ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]"
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="block h-3 w-5 border-2 border-current"
+                    style={{ borderRadius: shape.id === "round" ? 999 : shape.id === "soft" ? 3 : 0 }}
+                  />
+                </button>
+              ))}
+            </div>
+          </StyleRow>
         </div>
         <ol className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           <li className="min-w-0">
