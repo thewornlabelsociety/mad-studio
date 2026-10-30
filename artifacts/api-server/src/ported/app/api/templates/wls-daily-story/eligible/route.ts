@@ -79,7 +79,6 @@ export async function GET(request: Request) {
       entityId: entity.id,
       websiteUrl: entity.website_url,
       template: "daily_story",
-      limit: 200,
     })
 
     return NextResponse.json({
