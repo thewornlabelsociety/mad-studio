@@ -44,7 +44,12 @@ function Home() {
   return <PageLoader load={async () => {
     let signedIn = false
     try { signedIn = !!(await createClient().auth.getSession()).data.session } catch { /* Public page remains available without configuration. */ }
-    const href = signedIn ? "/studio" : "/login"
+    // Signed in: go straight to Today, the daily starting point.
+    if (signedIn) {
+      window.location.replace("/today")
+      return null
+    }
+    const href = "/login"
     return (
       <div className="flex min-h-svh flex-1 flex-col bg-mad-white">
         <header className="border-b-2 border-mad-black"><div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4">
@@ -74,7 +79,7 @@ function Login() {
   const params = new URLSearchParams(window.location.search)
   const token = params.get("token")
   const redirect = params.get("redirect")
-  const destination = redirect?.startsWith("/") && !redirect.startsWith("//") ? redirect : token && /^[a-zA-Z0-9_-]+$/.test(token) ? `/invite/${token}` : "/studio"
+  const destination = redirect?.startsWith("/") && !redirect.startsWith("//") ? redirect : token && /^[a-zA-Z0-9_-]+$/.test(token) ? `/invite/${token}` : "/today"
   return <div className="relative flex min-h-svh flex-1 items-center justify-center overflow-hidden bg-mad-white px-4 py-16">
     <AuthForm redirectTo={destination} inviteToken={token} initialMode={params.get("mode") === "signup" ? "signup" : "signin"} initialError={params.get("error") ?? undefined} initialMessage={params.get("message") ?? undefined} />
   </div>

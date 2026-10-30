@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const nextParam = requestUrl.searchParams.get("next")
   const token = requestUrl.searchParams.get("token")
 
-  let next = "/studio"
+  let next = "/today"
   if (nextParam && isSafeRedirect(nextParam)) {
     next = nextParam
   } else if (token && /^[a-zA-Z0-9_-]+$/.test(token)) {
