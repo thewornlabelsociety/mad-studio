@@ -80,10 +80,9 @@ export function CalendarPostPanel({ entityId, post, open, onOpenChange, onChange
       toast.error("Pick a date and time.")
       return
     }
-    // Keep each platform's spacing: shift every slot by the same amount.
-    // Checked up front so a post never ends up split across two times.
-    const delta = target.getTime() - post.time.getTime()
-    const plan = plannedMove(post, (time) => new Date(time.getTime() + delta))
+    // Every platform goes at the time picked (one platform's own time is its
+    // clock button). Checked up front so a post never ends up half moved.
+    const plan = plannedMove(post, () => target)
     if (plan.error) {
       toast.error(plan.error)
       return
