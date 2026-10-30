@@ -358,14 +358,30 @@ export async function bakeStoryPng(node: HTMLElement): Promise<{ dataUrl: string
   return { dataUrl, blob }
 }
 
-/** Phone: open the share sheet (Instagram, Photos). Desktop: download. */
+/** True on a phone or tablet (touch screen), where the share sheet beats a download. */
+export function onTouchDevice(): boolean {
+  return typeof window !== "undefined" && Boolean(window.matchMedia?.("(pointer: coarse)").matches)
+}
+
+/** Download several images, a moment apart so the browser keeps them all. */
+export async function downloadImages(rows: Array<{ dataUrl: string; filename: string }>): Promise<void> {
+  for (const [index, row] of rows.entries()) {
+    if (index > 0) await new Promise((resolve) => window.setTimeout(resolve, 300))
+    const anchor = document.createElement("a")
+    anchor.href = row.dataUrl
+    anchor.download = row.filename
+    anchor.click()
+  }
+}
+
+/** Phone: open the share sheet (Instagram, Photos). Computer: always download. */
 export async function shareOrDownloadStory(input: {
   dataUrl: string
   blob: Blob
   filename: string
 }): Promise<"shared" | "downloaded" | "cancelled"> {
   const file = new File([input.blob], input.filename, { type: "image/png" })
-  if (navigator.canShare?.({ files: [file] })) {
+  if (onTouchDevice() && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file] })
       return "shared"
