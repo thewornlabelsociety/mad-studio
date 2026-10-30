@@ -13,12 +13,14 @@ import {
   ChevronLeft,
   ChevronRight,
   ImagePlus,
+  LayoutGrid,
   Loader2,
   Plus,
   RefreshCw,
   RotateCcw,
   SendToBack,
   Share2,
+  Shirt,
   Trash2,
   X,
 } from "lucide-react"
@@ -34,7 +36,7 @@ import {
   type PillShape,
 } from "@/components/templates/edit-slides"
 import { OutfitSlide, type SlidePiece } from "@/components/templates/outfit-slides"
-import { PiecePicker, type PickerOption } from "@/components/templates/piece-picker"
+import { PiecePicker, PieceSearch, type PickerOption } from "@/components/templates/piece-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
@@ -325,6 +327,10 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   const [selected, setSelected] = useState<string | null>(null)
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoSlideBusy, setPhotoSlideBusy] = useState(false)
+  // The + Add menu, and whether it is showing the stock search.
+  const [addOpen, setAddOpen] = useState(false)
+  const [addView, setAddView] = useState<"menu" | "item">("menu")
+  const photoSlideInput = useRef<HTMLInputElement | null>(null)
   const [sending, setSending] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
 
@@ -828,46 +834,128 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
             <h2 id="edit-pieces" className="font-typewriter text-xs uppercase tracking-widest">
               Slides after the title · {entries.length} of {EDIT_SLIDES_MAX}
             </h2>
-            {entries.length < EDIT_SLIDES_MAX ? (
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <div className="flex border-2 border-mad-black" role="group" aria-label="Search in">
-                  {[
-                    { value: true, label: "New arrivals" },
-                    { value: false, label: "All stock" },
-                  ].map((option) => (
-                    <button
-                      key={option.label}
-                      type="button"
-                      onClick={() => setSearchNew(option.value)}
-                      aria-pressed={searchNew === option.value}
-                      className={cn("h-7 px-2", searchNew === option.value ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]")}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                <PiecePicker label="piece" options={options} onPick={addPiece} adding />
-                <label
-                  className={cn(
-                    "flex h-9 cursor-pointer items-center gap-2 border-2 border-mad-black px-3 text-sm hover:bg-[#F4EFE6]",
-                    photoSlideBusy && "pointer-events-none opacity-60"
-                  )}
-                  title="Add a full-bleed photo slide, like a styled look or mood shot"
+            <Popover
+              open={addOpen}
+              onOpenChange={(next) => {
+                setAddOpen(next)
+                if (!next) setAddView("menu")
+              }}
+            >
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title="Add an item, a flatlay or a photo slide"
+                  className="flex h-9 items-center gap-2 border-2 border-mad-black bg-mad-black px-3 text-sm text-mad-white hover:bg-neutral-800"
                 >
-                  {photoSlideBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ImagePlus className="size-4" aria-hidden />}
-                  Add a photo slide
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={(event) => {
-                      void addPhotoSlide(event.target.files?.[0])
-                      event.target.value = ""
-                    }}
-                  />
-                </label>
-              </div>
-            ) : null}
+                  {photoSlideBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />}
+                  Add
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 rounded-none border-2 border-mad-black p-0">
+                {addView === "menu" ? (
+                  <ul className="py-1">
+                    {(
+                      [
+                        {
+                          id: "item",
+                          Icon: Shirt,
+                          label: "Item",
+                          detail: "A piece from the shop, with its own card and Story",
+                          disabled: entries.length >= EDIT_SLIDES_MAX,
+                          run: () => setAddView("item"),
+                        },
+                        {
+                          id: "flatlay",
+                          Icon: LayoutGrid,
+                          label: "Flatlay",
+                          detail: flatlayIds === null ? "A blank flatlay as slide 2, built by top, bottom…" : "Already in the edit",
+                          disabled: flatlayIds !== null,
+                          run: () => {
+                            addFlatlay()
+                            setAddOpen(false)
+                          },
+                        },
+                        {
+                          id: "photo",
+                          Icon: ImagePlus,
+                          label: "Photo slide",
+                          detail: "Your own full-bleed photo, like a styled look",
+                          disabled: entries.length >= EDIT_SLIDES_MAX,
+                          run: () => {
+                            setAddOpen(false)
+                            photoSlideInput.current?.click()
+                          },
+                        },
+                      ] as const
+                    ).map(({ id, Icon, label, detail, disabled, run }) => (
+                      <li key={id}>
+                        <button
+                          type="button"
+                          onClick={run}
+                          disabled={disabled}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[#F4EFE6] disabled:opacity-40 disabled:hover:bg-transparent"
+                        >
+                          <Icon className="size-4 shrink-0" aria-hidden />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium">{label}</span>
+                            <span className="block text-[11px] text-mad-black/60">{detail}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-2 border-b border-mad-black/15 px-2 py-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setAddView("menu")}
+                        className="flex items-center gap-1 text-xs text-mad-black/70 hover:text-mad-black"
+                      >
+                        <ChevronLeft className="size-3.5" aria-hidden /> Back
+                      </button>
+                      <div className="flex border-2 border-mad-black text-[11px]" role="group" aria-label="Search in">
+                        {[
+                          { value: true, label: "New arrivals" },
+                          { value: false, label: "All stock" },
+                        ].map((option) => (
+                          <button
+                            key={option.label}
+                            type="button"
+                            onClick={() => setSearchNew(option.value)}
+                            aria-pressed={searchNew === option.value}
+                            className={cn("h-6 px-2", searchNew === option.value ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]")}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <PieceSearch
+                      label="piece"
+                      options={options}
+                      onPick={(id) => {
+                        addPiece(id)
+                        setAddOpen(false)
+                        setAddView("menu")
+                      }}
+                    />
+                  </>
+                )}
+              </PopoverContent>
+            </Popover>
+            <input
+              ref={photoSlideInput}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden
+              onChange={(event) => {
+                void addPhotoSlide(event.target.files?.[0])
+                event.target.value = ""
+              }}
+            />
           </div>
           {!loaded ? (
             <p className="flex items-center gap-2 text-sm text-mad-black/60">
@@ -971,15 +1059,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           )}
           <div className="grid gap-2 border-t-2 border-mad-black/15 pt-3">
             {flatlayIds === null ? (
-              <button
-                type="button"
-                onClick={addFlatlay}
-                title="Add a flatlay of the edit as slide 2"
-                className="flex h-9 items-center gap-2 self-start border-2 border-mad-black px-3 text-sm hover:bg-[#F4EFE6]"
-              >
-                <Plus className="size-4" aria-hidden />
-                Add flatlay
-              </button>
+              <p className="text-xs text-mad-black/55">No flatlay. Add one from + Add.</p>
             ) : (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2">
