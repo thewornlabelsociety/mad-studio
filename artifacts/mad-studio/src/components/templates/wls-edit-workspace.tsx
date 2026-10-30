@@ -304,6 +304,10 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   // Fabric pill per piece, e.g. LINEN; none until clicked.
   const [fabrics, setFabrics] = useRememberedState<Record<string, string>>(`${draftKey}.fabrics`, {})
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`${draftKey}.background`, null)
+  // A card's own colour, by card ("title", "flatlay" or a piece id); the rest use the edit's.
+  const [cardBackgrounds, setCardBackgrounds] = useRememberedState<Record<string, string>>(`${draftKey}.cardBackgrounds`, {})
+  // The card the colour dots are recolouring, picked by clicking it.
+  const [pickedCard, setPickedCard] = useState<string | null>(null)
   const [searchNew, setSearchNew] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
   const [photoBusy, setPhotoBusy] = useState(false)
@@ -340,7 +344,46 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   }, [selected])
 
   const background = kit.find((bg) => bg.id === backgroundId) ?? kit[0]
+
+  useEffect(() => {
+    if (!pickedCard) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPickedCard(null)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [pickedCard])
+
+  function cardName(cardId: string): string {
+    if (cardId === "title") return "title page"
+    if (cardId === "flatlay") return "flatlay"
+    return stories.get(cardId)?.designer ?? "piece"
+  }
+
+  /** Click a card to recolour just that card with the dots at the top. */
+  function pickable(cardId: string, name: string) {
+    return {
+      role: "button" as const,
+      tabIndex: 0,
+      title: `Click, then pick a colour at the top for the ${name} card`,
+      "aria-label": `Choose the colour for the ${name} card`,
+      "aria-pressed": pickedCard === cardId,
+      onClick: () => setPickedCard(cardId),
+      onKeyDown: (event: React.KeyboardEvent) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          setPickedCard(cardId)
+        }
+      },
+      className: cn(
+        "cursor-pointer rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-mad-black",
+        pickedCard === cardId && "ring-4 ring-mad-vermillion ring-offset-2"
+      ),
+    }
+  }
   const editLabel = oneLine(title.headline) || "The edit"
+  /** A card's colour: its own if picked, else the edit's. */
+  const bgFor = (cardId: string) => kit.find((bg) => bg.id === cardBackgrounds[cardId]) ?? background
   /** A piece's eyebrow: your words, or its number in the edit. */
   const eyebrowFor = (id: string) =>
     eyebrows[id]?.trim() || `No. ${String(pieceIds.indexOf(id) + 1).padStart(2, "0")}`
@@ -593,7 +636,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   /** Everything a piece card shows, the same for its feed slide and its Story. */
   function cardProps(id: string, story: KitStory) {
     return {
-      background,
+      background: bgFor(id),
       brandName: entityName,
       editLabel,
       eyebrow: cardFields.number ? eyebrowFor(id) : null,
@@ -649,17 +692,21 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
               <button
                 key={bg.id}
                 type="button"
-                onClick={() => setBackgroundId(bg.id)}
+                onClick={() =>
+                  pickedCard
+                    ? setCardBackgrounds((current) => ({ ...current, [pickedCard]: bg.id }))
+                    : setBackgroundId(bg.id)
+                }
                 title={bg.name}
-                aria-label={`Use ${bg.name} for the edit`}
-                aria-pressed={bg.id === background.id}
+                aria-label={pickedCard ? `Use ${bg.name} for the picked card` : `Use ${bg.name} for the edit`}
+                aria-pressed={bg.id === (pickedCard ? bgFor(pickedCard) : background).id}
                 className={cn(
                   "relative size-8 rounded-full border border-black/15",
-                  bg.id === background.id && "ring-2 ring-mad-black ring-offset-2"
+                  bg.id === (pickedCard ? bgFor(pickedCard) : background).id && "ring-2 ring-mad-black ring-offset-2"
                 )}
                 style={{ background: bg.color }}
               >
-                {bg.id === background.id ? (
+                {bg.id === (pickedCard ? bgFor(pickedCard) : background).id ? (
                   <Check className="absolute inset-0 m-auto size-3.5" style={{ color: bg.text_color }} aria-hidden />
                 ) : null}
               </button>
@@ -688,6 +735,36 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           </Button>
         </div>
       </header>
+
+      {pickedCard ? (
+        <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 border-2 border-mad-black bg-[#F4EFE6] px-3 py-2 text-sm">
+          <span className="min-w-0 flex-1">
+            Colour for the <strong>{cardName(pickedCard)}</strong> card: pick a dot at the top.
+          </span>
+          {cardBackgrounds[pickedCard] ? (
+            <button
+              type="button"
+              onClick={() =>
+                setCardBackgrounds((current) => {
+                  const out = { ...current }
+                  delete out[pickedCard]
+                  return out
+                })
+              }
+              className="h-8 border-2 border-mad-black bg-white px-2.5 text-xs hover:bg-[#FAF7F1]"
+            >
+              Same as the rest
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setPickedCard(null)}
+            className="h-8 border-2 border-mad-black bg-mad-black px-3 text-xs text-mad-white"
+          >
+            Done
+          </button>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section aria-labelledby="edit-title" className="grid content-start gap-3">
@@ -1154,13 +1231,16 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
         </div>
         <ol className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           <li className="min-w-0">
-            <AnnouncementCard ref={slideRef(0)} background={background} brandName={entityName} announcement={title} className="rounded-sm shadow-md" />
+            <div {...pickable("title", "title page")}>
+              <AnnouncementCard ref={slideRef(0)} background={bgFor("title")} brandName={entityName} announcement={title} className="rounded-sm shadow-md" />
+            </div>
           </li>
           {flatlayShown ? (
             <li className="min-w-0">
+              <div {...pickable("flatlay", "flatlay")}>
               <OutfitSlide
                 ref={slideRef(1)}
-                background={background}
+                background={bgFor("flatlay")}
                 brandName={entityName}
                 day={editLabel}
                 vibe={title.kicker.trim() || "The edit"}
@@ -1171,16 +1251,19 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                 onSelect={setSelected}
                 className="rounded-sm shadow-md"
               />
+              </div>
             </li>
           ) : null}
           {slides.map((slide, index) => (
             <li key={slide.id} className="min-w-0">
               {slide.story ? (
-                <EditItemSlide
-                  ref={slideRef(firstItemSlide + index)}
-                  {...cardProps(slide.id, slide.story)}
-                  className="rounded-sm shadow-md"
-                />
+                <div {...pickable(slide.id, slide.story.designer)}>
+                  <EditItemSlide
+                    ref={slideRef(firstItemSlide + index)}
+                    {...cardProps(slide.id, slide.story)}
+                    className="rounded-sm shadow-md"
+                  />
+                </div>
               ) : slide.kind === "photo" ? (
                 <EditPhotoSlide
                   ref={slideRef(firstItemSlide + index)}
@@ -1201,15 +1284,17 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
         </h2>
         <ul className="flex snap-x gap-4 overflow-x-auto pb-2">
           <li className="flex w-[200px] shrink-0 snap-start flex-col gap-2">
+            <div {...pickable("title", "title page")}>
             <div className="overflow-hidden rounded-md shadow-md">
               <AnnouncementStory
                 ref={(node) => {
                   storyNodes.current.title = node
                 }}
-                background={background}
+                background={bgFor("title")}
                 brandName={entityName}
                 announcement={title}
               />
+            </div>
             </div>
             <button
               type="button"
@@ -1253,14 +1338,16 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
             }
             return (
               <li key={id} className="flex w-[200px] shrink-0 snap-start flex-col gap-2">
-                <div className="overflow-hidden rounded-md shadow-md">
-                  <EditItemSlide
-                    ref={(node) => {
-                      storyNodes.current[id] = node
-                    }}
-                    {...cardProps(id, story)}
-                    story
-                  />
+                <div {...pickable(id, story.designer)}>
+                  <div className="overflow-hidden rounded-md shadow-md">
+                    <EditItemSlide
+                      ref={(node) => {
+                        storyNodes.current[id] = node
+                      }}
+                      {...cardProps(id, story)}
+                      story
+                    />
+                  </div>
                 </div>
                 <button
                   type="button"
