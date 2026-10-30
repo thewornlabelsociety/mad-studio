@@ -261,3 +261,6 @@ export const OutfitCoverSlide = forwardRef<
     </div>
   )
 })
+
+/** Shared with the Inspo vs WLS flatlay. */
+export { PLACEMENT as OUTFIT_PLACEMENT, numberDot as outfitNumberDot }

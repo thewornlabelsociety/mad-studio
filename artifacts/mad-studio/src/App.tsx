@@ -27,6 +27,7 @@ import TemplatesPage from "@/app/templates/page"
 import WlsDailyStoryPage from "@/app/templates/wls-daily-story/page"
 import WlsWeekOutfitsPage from "@/app/templates/wls-week-outfits/page"
 import WlsSaleRackPage from "@/app/templates/wls-sale-rack/page"
+import WlsInspoPage from "@/app/templates/wls-inspo/page"
 import WlsWantsPage from "@/app/templates/wls-wants/page"
 import WlsAnnouncementPage from "@/app/templates/wls-announcement/page"
 import WlsOpeningHoursPage from "@/app/templates/wls-opening-hours/page"
@@ -143,6 +144,7 @@ function App() {
         <Route path="/templates/wls-daily-story">{() => <PageLoader load={() => WlsDailyStoryPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-week-outfits">{() => <PageLoader load={() => WlsWeekOutfitsPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-sale-rack">{() => <PageLoader load={() => WlsSaleRackPage({ searchParams: query() })} />}</Route>
+        <Route path="/templates/wls-inspo">{() => <PageLoader load={() => WlsInspoPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-wants">{() => <PageLoader load={() => WlsWantsPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-announcement">{() => <PageLoader load={() => WlsAnnouncementPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-opening-hours">{() => <PageLoader load={() => WlsOpeningHoursPage({ searchParams: query() })} />}</Route>

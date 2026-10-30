@@ -18,6 +18,7 @@ import { ANNOUNCEMENT_PREFILL_KEY } from "@/components/campaigns/campaign-planne
 import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { findMoment, type MomentCard } from "@/lib/planner/nz-moments"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
+import { proxiedPhotoUrl, shrinkPhoto, uploadPhoto } from "@/lib/templates/upload-photo"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, onTouchDevice, shareOrDownloadStory, shareStoryFiles } from "@/lib/templates/use-kit-stories"
 import { cn } from "@/lib/utils"
@@ -196,36 +197,6 @@ function cardForMoment(): CardDraft | null {
   }
 }
 
-/** A phone photo shrunk to at most 1600px on its long side, as a JPEG for upload. */
-async function shrinkPhoto(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height))
-  const canvas = document.createElement("canvas")
-  canvas.width = Math.round(bitmap.width * scale)
-  canvas.height = Math.round(bitmap.height * scale)
-  const context = canvas.getContext("2d")
-  if (context) {
-    // See-through PNGs get a white backing (JPEG would turn them black).
-    context.fillStyle = "#FFFFFF"
-    context.fillRect(0, 0, canvas.width, canvas.height)
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  }
-  bitmap.close()
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't read the photo."))), "image/jpeg", 0.86)
-  )
-}
-
-async function uploadPhoto(blob: Blob, entityId: string): Promise<string> {
-  const form = new FormData()
-  form.append("file", blob, "photo.jpg")
-  form.append("entityId", entityId)
-  const response = await fetch("/api/media/upload-cutout", { method: "POST", body: form })
-  const payload = (await response.json().catch(() => ({}))) as { transparentUrl?: string }
-  if (!response.ok || !payload.transparentUrl) throw new Error("Couldn't upload the photo.")
-  return payload.transparentUrl
-}
-
 /** The headline as one line, for captions and file names. */
 function oneLine(text: string): string {
   return text.split(/\n/).map((part) => part.trim()).filter(Boolean).join(" ")
@@ -277,7 +248,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
     setPhotoBusy(true)
     try {
       const url = await uploadPhoto(await shrinkPhoto(file), entityId)
-      const photo = `/api/media/image-proxy?url=${encodeURIComponent(url)}&entityId=${encodeURIComponent(entityId)}`
+      const photo = proxiedPhotoUrl(url, entityId)
       setValue((current) => ({ ...current, photo, photoShade: current.photoShade ?? 35, photoText: current.photoText ?? "light" }))
     } catch {
       toast.error("Couldn't add the photo. Try another one.")

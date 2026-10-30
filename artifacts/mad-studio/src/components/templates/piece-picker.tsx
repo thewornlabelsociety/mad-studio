@@ -21,9 +21,12 @@ export function PiecePicker({
   label,
   options,
   onPick,
+  adding = false,
 }: {
   /** e.g. "top", for the button's name and the search placeholder. */
   label: string
+  /** Adds a new piece rather than swapping one out (changes the button's name). */
+  adding?: boolean
   options: PickerOption[]
   onPick: (id: string) => void
 }) {
@@ -46,7 +49,7 @@ export function PiecePicker({
         <button
           type="button"
           title={`Search for a ${label}`}
-          aria-label={`Search for a different ${label}`}
+          aria-label={adding ? `Search for a ${label} to add` : `Search for a different ${label}`}
           className="flex size-6 items-center justify-center text-mad-black/60 hover:text-mad-black"
         >
           <Search className="size-3.5" aria-hidden />
