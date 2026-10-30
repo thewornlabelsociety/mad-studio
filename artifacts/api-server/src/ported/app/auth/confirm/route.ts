@@ -16,7 +16,7 @@ export async function GET(request: WebRequest) {
   const type = searchParams.get("type") as EmailOtpType | null
   const nextParam = searchParams.get("next")
   const next =
-    nextParam && isSafeRedirect(nextParam) ? nextParam : "/studio"
+    nextParam && isSafeRedirect(nextParam) ? nextParam : "/today"
 
   const successUrl = new URL(next, origin)
   const failureUrl = new URL("/login", origin)
