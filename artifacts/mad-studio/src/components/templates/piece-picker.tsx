@@ -22,11 +22,14 @@ export function PiecePicker({
   options,
   onPick,
   adding = false,
+  addText,
 }: {
   /** e.g. "top", for the button's name and the search placeholder. */
   label: string
   /** Adds a new piece rather than swapping one out: a labelled "Add a …" button. */
   adding?: boolean
+  /** Words on the add button; "Add a {label}" by default. */
+  addText?: string
   options: PickerOption[]
   onPick: (id: string) => void
 }) {
@@ -53,7 +56,7 @@ export function PiecePicker({
             className="flex h-9 items-center gap-2 border-2 border-mad-black bg-mad-black px-3 text-sm text-mad-white hover:bg-neutral-800"
           >
             <Plus className="size-4" aria-hidden />
-            Add a {label}
+            {addText ?? `Add a ${label}`}
           </button>
         ) : (
           <button

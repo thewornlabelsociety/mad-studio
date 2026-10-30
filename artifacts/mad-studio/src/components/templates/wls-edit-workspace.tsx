@@ -10,10 +10,12 @@ import {
   ChevronRight,
   ImagePlus,
   Loader2,
+  Plus,
   RefreshCw,
   RotateCcw,
   SendToBack,
   Share2,
+  Trash2,
   X,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -38,7 +40,7 @@ import { cn } from "@/lib/utils"
 
 /** Title, flatlay and eight more (pieces and photos) fill a ten-slide carousel. */
 const EDIT_SLIDES_MAX = 8
-/** More than this crowds the flatlay; the rest still get their own slide. */
+/** More than this crowds the flatlay. */
 const FLATLAY_PIECES_MAX = 6
 /** "New arrivals" in the search: this many of the newest pieces. */
 const NEW_ARRIVALS_COUNT = 40
@@ -93,8 +95,15 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   const draftKey = `mad.editDraft.${entityId}`
   const [title, setTitle] = useRememberedState<Announcement>(`${draftKey}.title`, DEFAULT_TITLE)
   const [entries, setEntries] = useRememberedState<EditEntry[]>(`${draftKey}.slides`, [])
+  // The flatlay's own pieces (null = no flatlay slide). They start as the
+  // edit's first pieces, and any piece in stock can be added or taken off.
+  const [flatlayIds, setFlatlayIds] = useRememberedState<string[] | null>(`${draftKey}.flatlayPieces`, null)
   const pieceIds = useMemo(() => entries.flatMap((entry) => (entry.kind === "piece" ? [entry.id] : [])), [entries])
-  const [withFlatlay, setWithFlatlay] = useRememberedState<boolean>(`${draftKey}.flatlay`, true)
+  // Pieces on slides first, then any that are only on the flatlay.
+  const allPieceIds = useMemo(
+    () => [...pieceIds, ...(flatlayIds ?? []).filter((id) => !pieceIds.includes(id))],
+    [pieceIds, flatlayIds]
+  )
   const [adjusts, setAdjusts] = useRememberedState<Record<string, LayerAdjust>>(`${draftKey}.placements`, {})
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`${draftKey}.background`, null)
   const [searchNew, setSearchNew] = useState(true)
@@ -110,7 +119,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     industry,
     brandIdentity,
     isWornLabel: isWls,
-    cutoutIds: pieceIds,
+    cutoutIds: allPieceIds,
   })
 
   const pieceById = useMemo(() => new Map(eligible.map((row) => [row.marketingEntityId, toOutfitPiece(row)])), [eligible])
@@ -118,9 +127,10 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   // A kept draft may name pieces that have since sold: drop them.
   useEffect(() => {
     if (!loaded || loading || eligible.length === 0) return
-    if (pieceIds.every((id) => pieceById.has(id))) return
+    if (allPieceIds.every((id) => pieceById.has(id))) return
     setEntries(entries.filter((entry) => entry.kind !== "piece" || pieceById.has(entry.id)))
-  }, [loaded, loading, eligible.length, entries, pieceIds, pieceById, setEntries])
+    if (flatlayIds) setFlatlayIds(flatlayIds.filter((id) => pieceById.has(id)))
+  }, [loaded, loading, eligible.length, entries, allPieceIds, flatlayIds, pieceById, setEntries, setFlatlayIds])
 
   useEffect(() => {
     if (!selected) return
@@ -144,9 +154,17 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     return story ? [{ ...entry, story }] : []
   })
   const ready = (story: KitStory) => Boolean(story.cutoutUrl) || Boolean(cutoutFailed[story.row.marketingEntityId])
-  const waiting = chosen.filter((story) => !ready(story))
+  const everyPiece = allPieceIds.flatMap((id) => {
+    const story = stories.get(id)
+    return story ? [story] : []
+  })
+  const waiting = everyPiece.filter((story) => !ready(story))
 
-  const flatlayPieces: SlidePiece[] = chosen.slice(0, FLATLAY_PIECES_MAX).flatMap((story) => {
+  const flatlayStories = (flatlayIds ?? []).flatMap((id) => {
+    const story = stories.get(id)
+    return story ? [story] : []
+  })
+  const flatlayPieces: SlidePiece[] = flatlayStories.flatMap((story) => {
     const piece = pieceById.get(story.row.marketingEntityId)
     if (!piece) return []
     return [
@@ -181,6 +199,63 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
       ]
     })
   }, [eligible, searchNew, pieceIds, stories, entityId])
+
+  /** For the flatlay: the edit's own pieces first, then the stock search. */
+  const flatlayOptions: PickerOption[] = useMemo(() => {
+    const onFlatlay = new Set(flatlayIds ?? [])
+    const pool = searchNew ? eligible.slice(0, NEW_ARRIVALS_COUNT) : eligible
+    const rows = [
+      ...pieceIds.flatMap((id) => {
+        const row = stories.get(id)?.row
+        return row ? [row] : []
+      }),
+      ...pool.filter((row) => !pieceIds.includes(row.marketingEntityId)),
+    ]
+    return rows.flatMap((row) => {
+      if (onFlatlay.has(row.marketingEntityId)) return []
+      const story = stories.get(row.marketingEntityId)
+      if (!story) return []
+      const image = story.cutoutUrl ?? row.sourceImageUrls[0] ?? null
+      const inEdit = pieceIds.includes(row.marketingEntityId)
+      return [
+        {
+          id: row.marketingEntityId,
+          brand: story.designer,
+          title: row.title,
+          detail: [inEdit ? "In this edit" : null, formatSizeForText(row.size), shortPrice(story.priceLabel)]
+            .filter(Boolean)
+            .join(" · "),
+          thumb: image ? proxiedImageUrl(image, entityId) : null,
+          searchText: [row.title, row.brand, row.description, row.category, row.vibe, row.size].filter(Boolean).join(" "),
+        },
+      ]
+    })
+  }, [eligible, searchNew, pieceIds, flatlayIds, stories, entityId])
+
+  /** Add the flatlay slide, starting from the edit's first pieces. */
+  function addFlatlay() {
+    setFlatlayIds(pieceIds.slice(0, FLATLAY_PIECES_MAX))
+  }
+
+  function removeFlatlay() {
+    setFlatlayIds(null)
+    if (selected) setSelected(null)
+  }
+
+  function addToFlatlay(id: string) {
+    const current = flatlayIds ?? []
+    if (current.length >= FLATLAY_PIECES_MAX) {
+      toast.message(`The flatlay takes up to ${FLATLAY_PIECES_MAX} pieces.`)
+      return
+    }
+    setFlatlayIds([...current, id])
+  }
+
+  function removeFromFlatlay(id: string) {
+    setFlatlayIds((flatlayIds ?? []).filter((row) => row !== id))
+    setAdjust(id, null)
+    if (selected === id) setSelected(null)
+  }
 
   function hasRoom(): boolean {
     if (entries.length < EDIT_SLIDES_MAX) return true
@@ -258,7 +333,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
   }
 
   function caption(): string {
-    const lines = chosen.flatMap((story, index) => {
+    const lines = everyPiece.flatMap((story, index) => {
       const piece = pieceById.get(story.row.marketingEntityId)
       if (!piece) return []
       const details = [formatSizeForText(story.row.size), shortPrice(story.priceLabel)].filter(Boolean).join(", ")
@@ -317,7 +392,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     )
   }
 
-  const flatlayShown = withFlatlay && flatlayPieces.length > 0
+  const flatlayShown = flatlayIds !== null && flatlayPieces.length > 0
   const firstItemSlide = flatlayShown ? 2 : 1
   const slideCount = firstItemSlide + slides.length
   /** Ref for the slide at this place in the carousel. */
@@ -617,10 +692,79 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
               })}
             </ol>
           )}
-          <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={withFlatlay} onChange={(event) => setWithFlatlay(event.target.checked)} />
-            Flatlay of the edit as slide 2 (the first {FLATLAY_PIECES_MAX} pieces)
-          </label>
+          <div className="grid gap-2 border-t-2 border-mad-black/15 pt-3">
+            {flatlayIds === null ? (
+              <button
+                type="button"
+                onClick={addFlatlay}
+                title="Add a flatlay of the edit as slide 2"
+                className="flex h-9 items-center gap-2 self-start border-2 border-mad-black px-3 text-sm hover:bg-[#F4EFE6]"
+              >
+                <Plus className="size-4" aria-hidden />
+                Add flatlay
+              </button>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-typewriter text-xs uppercase tracking-widest">
+                    Flatlay, slide 2 · {flatlayIds.length} of {FLATLAY_PIECES_MAX}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {flatlayIds.length < FLATLAY_PIECES_MAX ? (
+                      <PiecePicker
+                        label="piece"
+                        addText="Add to flatlay"
+                        options={flatlayOptions}
+                        onPick={addToFlatlay}
+                        adding
+                      />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={removeFlatlay}
+                      title="Remove the flatlay slide"
+                      aria-label="Remove the flatlay slide"
+                      className="flex size-9 items-center justify-center border-2 border-mad-black hover:bg-[#F4EFE6]"
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  </div>
+                </div>
+                {flatlayStories.length === 0 ? (
+                  <p className="text-xs text-mad-black/60">
+                    Add pieces to the flatlay: any piece in the edit, or anything in stock.
+                  </p>
+                ) : (
+                  <ul className="flex flex-wrap gap-1.5">
+                    {flatlayStories.map((story) => {
+                      const id = story.row.marketingEntityId
+                      const image = story.cutoutUrl ?? story.row.sourceImageUrls[0] ?? null
+                      return (
+                        <li key={id} className="flex items-center gap-1.5 border-2 border-mad-black bg-white py-1 pl-1 pr-0.5">
+                          <span className="h-8 w-7 shrink-0 bg-neutral-100">
+                            {image ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={proxiedImageUrl(image, entityId)} alt="" className="size-full object-contain" />
+                            ) : null}
+                          </span>
+                          <span className="max-w-[7rem] truncate text-xs">{story.designer}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeFromFlatlay(id)}
+                            title="Take off the flatlay"
+                            aria-label={`Take ${story.designer} off the flatlay`}
+                            className="flex size-6 items-center justify-center text-mad-black/60 hover:text-mad-black"
+                          >
+                            <X className="size-3.5" aria-hidden />
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
         </section>
       </div>
 
