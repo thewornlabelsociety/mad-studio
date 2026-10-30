@@ -453,6 +453,9 @@ export function summarizeWlsExclusionReasons(
   return summarizeWlsHardBlockers(excluded)
 }
 
+/** PostgREST returns at most 1000 rows per request. */
+const SELECT_PAGE_SIZE = 1000
+
 /**
  * Server-side selector: load entity-scoped marketing_entities and evaluate
  * Story / Flatlay eligibility. Source images only — no generated creatives.
@@ -463,21 +466,25 @@ export async function selectWlsProductsForTemplates(input: {
   websiteUrl?: string | null
   template: WlsTemplateKind
   reuseCooldownMs?: number
-  limit?: number
   nowMs?: number
 }): Promise<WlsProductSelectionResult> {
-  const { data, error } = await input.supabase
-    .from("marketing_entities")
-    .select(
-      "id, entity_id, website_item_id, title, brand, price, description, images, status, metrics, scheduled_at, channels, copy_draft, published_media_ids, trackable_slug, published_at, created_at, updated_at"
-    )
-    .eq("entity_id", input.entityId)
-    .not("website_item_id", "is", null)
-    .order("updated_at", { ascending: false })
-    .limit(Math.min(Math.max(input.limit ?? 200, 1), 500))
+  // Every synced product, a page at a time. A row cap here hid most of the
+  // shop: each sync touches every row, so "latest updated" was arbitrary.
+  const data: Parameters<typeof mapMarketingEntityRow>[0][] = []
+  for (let from = 0; ; from += SELECT_PAGE_SIZE) {
+    const { data: page, error } = await input.supabase
+      .from("marketing_entities")
+      .select(MARKETING_ENTITY_SELECT)
+      .eq("entity_id", input.entityId)
+      .not("website_item_id", "is", null)
+      .order("id", { ascending: true })
+      .range(from, from + SELECT_PAGE_SIZE - 1)
 
-  if (error) {
-    throw new Error(error.message)
+    if (error) {
+      throw new Error(error.message)
+    }
+    data.push(...((page ?? []) as Parameters<typeof mapMarketingEntityRow>[0][]))
+    if (!page || page.length < SELECT_PAGE_SIZE) break
   }
 
   const options: WlsEligibilityOptions = {
