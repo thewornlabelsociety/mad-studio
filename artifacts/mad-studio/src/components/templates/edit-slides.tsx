@@ -72,3 +72,35 @@ export const EditItemSlide = forwardRef<
     </div>
   )
 })
+
+/** A full-bleed photo between the pieces: a styled look or mood shot, the wordmark in the corner. */
+export const EditPhotoSlide = forwardRef<
+  HTMLDivElement,
+  {
+    background: StoryBackground
+    brandName: string
+    /** Same-origin photo. */
+    photoUrl: string
+    /** 9:16 for Stories; 4:5 for the feed. */
+    story?: boolean
+    className?: string
+  }
+>(function EditPhotoSlide({ background, brandName, photoUrl, story = false, className }, ref) {
+  return (
+    <div ref={ref} className={className} style={{ ...frame(background, story ? "9 / 16" : "4 / 5"), isolation: "isolate" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photoUrl}
+        alt=""
+        crossOrigin="anonymous"
+        draggable={false}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: -1 }}
+      />
+      {/* A soft shade behind the wordmark so it reads on any photo. */}
+      <div style={{ position: "absolute", inset: "0 0 auto", height: "26%", background: "linear-gradient(rgba(0,0,0,0.38), rgba(0,0,0,0))" }} />
+      <div style={{ position: "absolute", top: "6cqw", right: "6cqw", color: "#FFFFFF" }}>
+        <Wordmark brandName={brandName} accent="#F1EADB" size={story ? 5 : 3.4} />
+      </div>
+    </div>
+  )
+})

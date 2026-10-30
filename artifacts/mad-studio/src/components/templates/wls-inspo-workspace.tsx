@@ -465,10 +465,7 @@ export function WlsInspoWorkspace({ entityId, entityName, industry = null, brand
                 From the racks · {pieceIds.length} of {INSPO_PIECES_MAX}
               </h2>
               {pieceIds.length < INSPO_PIECES_MAX ? (
-                <div className="flex items-center gap-1.5 text-xs">
-                  Add a piece
-                  <PiecePicker label="piece" options={options} onPick={addPiece} adding />
-                </div>
+                <PiecePicker label="piece" options={options} onPick={addPiece} adding />
               ) : null}
             </div>
             {!loaded ? (

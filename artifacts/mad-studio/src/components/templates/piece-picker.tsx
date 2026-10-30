@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Search } from "lucide-react"
+import { Plus, Search } from "lucide-react"
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { matchesQuery } from "@/lib/templates/week-outfits"
@@ -25,7 +25,7 @@ export function PiecePicker({
 }: {
   /** e.g. "top", for the button's name and the search placeholder. */
   label: string
-  /** Adds a new piece rather than swapping one out (changes the button's name). */
+  /** Adds a new piece rather than swapping one out: a labelled "Add a …" button. */
   adding?: boolean
   options: PickerOption[]
   onPick: (id: string) => void
@@ -46,14 +46,25 @@ export function PiecePicker({
       }}
     >
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          title={`Search for a ${label}`}
-          aria-label={adding ? `Search for a ${label} to add` : `Search for a different ${label}`}
-          className="flex size-6 items-center justify-center text-mad-black/60 hover:text-mad-black"
-        >
-          <Search className="size-3.5" aria-hidden />
-        </button>
+        {adding ? (
+          <button
+            type="button"
+            title={`Search the stock for a ${label} to add`}
+            className="flex h-9 items-center gap-2 border-2 border-mad-black bg-mad-black px-3 text-sm text-mad-white hover:bg-neutral-800"
+          >
+            <Plus className="size-4" aria-hidden />
+            Add a {label}
+          </button>
+        ) : (
+          <button
+            type="button"
+            title={`Search for a ${label}`}
+            aria-label={`Search for a different ${label}`}
+            className="flex size-6 items-center justify-center text-mad-black/60 hover:text-mad-black"
+          >
+            <Search className="size-3.5" aria-hidden />
+          </button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 rounded-none border-2 border-mad-black p-0">
         <div className="border-b border-mad-black/15 p-2">
