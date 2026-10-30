@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "wouter"
-import { ArrowRight, CalendarRange, Megaphone, Search, Shirt, Tag, type LucideIcon } from "lucide-react"
+import { ArrowRight, CalendarRange, Clock, Megaphone, Search, Shirt, Tag, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -35,6 +35,12 @@ const TOOLS: Array<{ path: string; icon: LucideIcon; title: string; detail: stri
     icon: Megaphone,
     title: "Announcement",
     detail: "Sales, hours and events",
+  },
+  {
+    path: "/templates/wls-opening-hours",
+    icon: Clock,
+    title: "Opening hours",
+    detail: "Today or the week, from the website",
   },
 ]
 

@@ -76,7 +76,7 @@ export function easterSunday(year: number): Date {
 }
 
 /** Matariki public holiday, as set in law. */
-const MATARIKI: Record<number, [number, number]> = {
+export const MATARIKI: Record<number, [number, number]> = {
   2025: [6, 20],
   2026: [7, 10],
   2027: [6, 25],
