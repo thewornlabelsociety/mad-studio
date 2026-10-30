@@ -56,6 +56,7 @@ import * as wlsDailyStoryEligible from "../ported/app/api/templates/wls-daily-st
 import * as wlsDailyStorySaveDraft from "../ported/app/api/templates/wls-daily-story/save-draft/route";
 import * as wlsDailyStoryState from "../ported/app/api/templates/wls-daily-story/story-state/route";
 import * as websiteAnnouncement from "../ported/app/api/website/announcement/route";
+import * as websiteOpeningHours from "../ported/app/api/website/opening-hours/route";
 import * as wlsDailyStoryStudioSeed from "../ported/app/api/templates/wls-daily-story/studio-seed/route";
 import * as templateStudioHandoff from "../ported/app/api/templates/studio-handoff/route";
 import * as authCallback from "../ported/app/auth/callback/route";
@@ -237,6 +238,10 @@ router.post(
 router.post(
   "/api/website/announcement",
   webHandler(method(websiteAnnouncement, "POST")),
+);
+router.get(
+  "/api/website/opening-hours",
+  webHandler(method(websiteOpeningHours, "GET"), false),
 );
 router.post(
   "/api/templates/wls-daily-story/story-state",

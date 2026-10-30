@@ -29,6 +29,7 @@ import WlsWeekOutfitsPage from "@/app/templates/wls-week-outfits/page"
 import WlsSaleRackPage from "@/app/templates/wls-sale-rack/page"
 import WlsWantsPage from "@/app/templates/wls-wants/page"
 import WlsAnnouncementPage from "@/app/templates/wls-announcement/page"
+import WlsOpeningHoursPage from "@/app/templates/wls-opening-hours/page"
 import { AuthForm } from "@/components/auth/auth-form"
 import { createClient } from "@/lib/supabase/client"
 import type { EmailOtpType } from "@supabase/supabase-js"
@@ -139,6 +140,7 @@ function App() {
         <Route path="/templates/wls-sale-rack">{() => <PageLoader load={() => WlsSaleRackPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-wants">{() => <PageLoader load={() => WlsWantsPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-announcement">{() => <PageLoader load={() => WlsAnnouncementPage({ searchParams: query() })} />}</Route>
+        <Route path="/templates/wls-opening-hours">{() => <PageLoader load={() => WlsOpeningHoursPage({ searchParams: query() })} />}</Route>
         <Route path="/today">{() => <PageLoader load={() => TodayPage({ searchParams: query() })} />}</Route>
         <Route path="/planner">{() => <PageLoader load={() => PlannerPage({ searchParams: query() })} />}</Route>
         <Route path="/week">{() => <PageLoader load={() => WeekPage({ searchParams: query() })} />}</Route>
