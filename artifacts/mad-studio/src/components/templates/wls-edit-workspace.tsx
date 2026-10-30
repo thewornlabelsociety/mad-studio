@@ -53,6 +53,33 @@ const FLATLAY_KINDS: Array<{ label: string; slots: GarmentSlot[] }> = [
   { label: "Accessory", slots: ["accessory", "other"] },
   { label: "Footwear", slots: ["shoes"] },
 ]
+/** What each piece card can show, switched on and off for the whole edit. */
+type CardField = "number" | "brand" | "category" | "vibe" | "size" | "price"
+const CARD_FIELDS: Array<{ id: CardField; label: string }> = [
+  { id: "number", label: "Eyebrow" },
+  { id: "brand", label: "Brand" },
+  { id: "category", label: "Sub category" },
+  { id: "vibe", label: "Vibe" },
+  { id: "size", label: "Size" },
+  { id: "price", label: "Price" },
+]
+const DEFAULT_CARD_FIELDS: Record<CardField, boolean> = {
+  number: true,
+  brand: true,
+  category: false,
+  vibe: false,
+  size: true,
+  price: true,
+}
+
+/** The kind of piece from its shop title: "Formal Dress Karen Millen in Brown" gives "Formal Dress". */
+function pieceType(title: string, brand: string | null): string | null {
+  let text = title
+  if (brand?.trim()) text = text.replace(new RegExp(brand.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " ")
+  text = text.replace(/\s+\bin\b\s.*$/i, "").replace(/\s+/g, " ").trim()
+  return text || null
+}
+
 /** Quick picks for a piece's fabric pill; anything else can be typed. */
 const FABRIC_PICKS = ["Linen", "Silk", "Cotton", "Wool", "Cashmere", "Leather", "Denim", "Satin", "Lace", "Velvet", "Viscose", "Suede"]
 
@@ -219,6 +246,9 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     [pieceIds, flatlayIds]
   )
   const [adjusts, setAdjusts] = useRememberedState<Record<string, LayerAdjust>>(`${draftKey}.placements`, {})
+  const [cardFields, setCardFields] = useRememberedState<Record<CardField, boolean>>(`${draftKey}.cardFields`, DEFAULT_CARD_FIELDS)
+  // Eyebrow per piece; blank uses "No. 01" and so on.
+  const [eyebrows, setEyebrows] = useRememberedState<Record<string, string>>(`${draftKey}.eyebrows`, {})
   // Fabric pill per piece, e.g. LINEN; none until clicked.
   const [fabrics, setFabrics] = useRememberedState<Record<string, string>>(`${draftKey}.fabrics`, {})
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`${draftKey}.background`, null)
@@ -259,6 +289,9 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
 
   const background = kit.find((bg) => bg.id === backgroundId) ?? kit[0]
   const editLabel = oneLine(title.headline) || "The edit"
+  /** A piece's eyebrow: your words, or its number in the edit. */
+  const eyebrowFor = (id: string) =>
+    eyebrows[id]?.trim() || `No. ${String(pieceIds.indexOf(id) + 1).padStart(2, "0")}`
   const chosen = pieceIds.flatMap((id) => {
     const story = stories.get(id)
     return story ? [story] : []
@@ -791,6 +824,26 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                         }
                       />
                     ) : null}
+                    {story && cardFields.number ? (
+                      <input
+                        type="text"
+                        value={eyebrows[id] ?? ""}
+                        onChange={(event) => {
+                          const next = event.target.value
+                          setEyebrows((current) => {
+                            const out = { ...current }
+                            if (next) out[id] = next
+                            else delete out[id]
+                            return out
+                          })
+                        }}
+                        placeholder={`No. ${String(pieceIds.indexOf(id) + 1).padStart(2, "0")}`}
+                        aria-label={`Eyebrow for ${story.designer}`}
+                        title="Eyebrow: the small line above the brand. Blank uses the number."
+                        maxLength={24}
+                        className="h-7 w-24 shrink-0 border-2 border-mad-black px-1.5 text-[11px] uppercase tracking-wider"
+                      />
+                    ) : null}
                     {story && !ready(story) ? (
                       <span className="text-[11px] text-mad-black/55">{cuttingId === id ? "Cutting out…" : "Waiting"}</span>
                     ) : null}
@@ -916,6 +969,25 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           <h2 id="edit-carousel" className="font-typewriter text-xs uppercase tracking-widest">
             Feed carousel · {slideCount} slides
           </h2>
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="On the piece cards">
+            <span className="text-xs text-mad-black/60">On the cards:</span>
+            {CARD_FIELDS.map((field) => (
+              <button
+                key={field.id}
+                type="button"
+                onClick={() => setCardFields((current) => ({ ...current, [field.id]: !current[field.id] }))}
+                aria-pressed={cardFields[field.id]}
+                title={cardFields[field.id] ? `Hide ${field.label.toLowerCase()} on the cards` : `Show ${field.label.toLowerCase()} on the cards`}
+                className={cn(
+                  "flex h-7 items-center gap-1 rounded-full border-2 border-mad-black px-2.5 text-[11px] uppercase tracking-wider",
+                  cardFields[field.id] ? "bg-mad-black text-mad-white" : "border-dashed text-mad-black/70 hover:bg-[#F4EFE6]"
+                )}
+              >
+                {cardFields[field.id] ? <Check className="size-3" aria-hidden /> : <Plus className="size-3" aria-hidden />}
+                {field.label}
+              </button>
+            ))}
+          </div>
           {selected ? (
             <div className="flex items-center gap-1.5">
               <button
@@ -978,14 +1050,16 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
                   background={background}
                   brandName={entityName}
                   editLabel={editLabel}
-                  index={pieceIds.indexOf(slide.id) + 1}
+                  eyebrow={cardFields.number ? eyebrowFor(slide.id) : null}
                   editorial={title.style === "editorial"}
                   imageUrl={ready(slide.story) ? slide.story.imageUrl : null}
-                  designer={slide.story.designer}
-                  sizeLabel={slide.story.sizeLabel}
+                  designer={cardFields.brand ? slide.story.designer : null}
+                  categoryLabel={cardFields.category ? pieceType(slide.story.row.title, slide.story.row.brand) : null}
+                  vibeLabel={cardFields.vibe ? slide.story.vibe : null}
+                  sizeLabel={cardFields.size ? slide.story.sizeLabel : null}
                   fabricLabel={fabrics[slide.id] ?? null}
-                  priceLabel={shortPrice(slide.story.priceLabel)}
-                  wasLabel={slide.story.row.wasPrice != null ? money(slide.story.row.wasPrice) : null}
+                  priceLabel={cardFields.price ? shortPrice(slide.story.priceLabel) : null}
+                  wasLabel={cardFields.price && slide.story.row.wasPrice != null ? money(slide.story.row.wasPrice) : null}
                   className="rounded-sm shadow-md"
                 />
               ) : slide.kind === "photo" ? (

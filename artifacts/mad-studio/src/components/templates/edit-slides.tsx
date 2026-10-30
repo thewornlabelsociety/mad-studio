@@ -6,8 +6,9 @@ import type { StoryBackground } from "@/lib/brands/story-kit"
 
 /**
  * One piece of a themed edit, 4:5, laid out like a magazine page: a ruled
- * header, the cutout centred, then the number, designer, a short rule and
- * one line of size, fabric and price, all on the centre line.
+ * header, the cutout centred, then the eyebrow, designer, type and vibe, a
+ * short rule and one line of size, fabric and price, all on the centre line.
+ * Any line given as null is left out.
  */
 export const EditItemSlide = forwardRef<
   HTMLDivElement,
@@ -16,12 +17,15 @@ export const EditItemSlide = forwardRef<
     brandName: string
     /** The edit's name, small top left, e.g. RACE DAY READY. */
     editLabel: string
-    /** Place in the edit, shown as "No. 01". */
-    index?: number
+    /** Small line above the designer, e.g. NO. 01 or THE HAT. */
+    eyebrow?: string | null
     /** The title page's style: editorial sets the designer in the tall serif. */
     editorial?: boolean
     imageUrl: string | null
-    designer: string
+    designer: string | null
+    /** The kind of piece, e.g. FORMAL DRESS. */
+    categoryLabel?: string | null
+    vibeLabel?: string | null
     sizeLabel: string | null
     /** e.g. LINEN: a pill beside the size. */
     fabricLabel?: string | null
@@ -31,7 +35,7 @@ export const EditItemSlide = forwardRef<
     className?: string
   }
 >(function EditItemSlide(
-  { background, brandName, editLabel, index, editorial = false, imageUrl, designer, sizeLabel, fabricLabel = null, priceLabel, wasLabel = null, className },
+  { background, brandName, editLabel, eyebrow = null, editorial = false, imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, priceLabel, wasLabel = null, className },
   ref
 ) {
   const ink = background.text_color
@@ -46,7 +50,10 @@ export const EditItemSlide = forwardRef<
     borderRadius: 999,
   }
   // The designer fits one line where it can, stepping down for long names.
-  const designerSize = Math.min(editorial ? 9 : 7.4, 84 / Math.max(designer.length * (editorial ? 0.62 : 0.72), 1))
+  const name = designer?.trim() ?? ""
+  const designerSize = Math.min(editorial ? 6 : 4.8, 84 / Math.max(name.length * (editorial ? 0.62 : 0.72), 1))
+  const meta = [categoryLabel, vibeLabel].map((part) => part?.trim()).filter(Boolean).join(" · ")
+  const hasLine = Boolean(sizeLabel || fabricLabel || priceLabel)
   return (
     <div ref={ref} className={className} style={frame(background)}>
       <div style={{ position: "absolute", left: "7cqw", right: "7cqw", top: "6cqw" }}>
@@ -87,21 +94,24 @@ export const EditItemSlide = forwardRef<
           gap: "2.4cqw",
         }}
       >
-        {index != null && index > 0 ? (
-          <p style={{ ...caps, fontSize: "2.4cqw", letterSpacing: "0.34em", color: accent }}>
-            No. {String(index).padStart(2, "0")}
+        {eyebrow?.trim() ? (
+          <p style={{ ...caps, fontSize: "2.2cqw", letterSpacing: "0.34em", color: accent }}>{eyebrow.trim()}</p>
+        ) : null}
+        {name ? (
+          <p
+            style={
+              editorial
+                ? { margin: 0, fontFamily: EDITORIAL_SERIF, textTransform: "uppercase", fontWeight: 500, fontSize: `${designerSize}cqw`, letterSpacing: "0.04em", lineHeight: 1.05 }
+                : { ...caps, fontWeight: 600, fontSize: `${designerSize}cqw`, letterSpacing: "0.16em", lineHeight: 1.1 }
+            }
+          >
+            {name}
           </p>
         ) : null}
-        <p
-          style={
-            editorial
-              ? { margin: 0, fontFamily: EDITORIAL_SERIF, textTransform: "uppercase", fontWeight: 500, fontSize: `${designerSize}cqw`, letterSpacing: "0.02em", lineHeight: 1 }
-              : { ...caps, fontWeight: 700, fontSize: `${designerSize}cqw`, letterSpacing: "0.1em", lineHeight: 1 }
-          }
-        >
-          {designer}
-        </p>
-        <span style={{ display: "block", width: "12cqw", height: "0.25cqw", background: accent }} />
+        {meta ? (
+          <p style={{ ...caps, fontSize: "2.3cqw", letterSpacing: "0.26em", opacity: 0.85 }}>{meta}</p>
+        ) : null}
+        {hasLine ? <span style={{ display: "block", width: "10cqw", height: "0.25cqw", background: accent }} /> : null}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "2.4cqw", flexWrap: "wrap" }}>
           {sizeLabel ? <p style={pill}>{sizeLabel}</p> : null}
           {fabricLabel ? <p style={pill}>{fabricLabel}</p> : null}
