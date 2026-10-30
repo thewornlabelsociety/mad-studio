@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "wouter"
-import { ArrowRight, CalendarRange, Clock, Megaphone, Search, Shirt, Tag, type LucideIcon } from "lucide-react"
+import { ArrowRight, CalendarRange, Clock, Columns2, Megaphone, Search, Shirt, Tag, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -17,6 +17,12 @@ const TOOLS: Array<{ path: string; icon: LucideIcon; title: string; detail: stri
     icon: Shirt,
     title: "A week of outfits",
     detail: "Monday carousel from what's in stock",
+  },
+  {
+    path: "/templates/wls-inspo",
+    icon: Columns2,
+    title: "Inspo vs WLS",
+    detail: "Wednesday: the look, and yours from the racks",
   },
   {
     path: "/templates/wls-sale-rack",

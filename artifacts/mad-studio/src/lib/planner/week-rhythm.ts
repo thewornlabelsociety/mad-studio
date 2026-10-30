@@ -14,7 +14,7 @@ export type RhythmSlot = {
 export const WLS_WEEK_RHYTHM: RhythmSlot[] = [
   { title: "A week of outfits", detail: "Carousel of seven looks from stock", path: "/templates/wls-week-outfits" },
   { title: "Short video", detail: "Try-on, rack walk or steam and tag", path: "/studio" },
-  { title: "Inspo vs WLS", detail: "The look, and your version from the racks", path: "/studio" },
+  { title: "Inspo vs WLS", detail: "The look, and your version from the racks", path: "/templates/wls-inspo" },
   { title: "Sale rack", detail: "This week's markdowns", path: "/templates/wls-sale-rack" },
   { title: "Short video", detail: "Second reel of the week", path: "/studio" },
   { title: "We're searching for", detail: "Ask for the stock you want consigned", path: "/templates/wls-wants" },
