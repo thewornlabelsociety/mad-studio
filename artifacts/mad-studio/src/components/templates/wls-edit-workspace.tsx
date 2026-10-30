@@ -821,39 +821,6 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           </div>
           </div>
           ) : null}
-          {/* Kept out of the dropdown so it's always to hand. */}
-          <div className="flex flex-wrap items-center gap-2">
-            <label
-              className={cn(
-                "flex h-9 cursor-pointer items-center gap-2 border-2 border-mad-black px-3 text-sm hover:bg-[#F4EFE6]",
-                photoBusy && "pointer-events-none opacity-60"
-              )}
-              title={title.photo ? "Change the photo behind the words" : "Add a photo behind the words"}
-            >
-              {photoBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ImagePlus className="size-4" aria-hidden />}
-              {title.photo ? "Change photo" : "Photo behind the words"}
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(event) => {
-                  void onPhoto(event.target.files?.[0])
-                  event.target.value = ""
-                }}
-              />
-            </label>
-            {title.photo ? (
-              <button
-                type="button"
-                onClick={() => setTitle((current) => ({ ...current, photo: undefined, photoShade: undefined, photoText: undefined }))}
-                title="Use the plain colour"
-                aria-label="Remove the photo behind the words"
-                className="flex size-9 items-center justify-center border-2 border-mad-black hover:bg-[#F4EFE6]"
-              >
-                <X className="size-4" aria-hidden />
-              </button>
-            ) : null}
-          </div>
         </section>
 
         <section aria-labelledby="edit-pieces" className="grid content-start gap-3">
@@ -1188,6 +1155,40 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
 
           <StyleRow label="Words">
             <AlignButtons value={cardAlign} onChange={setCardAlign} what="the words" />
+          </StyleRow>
+
+          <StyleRow label="Title photo">
+            <label
+              className={cn(
+                "flex h-8 cursor-pointer items-center gap-2 border-2 border-mad-black px-3 text-xs hover:bg-[#F4EFE6]",
+                photoBusy && "pointer-events-none opacity-60"
+              )}
+              title={title.photo ? "Change the photo behind the words" : "Add a photo behind the words"}
+            >
+              {photoBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ImagePlus className="size-4" aria-hidden />}
+              {title.photo ? "Change photo" : "Add a photo"}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(event) => {
+                  void onPhoto(event.target.files?.[0])
+                  event.target.value = ""
+                }}
+              />
+            </label>
+            {title.photo ? (
+              <button
+                type="button"
+                onClick={() => setTitle((current) => ({ ...current, photo: undefined, photoShade: undefined, photoText: undefined }))}
+                title="Use the plain colour"
+                aria-label="Remove the photo behind the words"
+                className="flex size-8 items-center justify-center border-2 border-mad-black hover:bg-[#F4EFE6]"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            ) : null}
+            <span className="text-xs text-mad-black/55">Behind the words on the title page</span>
           </StyleRow>
 
           <StyleRow label="Show" wide>
