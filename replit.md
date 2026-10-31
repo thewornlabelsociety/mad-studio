@@ -36,3 +36,14 @@ MAD STUDIO is a multi-brand marketing workspace for inventory, content generatio
 
 - The external Supabase `record_link_click` routine currently fails with a missing `link_clicks.last_clicked_at` column; this is an external schema mismatch, not a route/proxy error. Confirm the intended external migration state before changing that database.
 - The imported Vercel cron definitions in `.migration-backup/vercel.json` do not automatically schedule jobs on Replit. The API endpoints are ported, but scheduling requires an explicit operational setup.
+- The external `cron_heartbeats` table has no `last_status` column (the migration's `CREATE TABLE IF NOT EXISTS` was skipped against an older table), so every cron heartbeat write fails silently and the table stays empty. Fix with `ALTER TABLE public.cron_heartbeats ADD COLUMN IF NOT EXISTS last_status text;` once confirmed.
+
+## Daily shop pull (new Worn Label stock)
+
+`GET /api/cron/pull-arrivals` pulls new stock for every brand with its own shop feed (website intake mode, currently Worn Label Society) so it appears on Today without pressing Refresh. Food-feed brands (FÜDI) stay manual. It needs `CRON_SECRET` sent as `Authorization: Bearer <secret>` and takes about two minutes. To run it every morning, add a Replit **Scheduled Deployment** in the same Repl:
+
+- Run command: `curl -fsS --max-time 600 -H "Authorization: Bearer $CRON_SECRET" https://<published app domain>/api/cron/pull-arrivals`
+- Schedule: 6:00am Pacific/Auckland. If the scheduler only takes UTC, use `0 17 * * *` during NZ daylight time (late Sep to early Apr) and `0 18 * * *` during standard time.
+- Secrets: make `CRON_SECRET` available to the scheduled deployment with the same value as the main app.
+
+Each run records a `pull-arrivals` row in `cron_heartbeats` (once the column above exists) and a `pulled_new_arrivals` activity log entry with no user.
