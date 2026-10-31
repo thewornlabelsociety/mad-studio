@@ -9,11 +9,12 @@ type Props = {
   background: StoryBackground
   /** Brand name; the last word sits on its own spaced-out line. */
   brandName: string
-  /** Top-right label, e.g. NEW IN. */
-  tag: string
+  /** Top-right label, e.g. NEW IN. Null leaves it off. */
+  tag: string | null
   imageUrl: string | null
-  vibe: string
-  designer: string
+  /** Null or empty leaves the line off. */
+  vibe: string | null
+  designer: string | null
   sizeLabel: string | null
   /** e.g. SILK: a second pill beside the size. */
   fabricLabel?: string | null
@@ -106,9 +107,11 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
             </span>
           ) : null}
         </p>
-        <p style={{ ...caps, fontSize: "4cqw", letterSpacing: "0.24em", color: accent, paddingTop: "0.4cqw" }}>
-          {tag}
-        </p>
+        {tag ? (
+          <p style={{ ...caps, fontSize: "4cqw", letterSpacing: "0.24em", color: accent, paddingTop: "0.4cqw" }}>
+            {tag}
+          </p>
+        ) : null}
       </div>
 
       {/* Item and words share the space between the header and the link
@@ -156,27 +159,33 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
         </div>
 
       <div style={{ display: "grid", gap: "2.4cqw" }}>
-        <p
-          style={{
-            ...caps,
-            fontWeight: 700,
-            fontSize: vibe.length > 16 ? "8.6cqw" : "10.5cqw",
-            lineHeight: 1,
-            letterSpacing: "0.06em",
-            overflowWrap: "anywhere",
-          }}
-        >
-          {vibe}
-        </p>
-        <p
-          style={{
-            ...caps,
-            fontSize: designer.length > 16 ? "4.8cqw" : "6cqw",
-            letterSpacing: designer.length > 16 ? "0.14em" : "0.22em",
-          }}
-        >
-          {designer}
-        </p>
+        {/* Prominent but secondary: the item is the hero. */}
+        {vibe ? (
+          <p
+            style={{
+              ...caps,
+              fontWeight: 700,
+              fontSize: vibe.length > 16 ? "6.4cqw" : "7.6cqw",
+              lineHeight: 1.05,
+              letterSpacing: "0.08em",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {vibe}
+          </p>
+        ) : null}
+        {designer ? (
+          <p
+            style={{
+              ...caps,
+              fontSize: designer.length > 16 ? "4.4cqw" : "5.4cqw",
+              letterSpacing: designer.length > 16 ? "0.14em" : "0.22em",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {designer}
+          </p>
+        ) : null}
         {sizeLabel || fabricLabel || priceLine ? (
           <div style={{ display: "flex", alignItems: "baseline", gap: "3.6cqw", flexWrap: "wrap" }}>
             {sizeLabel ? (

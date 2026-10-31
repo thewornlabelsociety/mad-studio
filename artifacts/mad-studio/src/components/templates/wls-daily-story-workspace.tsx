@@ -9,6 +9,7 @@ import {
   Loader2,
   Move,
   Pencil,
+  Plus,
   RefreshCw,
   RotateCcw,
   Save,
@@ -37,6 +38,8 @@ import {
   bakeStoryPng,
   copyStoryLink,
   shareOrDownloadStory,
+  STORY_FIELDS,
+  storyCardWords,
   useKitStories,
 } from "@/lib/templates/use-kit-stories"
 import {
@@ -316,11 +319,8 @@ export function WlsDailyStoryWorkspace({
                 ref={canvasRef}
                 background={story.background}
                 brandName={entityName}
-                tag="New in"
+                {...storyCardWords(story)}
                 imageUrl={story.imageUrl}
-                vibe={story.vibe}
-                designer={story.designer}
-                sizeLabel={story.sizeLabel}
                 subject={story.subject}
                 onSubjectChange={(next) => selectedId && patch(selectedId, { subject: next })}
                 subjectSelected={subjectSelected}
@@ -392,6 +392,36 @@ export function WlsDailyStoryWorkspace({
             <p className="text-xs text-mad-black/60">{story?.background.name ?? ""}</p>
           </div>
 
+          <div className="grid gap-2">
+            <h2 className="font-typewriter text-xs uppercase tracking-widest">On the card</h2>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Words on the card">
+              {STORY_FIELDS.map((field) => {
+                const on = story?.show[field.id] ?? true
+                return (
+                  <button
+                    key={field.id}
+                    type="button"
+                    disabled={!story}
+                    onClick={() =>
+                      selectedId &&
+                      story &&
+                      patch(selectedId, { hidden: { ...story.edits.hidden, [field.id]: on } })
+                    }
+                    aria-pressed={on}
+                    title={on ? `Take ${field.label.toLowerCase()} off the card` : `Put ${field.label.toLowerCase()} on the card`}
+                    className={cn(
+                      "flex h-8 items-center gap-1 border-2 border-mad-black px-2.5 text-xs font-medium disabled:opacity-40",
+                      on ? "bg-mad-black text-mad-white" : "border-dashed text-mad-black/70 hover:bg-[#F4EFE6]"
+                    )}
+                  >
+                    {on ? <Check className="size-3" aria-hidden /> : <Plus className="size-3" aria-hidden />}
+                    {field.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <label className="grid gap-1.5">
             <span className="font-typewriter text-xs uppercase tracking-widest">Vibe</span>
             <input
@@ -412,11 +442,52 @@ export function WlsDailyStoryWorkspace({
             </span>
           </label>
 
+          <label className="grid gap-1.5">
+            <span className="font-typewriter text-xs uppercase tracking-widest">Brand or title</span>
+            <input
+              id="story-designer"
+              type="text"
+              value={story?.edits.designer ?? story?.shopDesigner ?? ""}
+              maxLength={40}
+              disabled={!story}
+              onChange={(event) => selectedId && patch(selectedId, { designer: event.target.value })}
+              className="h-10 border-2 border-mad-black bg-white px-3 text-sm uppercase tracking-wider"
+            />
+            <span className="flex items-center justify-between gap-2 text-[11px] text-mad-black/55">
+              <span>
+                {story?.edits.designer !== undefined
+                  ? `The shop says ${story.shopDesigner}.`
+                  : "From the shop. Unbranded? Give it a short title instead."}
+              </span>
+              {story?.edits.designer !== undefined ? (
+                <button
+                  type="button"
+                  onClick={() => selectedId && patch(selectedId, { designer: undefined })}
+                  title="Go back to the brand from the shop"
+                  aria-label="Use the brand from the shop"
+                  className="flex size-6 shrink-0 items-center justify-center text-mad-black/60 hover:text-mad-black"
+                >
+                  <RotateCcw className="size-3" aria-hidden />
+                </button>
+              ) : null}
+            </span>
+          </label>
+
+          <label className="grid gap-1.5">
+            <span className="font-typewriter text-xs uppercase tracking-widest">Size</span>
+            <input
+              id="story-size"
+              type="text"
+              value={story?.edits.sizeLabel ?? story?.shopSizeLabel ?? ""}
+              maxLength={20}
+              disabled={!story}
+              placeholder={story && !story.shopSizeLabel ? "Not on the listing" : undefined}
+              onChange={(event) => selectedId && patch(selectedId, { sizeLabel: event.target.value })}
+              className="h-10 border-2 border-mad-black bg-white px-3 text-sm uppercase tracking-wider"
+            />
+          </label>
+
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-            <dt className="text-mad-black/55">Brand</dt>
-            <dd>{story?.designer ?? "—"}</dd>
-            <dt className="text-mad-black/55">Size</dt>
-            <dd>{story ? story.sizeLabel ?? "Not on the listing, so left off" : "—"}</dd>
             <dt className="text-mad-black/55">Price</dt>
             <dd>{story?.priceLabel ?? "—"}</dd>
           </dl>
