@@ -74,7 +74,7 @@ export function AuthForm({
     if (inviteToken && /^[a-zA-Z0-9_-]+$/.test(inviteToken)) {
       return `/invite/${inviteToken}`
     }
-    return isSafeRedirect(redirectTo) ? redirectTo : "/studio"
+    return isSafeRedirect(redirectTo) ? redirectTo : "/today"
   })()
 
   const heading =

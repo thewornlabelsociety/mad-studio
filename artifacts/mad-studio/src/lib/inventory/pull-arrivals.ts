@@ -23,6 +23,7 @@ import {
 import type { BrandIdentity } from "@/lib/entities/dna-schema"
 import { parsePrice } from "@/lib/inventory/types"
 import { markdownFromPrices, type ListingMarkdown } from "@/lib/inventory/listing-markdown"
+import { listingGenderField } from "@/lib/inventory/listing-garment"
 import { metaGraphBase } from "@/lib/social/types"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -397,7 +398,10 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
         vibe: aesthetics.vibe,
         aesthetic_slugs: aesthetics.aesthetic_slugs,
         category: stringField(record, "category", "subCategory"),
-        gender: stringField(record, "gender", "department"),
+        gender: listingGenderField(
+          stringField(record, "gender", "department"),
+          stringField(record, "ageGroup", "age_group")
+        ),
         markdown: markdownFromPrices({
           fullPrice: numberField(record, "listingPrice", "price"),
           salePrice: numberField(record, "salePrice", "discountedPrice"),
@@ -455,7 +459,10 @@ function parseWornLabelItems(payload: unknown): PulledArrival[] {
         vibe: aesthetics.vibe,
         aesthetic_slugs: aesthetics.aesthetic_slugs,
         category: stringField(record, "category", "subCategory"),
-        gender: stringField(record, "gender", "department"),
+        gender: listingGenderField(
+          stringField(record, "gender", "department"),
+          stringField(record, "ageGroup", "age_group")
+        ),
         markdown: markdownFromPrices({
           fullPrice: numberField(record, "price"),
           salePrice: numberField(record, "discountedPrice"),
@@ -694,23 +701,39 @@ async function fetchJsonFeed(url: string): Promise<unknown> {
   }
 }
 
+/** Page sizes to sweep the catalogue with; 100 is the API's cap. */
+const CATALOGUE_PAGE_SIZES = [100, 90, 99, 75, 50] as const
+
 /**
  * Worn Label's full shop catalogue (`/api/public/items`), every page. New
  * stock shows here before it gets a marketplace listing, so the listings
  * feed alone misses the latest arrivals.
+ *
+ * The API's sort order isn't stable (many items tie), so one sweep repeats
+ * some items across pages and never returns others. Sweep again with other
+ * page sizes until every item the API counts has turned up.
  */
 async function fetchWornLabelCatalogue(origin: string): Promise<PulledArrival[]> {
   const byId = new Map<string, PulledArrival>()
-  let totalPages = 1
-  for (let page = 1; page <= Math.min(totalPages, 30); page += 1) {
-    const json = await fetchJsonFeed(
-      `${origin}/api/public/items?pageSize=100&page=${page}`
-    )
-    const pages = Number(asRecord(json)?.totalPages)
-    if (Number.isFinite(pages) && pages > 0) totalPages = pages
-    for (const row of parseWornLabelItems(json)) {
-      if (!byId.has(row.website_item_id)) byId.set(row.website_item_id, row)
+  let total = 0
+  for (const pageSize of CATALOGUE_PAGE_SIZES) {
+    let totalPages = 1
+    for (let page = 1; page <= Math.min(totalPages, 30); page += 1) {
+      const json = await fetchJsonFeed(
+        `${origin}/api/public/items?pageSize=${pageSize}&page=${page}`
+      )
+      const pages = Number(asRecord(json)?.totalPages)
+      if (Number.isFinite(pages) && pages > 0) totalPages = pages
+      const count = Number(asRecord(json)?.total)
+      if (Number.isFinite(count) && count > total) total = count
+      for (const row of parseWornLabelItems(json)) {
+        if (!byId.has(row.website_item_id)) byId.set(row.website_item_id, row)
+      }
     }
+    if (byId.size >= total) break
+  }
+  if (byId.size < total) {
+    throw new Error(`catalogue returned ${byId.size} of ${total} items`)
   }
   return [...byId.values()]
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState, useTransition } from "react"
+import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { useLocation } from "wouter"
 import { ArrowRight, Check, Loader2, Plus, Save, Share2, X } from "lucide-react"
 import { toast } from "sonner"
@@ -11,6 +11,7 @@ import { saveWantsList } from "@/lib/actions"
 import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets, WantsItem } from "@/lib/entities/dna-schema"
+import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
@@ -66,7 +67,15 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
     setDirty(true)
   }
 
-  function save(then?: () => void) {
+  // Save quietly a moment after typing stops, so leaving the screen loses nothing.
+  useEffect(() => {
+    if (!dirty) return
+    const timer = window.setTimeout(() => save(undefined, true), 1200)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, note, dirty])
+
+  function save(then?: () => void, quiet = false) {
     startSaving(async () => {
       const result = await saveWantsList({
         entityId,
@@ -78,7 +87,7 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
         return
       }
       setDirty(false)
-      toast.success("Wants list saved.")
+      if (!quiet) toast.success("Wants list saved.")
       then?.()
     })
   }
@@ -90,6 +99,7 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
       const baked = await bakeStoryPng(storyRef.current)
       const result = await shareOrDownloadStory({ ...baked, filename: "wls-searching-for.png" })
       if (result === "downloaded") toast.success("Story image saved.")
+      if (result !== "cancelled") void completeActiveStep(entityId)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the image.")
     } finally {
@@ -236,7 +246,7 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
             onClick={() => save()}
           >
             {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
-            {dirty ? "Save list" : "Saved"}
+            {saving ? "Saving…" : dirty ? "Save list" : "Saved"}
           </Button>
         </section>
 

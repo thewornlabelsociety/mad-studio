@@ -16,7 +16,7 @@ export async function readDispatchCronHealth(): Promise<DispatchCronHealth> {
     const admin = createAdminClient()
     const { data, error } = await admin
       .from("cron_heartbeats")
-      .select("job_name, last_run_at, last_status, detail")
+      .select("job_name, last_run_at, status, details")
       .eq("job_name", DISPATCH_JOB)
       .maybeSingle()
 
@@ -30,11 +30,11 @@ export async function readDispatchCronHealth(): Promise<DispatchCronHealth> {
     return {
       jobName: DISPATCH_JOB,
       lastRunAt,
-      lastStatus: data?.last_status ?? null,
+      lastStatus: data?.status ?? null,
       stale,
       detail:
-        data?.detail && typeof data.detail === "object" && !Array.isArray(data.detail)
-          ? (data.detail as Record<string, unknown>)
+        data?.details && typeof data.details === "object" && !Array.isArray(data.details)
+          ? (data.details as Record<string, unknown>)
           : null,
     }
   } catch {

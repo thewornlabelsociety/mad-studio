@@ -68,7 +68,8 @@ export async function GET(request: Request) {
       headers: {
         "Content-Type": image.contentType,
         "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "private, max-age=300",
+        // A day: Stories and cutouts reuse the photo on screen instead of fetching it again.
+        "Cache-Control": "private, max-age=86400",
       },
     })
   } catch (error) {

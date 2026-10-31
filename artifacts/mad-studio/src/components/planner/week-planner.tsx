@@ -14,6 +14,9 @@ import {
   Plus,
 } from "lucide-react"
 
+import { ComingUp } from "@/components/planner/coming-up"
+import { DayPills, SharedStoriesChip, useCampaignPlans, useSharedStories } from "@/components/planner/day-pills"
+import { ymd } from "@/lib/planner/campaign-recipes"
 import { TodayToolLinks } from "@/components/today/today-tool-links"
 import { PlatformIcon } from "@/components/ui/app-icons"
 import { fetchCalendarPosts, type CalendarPost } from "@/lib/planner/calendar-posts"
@@ -86,6 +89,15 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
   const [error, setError] = useState<string | null>(null)
   const rhythm = isWornLabel ? WLS_WEEK_RHYTHM : OPEN_WEEK_RHYTHM
   const query = `?eid=${encodeURIComponent(entityId)}`
+
+  // Campaign days (from the Campaigns page) as pills on each day.
+  const campaigns = useCampaignPlans(entityId, isWornLabel)
+  const sharedStories = useSharedStories({
+    entityId,
+    from: weekStart,
+    to: addDays(weekStart, 7),
+    enabled: isWornLabel,
+  })
 
   const load = useCallback(async () => {
     setPosts(null)
@@ -266,6 +278,8 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
                       ) : null}
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{day.slot.title}</p>
+                        <DayPills date={day.date} entityId={entityId} campaigns={campaigns} className="mb-0.5 mt-0.5" />
+                        <SharedStoriesChip stories={sharedStories.get(ymd(day.date))} entityId={entityId} />
                         <p className="truncate text-xs text-mad-black/60">
                           {day.posts.length > 0
                             ? day.posts
@@ -332,6 +346,12 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
           ) : null}
         </section>
       </div>
+
+      {isWornLabel ? (
+        <div className="mx-auto mt-8 max-w-6xl">
+          <ComingUp entityId={entityId} compact />
+        </div>
+      ) : null}
 
       {isWornLabel ? (
         <section aria-labelledby="make-heading" className="mx-auto mt-8 grid max-w-6xl gap-2">

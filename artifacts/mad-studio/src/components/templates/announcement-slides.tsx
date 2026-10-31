@@ -1,5 +1,6 @@
-import { forwardRef } from "react"
+import { forwardRef, type CSSProperties } from "react"
 
+import { EditorialAnnouncement, type EditorialAccent } from "@/components/templates/editorial-announcement"
 import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
@@ -9,8 +10,43 @@ export type Announcement = {
   /** Line above the headline, e.g. THIS FRIDAY. */
   kicker: string
   headline: string
-  /** Up to three short lines: when, where, what. */
+  /** Up to three short lines: when, where, what (four on Editorial). */
   details: string[]
+  /** Kit: Josefin capitals. Editorial: the moodboard's serif and script. */
+  style?: "kit" | "editorial"
+  /** Editorial: a signature-script line under the headline. */
+  script?: string
+  /** Editorial: headline in the tall serif or the script. */
+  headlineFont?: "serif" | "script"
+  accent?: EditorialAccent
+  align?: "center" | "left"
+  /** A photo behind the words instead of the plain colour (an image-proxy path). */
+  photo?: string
+  /** How much to darken (light words) or lighten (dark words) the photo, 0-80. */
+  photoShade?: number
+  photoText?: "light" | "dark"
+}
+
+/** With a photo, the words switch to white (or near black) so they read on it. */
+function groundFor(background: StoryBackground, announcement: Announcement): StoryBackground {
+  if (!announcement.photo) return background
+  return announcement.photoText === "dark"
+    ? { ...background, color: "#F4F1EA", text_color: "#1A1A1A", accent_color: "#1A1A1A" }
+    : { ...background, color: "#2A2A2A", text_color: "#FFFFFF", accent_color: "#F1EADB" }
+}
+
+/** The photo, filling the frame, with a wash so the words stay readable. */
+function PhotoBackdrop({ announcement }: { announcement: Announcement }) {
+  if (!announcement.photo) return null
+  const shade = Math.min(80, Math.max(0, announcement.photoShade ?? 35)) / 100
+  const fill: CSSProperties = { position: "absolute", inset: 0, zIndex: -1 }
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={announcement.photo} alt="" crossOrigin="anonymous" draggable={false} style={{ ...fill, width: "100%", height: "100%", objectFit: "cover" }} />
+      <div style={{ ...fill, background: announcement.photoText === "dark" ? `rgba(255,255,255,${shade})` : `rgba(0,0,0,${shade})` }} />
+    </>
+  )
 }
 
 type Props = {
@@ -33,6 +69,17 @@ function headlineSize(text: string, story: boolean): number {
 }
 
 function AnnouncementLayout({ background, brandName, announcement, linkSpace, story }: Props & { story: boolean }) {
+  if (announcement.style === "editorial") {
+    return (
+      <EditorialAnnouncement
+        background={background}
+        brandName={brandName}
+        announcement={announcement}
+        story={story}
+        linkSpace={linkSpace}
+      />
+    )
+  }
   const { tag, kicker, headline, details } = announcement
   const lines = details.map((line) => line.trim()).filter(Boolean)
   return (
@@ -126,17 +173,21 @@ function AnnouncementLayout({ background, brandName, announcement, linkSpace, st
 }
 
 export const AnnouncementStory = forwardRef<HTMLDivElement, Props>(function AnnouncementStory(props, ref) {
+  const background = groundFor(props.background, props.announcement)
   return (
-    <div ref={ref} className={props.className} style={frame(props.background, "9 / 16")}>
-      <AnnouncementLayout {...props} story />
+    <div ref={ref} className={props.className} style={{ ...frame(background, "9 / 16"), isolation: "isolate" }}>
+      <PhotoBackdrop announcement={props.announcement} />
+      <AnnouncementLayout {...props} background={background} story />
     </div>
   )
 })
 
 export const AnnouncementCard = forwardRef<HTMLDivElement, Props>(function AnnouncementCard(props, ref) {
+  const background = groundFor(props.background, props.announcement)
   return (
-    <div ref={ref} className={props.className} style={frame(props.background)}>
-      <AnnouncementLayout {...props} story={false} />
+    <div ref={ref} className={props.className} style={{ ...frame(background), isolation: "isolate" }}>
+      <PhotoBackdrop announcement={props.announcement} />
+      <AnnouncementLayout {...props} background={background} story={false} />
     </div>
   )
 })

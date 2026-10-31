@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { Link } from "wouter"
 import { useRouter, useSearchParams } from "@/lib/next-compat"
-import { ChevronDown, Loader2 } from "lucide-react"
+import { ChevronDown, Loader2, Sparkles } from "lucide-react"
+import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { toast } from "sonner"
 
 import {
@@ -23,7 +24,8 @@ import {
   ReviewBeforeSchedule,
   type MediaByChannel,
 } from "@/components/studio/review-before-schedule"
-import { brandSwatches, resolveVisualPresets } from "@/lib/brands/visual-presets"
+import { resolveStoryKit } from "@/lib/brands/story-kit"
+import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { SchedulerChannel } from "@/lib/scheduling/brain-timing"
 import { stripMarkdown } from "@/lib/scheduling/pack-payload"
 import { IntentMatrix } from "@/components/studio/intent-matrix"
@@ -75,6 +77,7 @@ import {
 } from "@/components/marketing/media-tray"
 import { StepCustomize } from "@/components/studio/steps/step-customize"
 import { StepMedia } from "@/components/studio/steps/step-media"
+import { TodayToolLinks } from "@/components/today/today-tool-links"
 import type { PostIntentState } from "@/lib/inventory/post-intent"
 import { stripDuplicateHookFromCaption } from "@/lib/inventory/sop"
 import { OptimizationTagsEditor } from "@/components/inventory/optimization-tags-editor"
@@ -377,7 +380,11 @@ export function StudioWorkspace({
   const [visualInspection, setVisualInspection] =
     useState<MediaVisualInspection | null>(null)
   const [pack, setPack] = useState<CampaignPack | null>(null)
+  /** The caption a quick (no-AI) pack was built from; null for AI or restored packs. */
+  const quickPackCaption = useRef<string | null>(null)
   const [campaignId, setCampaignId] = useState<string | null>(null)
+  /** The campaign a template handoff let go of (see forgetPreviousPost). */
+  const forgottenCampaignId = useRef<string | null>(null)
   const [editorSession, setEditorSession] = useState(0)
   const [multiplexing, setMultiplexing] = useState(false)
   const [rehydrating, setRehydrating] = useState(true)
@@ -908,6 +915,14 @@ export function StudioWorkspace({
   }
 
   const isFashionBrand = brandProfileId === "worn_label"
+  // Worn Label starts from a template; picking by hand folds away until asked
+  // for, or until the post already has media or a brand template.
+  const [manualOpen, setManualOpen] = useState(false)
+  const hasManualWork = mediaAssets.length > 0 || Boolean(templateInstanceId)
+  useEffect(() => {
+    if (hasManualWork) setManualOpen(true)
+  }, [hasManualWork])
+  const showManualPick = !isFashionBrand || manualOpen
   const mediaAssetsRef = useRef(mediaAssets)
   mediaAssetsRef.current = mediaAssets
 
@@ -1097,6 +1112,9 @@ export function StudioWorkspace({
   const applyStudioTemplateHandoff = useCallback(
     (handoff: StudioTemplateHandoffResponse) => {
       const { template } = handoff
+      // A template's content is a new post, not an edit of the last campaign.
+      setPack(null)
+      setCampaignId(null)
       setTemplateInstanceId(template.templateInstanceId)
       setTemplateVersionId(String(template.templateVersion))
       setTemplateDisplayName(template.templateName)
@@ -1462,6 +1480,7 @@ export function StudioWorkspace({
       destinationUrl: handoff.destinationUrl ?? null,
       intakeCaption: index === 0 ? handoff.caption : null,
     }))
+    forgetPreviousPost()
     onMediaAssetsChange(tray)
     applyIntakeFromTray(tray, { forceCaption: true })
     setActiveMediaId(tray[0].id)
@@ -1521,6 +1540,7 @@ export function StudioWorkspace({
           return
         }
         const tray = assets.slice(0, 10)
+        forgetPreviousPost()
         onMediaAssetsChange(tray)
         applyIntakeFromTray(tray, { forceCaption: true })
         setActiveMediaId(tray[0].id)
@@ -2287,7 +2307,7 @@ export function StudioWorkspace({
     if (plannerHandoff) {
       setRawSpark(buildPlannerStudioSpark(plannerHandoff))
       setWorkbenchHeadline(plannerHandoff.hook.slice(0, 200))
-      setWorkbenchStep(WORKBENCH_STEP_INTENT)
+      setWorkbenchStep(WORKBENCH_STEP_COPY)
       const fromUrl = searchParams.get("prompt")?.trim() ?? ""
       if (fromUrl) {
         const params = new URLSearchParams(searchParams.toString())
@@ -2322,7 +2342,10 @@ export function StudioWorkspace({
   }, [rehydrating, activeEntity.id])
 
   useEffect(() => {
+    if (!campaignId) forgottenCampaignId.current = null
     if (!pack || !campaignId) return
+    // Still the render before forgetPreviousPost's reset lands: don't save it back.
+    if (campaignId === forgottenCampaignId.current) return
     writeLocalBuffer({
       packId: campaignId,
       pack,
@@ -2400,15 +2423,22 @@ export function StudioWorkspace({
           .slice(0, 80) || undefined,
     })
 
-    setPack(withStudioTags(nextPack))
+    // The caption written on Post is exactly what publishes; the formula
+    // only fills the spoken hook and on-screen line.
+    setPack(
+      withStudioTags({
+        ...nextPack,
+        seo_caption: { ...nextPack.seo_caption, caption_body: spark.slice(0, 2200) },
+      })
+    )
+    quickPackCaption.current = spark
     setCampaignId(null)
     setRedirectSlugSeed(
       isFudi ? buildFudiRedirectSlugSeed(fudiTrack, spark) : null
     )
     setEditorSession((value) => value + 1)
     setRestoredAt(null)
-    setWorkbenchStep(WORKBENCH_STEP_INTENT)
-    toast.success("Formula pack rendered — zero AI tokens.")
+    setWorkbenchStep(WORKBENCH_STEP_CHANNELS)
   }
 
   function withStudioTags(next: CampaignPack): CampaignPack {
@@ -2487,6 +2517,7 @@ export function StudioWorkspace({
         (isFudi ? buildFudiRedirectSlugSeed(fudiTrack, spark) : null)
 
       setPack(withStudioTags(payload.pack))
+      quickPackCaption.current = null
       setCampaignId(nextCampaignId)
       setRedirectSlugSeed(nextSlugSeed)
       // The server echoes the first photo back; only adopt it for a single
@@ -2814,6 +2845,7 @@ export function StudioWorkspace({
         )
       }
       toast.success(`Multi-channel post armed — ${parts.join(" · ") || "queued"}`)
+      void completeActiveStep(activeEntity.id)
       for (const failure of immediate.errors) {
         const channel =
           CHANNEL_META[failure.platform as keyof typeof CHANNEL_META]?.label ??
@@ -2826,6 +2858,21 @@ export function StudioWorkspace({
         `/campaigns?eid=${encodeURIComponent(activeEntity.id)}&toast=armed`
       )
     })
+  }
+
+  /**
+   * New artwork arriving from a template or Today is a new post: let go of the
+   * last campaign so scheduling it can't replace that one's queued posts.
+   */
+  function forgetPreviousPost() {
+    forgottenCampaignId.current = campaignId
+    clearActiveMultiplexerBuffer(activeEntity.id)
+    setPack(null)
+    setCampaignId(null)
+    setRestoredAt(null)
+    setActiveHookId(null)
+    quickPackCaption.current = null
+    syncPackUrl(null)
   }
 
   function startNewPack() {
@@ -2848,6 +2895,7 @@ export function StudioWorkspace({
       setPersonaId(personas[0]?.id ?? "")
     }
     setActiveHookId(null)
+    quickPackCaption.current = null
     setWorkbenchStep(WORKBENCH_STEP_MEDIA)
     syncPackUrl(null)
   }
@@ -2859,9 +2907,20 @@ export function StudioWorkspace({
   function onStudioNext() {
     if (workbenchStep === WORKBENCH_STEP_COPY) {
       if (rawSpark.trim().length < 8) {
-        toast.message("Add a short spark (at least 8 characters) before schedule.")
+        toast.message("Write a short caption first (at least 8 characters).")
         return
       }
+      // Build the post from this caption (no AI) unless there's already one
+      // for it; an AI-written or restored post is kept as it is.
+      const stale =
+        quickPackCaption.current != null &&
+        quickPackCaption.current !== rawSpark.trim()
+      if (!pack || stale) {
+        renderFormulaPack()
+        return
+      }
+      setWorkbenchStep(WORKBENCH_STEP_CHANNELS)
+      return
     }
     if (workbenchStep === WORKBENCH_STEP_CHANNELS) {
       void activateMultiplexer()
@@ -3014,7 +3073,7 @@ export function StudioWorkspace({
     if (textOverlay.animation !== "none") parts.push("Motion")
     if (textOverlay.shadow !== "none") parts.push("Shadow")
     if (textOverlay.highlight !== "none") parts.push("Highlight")
-    return parts.length > 0 ? parts.join(" · ") : "No on-canvas text"
+    return parts.length > 0 ? parts.join(" · ") : "No words on the picture"
   })()
   const copyStepSummary =
     workbenchHeadline.trim() || rawSpark.trim()
@@ -3071,7 +3130,11 @@ export function StudioWorkspace({
                 storyCard: isMultiPhoto
                   ? null
                   : {
-                      swatches: brandSwatches(brandVisualPresets),
+                      // The brand kit's Story backgrounds, same as Today.
+                      swatches: resolveStoryKit({
+                        presets: brandVisualPresets,
+                        isWornLabel: isFashionBrand,
+                      }).map((bg) => ({ hex: bg.color, label: bg.name })),
                       background:
                         storyPreview.canvasColor ||
                         brandVisualPresets.canvas_color,
@@ -3146,7 +3209,7 @@ export function StudioWorkspace({
         textOverlay={textOverlay}
         onTextOverlayChange={setTextOverlay}
         tagsSlot={
-          phase === "copy" ? (
+          phase === "copy" || phase === "post" ? (
             <OptimizationTagsEditor
               entityId={activeEntity.id}
               tags={optimizationTags}
@@ -3196,6 +3259,7 @@ export function StudioWorkspace({
           ) : null
         }
         intentFieldSet={isFudi ? "full" : "focus"}
+        intentSummary={intentStepSummary}
         audienceToneCue={toneGoalSuffix}
         postFocusLabel={resolvedFocusChip?.label ?? null}
         stillPhotoCount={
@@ -3206,7 +3270,29 @@ export function StudioWorkspace({
         carouselMergedVision={
           carouselMergedVision.visualDescription || null
         }
-        footerSlot={null}
+        footerSlot={
+          phase === "post" ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-mad-black/15 pt-3">
+              <p className="text-xs text-neutral-600">
+                Or let AI write the whole post: a caption for each channel and
+                a video script.
+              </p>
+              <button
+                type="button"
+                onClick={() => void activateMultiplexer()}
+                disabled={multiplexing || pending || rehydrating}
+                className="inline-flex items-center gap-1.5 border border-mad-black/40 px-3 py-1.5 text-xs font-medium text-mad-black hover:border-mad-black disabled:opacity-50"
+              >
+                {multiplexing ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles className="size-3.5" aria-hidden />
+                )}
+                {multiplexing ? "Writing…" : "Write it with AI"}
+              </button>
+            </div>
+          ) : null
+        }
         canvasSlot={
           phase === "canvas" ? (
             <div className="space-y-3">
@@ -3366,15 +3452,15 @@ export function StudioWorkspace({
             nextBusy={multiplexing || (pending && !arming)}
             nextLabel={
               workbenchStep === WORKBENCH_STEP_MEDIA
-                ? "Continue to Canvas"
+                ? "Next: Make"
                 : workbenchStep === WORKBENCH_STEP_CANVAS
-                  ? "Continue to Intent"
+                  ? "Next: Post"
                   : workbenchStep === WORKBENCH_STEP_INTENT
-                    ? "Continue to Copy"
+                    ? "Next: Post"
                     : workbenchStep === WORKBENCH_STEP_COPY
-                      ? "Continue to Schedule"
+                      ? "Channels & time"
                       : workbenchStep === WORKBENCH_STEP_CHANNELS && !showStudio
-                        ? "Generate pack"
+                        ? "Write it with AI"
                         : undefined
             }
             nextDisabled={
@@ -3406,7 +3492,7 @@ export function StudioWorkspace({
         }
         footer={
           isFashionBrand &&
-          (workbenchStep === WORKBENCH_STEP_MEDIA ||
+          ((workbenchStep === WORKBENCH_STEP_MEDIA && showManualPick) ||
             workbenchStep === WORKBENCH_STEP_CANVAS) ? (
             <WlsEligibleProductStrip
               entityId={activeEntity.id}
@@ -3499,25 +3585,24 @@ export function StudioWorkspace({
         }
         controls={
           <div className="flex min-h-0 w-full flex-col gap-2">
-            {workbenchStep === WORKBENCH_STEP_INTENT ||
-            workbenchStep === WORKBENCH_STEP_COPY ? (
-              <StudioStepSummary
-                title="Canvas"
-                summary={canvasStepSummary}
-                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_CANVAS)}
-              />
-            ) : null}
             {workbenchStep === WORKBENCH_STEP_COPY ? (
               <StudioStepSummary
-                title="Intent"
-                summary={intentStepSummary}
-                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_INTENT)}
+                title="Make"
+                summary={canvasStepSummary}
+                onEdit={() => setWorkbenchStep(WORKBENCH_STEP_CANVAS)}
               />
             ) : null}
             <div className="flex min-h-0 w-full flex-col pb-1">
         {workbenchStep === WORKBENCH_STEP_MEDIA ? (
           <StepMedia
             entityId={activeEntity.id}
+            templatesSlot={
+              isFashionBrand ? (
+                <TodayToolLinks entityId={activeEntity.id} exclude={["/week"]} stacked />
+              ) : null
+            }
+            manualOpen={showManualPick}
+            onManualOpenChange={setManualOpen}
             templatePickerSlot={
               <StudioTemplatePicker
                 entityId={activeEntity.id}
@@ -3563,7 +3648,7 @@ export function StudioWorkspace({
           ? renderCustomizePhase("canvas")
           : null}
         {workbenchStep === WORKBENCH_STEP_COPY
-          ? renderCustomizePhase("copy")
+          ? renderCustomizePhase("post")
           : null}
 
         {workbenchStep === WORKBENCH_STEP_CHANNELS ? (

@@ -22,12 +22,16 @@ import PrivacyPolicyPage from "@/app/privacy/page"
 import TermsOfServicePage from "@/app/terms/page"
 import HelpPage from "@/app/help/page"
 import PromoPage from "@/app/promo/page"
+import DatesPage from "@/app/dates/page"
 import TemplatesPage from "@/app/templates/page"
 import WlsDailyStoryPage from "@/app/templates/wls-daily-story/page"
 import WlsWeekOutfitsPage from "@/app/templates/wls-week-outfits/page"
 import WlsSaleRackPage from "@/app/templates/wls-sale-rack/page"
+import WlsInspoPage from "@/app/templates/wls-inspo/page"
+import WlsEditPage from "@/app/templates/wls-edit/page"
 import WlsWantsPage from "@/app/templates/wls-wants/page"
 import WlsAnnouncementPage from "@/app/templates/wls-announcement/page"
+import WlsOpeningHoursPage from "@/app/templates/wls-opening-hours/page"
 import { AuthForm } from "@/components/auth/auth-form"
 import { createClient } from "@/lib/supabase/client"
 import type { EmailOtpType } from "@supabase/supabase-js"
@@ -42,7 +46,12 @@ function Home() {
   return <PageLoader load={async () => {
     let signedIn = false
     try { signedIn = !!(await createClient().auth.getSession()).data.session } catch { /* Public page remains available without configuration. */ }
-    const href = signedIn ? "/studio" : "/login"
+    // Signed in: go straight to Today, the daily starting point.
+    if (signedIn) {
+      window.location.replace("/today")
+      return null
+    }
+    const href = "/login"
     return (
       <div className="flex min-h-svh flex-1 flex-col bg-mad-white">
         <header className="border-b-2 border-mad-black"><div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4">
@@ -72,7 +81,7 @@ function Login() {
   const params = new URLSearchParams(window.location.search)
   const token = params.get("token")
   const redirect = params.get("redirect")
-  const destination = redirect?.startsWith("/") && !redirect.startsWith("//") ? redirect : token && /^[a-zA-Z0-9_-]+$/.test(token) ? `/invite/${token}` : "/studio"
+  const destination = redirect?.startsWith("/") && !redirect.startsWith("//") ? redirect : token && /^[a-zA-Z0-9_-]+$/.test(token) ? `/invite/${token}` : "/today"
   return <div className="relative flex min-h-svh flex-1 items-center justify-center overflow-hidden bg-mad-white px-4 py-16">
     <AuthForm redirectTo={destination} inviteToken={token} initialMode={params.get("mode") === "signup" ? "signup" : "signin"} initialError={params.get("error") ?? undefined} initialMessage={params.get("message") ?? undefined} />
   </div>
@@ -101,6 +110,7 @@ const PAGE_TITLES: Array<[string, string]> = [
   ["/planner", "Calendar"],
   ["/campaigns", "Campaigns"],
   ["/promo", "Promo"],
+  ["/dates", "NZ dates"],
   ["/inventory", "Library"],
   ["/brain", "Brand Brain"],
   ["/analytics", "Analytics"],
@@ -135,12 +145,16 @@ function App() {
         <Route path="/templates/wls-daily-story">{() => <PageLoader load={() => WlsDailyStoryPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-week-outfits">{() => <PageLoader load={() => WlsWeekOutfitsPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-sale-rack">{() => <PageLoader load={() => WlsSaleRackPage({ searchParams: query() })} />}</Route>
+        <Route path="/templates/wls-inspo">{() => <PageLoader load={() => WlsInspoPage({ searchParams: query() })} />}</Route>
+        <Route path="/templates/wls-edit">{() => <PageLoader load={() => WlsEditPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-wants">{() => <PageLoader load={() => WlsWantsPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-announcement">{() => <PageLoader load={() => WlsAnnouncementPage({ searchParams: query() })} />}</Route>
+        <Route path="/templates/wls-opening-hours">{() => <PageLoader load={() => WlsOpeningHoursPage({ searchParams: query() })} />}</Route>
         <Route path="/today">{() => <PageLoader load={() => TodayPage({ searchParams: query() })} />}</Route>
         <Route path="/planner">{() => <PageLoader load={() => PlannerPage({ searchParams: query() })} />}</Route>
         <Route path="/week">{() => <PageLoader load={() => WeekPage({ searchParams: query() })} />}</Route>
         <Route path="/promo">{() => <PageLoader load={() => PromoPage({ searchParams: query() })} />}</Route>
+        <Route path="/dates">{() => <PageLoader load={() => DatesPage({ searchParams: query() })} />}</Route>
         <Route path="/inventory">{() => <PageLoader load={() => InventoryPage({ searchParams: query() })} />}</Route>
         <Route path="/help">{() => <PageLoader load={() => HelpPage({ searchParams: query() })} />}</Route>
         <Route path="/inventory/:id">{(params) => <PageLoader load={async () => { await InventoryItemPage({ params: Promise.resolve(params), searchParams: query() }); return null }} />}</Route>

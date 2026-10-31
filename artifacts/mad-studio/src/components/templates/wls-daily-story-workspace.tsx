@@ -261,7 +261,7 @@ export function WlsDailyStoryWorkspace({
   const cutting = Boolean(selectedId && cuttingId === selectedId)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
       <header className="flex flex-wrap items-end justify-between gap-3 border-b-2 border-mad-black pb-3">
         <div>
           <p className="font-typewriter text-[10px] uppercase tracking-widest text-mad-black/60">
@@ -308,7 +308,7 @@ export function WlsDailyStoryWorkspace({
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)_300px]">
+      <div className="grid shrink-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)_300px] lg:items-start">
         <section className="flex flex-col items-center gap-3">
           <div className="relative w-full max-w-[300px] overflow-hidden rounded-lg shadow-lg">
             {story && story.imageUrl ? (
@@ -508,7 +508,7 @@ export function WlsDailyStoryWorkspace({
           </div>
         </section>
 
-        <aside className="flex min-h-0 flex-col gap-2 border-2 border-mad-black bg-white p-3">
+        <aside className="flex flex-col gap-2 border-2 border-mad-black bg-white p-3">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="font-typewriter text-xs uppercase tracking-widest">
               New arrivals
@@ -517,7 +517,8 @@ export function WlsDailyStoryWorkspace({
               {eligible.length} ready · {excludedCount} can't be used
             </span>
           </div>
-          <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+          {/* Its own scroll, so a long list doesn't push the page down. */}
+          <ul className="max-h-[60vh] space-y-2 overflow-y-auto lg:max-h-[75vh]">
             {eligible.length === 0 ? (
               <li className="text-sm text-mad-black/60">
                 {loading

@@ -8,7 +8,11 @@ export type GarmentSlot =
   | "accessory"
   | "other"
 
-export type GarmentGender = "men" | "women" | "unisex"
+/**
+ * Who a piece is for. Children are split by the shop's age group (baby,
+ * kids, tween) rather than by boys / girls.
+ */
+export type GarmentGender = "men" | "women" | "kids" | "tween" | "baby" | "unisex"
 
 /** Marketplace category and gender, as synced from the shop listing. */
 export type ListingGarment = {
@@ -22,8 +26,23 @@ export function normalizeGarmentGender(raw: unknown): GarmentGender | null {
   if (!value) return null
   if (/^(men|mens|men's|male|man|menswear)$/.test(value)) return "men"
   if (/^(women|womens|women's|female|woman|ladies|womenswear)$/.test(value)) return "women"
+  if (/^(baby|babies|infant|newborn|toddlers?)$/.test(value)) return "baby"
+  if (/^(tweens?|teens?|teenagers?|youth)$/.test(value)) return "tween"
+  if (/^(kids?|kid's|child|children|childrens|children's|boys?|girls?|juniors?)$/.test(value)) return "kids"
   if (/^(unisex|all|any|everyone)$/.test(value)) return "unisex"
   return null
+}
+
+/**
+ * The shop's age group decides for children (Baby, Kids, Teen → baby, kids,
+ * tween); adults keep the listing's gender field.
+ */
+export function listingGenderField(gender: string | null, ageGroup: string | null): string | null {
+  const age = ageGroup?.trim().toLowerCase() ?? ""
+  if (/baby|infant|newborn|toddler/.test(age)) return "baby"
+  if (/teen|tween|youth/.test(age)) return "tween"
+  if (/kid|child|junior/.test(age)) return "kids"
+  return gender
 }
 
 export function readListingGarmentFromMetrics(metrics: unknown): ListingGarment {
@@ -101,6 +120,8 @@ export function garmentGender(input: {
   const listed = normalizeGarmentGender(input.gender)
   if (listed) return listed
   const text = `${input.title} ${input.category ?? ""}`
+  // Not "baby": titles say "Baby blue". Children's stock has the shop's age group.
+  if (/\b(kids|children|boys|girls)\b/i.test(text)) return "kids"
   if (/\b(womens?|women's|ladies|womenswear)\b/i.test(text)) return "women"
   if (/\b(mens?|men's|menswear)\b/i.test(text)) return "men"
   return null

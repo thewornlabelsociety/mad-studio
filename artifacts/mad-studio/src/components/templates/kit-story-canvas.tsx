@@ -15,6 +15,8 @@ type Props = {
   vibe: string
   designer: string
   sizeLabel: string | null
+  /** e.g. SILK: a second pill beside the size. */
+  fabricLabel?: string | null
   /** Hand placement of the cutout. */
   subject?: LayerAdjust
   /** Given, the cutout can be dragged, resized and tilted. */
@@ -48,6 +50,7 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
     vibe,
     designer,
     sizeLabel,
+    fabricLabel = null,
     subject = NO_ADJUST,
     onSubjectChange,
     subjectSelected = false,
@@ -174,7 +177,7 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
         >
           {designer}
         </p>
-        {sizeLabel || priceLine ? (
+        {sizeLabel || fabricLabel || priceLine ? (
           <div style={{ display: "flex", alignItems: "baseline", gap: "3.6cqw", flexWrap: "wrap" }}>
             {sizeLabel ? (
               <p
@@ -189,6 +192,21 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
                 }}
               >
                 {sizeLabel}
+              </p>
+            ) : null}
+            {fabricLabel ? (
+              <p
+                style={{
+                  ...caps,
+                  fontWeight: 600,
+                  fontSize: "4.4cqw",
+                  letterSpacing: "0.2em",
+                  padding: "1.6cqw 3.2cqw 1.2cqw",
+                  border: "0.5cqw solid currentColor",
+                  borderRadius: 999,
+                }}
+              >
+                {fabricLabel}
               </p>
             ) : null}
             {priceLine ? (

@@ -5,6 +5,8 @@ import { toPng } from "html-to-image"
 import { toast } from "sonner"
 
 import { storyExportFilter } from "@/components/marketing/story-canvas"
+import { completeStepsFor } from "@/lib/planner/campaign-progress"
+import { storyFontCss } from "@/lib/media/story-fonts"
 import { NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import {
   detectItemTraits,
@@ -18,11 +20,12 @@ import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import type { WlsProductSelection } from "@/lib/inventory/wls-product-eligibility"
 import { requestCutout } from "@/lib/media/request-cutout"
-import { sampleItemColour } from "@/lib/media/sample-item-colour"
+import { hasSeeThroughBackground, sampleItemColour } from "@/lib/media/sample-item-colour"
 import { formatCanvasSizeTagLabel } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl } from "@/lib/studio/final-artwork"
 import { formatWlsNzdPrice } from "@/lib/templates/format-wls-nzd-price"
 import { buildWlsDailyStoryCanvasModel } from "@/lib/templates/wls-daily-story"
+import { useRememberedState } from "@/lib/use-remembered-state"
 
 export type StoryEdits = {
   vibe?: string
@@ -123,7 +126,8 @@ export function useKitStories(input: {
   const [cutoutFailed, setCutoutFailed] = useState<Record<string, true>>({})
   const [cuttingId, setCuttingId] = useState<string | null>(null)
   const [colours, setColours] = useState<Record<string, Rgb | null>>({})
-  const [edits, setEdits] = useState<Record<string, StoryEdits>>({})
+  // Vibe, background and placement edits per item, kept across visits.
+  const [edits, setEdits] = useRememberedState<Record<string, StoryEdits>>(`mad.storyEdits.${entityId}`, {})
   const [sharedAt, setSharedAt] = useState<Record<string, string | null>>({})
   const sampling = useRef(new Set<string>())
 
@@ -211,6 +215,33 @@ export function useKitStories(input: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cutoutKey, eligible, cutouts, cutoutFailed, cuttingId, entityId])
 
+  // A saved cutout we made for a shop photo that was already see-through
+  // (Photoroom): switch back to the original, which is the better image.
+  const checkedOriginals = useRef(new Set<string>())
+  useEffect(() => {
+    for (const row of eligible) {
+      const id = row.marketingEntityId
+      const saved = cutouts[id]
+      const source = firstImage(row)
+      if (!saved || !source || saved === source || !saved.includes("/cutouts/")) continue
+      if (checkedOriginals.current.has(id)) continue
+      checkedOriginals.current.add(id)
+      void hasSeeThroughBackground(proxiedImageUrl(source, entityId)).then((clear) => {
+        if (!clear) return
+        setCutouts((current) => ({ ...current, [id]: source }))
+        setColours((current) => {
+          const next = { ...current }
+          delete next[id]
+          return next
+        })
+        sampling.current.delete(id)
+        void saveStoryState({ entityId, marketingEntityId: id, cutoutUrl: source }).catch(() => {
+          /* still shown; just not remembered */
+        })
+      })
+    }
+  }, [eligible, cutouts, entityId])
+
   // Read each cut-out item's colour for background matching.
   useEffect(() => {
     for (const row of eligible) {
@@ -287,6 +318,7 @@ export function useKitStories(input: {
       try {
         const result = await saveStoryState({ entityId, marketingEntityId: id, shared })
         setSharedAt((current) => ({ ...current, [id]: result.sharedAt }))
+        if (shared) void completeStepsFor(entityId, "stories")
       } catch (error) {
         setSharedAt((current) => ({ ...current, [id]: previous }))
         toast.error(error instanceof Error ? error.message : "Couldn't save that.")
@@ -315,7 +347,10 @@ export function useKitStories(input: {
 /** Bake a rendered Story node to a 1080-wide PNG (link-sticker guide left out). */
 export async function bakeStoryPng(node: HTMLElement): Promise<{ dataUrl: string; blob: Blob }> {
   const dataUrl = await toPng(node, {
-    cacheBust: true,
+    // Proxied images differ only by query string; without this they all share one cache entry.
+    includeQueryParams: true,
+    // Only the fonts this Story uses; embedding every web font made each save take seconds.
+    fontEmbedCSS: await storyFontCss(node),
     filter: storyExportFilter,
     pixelRatio: 1080 / Math.max(node.offsetWidth, 1),
     width: node.offsetWidth,
@@ -325,21 +360,88 @@ export async function bakeStoryPng(node: HTMLElement): Promise<{ dataUrl: string
   return { dataUrl, blob }
 }
 
-/** Phone: open the share sheet (Instagram, Photos). Desktop: download. */
-export async function shareOrDownloadStory(input: {
-  dataUrl: string
-  blob: Blob
-  filename: string
-}): Promise<"shared" | "downloaded" | "cancelled"> {
+const warmed = new Set<string>()
+
+/**
+ * Fetch a Story's photos and fonts ahead of saving, so Save doesn't wait on them.
+ * The photo on screen isn't reused by the export; this fills the cache it reads.
+ */
+export function warmStoryNode(node: HTMLElement): void {
+  void storyFontCss(node).catch(() => undefined)
+  for (const image of Array.from(node.querySelectorAll("img"))) {
+    const src = image.currentSrc || image.src
+    if (!src || src.startsWith("data:") || warmed.has(src)) continue
+    warmed.add(src)
+    void fetch(src, { priority: "low" } as RequestInit)
+      .then((response) => response.blob())
+      .catch(() => warmed.delete(src))
+  }
+}
+
+/** True on a phone or tablet (touch screen), where the share sheet beats a download. */
+export function onTouchDevice(): boolean {
+  return typeof window !== "undefined" && Boolean(window.matchMedia?.("(pointer: coarse)").matches)
+}
+
+/** Download several images, a moment apart so the browser keeps them all. */
+export async function downloadImages(rows: Array<{ dataUrl: string; filename: string }>): Promise<void> {
+  for (const [index, row] of rows.entries()) {
+    if (index > 0) await new Promise((resolve) => window.setTimeout(resolve, 300))
+    const anchor = document.createElement("a")
+    anchor.href = row.dataUrl
+    anchor.download = row.filename
+    anchor.click()
+  }
+}
+
+/**
+ * Open the phone's share sheet (Save Image, Save to Files › Dropbox, Instagram).
+ * Phones only allow it straight after a tap, and building a Story can take
+ * longer than that; then a Save button appears so the next tap opens it.
+ */
+export async function shareStoryFiles(
+  files: File[],
+  onShared?: () => void
+): Promise<"shared" | "cancelled" | "waiting-for-tap"> {
+  try {
+    await navigator.share({ files })
+    onShared?.()
+    return "shared"
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancelled"
+    if (!(error instanceof DOMException && error.name === "NotAllowedError")) throw error
+  }
+  toast(files.length === 1 ? "Your Story is ready" : `${files.length} Stories are ready`, {
+    description: "Tap Save, then Save Image (Photos) or Save to Files (Dropbox).",
+    duration: Infinity,
+    action: {
+      label: "Save",
+      onClick: () =>
+        void navigator
+          .share({ files })
+          .then(() => onShared?.())
+          .catch((error: unknown) => {
+            if (!(error instanceof DOMException && error.name === "AbortError")) {
+              toast.error(error instanceof Error ? error.message : "Couldn't open the share sheet.")
+            }
+          }),
+    },
+  })
+  return "waiting-for-tap"
+}
+
+/** Phone: open the share sheet (Instagram, Photos). Computer: always download. */
+export async function shareOrDownloadStory(
+  input: {
+    dataUrl: string
+    blob: Blob
+    filename: string
+  },
+  onShared?: () => void
+): Promise<"shared" | "downloaded" | "cancelled" | "waiting-for-tap"> {
   const file = new File([input.blob], input.filename, { type: "image/png" })
-  if (navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file] })
-      return "shared"
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return "cancelled"
-      throw error
-    }
+  if (onTouchDevice() && navigator.canShare?.({ files: [file] })) {
+    return shareStoryFiles([file], onShared)
   }
   const anchor = document.createElement("a")
   anchor.href = input.dataUrl

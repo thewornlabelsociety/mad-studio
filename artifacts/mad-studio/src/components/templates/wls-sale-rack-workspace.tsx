@@ -5,6 +5,7 @@ import { Link, useLocation } from "wouter"
 import { ArrowRight, Check, Link2, Loader2, RefreshCw, Scissors, Share2, Tag } from "lucide-react"
 import { toast } from "sonner"
 
+import { DotSpecialPanel } from "@/components/templates/dot-special"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { SaleCoverSlide, SaleItemSlide } from "@/components/templates/sale-slides"
 import { Button } from "@/components/ui/button"
@@ -21,6 +22,7 @@ import {
   type KitStory,
 } from "@/lib/templates/use-kit-stories"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
+import { useRememberedState } from "@/lib/use-remembered-state"
 import { cn } from "@/lib/utils"
 
 /** A carousel takes the cover plus nine pieces. */
@@ -52,8 +54,9 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
   const slideNodes = useRef<Array<HTMLDivElement | null>>([])
   const storyNodes = useRef<Record<string, HTMLDivElement | null>>({})
-  const [picked, setPicked] = useState<string[] | null>(null)
-  const [backgroundId, setBackgroundId] = useState<string | null>(null)
+  // Ticked pieces and background are kept, so leaving the screen keeps the carousel.
+  const [picked, setPicked] = useRememberedState<string[] | null>(`mad.saleRack.${entityId}.picked`, null)
+  const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.saleRack.${entityId}.background`, null)
   const [sending, setSending] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
 
@@ -346,6 +349,8 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
           </section>
         </>
       )}
+
+      <DotSpecialPanel entityId={entityId} entityName={entityName} kit={kit} />
     </div>
   )
 }

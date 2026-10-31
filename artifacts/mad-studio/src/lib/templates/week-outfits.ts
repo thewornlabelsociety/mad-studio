@@ -134,24 +134,25 @@ export function buildWeekOutfits(pieces: OutfitPiece[]): DayOutfit[] {
 }
 
 /**
- * The next piece that could replace `currentId` in this outfit: same slot,
- * wearable with the rest, not already in it. Cycles through stock in order.
+ * Every piece that could replace `currentId` in this outfit: same kind
+ * (a top or a dress for either), wearable with the rest, not already in it.
+ * In stock order.
  */
-export function nextSwap(input: {
+export function swapCandidates(input: {
   pieces: OutfitPiece[]
   outfit: string[]
   currentId: string
-}): string | null {
+}): OutfitPiece[] {
   const byId = new Map(input.pieces.map((piece) => [piece.id, piece]))
   const current = byId.get(input.currentId)
-  if (!current) return null
+  if (!current) return []
   const others = input.outfit
     .filter((id) => id !== input.currentId)
     .map((id) => byId.get(id))
     .filter((piece): piece is OutfitPiece => Boolean(piece))
   const swappableSlots: GarmentSlot[] =
     current.slot === "top" || current.slot === "dress" ? ["top", "dress"] : [current.slot]
-  const candidates = input.pieces.filter(
+  return input.pieces.filter(
     (piece) =>
       swappableSlots.includes(piece.slot) &&
       !input.outfit.includes(piece.id) &&
@@ -159,12 +160,31 @@ export function nextSwap(input: {
       // A dress replaces a top only when there's no bottom to clash with.
       !(piece.slot === "dress" && others.some((other) => other.slot === "bottom"))
   )
+}
+
+/** The next swap after `currentId` in stock order, wrapping round. */
+export function nextSwap(input: {
+  pieces: OutfitPiece[]
+  outfit: string[]
+  currentId: string
+}): string | null {
+  const candidates = swapCandidates(input)
   if (candidates.length === 0) return null
   const start = input.pieces.findIndex((piece) => piece.id === input.currentId)
   const after = candidates.find(
     (piece) => input.pieces.findIndex((row) => row.id === piece.id) > start
   )
   return (after ?? candidates[0]).id
+}
+
+/** Pieces whose words match every term of `query` (colour, brand, type…). */
+export function matchesQuery(text: string, query: string): boolean {
+  const haystack = text.toLowerCase()
+  return query
+    .toLowerCase()
+    .split(/s+/)
+    .filter(Boolean)
+    .every((term) => haystack.includes(term))
 }
 
 /** Slots that could still be added to an outfit from stock. */

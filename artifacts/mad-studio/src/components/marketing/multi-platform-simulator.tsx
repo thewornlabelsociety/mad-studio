@@ -833,7 +833,8 @@ export function MultiPlatformSimulator({
     // dark/busy photo looks unchanged — prefer the in-browser model then.
     try {
       const server = await serverCutout()
-      if (server?.mode === "cloudinary") {
+      // Already see-through (e.g. Photoroom): use it as it is.
+      if (server?.mode === "cloudinary" || server?.mode === "already_transparent") {
         applyCutout(server.url)
         return
       }
@@ -1088,6 +1089,8 @@ export function MultiPlatformSimulator({
 
       if (!node) return
       const dataUrl = await toPng(node, {
+        // Proxied images differ only by query string; without this they all share one cache entry.
+        includeQueryParams: true,
         filter: storyExportFilter,
         cacheBust: true,
         pixelRatio: 3,

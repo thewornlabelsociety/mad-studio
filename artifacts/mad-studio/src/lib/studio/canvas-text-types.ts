@@ -8,6 +8,12 @@ export const CANVAS_TEXT_FONT_IDS = [
 
   "impact_bold",
 
+  "wls_caps",
+
+  "wls_serif",
+
+  "wls_script",
+
   "ig_modern",
 
   "editorial_serif",
@@ -839,7 +845,6 @@ export type CanvasTextFontDefinition = {
 
 
 export const CANVAS_TEXT_FONTS: CanvasTextFontDefinition[] = [
-
   {
 
     id: "impact_bold",
@@ -858,6 +863,33 @@ export const CANVAS_TEXT_FONTS: CanvasTextFontDefinition[] = [
 
     },
 
+  },
+
+  // Worn Label Society: the website's spaced capitals, plus the editorial
+  // serif and signature script from the brand moodboard.
+  {
+    id: "wls_caps",
+    label: "Worn Label caps",
+    className: "uppercase tracking-[0.2em] font-semibold",
+    primaryFamily: "Josefin Sans",
+    canvasWeight: 600,
+    style: { fontFamily: '"Josefin Sans", "Century Gothic", Futura, sans-serif' },
+  },
+  {
+    id: "wls_serif",
+    label: "Worn Label serif",
+    className: "uppercase tracking-tight font-medium",
+    primaryFamily: "Bodoni Moda",
+    canvasWeight: 500,
+    style: { fontFamily: '"Bodoni Moda", Didot, "Times New Roman", serif' },
+  },
+  {
+    id: "wls_script",
+    label: "Worn Label script",
+    className: "tracking-normal font-normal normal-case",
+    primaryFamily: "Mrs Saint Delafield",
+    canvasWeight: 400,
+    style: { fontFamily: '"Mrs Saint Delafield", "Brush Script MT", cursive' },
   },
 
   {

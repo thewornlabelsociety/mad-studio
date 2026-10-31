@@ -66,11 +66,13 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    const path = `cutouts/${parsed.data.entityId}/${parsed.data.itemId ?? "item"}/${Date.now()}-cutout.png`
+    // Photos (e.g. behind an announcement) come as JPEG; cutouts and artwork as PNG.
+    const jpeg = file.type === "image/jpeg"
+    const path = `cutouts/${parsed.data.entityId}/${parsed.data.itemId ?? "item"}/${Date.now()}-${jpeg ? "photo.jpg" : "cutout.png"}`
     const { error: uploadError } = await supabase.storage
       .from("entity-assets")
       .upload(path, buffer, {
-        contentType: "image/png",
+        contentType: jpeg ? "image/jpeg" : "image/png",
         upsert: false,
       })
 

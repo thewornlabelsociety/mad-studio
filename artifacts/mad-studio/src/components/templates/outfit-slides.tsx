@@ -60,10 +60,12 @@ export const OutfitSlide = forwardRef<
     onAdjust?: (pieceId: string, next: LayerAdjust) => void
     selectedId?: string | null
     onSelect?: (pieceId: string | null) => void
+    /** 9:16 for Stories, clear of Instagram's top bar and reply box; 4:5 for the feed. */
+    story?: boolean
     className?: string
   }
 >(function OutfitSlide(
-  { background, brandName, day, vibe, pieces, adjust, onAdjust, selectedId = null, onSelect, className },
+  { background, brandName, day, vibe, pieces, adjust, onAdjust, selectedId = null, onSelect, story = false, className },
   ref
 ) {
   const editable = Boolean(onAdjust)
@@ -71,10 +73,10 @@ export const OutfitSlide = forwardRef<
     <div
       ref={ref}
       className={className}
-      style={frame(background)}
+      style={frame(background, story ? "9 / 16" : "4 / 5")}
       onPointerDown={editable ? () => onSelect?.(null) : undefined}
     >
-      <div style={{ position: "absolute", inset: "6cqw 6cqw auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div style={{ position: "absolute", inset: story ? "14cqw 6cqw auto" : "6cqw 6cqw auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <p style={{ ...caps, fontWeight: 700, fontSize: "9cqw", letterSpacing: "0.08em", lineHeight: 1 }}>{day}</p>
           {vibe ? (
@@ -87,7 +89,13 @@ export const OutfitSlide = forwardRef<
       </div>
 
       {/* Isolated so "send to back" stays above the slide colour. */}
-      <div style={{ position: "absolute", left: "5cqw", top: "27%", width: "60%", bottom: "6cqw", isolation: "isolate" }}>
+      <div style={{ position: "absolute", left: "5cqw", top: story ? "26%" : "27%", width: "60%", bottom: story ? "22cqw" : "6cqw", isolation: "isolate" }}>
+        {pieces.length === 0 ? (
+          <div
+            data-export-ignore
+            style={{ position: "absolute", inset: 0, border: `0.4cqw dashed ${background.text_color}`, opacity: 0.35 }}
+          />
+        ) : null}
         {pieces.map((piece) => {
           const place = PLACEMENT[piece.slot]
           return piece.imageUrl ? (
@@ -153,8 +161,8 @@ export const OutfitSlide = forwardRef<
           position: "absolute",
           right: "5cqw",
           width: "32%",
-          top: "27%",
-          bottom: "6cqw",
+          top: story ? "26%" : "27%",
+          bottom: story ? "22cqw" : "6cqw",
           margin: 0,
           padding: 0,
           listStyle: "none",
@@ -194,27 +202,52 @@ export const OutfitSlide = forwardRef<
   )
 })
 
-/** Slide 1, type only: A WEEK OF OUTFITS and the dates. */
+/** Slide 1, type only: a small line, the big title and the dates — all editable. */
 export const OutfitCoverSlide = forwardRef<
   HTMLDivElement,
   {
     background: StoryBackground
     brandName: string
+    /** Small line above the title, e.g. A WEEK OF. */
+    kicker?: string
+    /** The big words, e.g. OUTFITS or CAPSULE WARDROBE. */
+    title?: string
+    /** Line under the title; the week's dates by default. Empty hides it. */
     dateRange: string
     className?: string
   }
->(function OutfitCoverSlide({ background, brandName, dateRange, className }, ref) {
+>(function OutfitCoverSlide(
+  { background, brandName, kicker = "A week of", title = "Outfits", dateRange, className },
+  ref
+) {
+  // Big for one short word, stepping down so the longest word stays on one line.
+  const longest = Math.max(...title.split(/s+/).map((word) => word.length), 1)
+  const titleSize = Math.min(17, 92 / (longest * 0.72), title.length > 18 ? 12 : 17)
   return (
     <div ref={ref} className={className} style={frame(background)}>
       <div style={{ position: "absolute", top: "6cqw", right: "6cqw" }}>
         <Wordmark brandName={brandName} accent={background.accent_color} />
       </div>
       <div style={{ position: "absolute", left: "6cqw", right: "6cqw", top: "50%", transform: "translateY(-50%)" }}>
-        <p style={{ ...caps, fontSize: "5cqw", letterSpacing: "0.3em", color: background.accent_color }}>A week of</p>
-        <p style={{ ...caps, fontWeight: 700, fontSize: "17cqw", letterSpacing: "0.04em", lineHeight: 0.95, marginTop: "1cqw" }}>
-          Outfits
+        {kicker.trim() ? (
+          <p style={{ ...caps, fontSize: "5cqw", letterSpacing: "0.3em", color: background.accent_color }}>{kicker}</p>
+        ) : null}
+        <p
+          style={{
+            ...caps,
+            fontWeight: 700,
+            fontSize: `${titleSize}cqw`,
+            letterSpacing: "0.04em",
+            lineHeight: 0.95,
+            marginTop: "1cqw",
+            textWrap: "balance",
+          }}
+        >
+          {title || "Outfits"}
         </p>
-        <p style={{ ...caps, fontSize: "3.6cqw", letterSpacing: "0.22em", marginTop: "3cqw" }}>{dateRange}</p>
+        {dateRange.trim() ? (
+          <p style={{ ...caps, fontSize: "3.6cqw", letterSpacing: "0.22em", marginTop: "3cqw" }}>{dateRange}</p>
+        ) : null}
       </div>
 
       <p
@@ -236,3 +269,6 @@ export const OutfitCoverSlide = forwardRef<
     </div>
   )
 })
+
+/** Shared with the Inspo vs WLS flatlay. */
+export { PLACEMENT as OUTFIT_PLACEMENT, numberDot as outfitNumberDot }

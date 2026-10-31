@@ -178,6 +178,7 @@ export async function saveCanvasLayouts(input: {
 type OperatorBrandSettings = {
   wants_list?: unknown
   wants_note?: unknown
+  campaign_plans?: unknown
   visual_presets?: Record<string, unknown>
 }
 
@@ -198,6 +199,7 @@ async function currentOperatorBrandSettings(
   return {
     wants_list: record.wants_list,
     wants_note: record.wants_note,
+    campaign_plans: record.campaign_plans,
     visual_presets:
       presets && typeof presets === "object" && !Array.isArray(presets)
         ? (presets as Record<string, unknown>)
@@ -219,6 +221,7 @@ function withOperatorBrandSettings(
     ...identity,
     wants_list: operator.wants_list,
     wants_note: operator.wants_note,
+    campaign_plans: operator.campaign_plans,
     visual_presets: scrapedPresets
       ? { ...scrapedPresets, ...(storyKit ? { story_kit: storyKit } : {}) }
       : operator.visual_presets,
@@ -274,6 +277,100 @@ export async function saveWantsList(input: {
   return { ok: true, data: { items: items.data, note } }
 }
 
+const ymdSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+
+const campaignCardSchema = z.object({
+  kicker: z.string().max(80).optional(),
+  headline: z.string().max(120),
+  script: z.string().max(80).optional(),
+  headlineFont: z.enum(["serif", "script"]).optional(),
+  details: z.array(z.string().max(60)).max(4),
+  background: z.string().max(40),
+})
+
+const campaignPlanSchema = z.object({
+  id: z.string().max(60),
+  recipeId: z.string().max(40),
+  name: z.string().max(80),
+  start: ymdSchema,
+  end: ymdSchema,
+  createdAt: z.string().max(40),
+  steps: z
+    .array(
+      z.object({
+        id: z.string().max(80),
+        date: ymdSchema,
+        tool: z.enum(["announcement", "sale_rack", "dot_special", "week_outfits", "wants", "stories", "studio"]),
+        title: z.string().max(80),
+        detail: z.string().max(200),
+        card: campaignCardSchema.optional(),
+        done: z.boolean(),
+      })
+    )
+    .max(20),
+})
+
+export type SavedCampaignPlan = z.infer<typeof campaignPlanSchema>
+
+async function readBrandIdentity(
+  entityId: string
+): Promise<{ identity: Record<string, unknown>; error?: undefined } | { identity?: undefined; error: string }> {
+  const admin = createAdminClient()
+  const { data: row, error } = await admin.from("entities").select("brand_identity").eq("id", entityId).single()
+  if (error || !row) return { error: error?.message ?? "Entity not found." }
+  return {
+    identity:
+      row.brand_identity && typeof row.brand_identity === "object" && !Array.isArray(row.brand_identity)
+        ? (row.brand_identity as Record<string, unknown>)
+        : {},
+  }
+}
+
+/** This brand's campaign plans (made from recipes on the Campaigns page). */
+export async function getCampaignPlans(input: {
+  entityId: string
+}): Promise<ActionResult<{ plans: SavedCampaignPlan[] }>> {
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error) return { ok: false, error: auth.error }
+  const { identity, error } = await readBrandIdentity(input.entityId)
+  if (error !== undefined) return { ok: false, error }
+  const raw: unknown[] = Array.isArray(identity.campaign_plans) ? identity.campaign_plans : []
+  const plans: SavedCampaignPlan[] = []
+  for (const plan of raw) {
+    const parsed = campaignPlanSchema.safeParse(plan)
+    if (parsed.success) plans.push(parsed.data)
+  }
+  return { ok: true, data: { plans } }
+}
+
+/** Replace this brand's campaign plans (add, tick off, remove). */
+export async function saveCampaignPlans(input: {
+  entityId: string
+  plans: SavedCampaignPlan[]
+}): Promise<ActionResult<{ plans: SavedCampaignPlan[] }>> {
+  const plans = z.array(campaignPlanSchema).max(30).safeParse(input.plans)
+  if (!plans.success) {
+    return { ok: false, error: "That campaign couldn't be saved. Try again." }
+  }
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error) return { ok: false, error: auth.error }
+  const { identity, error: readError } = await readBrandIdentity(input.entityId)
+  if (readError !== undefined) return { ok: false, error: readError }
+  const admin = createAdminClient()
+  const { data: updated, error } = await admin
+    .from("entities")
+    .update({
+      brand_identity: { ...identity, campaign_plans: plans.data } as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.entityId)
+    .select("id")
+    .maybeSingle()
+  if (error) return { ok: false, error: error.message }
+  if (!updated?.id) return { ok: false, error: "Didn't save — check you can edit this brand." }
+  return { ok: true, data: { plans: plans.data } }
+}
+
 export async function saveEntityDna(input: {
   entityId: string
   brandIdentity: BrandIdentity
@@ -320,12 +417,14 @@ export async function saveEntityDna(input: {
   }
 
   const layouts = await currentCanvasLayouts(auth.supabase, input.entityId)
+  const operator = await currentOperatorBrandSettings(auth.supabase, input.entityId)
   const { error } = await auth.supabase
     .from("entities")
     .update({
       brand_identity: {
         ...identity.data,
         canvas_layouts: identity.data.canvas_layouts ?? layouts,
+        campaign_plans: operator.campaign_plans,
       } as unknown as Json,
       audience_segments: audiences as unknown as Json,
       ...(input.industry ? { industry: input.industry } : {}),

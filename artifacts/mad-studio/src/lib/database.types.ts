@@ -1117,22 +1117,22 @@ export type Database = {
       }
       cron_heartbeats: {
         Row: {
-          detail: Json | null
+          details: Json | null
           job_name: string
           last_run_at: string
-          last_status: string | null
+          status: string
         }
         Insert: {
-          detail?: Json | null
+          details?: Json | null
           job_name: string
           last_run_at?: string
-          last_status?: string | null
+          status?: string
         }
         Update: {
-          detail?: Json | null
+          details?: Json | null
           job_name?: string
           last_run_at?: string
-          last_status?: string | null
+          status?: string
         }
         Relationships: []
       }
