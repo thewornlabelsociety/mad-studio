@@ -140,39 +140,46 @@ export function WlsDailyStoryWorkspace({
         })
       : null
 
+  /** Finds (or first time, creates) the brand's Story template. */
+  const fetchTemplate = useCallback(async (): Promise<{ state: TemplateState; message?: string }> => {
+    const res = await fetch("/api/templates/wls-daily-story/ensure", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entityId }),
+    })
+    const data = (await res.json().catch(() => ({}))) as {
+      instance?: EntityTemplateInstance
+      latestVersion?: { id?: string } | null
+      created?: boolean
+      error?: string
+      message?: string
+    }
+    if (!res.ok || !data.instance) {
+      throw new Error(data.error || "Could not set up template.")
+    }
+    const state: TemplateState = {
+      instance: data.instance,
+      versionId: data.latestVersion?.id ?? null,
+      created: Boolean(data.created),
+    }
+    setTemplate(state)
+    return { state, message: data.message }
+  }, [entityId])
+
   const ensureTemplate = useCallback(async () => {
     setBusy("ensure")
     setFailure(null)
     try {
-      const res = await fetch("/api/templates/wls-daily-story/ensure", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entityId }),
-      })
-      const data = (await res.json().catch(() => ({}))) as {
-        instance?: EntityTemplateInstance
-        latestVersion?: { id?: string } | null
-        created?: boolean
-        error?: string
-        message?: string
-      }
-      if (!res.ok || !data.instance) {
-        throw new Error(data.error || "Could not set up template.")
-      }
-      setTemplate({
-        instance: data.instance,
-        versionId: data.latestVersion?.id ?? null,
-        created: Boolean(data.created),
-      })
-      toast.success(data.message || "Template ready.")
+      const { message } = await fetchTemplate()
+      toast.success(message || "Template ready.")
       await reload()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Setup failed.")
     } finally {
       setBusy(null)
     }
-  }, [entityId, reload])
+  }, [fetchTemplate, reload])
 
   function gateOk(): boolean {
     if (!selected) return false
@@ -210,10 +217,12 @@ export function WlsDailyStoryWorkspace({
 
   async function onSaveDraft() {
     const node = canvasRef.current
-    if (!selected || !node || !template || !story?.sourceImage || !gateOk()) return
+    if (!selected || !node || !story?.sourceImage || !gateOk()) return
     setBusy("save")
     setFailure(null)
     try {
+      // Set the template up on the way if this visit hasn't yet.
+      const ready = template ?? (await fetchTemplate()).state
       const { blob } = await bakeStoryPng(node)
       const renderedUrl = await uploadRenderedPng(blob, entityId)
       const res = await fetch("/api/templates/wls-daily-story/save-draft", {
@@ -223,8 +232,8 @@ export function WlsDailyStoryWorkspace({
         body: JSON.stringify({
           entityId,
           marketingEntityId: selected.marketingEntityId,
-          templateInstanceId: template.instance.id,
-          templateVersionId: template.versionId,
+          templateInstanceId: ready.instance.id,
+          templateVersionId: ready.versionId,
           sourceImageUrl: story.sourceImage,
           renderedUrl,
         }),
@@ -565,7 +574,7 @@ export function WlsDailyStoryWorkspace({
               type="button"
               variant="outline"
               className="border-2 border-mad-black"
-              disabled={!template || !story?.imageUrl || busy != null}
+              disabled={!story?.imageUrl || busy != null}
               onClick={() => void onSaveDraft()}
               title={template ? "Save for approval" : "Set up the template first"}
             >
