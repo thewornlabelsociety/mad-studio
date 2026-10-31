@@ -37,6 +37,7 @@ import {
   copyStoryLink,
   shareOrDownloadStory,
   shareStoryFiles,
+  storyCardWords,
   useKitStories,
   warmStoryNode,
   type KitStory,
@@ -499,11 +500,8 @@ export function MorningStoryFeed({
                           }}
                           background={story.background}
                           brandName={entityName}
-                          tag="New in"
+                          {...storyCardWords(story)}
                           imageUrl={waiting ? null : story.imageUrl}
-                          vibe={story.vibe}
-                          designer={story.designer}
-                          sizeLabel={story.sizeLabel}
                           subject={story.subject}
                           showLinkGuide={!compact}
                         />

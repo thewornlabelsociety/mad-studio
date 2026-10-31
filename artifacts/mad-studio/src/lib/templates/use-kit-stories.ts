@@ -27,12 +27,42 @@ import { formatWlsNzdPrice } from "@/lib/templates/format-wls-nzd-price"
 import { buildWlsDailyStoryCanvasModel } from "@/lib/templates/wls-daily-story"
 import { useRememberedState } from "@/lib/use-remembered-state"
 
+/** The words a new-arrival Story can show; each can be ticked off per Story. */
+export type StoryField = "tag" | "vibe" | "designer" | "size"
+
+export const STORY_FIELDS: Array<{ id: StoryField; label: string }> = [
+  { id: "tag", label: "New in" },
+  { id: "vibe", label: "Vibe" },
+  { id: "designer", label: "Brand" },
+  { id: "size", label: "Size" },
+]
+
 export type StoryEdits = {
   vibe?: string
+  /** Replaces the brand line, e.g. "No tag" becomes a short title. */
+  designer?: string
+  sizeLabel?: string
+  /** Fields ticked off this Story. Missing means shown. */
+  hidden?: Partial<Record<StoryField, boolean>>
   backgroundId?: string
   /** Hand placement of the cutout. */
   subject?: LayerAdjust
   useCutout?: boolean
+}
+
+/** The words a Story card draws, with ticked-off fields left out. */
+export function storyCardWords(story: KitStory): {
+  tag: string | null
+  vibe: string | null
+  designer: string | null
+  sizeLabel: string | null
+} {
+  return {
+    tag: story.show.tag ? "New in" : null,
+    vibe: story.show.vibe && story.vibe.trim() ? story.vibe : null,
+    designer: story.show.designer && story.designer.trim() ? story.designer : null,
+    sizeLabel: story.show.size ? story.sizeLabel : null,
+  }
 }
 
 /** Everything one new arrival Story needs to render and be edited. */
@@ -45,7 +75,12 @@ export type KitStory = {
   vibe: string
   vibeFromShop: boolean
   designer: string
+  /** The brand line from the shop, before any edit. */
+  shopDesigner: string
   sizeLabel: string | null
+  shopSizeLabel: string | null
+  /** Which words go on the card. */
+  show: Record<StoryField, boolean>
   priceLabel: string
   sourceImage: string | null
   cutoutUrl: string | null
@@ -278,6 +313,7 @@ export function useKitStories(input: {
         brandName: entityName,
         imageUrl: shown ?? "",
       })
+      const shopSize = model.sizeLabel ? formatCanvasSizeTagLabel(model.sizeLabel) : null
       out.set(id, {
         row,
         background,
@@ -285,8 +321,16 @@ export function useKitStories(input: {
         matched: pick.matched,
         vibe: rowEdits.vibe ?? defaultStoryVibe(row),
         vibeFromShop: Boolean(row.vibe?.trim()),
-        designer: model.designer,
-        sizeLabel: model.sizeLabel ? formatCanvasSizeTagLabel(model.sizeLabel) : null,
+        designer: rowEdits.designer?.trim() || model.designer,
+        shopDesigner: model.designer,
+        sizeLabel: rowEdits.sizeLabel?.trim() || shopSize,
+        shopSizeLabel: shopSize,
+        show: {
+          tag: !rowEdits.hidden?.tag,
+          vibe: !rowEdits.hidden?.vibe,
+          designer: !rowEdits.hidden?.designer,
+          size: !rowEdits.hidden?.size,
+        },
         priceLabel: formatWlsNzdPrice(row),
         sourceImage,
         cutoutUrl,
