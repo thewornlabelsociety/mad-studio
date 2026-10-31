@@ -1,18 +1,44 @@
 import type { Rgb } from "@/lib/brands/story-kit"
 
 /**
+ * Background reads go two at a time: opening the Story editor used to fetch
+ * every new arrival's full-size photo at once, and the one you clicked waited
+ * behind hundreds of others. Priority reads (the Stories on screen) jump the
+ * queue.
+ */
+const MAX_LOADS = 2
+let active = 0
+const waiting: Array<() => void> = []
+
+async function loadQueued(url: string, priority = false): Promise<HTMLImageElement | null> {
+  if (active >= MAX_LOADS) {
+    await new Promise<void>((start) => (priority ? waiting.unshift(start) : waiting.push(start)))
+  }
+  active++
+  try {
+    return await new Promise<HTMLImageElement | null>((resolve) => {
+      const img = new Image()
+      img.crossOrigin = "anonymous"
+      img.onload = () => resolve(img)
+      img.onerror = () => resolve(null)
+      img.src = url
+    })
+  } finally {
+    active--
+    waiting.shift()?.()
+  }
+}
+
+/**
  * Average colour of the garment in an image. For a cutout only solid pixels
  * count; for a plain photo, the middle of the frame, skipping near-white
  * backdrop pixels. Null when the image can't be read.
  */
-export async function sampleItemColour(url: string): Promise<Rgb | null> {
-  const image = await new Promise<HTMLImageElement | null>((resolve) => {
-    const img = new Image()
-    img.crossOrigin = "anonymous"
-    img.onload = () => resolve(img)
-    img.onerror = () => resolve(null)
-    img.src = url
-  })
+export async function sampleItemColour(
+  url: string,
+  options: { priority?: boolean } = {}
+): Promise<Rgb | null> {
+  const image = await loadQueued(url, options.priority)
   if (!image) return null
 
   const size = 64
@@ -62,14 +88,11 @@ export async function sampleItemColour(url: string): Promise<Rgb | null> {
  * True when the image already has a see-through background (a Photoroom-style
  * cutout): at least 8% of it fully clear. False when it can't be read.
  */
-export async function hasSeeThroughBackground(url: string): Promise<boolean> {
-  const image = await new Promise<HTMLImageElement | null>((resolve) => {
-    const img = new Image()
-    img.crossOrigin = "anonymous"
-    img.onload = () => resolve(img)
-    img.onerror = () => resolve(null)
-    img.src = url
-  })
+export async function hasSeeThroughBackground(
+  url: string,
+  options: { priority?: boolean } = {}
+): Promise<boolean> {
+  const image = await loadQueued(url, options.priority)
   if (!image) return false
   const size = 64
   const canvas = document.createElement("canvas")

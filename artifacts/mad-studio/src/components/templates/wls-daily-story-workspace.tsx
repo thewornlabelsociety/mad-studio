@@ -641,10 +641,21 @@ export function WlsDailyStoryWorkspace({
                           style={{ background: rowStory?.background.color ?? "#E8DCC4" }}
                         >
                           {thumb ? (
+                            // Straight from the shop and only when scrolled to:
+                            // hundreds of full-size photos through the proxy held
+                            // up the selected Story's image.
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={proxiedImageUrl(thumb, entityId)}
+                              src={thumb}
                               alt=""
+                              loading="lazy"
+                              decoding="async"
+                              onError={(event) => {
+                                const proxied = proxiedImageUrl(thumb, entityId)
+                                if (event.currentTarget.src !== new URL(proxied, location.href).href) {
+                                  event.currentTarget.src = proxied
+                                }
+                              }}
                               className={cn(
                                 "h-full w-full",
                                 rowStory?.cutoutUrl ? "object-contain" : "object-cover"

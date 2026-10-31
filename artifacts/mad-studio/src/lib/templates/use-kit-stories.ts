@@ -261,7 +261,9 @@ export function useKitStories(input: {
       if (!saved || !source || saved === source || !saved.includes("/cutouts/")) continue
       if (checkedOriginals.current.has(id)) continue
       checkedOriginals.current.add(id)
-      void hasSeeThroughBackground(proxiedImageUrl(source, entityId)).then((clear) => {
+      void hasSeeThroughBackground(proxiedImageUrl(source, entityId), {
+        priority: cutoutIds.includes(id),
+      }).then((clear) => {
         if (!clear) return
         setCutouts((current) => ({ ...current, [id]: source }))
         setColours((current) => {
@@ -275,7 +277,8 @@ export function useKitStories(input: {
         })
       })
     }
-  }, [eligible, cutouts, entityId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligible, cutouts, entityId, cutoutKey])
 
   // Read each cut-out item's colour for background matching.
   useEffect(() => {
@@ -284,11 +287,14 @@ export function useKitStories(input: {
       const image = cutouts[id] ?? (cutoutFailed[id] ? firstImage(row) : null)
       if (!image || id in colours || sampling.current.has(id)) continue
       sampling.current.add(id)
-      void sampleItemColour(proxiedImageUrl(image, entityId)).then((rgb) => {
+      void sampleItemColour(proxiedImageUrl(image, entityId), {
+        priority: cutoutIds.includes(id),
+      }).then((rgb) => {
         setColours((current) => ({ ...current, [id]: rgb }))
       })
     }
-  }, [eligible, cutouts, cutoutFailed, colours, entityId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligible, cutouts, cutoutFailed, colours, entityId, cutoutKey])
 
   const stories = useMemo(() => {
     const out = new Map<string, KitStory>()
