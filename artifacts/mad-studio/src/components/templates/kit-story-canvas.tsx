@@ -140,8 +140,10 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
               onSelect={() => onSubjectSelect?.(true)}
               onChange={onSubjectChange}
             >
+              {/* Keyed so a new item never shows the last one's photo while it loads. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                key={imageUrl}
                 src={imageUrl}
                 alt=""
                 crossOrigin="anonymous"
