@@ -78,7 +78,8 @@ export const OutfitSlide = forwardRef<
     >
       <div style={{ position: "absolute", inset: story ? "14cqw 6cqw auto" : "6cqw 6cqw auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <p style={{ ...caps, fontWeight: 700, fontSize: "9cqw", letterSpacing: "0.08em", lineHeight: 1 }}>{day}</p>
+          {/* One size for every day, small enough that WEDNESDAY / THURSDAY clear the wordmark. */}
+          <p style={{ ...caps, fontWeight: 700, fontSize: "8cqw", letterSpacing: "0.08em", lineHeight: 1 }}>{day}</p>
           {vibe ? (
             <p style={{ ...caps, fontSize: "3.4cqw", letterSpacing: "0.24em", color: background.accent_color, marginTop: "1.6cqw" }}>
               {vibe}
@@ -221,7 +222,7 @@ export const OutfitCoverSlide = forwardRef<
   ref
 ) {
   // Big for one short word, stepping down so the longest word stays on one line.
-  const longest = Math.max(...title.split(/s+/).map((word) => word.length), 1)
+  const longest = Math.max(...title.split(/\s+/).map((word) => word.length), 1)
   const titleSize = Math.min(17, 92 / (longest * 0.72), title.length > 18 ? 12 : 17)
   return (
     <div ref={ref} className={className} style={frame(background)}>

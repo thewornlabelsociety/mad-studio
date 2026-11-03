@@ -182,7 +182,7 @@ export function matchesQuery(text: string, query: string): boolean {
   const haystack = text.toLowerCase()
   return query
     .toLowerCase()
-    .split(/s+/)
+    .split(/\s+/)
     .filter(Boolean)
     .every((term) => haystack.includes(term))
 }

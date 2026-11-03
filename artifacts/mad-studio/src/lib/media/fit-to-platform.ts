@@ -165,3 +165,29 @@ export async function fitImageToShapeCover(input: {
 
   return uploadCanvasImage(canvas, input.entityId, "platform-fit-cover.png")
 }
+
+/**
+ * Feed images for Instagram and Facebook. Designed 4:5 slides (templates,
+ * Canvas posts already that shape) stay 4:5 — never cropped, so their words
+ * stay whole. Anything else is squared with a centre crop. A carousel is
+ * treated as one set, since Instagram needs every slide the same shape.
+ */
+export async function fitFeedImages(input: {
+  entityId: string
+  sourceUrls: string[]
+}): Promise<string[]> {
+  const ratios = await Promise.all(
+    input.sourceUrls.map(async (url) => {
+      const bitmap = await createImageBitmap(await loadImageBlob(url, input.entityId))
+      return bitmap.width / bitmap.height
+    })
+  )
+  if (ratios.length > 0 && ratios.every((ratio) => fitsShape(ratio, FEED_SHAPE))) {
+    return input.sourceUrls
+  }
+  return Promise.all(
+    input.sourceUrls.map((sourceUrl) =>
+      fitImageToShapeCover({ entityId: input.entityId, sourceUrl, shape: SQUARE_FEED_SHAPE })
+    )
+  )
+}

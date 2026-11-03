@@ -277,6 +277,41 @@ function carouselItemUrl(row: SimulatorCarouselItem): string {
   return (row.publicUrl || row.url || "").trim()
 }
 
+/**
+ * True when every image is already 4:5 (a designed template slide, say).
+ * Those post at 4:5 uncropped, so the Instagram preview shows them that way
+ * too; anything else posts square.
+ */
+function useAllFourFive(urls: string[]): boolean {
+  const key = urls.join("|")
+  const [allFourFive, setAllFourFive] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    if (urls.length === 0) {
+      setAllFourFive(false)
+      return
+    }
+    void Promise.all(
+      urls.map(
+        (url) =>
+          new Promise<number | null>((resolve) => {
+            const img = new Image()
+            img.onload = () => resolve(img.naturalHeight ? img.naturalWidth / img.naturalHeight : null)
+            img.onerror = () => resolve(null)
+            img.src = url
+          })
+      )
+    ).then((ratios) => {
+      if (!cancelled) setAllFourFive(ratios.every((ratio) => ratio != null && Math.abs(ratio - 0.8) <= 0.01))
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the URL list
+  }, [key])
+  return allFourFive
+}
+
 function mediaUrlsMatch(a: string, b: string): boolean {
   const left = a.trim()
   const right = b.trim()
@@ -1111,6 +1146,13 @@ export function MultiPlatformSimulator({
 
   const cutoutActive = cutoutMode !== "original"
   const mediaUrl = resolvedMedia?.url ?? null
+  const feedAllFourFive = useAllFourFive(
+    slides.length > 0
+      ? slides.map(carouselItemUrl).filter(Boolean)
+      : mediaUrl
+        ? [mediaUrl]
+        : []
+  )
   const workbench = !compact
   const isFudiEntity = isFudiStudioEntity({
     name: content.brandName,
@@ -1165,11 +1207,14 @@ export function MultiPlatformSimulator({
   })()
 
   const remotionAspect: "story" | "feed" = isFeedPreview ? "feed" : "story"
-  /** IG Feed = 1:1 center crop. IG Story = full image on black (same file, no second upload). */
-  const feedFrameClass =
-    platform === "ig_feed" ? "aspect-square" : "aspect-[4/5]"
+  /**
+   * IG Feed = 1:1 centre crop, except designs that are already 4:5 (templates),
+   * which post uncropped at 4:5. IG Story = full image on black.
+   */
+  const igFeedSquare = platform === "ig_feed" && !feedAllFourFive
+  const feedFrameClass = igFeedSquare ? "aspect-square" : "aspect-[4/5]"
   const feedMediaFit: "cover" | "contain" =
-    platform === "ig_feed"
+    igFeedSquare
       ? "cover"
       : isFudiEntity
         ? "cover"
@@ -1180,7 +1225,7 @@ export function MultiPlatformSimulator({
       : isFudiEntity
         ? "cover"
         : "contain"
-  const instagramFeedCover = platform === "ig_feed"
+  const instagramFeedCover = igFeedSquare
   const remotionMediaFit = isFeedPreview ? feedMediaFit : storyMediaFit
   /** Studio wizard preview always uses DOM canvas text (WYSIWYG with Step 3). Remotion is for video playback / export only. */
   const remotionIncludeOverlays = false
@@ -1856,8 +1901,12 @@ export function MultiPlatformSimulator({
           : "Same media tray for every channel. Story letterboxes non–9:16 art on black (no extra upload)."
         : platform === "ig_feed"
           ? slides.length > 1
-            ? "Feed carousel uses every tray image (1:1 crop). Story posts the same slides as consecutive frames."
-            : "Feed preview is a 1:1 center crop from this photo."
+            ? feedAllFourFive
+              ? "Feed carousel posts every slide at 4:5, uncropped. Story posts the same slides as consecutive frames."
+              : "Feed carousel uses every tray image (1:1 crop). Story posts the same slides as consecutive frames."
+            : feedAllFourFive
+              ? "This 4:5 design posts uncropped."
+              : "Feed preview is a 1:1 center crop from this photo."
           : platform === "email"
             ? "Email mock — hero ~16:10, same baked photo as feed. Confirm & schedule shows exact outbound assets (1080px)."
             : null

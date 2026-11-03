@@ -21,10 +21,9 @@ import {
 } from "@/lib/media/bake-canvas-text"
 import { canvasBackdropOn, canvasTextOnly } from "@/lib/studio/canvas-text-types"
 import {
-  SQUARE_FEED_SHAPE,
   STORY_SHAPE,
+  fitFeedImages,
   fitImageToShape,
-  fitImageToShapeCover,
 } from "@/lib/media/fit-to-platform"
 import { buildBasicStoryModel } from "@/lib/marketing/story-presets"
 import {
@@ -263,11 +262,8 @@ export function ReviewBeforeSchedule({
           sourceUrl: photoUrl,
           overlay: textOverlay,
         })
-        const feed = await fitImageToShapeCover({
-          entityId,
-          sourceUrl: baked,
-          shape: SQUARE_FEED_SHAPE,
-        })
+        // 4:5 designs stay 4:5 (nothing cropped); other photos are squared.
+        const [feed] = await fitFeedImages({ entityId, sourceUrls: [baked] })
         let story = await fitImageToShape({
           entityId,
           sourceUrl: baked,
@@ -296,25 +292,24 @@ export function ReviewBeforeSchedule({
             overlay: canvasTextOnly(textOverlay),
           })
         }
-        // Each slide gets its own Canvas text baked in, then fitted to 1:1
-        // (carousels must share one aspect ratio on Instagram).
+        // Each slide gets its own Canvas text baked in, then the set is fitted
+        // together (carousels must share one shape on Instagram): all-4:5
+        // designs stay 4:5 so no words are cropped, otherwise 1:1.
         const slides = isCarousel
-          ? await Promise.all(
-              carouselSlides.map(async (slide) => {
-                const bakedSlide = slide.overlay
-                  ? await bakeCanvasTextOnImage({
-                      entityId,
-                      sourceUrl: slide.url,
-                      overlay: slide.overlay,
-                    })
-                  : slide.url
-                return fitImageToShapeCover({
-                  entityId,
-                  sourceUrl: bakedSlide,
-                  shape: SQUARE_FEED_SHAPE,
-                })
-              })
-            )
+          ? await fitFeedImages({
+              entityId,
+              sourceUrls: await Promise.all(
+                carouselSlides.map((slide) =>
+                  slide.overlay
+                    ? bakeCanvasTextOnImage({
+                        entityId,
+                        sourceUrl: slide.url,
+                        overlay: slide.overlay,
+                      })
+                    : Promise.resolve(slide.url)
+                )
+              ),
+            })
           : []
         const storySlides = isCarousel
           ? await Promise.all(
@@ -515,7 +510,10 @@ export function ReviewBeforeSchedule({
                   <div
                     className={cn(
                       "flex items-center justify-center overflow-hidden rounded-lg bg-neutral-900",
-                      FRAME[card.slot.channel]
+                      // A 4:5 design posts at 4:5 on Instagram too; photos post square.
+                      card.slot.channel === "instagram_feed" && aspects.feed != null && Math.abs(aspects.feed - 0.8) <= 0.01
+                        ? "aspect-[4/5]"
+                        : FRAME[card.slot.channel]
                     )}
                   >
                     {card.mediaUrl ? (
