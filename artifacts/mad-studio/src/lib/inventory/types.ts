@@ -8,7 +8,7 @@ import {
   readVerifiedListingSize,
   type ListingAvailability,
 } from "./listing-availability.ts"
-import { readListingVibeFromMetrics } from "./listing-vibe.ts"
+import { currentVibeLabel, readListingVibeFromMetrics } from "./listing-vibe.ts"
 import {
   readListingGarmentFromMetrics,
   type GarmentGender,
@@ -392,7 +392,7 @@ export function mapMarketingEntityRow(row: {
     listing_size: readVerifiedListingSize(row.metrics),
     listing_currency: readListingCurrency(row.metrics),
     listing_url: readListingUrl(row.metrics),
-    vibe: listingVibe.vibe || descriptionVibe,
+    vibe: listingVibe.vibe || currentVibeLabel(descriptionVibe),
     listing_category: listingGarment.category,
     listing_gender: listingGarment.gender,
     listing_was_price: listingMarkdown.wasPrice,

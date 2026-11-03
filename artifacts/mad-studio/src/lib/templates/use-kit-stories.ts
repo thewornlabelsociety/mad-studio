@@ -18,6 +18,7 @@ import {
 } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
+import { currentVibeLabel } from "@/lib/inventory/listing-vibe"
 import type { WlsProductSelection } from "@/lib/inventory/wls-product-eligibility"
 import { requestCutout } from "@/lib/media/request-cutout"
 import { hasSeeThroughBackground, sampleItemColour } from "@/lib/media/sample-item-colour"
@@ -325,7 +326,11 @@ export function useKitStories(input: {
         background,
         autoBackground: pick.background,
         matched: pick.matched,
-        vibe: rowEdits.vibe ?? defaultStoryVibe(row),
+        // Saved edits may hold an old vibe name; show the current one.
+        vibe:
+          rowEdits.vibe != null
+            ? (currentVibeLabel(rowEdits.vibe) ?? rowEdits.vibe)
+            : defaultStoryVibe(row),
         vibeFromShop: Boolean(row.vibe?.trim()),
         designer: rowEdits.designer?.trim() || model.designer,
         shopDesigner: model.designer,

@@ -1,18 +1,56 @@
 /**
- * Worn Label / marketplace aesthetic slugs → display labels.
- * Prefer explicit maps; fall back to title-casing the slug.
+ * Worn Label Shop-by-Vibe slugs → the names the website shows now
+ * (from /api/public/marketplace/aesthetics). The slugs never change, but the
+ * names do — e.g. "indie-sleaze" is now shown as "Indie".
  */
 const AESTHETIC_LABELS: Record<string, string> = {
-  "quiet-luxury": "Quiet Luxury",
-  "modern-muse": "Modern Muse",
-  "everyday-muse": "Everyday Muse",
-  "modern-bohemia": "Modern Bohemia",
-  "coastal-creative": "Coastal Creative",
-  "euro-summer": "Euro Summer Escape",
-  "euro-summer-escape": "Euro Summer Escape",
-  "street-archive": "Street Archive",
-  "cottage-core": "Cottage Core",
-  "cottagecore": "Cottage Core",
+  "elevated-basics": "Basics",
+  "vintage-collector": "Vintage",
+  "cottage-core": "Cottagecore",
+  cottagecore: "Cottagecore",
+  "wild-sophistication": "Wild",
+  "romantic-statement": "Romantic",
+  "corporate-dressing": "Corporate",
+  preppy: "Preppy",
+  "kiwi-maximalist-eclectic-glam": "Maximalist",
+  "alpine-essentials": "Alpine",
+  "festival-vibes": "Festival",
+  "modern-bohemia": "Boho",
+  "euro-summer-escape": "Resort",
+  "euro-summer": "Resort",
+  "coastal-creative": "Coastal",
+  "athleisure-socialite": "Athleisure",
+  "contemporary-maori-creative": "Contemporary Māori Creative",
+  "y2k-revival": "Y2K",
+  "street-archive": "Street",
+  "modern-gent": "Dapper",
+  "workwear-heritage": "Heritage",
+  "minimal-uniform": "Minimal",
+  "event-dressing": "Occasion",
+  "indie-sleaze": "Indie",
+  blokecore: "Blokecore",
+  "campus-cool": "Varsity",
+  "surf-street": "Surf",
+  "after-hours": "Evening",
+  "soft-feminine": "Feminine",
+  natural: "Natural",
+}
+
+/** Old names saved before the website renamed its vibes. */
+const LEGACY_LABELS: Record<string, string> = {
+  "euro summer escape": "euro-summer-escape",
+  "kiwi maximalist eclectic glam": "kiwi-maximalist-eclectic-glam",
+  "cottage core": "cottage-core",
+}
+
+function slugifyVibe(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
 }
 
 export function labelFromAestheticSlug(slug: string): string {
@@ -24,6 +62,20 @@ export function labelFromAestheticSlug(slug: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ")
+}
+
+/**
+ * A vibe name as the website shows it today. Old saved names ("Indie
+ * Sleaze", "Euro Summer Escape") become the new ones; anything else (your
+ * own wording) is left as it is.
+ */
+export function currentVibeLabel(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  const legacySlug = LEGACY_LABELS[trimmed.toLowerCase()]
+  if (legacySlug) return AESTHETIC_LABELS[legacySlug] ?? trimmed
+  const slug = slugifyVibe(trimmed)
+  return AESTHETIC_LABELS[slug] ?? trimmed
 }
 
 export function parseAestheticSlugs(value: unknown): string[] {
@@ -61,7 +113,7 @@ export function readListingVibeFromMetrics(metrics: unknown): {
       ? record.listing_vibe.trim()
       : null
   return {
-    vibe: listed || resolveListingVibe(aesthetic_slugs),
+    vibe: currentVibeLabel(listed) || resolveListingVibe(aesthetic_slugs),
     aesthetic_slugs,
   }
 }
