@@ -951,6 +951,63 @@ export async function pullNewArrivalsAsSystem(input: {
   })
 }
 
+/** How many changed rows a pull saves at once. */
+const ARRIVAL_UPDATE_CONCURRENCY = 10
+
+/** All of a brand's website-synced rows, a page at a time. */
+async function loadExistingArrivalRows(
+  admin: ReturnType<typeof createAdminClient>,
+  entityId: string
+) {
+  const pageSize = 1000
+  const rows: Array<{
+    id: string
+    website_item_id: string | null
+    title: string
+    brand: string | null
+    price: number | string | null
+    description: string | null
+    images: unknown
+    metrics: unknown
+  }> = []
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await admin
+      .from("marketing_entities")
+      .select("id, website_item_id, title, brand, price, description, images, metrics")
+      .eq("entity_id", entityId)
+      .not("website_item_id", "is", null)
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw new Error(error.message)
+    rows.push(...((data ?? []) as typeof rows))
+    if (!data || data.length < pageSize) break
+  }
+  return rows
+}
+
+type ExistingArrivalRow = Awaited<
+  ReturnType<typeof loadExistingArrivalRows>
+>[number]
+
+/** Run tasks with at most `limit` going at once; the first failure throws. */
+async function runWithConcurrency(
+  tasks: Array<() => Promise<void>>,
+  limit: number
+): Promise<void> {
+  let next = 0
+  const workers = Array.from(
+    { length: Math.min(limit, tasks.length) },
+    async () => {
+      while (next < tasks.length) {
+        const task = tasks[next]
+        next += 1
+        await task()
+      }
+    }
+  )
+  await Promise.all(workers)
+}
+
 async function runArrivalPull(input: {
   db: SupabaseClient<Database>
   actorUserId: string | null
@@ -1151,14 +1208,19 @@ async function runArrivalPull(input: {
     })
   }
 
+  // Every existing row for this brand in one go, instead of one lookup per
+  // item — a full shop is hundreds of items, and Replit drops a request that
+  // takes too long ("Failed to fetch").
+  const existingByItemId = new Map<string, ExistingArrivalRow>()
+  for (const row of await loadExistingArrivalRows(admin, input.entityId)) {
+    if (row.website_item_id) existingByItemId.set(row.website_item_id, row)
+  }
+
+  const updates: Array<() => Promise<void>> = []
+  const insertedItemIds = new Set<string>()
   for (const item of arrivals) {
     const incoming = toReconcileInput(item)
-    const { data: existing } = await admin
-      .from("marketing_entities")
-      .select("id, title, brand, price, description, images, metrics")
-      .eq("entity_id", input.entityId)
-      .eq("website_item_id", item.website_item_id)
-      .maybeSingle()
+    const existing = existingByItemId.get(item.website_item_id)
 
     if (existing) {
       const { patch, changed } = buildArrivalReconcilePatch({
@@ -1180,27 +1242,32 @@ async function runArrivalPull(input: {
         continue
       }
 
-      const { error: updateError } = await admin
-        .from("marketing_entities")
-        .update({
-          ...(patch.title !== undefined ? { title: patch.title } : {}),
-          ...(patch.brand !== undefined ? { brand: patch.brand } : {}),
-          ...(patch.price !== undefined ? { price: patch.price } : {}),
-          ...(patch.description !== undefined
-            ? { description: patch.description }
-            : {}),
-          ...(patch.images !== undefined ? { images: patch.images } : {}),
-          metrics: patch.metrics as Json,
-          updated_at: patch.updated_at,
-        })
-        .eq("id", existing.id)
-
-      if (updateError) {
-        throw new Error(updateError.message)
-      }
+      updates.push(async () => {
+        const { error: updateError } = await admin
+          .from("marketing_entities")
+          .update({
+            ...(patch.title !== undefined ? { title: patch.title } : {}),
+            ...(patch.brand !== undefined ? { brand: patch.brand } : {}),
+            ...(patch.price !== undefined ? { price: patch.price } : {}),
+            ...(patch.description !== undefined
+              ? { description: patch.description }
+              : {}),
+            ...(patch.images !== undefined ? { images: patch.images } : {}),
+            metrics: patch.metrics as Json,
+            updated_at: patch.updated_at,
+          })
+          .eq("id", existing.id)
+        if (updateError) {
+          throw new Error(updateError.message)
+        }
+      })
       updated += 1
       continue
     }
+
+    // The same item twice in the feed only gets one row.
+    if (insertedItemIds.has(item.website_item_id)) continue
+    insertedItemIds.add(item.website_item_id)
 
     const { data, error } = await admin
       .from("marketing_entities")
@@ -1222,6 +1289,9 @@ async function runArrivalPull(input: {
     imported += 1
     if (data) inserted.push(data)
   }
+
+  // Save changed rows several at a time.
+  await runWithConcurrency(updates, ARRIVAL_UPDATE_CONCURRENCY)
 
   try {
     const { syncDailyQueueFromIntake } = await import("@/lib/today/daily-queue")
