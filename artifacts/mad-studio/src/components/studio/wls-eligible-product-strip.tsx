@@ -117,7 +117,7 @@ export function WlsEligibleProductStrip({
           row.feedSelectable &&
           row.storyHardBlockers.includes("missing_shop_link")
         ) {
-          return "Needs shop link for Story"
+          return "Not listed on the website yet"
         }
         const reason = row.storyHardBlockers[0] ?? row.hardBlockers[0]
         return reason ? ownerLabelForHardBlock(reason) : "Not for Story"

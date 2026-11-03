@@ -163,7 +163,7 @@ export function assertWlsDailyStoryRenderable(input: {
       return {
         ok: false,
         reason: "invalid_destination_url",
-        detail: "Missing WLS product URL for link-sticker handoff.",
+        detail: "This item isn't listed on the website yet, so there's no page to link to.",
       }
     }
     return {

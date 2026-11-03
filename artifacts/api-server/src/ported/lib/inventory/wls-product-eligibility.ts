@@ -152,9 +152,10 @@ export function buildWlsDestinationUrl(input: {
         : `https://${websiteRaw}`
     )
     if (/wornlabelsociety\.co\.nz$/i.test(base.hostname.replace(/^www\./i, ""))) {
-      // Listing pages need the listing id, which comes with the next stock
-      // pull. Until then send people to new arrivals, never an error page.
-      return "https://www.wornlabelsociety.co.nz/shop?newArrivals=true"
+      // A listing page needs the listing's own id, saved when stock is
+      // pulled. No id means the item isn't listed on the website, so there's
+      // no page to send people to — the Story waits until it's listed.
+      return null
     }
     return `${base.origin}/marketplace/listings/${encodeURIComponent(itemId)}`
   } catch {
@@ -370,7 +371,7 @@ export const WLS_HARD_BLOCK_LABELS: Record<WlsHardBlockReason, string> = {
   not_available: "sold or off the floor",
   missing_image: "needs a product photo",
   missing_title: "missing title",
-  missing_shop_link: "needs a shop link",
+  missing_shop_link: "isn't listed on the website yet",
   queued_for_publish: "already queued to post",
 }
 
