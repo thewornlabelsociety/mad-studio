@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner"
 
 import { isAdjusted } from "@/components/templates/adjustable-layer"
+import { FabricPicker, listingFabric, StoryCardStyleMenu } from "@/components/templates/card-style-controls"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
@@ -45,6 +46,7 @@ import {
 import {
   WLS_DAILY_STORY_STUDIO_MAX_FRAMES,
 } from "@/lib/templates/wls-daily-story-studio-seed"
+import { useStoryCardStyle } from "@/lib/templates/story-card-style"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -70,6 +72,8 @@ export function WlsDailyStoryWorkspace({
   initialItemId = null,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null)
+  // The Themed edit card look, shared by every Story screen.
+  const [cardStyle, setCardStyle] = useStoryCardStyle(entityId)
   const [template, setTemplate] = useState<TemplateState | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(initialItemId)
   const [studioPickIds, setStudioPickIds] = useState<string[]>([])
@@ -302,6 +306,9 @@ export function WlsDailyStoryWorkspace({
             )}
             {template ? "Refresh template" : "Set up template"}
           </Button>
+          {story ? (
+            <StoryCardStyleMenu style={cardStyle} onChange={setCardStyle} background={story.background} className="size-9" />
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -329,6 +336,7 @@ export function WlsDailyStoryWorkspace({
                 background={story.background}
                 brandName={entityName}
                 {...storyCardWords(story)}
+                cardStyle={cardStyle}
                 imageUrl={story.imageUrl}
                 subject={story.subject}
                 onSubjectChange={(next) => selectedId && patch(selectedId, { subject: next })}
@@ -428,6 +436,21 @@ export function WlsDailyStoryWorkspace({
                   </button>
                 )
               })}
+            </div>
+          </div>
+
+          <div className="grid gap-1.5">
+            <span className="font-typewriter text-xs uppercase tracking-widest">Fabric</span>
+            <div className="flex items-center gap-2">
+              {story ? (
+                <FabricPicker
+                  value={story.edits.fabric ?? null}
+                  suggestion={listingFabric([story.row.title, story.row.description].filter(Boolean).join(" "))}
+                  pieceName={story.designer || story.row.title}
+                  onChange={(next) => selectedId && patch(selectedId, { fabric: next })}
+                />
+              ) : null}
+              <span className="text-xs text-mad-black/60">A pill under the header, e.g. leather or silk.</span>
             </div>
           </div>
 

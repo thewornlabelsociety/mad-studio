@@ -6,6 +6,7 @@ import { ArrowRight, Check, Link2, Loader2, RefreshCw, Scissors, Share2, Tag } f
 import { toast } from "sonner"
 
 import { DotSpecialPanel } from "@/components/templates/dot-special"
+import { StoryCardStyleMenu } from "@/components/templates/card-style-controls"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { SaleCoverSlide, SaleItemSlide } from "@/components/templates/sale-slides"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ import {
 } from "@/lib/templates/use-kit-stories"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { useRememberedState } from "@/lib/use-remembered-state"
+import { useStoryCardStyle } from "@/lib/templates/story-card-style"
 import { cn } from "@/lib/utils"
 
 /** A carousel takes the cover plus nine pieces. */
@@ -57,6 +59,8 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
   // Ticked pieces and background are kept, so leaving the screen keeps the carousel.
   const [picked, setPicked] = useRememberedState<string[] | null>(`mad.saleRack.${entityId}.picked`, null)
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.saleRack.${entityId}.background`, null)
+  // The same card look as every other Story.
+  const [cardStyle, setCardStyle] = useStoryCardStyle(entityId)
   const [sending, setSending] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
 
@@ -177,6 +181,7 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <StoryCardStyleMenu style={cardStyle} onChange={setCardStyle} background={background} className="size-9" />
           <div className="flex items-center gap-1.5" role="group" aria-label="Carousel background">
             {kit.map((bg) => (
               <button
@@ -302,6 +307,7 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
                         designer={item.designer}
                         sizeLabel={item.sizeLabel}
                         priceLine={{ was: money(item.was), now: money(item.now) }}
+                        cardStyle={cardStyle}
                         showLinkGuide={false}
                       />
                       {!ready ? (

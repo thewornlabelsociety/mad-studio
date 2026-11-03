@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { StoryCardStyleMenu } from "@/components/templates/card-style-controls"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import {
   canSaveToFolder,
@@ -43,6 +44,7 @@ import {
   type KitStory,
 } from "@/lib/templates/use-kit-stories"
 import { notifyInventorySynced } from "@/lib/studio/pull-new-arrivals-client"
+import { useStoryCardStyle } from "@/lib/templates/story-card-style"
 import { cn } from "@/lib/utils"
 
 /** How many new arrivals the morning feed offers at once. */
@@ -110,6 +112,8 @@ export function MorningStoryFeed({
   className,
 }: Props) {
   const nodes = useRef<Record<string, HTMLDivElement | null>>({})
+  // The Themed edit card look, shared by every Story screen.
+  const [cardStyle, setCardStyle] = useStoryCardStyle(entityId)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [savingAll, setSavingAll] = useState<{ done: number; total: number } | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -423,6 +427,9 @@ export function MorningStoryFeed({
               : `${onPhone || useFolder ? "Save" : "Download"} ${selected.size > 0 ? `${toSave.length} selected` : `all ${toSave.length}`}${useFolder && folderName ? ` to ${folderName}` : ""}`}
           </button>
         ) : null}
+        {feed[0] ? (
+          <StoryCardStyleMenu style={cardStyle} onChange={setCardStyle} background={feed[0].background} />
+        ) : null}
         <button
           type="button"
           onClick={() => void onRefresh()}
@@ -501,6 +508,7 @@ export function MorningStoryFeed({
                           background={story.background}
                           brandName={entityName}
                           {...storyCardWords(story)}
+                          cardStyle={cardStyle}
                           imageUrl={waiting ? null : story.imageUrl}
                           subject={story.subject}
                           showLinkGuide={!compact}

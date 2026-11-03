@@ -3,9 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "wouter"
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
   ArrowRight,
   BringToFront,
   Check,
@@ -48,6 +45,8 @@ import { proxiedPhotoUrl, shrinkPhoto, uploadPhoto } from "@/lib/templates/uploa
 import { bakeStoryPng, shareOrDownloadStory, useKitStories, type KitStory } from "@/lib/templates/use-kit-stories"
 import { OUTFIT_SLOT_LABELS, toOutfitPiece } from "@/lib/templates/week-outfits"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
+import { AlignButtons, CardFieldToggles, FabricPicker, listingFabric, PillControls, StyleRow } from "@/components/templates/card-style-controls"
+import { DEFAULT_CARD_FIELDS, pieceType, shortPrice, type CardField } from "@/lib/templates/story-card-style"
 import { useRememberedState } from "@/lib/use-remembered-state"
 import { cn } from "@/lib/utils"
 
@@ -64,185 +63,6 @@ const FLATLAY_KINDS: Array<{ label: string; slots: GarmentSlot[] }> = [
   { label: "Accessory", slots: ["accessory", "other"] },
   { label: "Footwear", slots: ["shoes"] },
 ]
-/** What each piece card can show, switched on and off for the whole edit. */
-type CardField = "number" | "brand" | "category" | "vibe" | "size" | "price"
-const CARD_FIELDS: Array<{ id: CardField; label: string }> = [
-  { id: "number", label: "Eyebrow" },
-  { id: "brand", label: "Brand" },
-  { id: "category", label: "Sub category" },
-  { id: "vibe", label: "Vibe" },
-  { id: "size", label: "Size" },
-  { id: "price", label: "Price" },
-]
-const DEFAULT_CARD_FIELDS: Record<CardField, boolean> = {
-  number: true,
-  brand: true,
-  category: false,
-  vibe: false,
-  size: true,
-  price: true,
-}
-
-const PILL_FILLS: Array<{ id: PillFill; label: string }> = [
-  { id: "outline", label: "Outline" },
-  { id: "accent", label: "Accent colour" },
-  { id: "ink", label: "Text colour" },
-  { id: "cream", label: "Cream" },
-]
-const PILL_SHAPES: Array<{ id: PillShape; label: string }> = [
-  { id: "round", label: "Round" },
-  { id: "soft", label: "Soft corner" },
-  { id: "square", label: "Square" },
-]
-
-/** One labelled line of the Card style panel. */
-function StyleRow({ label, wide = false, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
-  return (
-    <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-2", wide && "md:col-span-2")}>
-      <span className="w-20 shrink-0 font-typewriter text-[10px] uppercase tracking-widest text-mad-black/60">{label}</span>
-      {children}
-    </div>
-  )
-}
-
-/** Left, centre and right buttons for something on the cards. */
-function AlignButtons({ value, onChange, what }: { value: CardAlign; onChange: (next: CardAlign) => void; what: string }) {
-  return (
-    <div className="flex border-2 border-mad-black" role="group" aria-label={`Line up ${what}`}>
-      {(
-        [
-          { side: "left", label: "Left", Icon: AlignLeft },
-          { side: "center", label: "Centre", Icon: AlignCenter },
-          { side: "right", label: "Right", Icon: AlignRight },
-        ] as const
-      ).map(({ side, label, Icon }) => (
-        <button
-          key={side}
-          type="button"
-          onClick={() => onChange(side)}
-          aria-pressed={value === side}
-          title={`${label}-align ${what}`}
-          aria-label={`${label}-align ${what}`}
-          className={cn("flex size-7 items-center justify-center", value === side ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]")}
-        >
-          <Icon className="size-4" aria-hidden />
-        </button>
-      ))}
-    </div>
-  )
-}
-
-/** The kind of piece from its shop title: "Formal Dress Karen Millen in Brown" gives "Formal Dress". */
-function pieceType(title: string, brand: string | null): string | null {
-  let text = title
-  if (brand?.trim()) text = text.replace(new RegExp(brand.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " ")
-  text = text.replace(/\s+\bin\b\s.*$/i, "").replace(/\s+/g, " ").trim()
-  return text || null
-}
-
-/** Quick picks for a piece's fabric pill; anything else can be typed. */
-const FABRIC_PICKS = ["Linen", "Silk", "Cotton", "Wool", "Cashmere", "Leather", "Denim", "Satin", "Lace", "Velvet", "Viscose", "Suede"]
-
-/** The fabric the shop listing names, if any (its "Material:" line, or a known fabric in the text). */
-function listingFabric(text: string): string | null {
-  const material = text.match(/Material:\s*([^·\n]+)/i)?.[1]?.trim()
-  if (material) return material.split(/[,/]/)[0].trim().slice(0, 20) || null
-  const known = FABRIC_PICKS.find((fabric) => new RegExp(`\\b${fabric}\\b`, "i").test(text))
-  return known ?? null
-}
-
-/** Click to set a piece's fabric: a suggestion from the listing, quick picks, or your own word. */
-function FabricPicker({
-  value,
-  suggestion,
-  pieceName,
-  onChange,
-}: {
-  value: string | null
-  suggestion: string | null
-  pieceName: string
-  onChange: (next: string | null) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [custom, setCustom] = useState("")
-  const picks = suggestion && !FABRIC_PICKS.some((pick) => pick.toLowerCase() === suggestion.toLowerCase())
-    ? [suggestion, ...FABRIC_PICKS]
-    : FABRIC_PICKS
-  function choose(next: string | null) {
-    onChange(next)
-    setOpen(false)
-    setCustom("")
-  }
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          title={value ? "Change the fabric pill" : "Add a fabric pill, e.g. linen or silk"}
-          aria-label={value ? `Fabric for ${pieceName}: ${value}. Change it` : `Add a fabric for ${pieceName}`}
-          className={cn(
-            "flex h-7 shrink-0 items-center gap-1 rounded-full border-2 border-mad-black px-2 text-[11px] uppercase tracking-wider",
-            value ? "bg-mad-black text-mad-white" : "border-dashed text-mad-black/70 hover:bg-[#F4EFE6]"
-          )}
-        >
-          {value ?? (
-            <>
-              <Plus className="size-3" aria-hidden /> Fabric
-            </>
-          )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 rounded-none border-2 border-mad-black p-2">
-        <p className="mb-1.5 text-[11px] text-mad-black/60">
-          {suggestion ? `The listing says ${suggestion.toLowerCase()}.` : "Pick the fabric, or type your own."}
-        </p>
-        <div className="flex flex-wrap gap-1">
-          {picks.map((pick) => (
-            <button
-              key={pick}
-              type="button"
-              onClick={() => choose(pick)}
-              aria-pressed={value?.toLowerCase() === pick.toLowerCase()}
-              className={cn(
-                "rounded-full border-2 border-mad-black px-2 py-0.5 text-[11px] uppercase tracking-wider",
-                value?.toLowerCase() === pick.toLowerCase() ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]",
-                pick === suggestion && "border-mad-vermillion"
-              )}
-            >
-              {pick}
-            </button>
-          ))}
-        </div>
-        <form
-          className="mt-2 flex gap-1"
-          onSubmit={(event) => {
-            event.preventDefault()
-            if (custom.trim()) choose(custom.trim().slice(0, 20))
-          }}
-        >
-          <input
-            type="text"
-            value={custom}
-            onChange={(event) => setCustom(event.target.value)}
-            placeholder="Other, e.g. Merino"
-            aria-label="Type a fabric"
-            maxLength={20}
-            className="h-8 min-w-0 flex-1 border-2 border-mad-black px-2 text-xs"
-          />
-          <button type="submit" className="h-8 border-2 border-mad-black px-2 text-xs hover:bg-[#F4EFE6]">
-            Add
-          </button>
-        </form>
-        {value ? (
-          <button type="button" onClick={() => choose(null)} className="mt-2 text-[11px] underline">
-            No fabric pill
-          </button>
-        ) : null}
-      </PopoverContent>
-    </Popover>
-  )
-}
-
 /** "New arrivals" in the search: this many of the newest pieces. */
 const NEW_ARRIVALS_COUNT = 40
 
@@ -276,11 +96,6 @@ const DEFAULT_TITLE: Announcement = {
   headlineFont: "serif",
   accent: "brush",
   align: "center",
-}
-
-function shortPrice(label: string | null | undefined): string | null {
-  if (!label || label === "—") return null
-  return label.replace(/\.00$/, "")
 }
 
 function money(value: number): string {
@@ -1330,79 +1145,19 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           </StyleRow>
 
           <StyleRow label="Show" wide>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="On the piece cards">
-              {CARD_FIELDS.map((field) => (
-                <button
-                  key={field.id}
-                  type="button"
-                  onClick={() => setCardFields((now) => ({ ...now, [field.id]: !now[field.id] }))}
-                  aria-pressed={cardFields[field.id]}
-                  title={cardFields[field.id] ? `Hide ${field.label.toLowerCase()} on the cards` : `Show ${field.label.toLowerCase()} on the cards`}
-                  className={cn(
-                    "flex h-7 items-center gap-1 rounded-full border-2 border-mad-black px-2.5 text-[11px] uppercase tracking-wider",
-                    cardFields[field.id] ? "bg-mad-black text-mad-white" : "border-dashed text-mad-black/70 hover:bg-[#F4EFE6]"
-                  )}
-                >
-                  {cardFields[field.id] ? <Check className="size-3" aria-hidden /> : <Plus className="size-3" aria-hidden />}
-                  {field.label}
-                </button>
-              ))}
-            </div>
+            <CardFieldToggles value={cardFields} onToggle={(field) => setCardFields((now) => ({ ...now, [field]: !now[field] }))} />
           </StyleRow>
 
           <StyleRow label="Fabric pill" wide>
-            <AlignButtons value={pillAlign} onChange={setPillAlign} what="the fabric pill" />
-            <div className="flex items-center gap-1" role="group" aria-label="Pill colour">
-              {PILL_FILLS.map((fill) => {
-                const look =
-                  fill.id === "outline"
-                    ? { background: "transparent", borderColor: background.text_color }
-                    : fill.id === "accent"
-                      ? { background: background.accent_color, borderColor: background.accent_color }
-                      : fill.id === "ink"
-                        ? { background: background.text_color, borderColor: background.text_color }
-                        : { background: "#F4F1EA", borderColor: "#F4F1EA" }
-                return (
-                  <button
-                    key={fill.id}
-                    type="button"
-                    onClick={() => setPillFill(fill.id)}
-                    aria-pressed={pillFill === fill.id}
-                    title={`${fill.label} pill`}
-                    aria-label={`${fill.label} pill`}
-                    className={cn(
-                      "flex size-7 items-center justify-center rounded-full",
-                      pillFill === fill.id && "ring-2 ring-mad-black ring-offset-1"
-                    )}
-                    style={{ background: background.color }}
-                  >
-                    <span className="block h-3 w-5 rounded-full border-2" style={look} />
-                  </button>
-                )
-              })}
-            </div>
-            <div className="flex border-2 border-mad-black" role="group" aria-label="Pill shape">
-              {PILL_SHAPES.map((shape) => (
-                <button
-                  key={shape.id}
-                  type="button"
-                  onClick={() => setPillShape(shape.id)}
-                  aria-pressed={pillShape === shape.id}
-                  title={`${shape.label} pill`}
-                  aria-label={`${shape.label} pill`}
-                  className={cn(
-                    "flex h-7 w-9 items-center justify-center",
-                    pillShape === shape.id ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]"
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className="block h-3 w-5 border-2 border-current"
-                    style={{ borderRadius: shape.id === "round" ? 999 : shape.id === "soft" ? 3 : 0 }}
-                  />
-                </button>
-              ))}
-            </div>
+            <PillControls
+              background={background}
+              align={pillAlign}
+              fill={pillFill}
+              shape={pillShape}
+              onAlign={setPillAlign}
+              onFill={setPillFill}
+              onShape={setPillShape}
+            />
           </StyleRow>
         </div>
         <ol className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

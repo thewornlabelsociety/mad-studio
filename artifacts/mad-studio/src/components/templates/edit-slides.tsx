@@ -1,5 +1,6 @@
 import { forwardRef } from "react"
 
+import { AdjustableLayer, NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import { EDITORIAL_SERIF } from "@/components/templates/editorial-announcement"
 import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
@@ -45,10 +46,18 @@ export const EditItemSlide = forwardRef<
     wasLabel?: string | null
     /** 9:16 for Stories; 4:5 for the feed. */
     story?: boolean
+    /** Hand placement of the cutout. */
+    subject?: LayerAdjust
+    /** Given, the cutout can be dragged, resized and tilted. */
+    onSubjectChange?: (next: LayerAdjust) => void
+    subjectSelected?: boolean
+    onSubjectSelect?: (selected: boolean) => void
+    /** Stories: a dashed link-sticker zone, never baked into the export. */
+    showLinkGuide?: boolean
     className?: string
   }
 >(function EditItemSlide(
-  { background, brandName, editLabel, eyebrow = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, className },
+  { background, brandName, editLabel, eyebrow = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, subject = NO_ADJUST, onSubjectChange, subjectSelected = false, onSubjectSelect, showLinkGuide = false, className },
   ref
 ) {
   const ink = background.text_color
@@ -80,7 +89,12 @@ export const EditItemSlide = forwardRef<
   // Stories keep clear of Instagram's top bar and the reply box at the bottom.
   const top = story ? 13 : 6
   return (
-    <div ref={ref} className={className} style={frame(background, story ? "9 / 16" : "4 / 5")}>
+    <div
+      ref={ref}
+      className={className}
+      style={frame(background, story ? "9 / 16" : "4 / 5")}
+      onPointerDown={onSubjectChange ? () => onSubjectSelect?.(false) : undefined}
+    >
       <div style={{ position: "absolute", left: "7cqw", right: "7cqw", top: `${top}cqw` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "4cqw" }}>
           <p style={{ ...caps, fontSize: "2.4cqw", letterSpacing: "0.34em", lineHeight: 1.4, color: accent }}>{editLabel}</p>
@@ -97,18 +111,33 @@ export const EditItemSlide = forwardRef<
 
       <div style={{ position: "absolute", left: "12cqw", right: "12cqw", top: story ? "22%" : "21%", bottom: story ? "30%" : "35%" }}>
         {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt=""
-            crossOrigin="anonymous"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-              filter: "drop-shadow(0 3cqw 3cqw rgba(0,0,0,0.28))",
-            }}
-          />
+          <AdjustableLayer
+            base={{ left: 0, top: 0, width: 100, height: 100 }}
+            adjust={subject}
+            zIndex={1}
+            editable={Boolean(onSubjectChange)}
+            selected={subjectSelected}
+            label="Item"
+            onSelect={() => onSubjectSelect?.(true)}
+            onChange={onSubjectChange}
+          >
+            {/* Keyed so a new item never shows the last one's photo while it loads. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={imageUrl}
+              src={imageUrl}
+              alt=""
+              crossOrigin="anonymous"
+              draggable={false}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                pointerEvents: "none",
+                filter: "drop-shadow(0 3cqw 3cqw rgba(0,0,0,0.28))",
+              }}
+            />
+          </AdjustableLayer>
         ) : null}
       </div>
 
@@ -160,6 +189,28 @@ export const EditItemSlide = forwardRef<
           ) : null}
         </div>
       </div>
+
+      {story && showLinkGuide ? (
+        <div
+          data-export-ignore="true"
+          style={{
+            ...caps,
+            position: "absolute",
+            left: "19%",
+            right: "19%",
+            bottom: "7cqw",
+            padding: "3cqw 0 2.6cqw",
+            border: `0.4cqw dashed ${ink}`,
+            borderRadius: "3cqw",
+            opacity: 0.5,
+            textAlign: "center",
+            fontSize: "3cqw",
+            letterSpacing: "0.2em",
+          }}
+        >
+          Link sticker
+        </div>
+      ) : null}
     </div>
   )
 })

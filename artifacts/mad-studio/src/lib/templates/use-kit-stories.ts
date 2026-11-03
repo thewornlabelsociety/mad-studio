@@ -19,6 +19,7 @@ import {
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { currentVibeLabel } from "@/lib/inventory/listing-vibe"
+import { pieceType, shortPrice } from "@/lib/templates/story-card-style"
 import type { WlsProductSelection } from "@/lib/inventory/wls-product-eligibility"
 import { requestCutout } from "@/lib/media/request-cutout"
 import { hasSeeThroughBackground, sampleItemColour } from "@/lib/media/sample-item-colour"
@@ -29,13 +30,14 @@ import { buildWlsDailyStoryCanvasModel } from "@/lib/templates/wls-daily-story"
 import { useRememberedState } from "@/lib/use-remembered-state"
 
 /** The words a new-arrival Story can show; each can be ticked off per Story. */
-export type StoryField = "tag" | "vibe" | "designer" | "size"
+export type StoryField = "tag" | "vibe" | "designer" | "size" | "price"
 
 export const STORY_FIELDS: Array<{ id: StoryField; label: string }> = [
   { id: "tag", label: "New in" },
   { id: "vibe", label: "Vibe" },
   { id: "designer", label: "Brand" },
   { id: "size", label: "Size" },
+  { id: "price", label: "Price" },
 ]
 
 export type StoryEdits = {
@@ -45,6 +47,8 @@ export type StoryEdits = {
   sizeLabel?: string
   /** Fields ticked off this Story. Missing means shown. */
   hidden?: Partial<Record<StoryField, boolean>>
+  /** A fabric pill, e.g. LEATHER; none until picked. */
+  fabric?: string | null
   backgroundId?: string
   /** Hand placement of the cutout. */
   subject?: LayerAdjust
@@ -57,12 +61,19 @@ export function storyCardWords(story: KitStory): {
   vibe: string | null
   designer: string | null
   sizeLabel: string | null
+  categoryLabel: string | null
+  priceLabel: string | null
+  fabricLabel: string | null
 } {
   return {
     tag: story.show.tag ? "New in" : null,
     vibe: story.show.vibe && story.vibe.trim() ? story.vibe : null,
     designer: story.show.designer && story.designer.trim() ? story.designer : null,
     sizeLabel: story.show.size ? story.sizeLabel : null,
+    // Shown when Card style switches them on.
+    categoryLabel: pieceType(story.row.title, story.row.brand),
+    priceLabel: story.show.price ? shortPrice(story.priceLabel) : null,
+    fabricLabel: story.edits.fabric?.trim() || null,
   }
 }
 
@@ -341,6 +352,7 @@ export function useKitStories(input: {
           vibe: !rowEdits.hidden?.vibe,
           designer: !rowEdits.hidden?.designer,
           size: !rowEdits.hidden?.size,
+          price: !rowEdits.hidden?.price,
         },
         priceLabel: formatWlsNzdPrice(row),
         sourceImage,
