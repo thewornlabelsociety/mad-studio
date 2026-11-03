@@ -120,13 +120,13 @@ function useStudioChromeTopbarSlots() {
     mobileMenuSlot = (
       <>
         <DropdownMenuLabel className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase">
-          Draft active
+          Draft saved
         </DropdownMenuLabel>
         <DropdownMenuItem
           className="rounded-none font-typewriter text-[0.75rem] font-bold uppercase text-mad-vermillion"
           onSelect={onStartFresh}
         >
-          Start fresh
+          Clear draft
         </DropdownMenuItem>
       </>
     )

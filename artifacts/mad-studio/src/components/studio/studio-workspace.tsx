@@ -45,6 +45,7 @@ import {
   WORKBENCH_STEP_COPY,
   WORKBENCH_STEP_INTENT,
   WORKBENCH_STEP_MEDIA,
+  clampWorkbenchStep,
   nextWorkbenchStep,
   parseWorkbenchStepParam,
   prevWorkbenchStep,
@@ -126,6 +127,14 @@ import {
   readActiveMultiplexerBuffer,
   writeActiveMultiplexerBuffer,
 } from "@/lib/campaigns/pack-hydrate"
+import {
+  clearStudioDraft,
+  draftHasContent,
+  readStudioDraft,
+  savableMedia,
+  writeStudioDraft,
+  type StudioDraft,
+} from "@/lib/studio/studio-draft"
 import type { CampaignPack } from "@/lib/campaigns/pack-schema"
 import { packToStudioPreview } from "@/lib/campaigns/studio-preview"
 import type { MediaVisualInspection } from "@/lib/media/inspect-schema"
@@ -576,6 +585,9 @@ export function StudioWorkspace({
   const [reviewOpen, setReviewOpen] = useState(false)
   const skipIntentObjectiveSync = useRef(false)
   const hydrateToken = useRef(0)
+  // Pauses draft saving while Studio is being emptied on purpose (brand
+  // switch, posted, cleared) so the old post isn't written back.
+  const suspendDraftSave = useRef(false)
 
   const preview = useMemo(
     () => (pack ? packToStudioPreview(pack, campaignId) : null),
@@ -1541,6 +1553,8 @@ export function StudioWorkspace({
         }
         const tray = assets.slice(0, 10)
         forgetPreviousPost()
+        // A fresh build from Today replaces the old draft's Canvas text.
+        setSlideOverlays({})
         onMediaAssetsChange(tray)
         applyIntakeFromTray(tray, { forceCaption: true })
         setActiveMediaId(tray[0].id)
@@ -2183,9 +2197,15 @@ export function StudioWorkspace({
       setRehydrating(true)
       setSystemError(null)
 
-      if (startFresh) {
+      const draft = readStudioDraft(activeEntity.id)
+      if (startFresh && !draft) {
         setRehydrating(false)
         return
+      }
+      if (startFresh && draft) {
+        toast.message("Picked up your unfinished post.", {
+          description: "Use Clear draft at the top to start a new one.",
+        })
       }
 
       const packIdFromUrl = searchParams.get("pack_id")?.trim() || null
@@ -2195,7 +2215,10 @@ export function StudioWorkspace({
       const bufferedLocal = readActiveMultiplexerBuffer(activeEntity.id)
       const local =
         bufferedLocal &&
-        Date.now() - Date.parse(bufferedLocal.savedAt) < LOCAL_RESUME_WINDOW_MS
+        (draft
+          ? draft.packId === bufferedLocal.packId
+          : Date.now() - Date.parse(bufferedLocal.savedAt) <
+            LOCAL_RESUME_WINDOW_MS)
           ? bufferedLocal
           : null
 
@@ -2257,6 +2280,21 @@ export function StudioWorkspace({
           setEditorSession((value) => value + 1)
           setRestoredAt(local.savedAt)
           syncPackUrl(local.packId)
+          // Photos, Canvas text and step come from the saved draft.
+          if (draft) applyStudioDraft(draft)
+          return
+        }
+
+        if (draft) {
+          if (draft.packId) {
+            const result = await getStudioPack({
+              entityId: activeEntity.id,
+              campaignId: draft.packId,
+            })
+            if (cancelled || hydrateToken.current !== token) return
+            if (result.ok) applySnapshot(result.snapshot, { markRestored: true })
+          }
+          applyStudioDraft(draft)
           return
         }
 
@@ -2274,6 +2312,7 @@ export function StudioWorkspace({
         syncPackUrl(null)
       } finally {
         if (!cancelled && hydrateToken.current === token) {
+          suspendDraftSave.current = false
           setRehydrating(false)
         }
       }
@@ -2371,8 +2410,117 @@ export function StudioWorkspace({
     fudiTrack,
   ])
 
+  /** Put a saved draft back on screen. */
+  function applyStudioDraft(draft: StudioDraft) {
+    skipIntentObjectiveSync.current = true
+    setMediaAssets(draft.media)
+    const active =
+      draft.media.find((row) => row.id === draft.activeMediaId) ??
+      draft.media[0] ??
+      null
+    setActiveMediaId(active?.id ?? null)
+    setAttachedImageUrl(active ? active.publicUrl || active.url : null)
+    setVisualInspection(active?.visualInspection ?? null)
+    setSlideOverlays(draft.slideOverlays ?? {})
+    const activeOverlay = active ? draft.slideOverlays?.[active.id] : null
+    if (activeOverlay) setLastOverlayStyle(activeOverlay)
+    setSlideFacts(draft.slideFacts ?? {})
+    setRawSpark(draft.rawSpark)
+    setWorkbenchHeadline(draft.headline)
+    if (draft.fudiTrack) setFudiTrack(draft.fudiTrack as FudiAudienceTrack)
+    if (draft.intent) setIntent(draft.intent as MultiplexerIntent)
+    if (draft.intentChipId) setIntentChipId(draft.intentChipId)
+    if (draft.objective) setObjective(draft.objective)
+    if (personas.some((persona) => persona.id === draft.personaId)) {
+      setPersonaId(draft.personaId)
+    }
+    setWorkbenchStep(clampWorkbenchStep(draft.step))
+    setRestoredAt(draft.savedAt)
+  }
+
+  // Keep the post you're working on, so clicking away never loses it.
+  const buildStudioDraft = (): StudioDraft => {
+    const media = savableMedia(mediaAssets)
+    const kept = new Set(media.map((row) => row.id))
+    const only = <T,>(record: Record<string, T>) =>
+      Object.fromEntries(
+        Object.entries(record).filter(([id]) => kept.has(id))
+      ) as Record<string, T>
+    return {
+      v: 1,
+      entityId: activeEntity.id,
+      savedAt: new Date().toISOString(),
+      step: workbenchStep,
+      media,
+      activeMediaId,
+      slideOverlays: only(slideOverlays),
+      slideFacts: only(slideFacts),
+      rawSpark,
+      headline: workbenchHeadline,
+      intent,
+      intentChipId,
+      objective,
+      personaId,
+      fudiTrack: isFudi ? fudiTrack : null,
+      packId: campaignId,
+    }
+  }
+  const buildStudioDraftRef = useRef(buildStudioDraft)
+  buildStudioDraftRef.current = buildStudioDraft
+  const rehydratingRef = useRef(rehydrating)
+  rehydratingRef.current = rehydrating
+  const flushStudioDraft = useCallback(() => {
+    if (rehydratingRef.current || suspendDraftSave.current) return
+    writeStudioDraft(buildStudioDraftRef.current())
+  }, [])
+
+  useEffect(() => {
+    if (rehydrating || suspendDraftSave.current) return
+    const timer = window.setTimeout(flushStudioDraft, 400)
+    return () => window.clearTimeout(timer)
+  }, [
+    rehydrating,
+    mediaAssets,
+    activeMediaId,
+    slideOverlays,
+    slideFacts,
+    rawSpark,
+    workbenchHeadline,
+    workbenchStep,
+    intent,
+    intentChipId,
+    objective,
+    personaId,
+    fudiTrack,
+    campaignId,
+    flushStudioDraft,
+  ])
+
+  // Also save the moment you leave: another page, another tab, or closing.
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") flushStudioDraft()
+    }
+    window.addEventListener("pagehide", flushStudioDraft)
+    document.addEventListener("visibilitychange", onHidden)
+    return () => {
+      window.removeEventListener("pagehide", flushStudioDraft)
+      document.removeEventListener("visibilitychange", onHidden)
+      flushStudioDraft()
+    }
+  }, [flushStudioDraft])
+
+  /** The post is done (posted or armed) — let its draft go. */
+  function finishStudioDraft() {
+    suspendDraftSave.current = true
+    clearStudioDraft(activeEntity.id)
+  }
+
   function onBrandChange(nextId: string) {
     if (nextId === activeEntity.id) return
+    // Keep this brand's post for when you come back to it.
+    flushStudioDraft()
+    suspendDraftSave.current = true
     clearActiveMultiplexerBuffer(activeEntity.id)
     setRawSpark("")
     setPack(null)
@@ -2647,6 +2795,7 @@ export function StudioWorkspace({
         fudiTrack: isFudi ? fudiTrack : null,
       })
       syncPackUrl(result.campaignId)
+      if (status === "published") finishStudioDraft()
       toast.success(
         status === "draft" ? "Draft saved to Campaigns." : "Campaign published."
       )
@@ -2677,6 +2826,7 @@ export function StudioWorkspace({
       }
       setCampaignId(result.campaignId)
       syncPackUrl(result.campaignId)
+      finishStudioDraft()
       toast.success("Dispatched — opening Campaigns.")
       window.location.href = `/campaigns?eid=${encodeURIComponent(activeEntity.id)}&toast=published`
     })
@@ -2854,6 +3004,7 @@ export function StudioWorkspace({
       }
       if (immediate.skippedReason) toast.message(immediate.skippedReason)
 
+      finishStudioDraft()
       router.push(
         `/campaigns?eid=${encodeURIComponent(activeEntity.id)}&toast=armed`
       )
@@ -2877,7 +3028,10 @@ export function StudioWorkspace({
 
   function startNewPack() {
     clearActiveMultiplexerBuffer(activeEntity.id)
+    clearStudioDraft(activeEntity.id)
     setSlideOverlays({})
+    setSlideFacts({})
+    setWorkbenchHeadline("")
     setPack(null)
     setCampaignId(null)
     syncMediaFromUrl(null)
@@ -2898,6 +3052,34 @@ export function StudioWorkspace({
     quickPackCaption.current = null
     setWorkbenchStep(WORKBENCH_STEP_MEDIA)
     syncPackUrl(null)
+  }
+
+  /** Clear the draft for good — with a moment to undo. */
+  function clearDraft() {
+    const snapshot = buildStudioDraft()
+    startNewPack()
+    toast.success("Draft cleared.", {
+      action: draftHasContent(snapshot)
+        ? {
+            label: "Undo",
+            onClick: () => {
+              writeStudioDraft(snapshot)
+              if (snapshot.packId) {
+                void getStudioPack({
+                  entityId: activeEntity.id,
+                  campaignId: snapshot.packId,
+                }).then((result) => {
+                  if (result.ok) {
+                    applySnapshot(result.snapshot, { markRestored: true })
+                    applyStudioDraft(snapshot)
+                  }
+                })
+              }
+              applyStudioDraft(snapshot)
+            },
+          }
+        : undefined,
+    })
   }
 
   function onStudioBack() {
@@ -2940,7 +3122,8 @@ export function StudioWorkspace({
   }
 
   useEffect(() => {
-    if (startFresh) startNewPack()
+    // An unfinished post is kept even when you arrive via "new post".
+    if (startFresh && !readStudioDraft(activeEntity.id)) startNewPack()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fresh=1 is a one-shot URL flag
   }, [startFresh])
 
@@ -2963,10 +3146,17 @@ export function StudioWorkspace({
   // (clear -> set -> clear ...) in an endless render loop.
   const setStudioChrome = studioChrome?.setChrome
   const clearStudioChrome = studioChrome?.clearChrome
-  const startNewPackRef = useRef(startNewPack)
-  startNewPackRef.current = startNewPack
-  const onStartFreshChrome = useCallback(() => startNewPackRef.current(), [])
-  const draftActiveChrome = Boolean(restoredAt && pack)
+  const clearDraftRef = useRef(clearDraft)
+  clearDraftRef.current = clearDraft
+  const onStartFreshChrome = useCallback(() => clearDraftRef.current(), [])
+  const draftActiveChrome =
+    !rehydrating &&
+    draftHasContent({
+      media: mediaAssets,
+      rawSpark,
+      headline: workbenchHeadline,
+      packId: campaignId,
+    })
 
   useEffect(() => {
     if (!setStudioChrome) return

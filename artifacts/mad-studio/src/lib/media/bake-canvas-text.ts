@@ -10,7 +10,11 @@ import {
   type CanvasTextOverlayState,
 } from "@/lib/studio/canvas-text-types"
 import {
+  CANVAS_TEXT_SAFE_MARGIN_X,
+  CANVAS_TEXT_SAFE_MARGIN_Y,
+  canvasBoxFitScale,
   canvasTextFontSizePx,
+  clampCanvasBoxCentre,
   canvasTextLineHeightPx,
 } from "@/lib/studio/canvas-text-layout"
 
@@ -100,8 +104,6 @@ function drawTextLayer(
   const padY = layer.bgColor ? fontSize * CANVAS_TEXT_BG_PAD_Y : 0
 
   ctx.save()
-  ctx.translate((layer.positionX / 100) * width, (layer.positionY / 100) * height)
-  ctx.rotate((layer.rotationDeg * Math.PI) / 180)
   ctx.font = `${fontStyle} ${weight} ${fontSize}px ${canvasFontStack(layer.fontId)}`
   ctx.fillStyle = layer.color || "#FFFFFF"
   ctx.textBaseline = "middle"
@@ -110,6 +112,23 @@ function drawTextLayer(
   const lines = wrapLines(ctx, layer.text, width * 0.92 - padX * 2)
   const blockWidth = Math.max(...lines.map((line) => ctx.measureText(line).width))
   const blockHeight = lines.length * lineHeight
+
+  // Keep the whole box inside the safe area (same rule as the preview), so
+  // Instagram's grid crop never cuts words off. Too-wide boxes shrink to fit.
+  const fit = canvasBoxFitScale(((blockWidth + padX * 2) / width) * 100)
+  const centreX = clampCanvasBoxCentre(
+    layer.positionX,
+    (((blockWidth + padX * 2) * fit) / width) * 100,
+    CANVAS_TEXT_SAFE_MARGIN_X
+  )
+  const centreY = clampCanvasBoxCentre(
+    layer.positionY,
+    (((blockHeight + padY * 2) * fit) / height) * 100,
+    CANVAS_TEXT_SAFE_MARGIN_Y
+  )
+  ctx.translate((centreX / 100) * width, (centreY / 100) * height)
+  ctx.rotate((layer.rotationDeg * Math.PI) / 180)
+  ctx.scale(fit, fit)
 
   // Like the preview, the box is centred on its point; alignment only moves
   // lines within the box.

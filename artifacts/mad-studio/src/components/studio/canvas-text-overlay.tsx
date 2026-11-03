@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -55,8 +56,12 @@ import {
   type CanvasTextShadow,
 } from "@/lib/studio/canvas-text-types"
 import {
+  CANVAS_TEXT_SAFE_MARGIN_X,
+  CANVAS_TEXT_SAFE_MARGIN_Y,
+  canvasBoxFitScale,
   canvasTextFontSizePx,
   canvasTextLineHeightPx,
+  clampCanvasBoxCentre,
   clampCanvasTextFontScale,
   clampCanvasTextRotationDeg,
   resolveCanvasTextFontScale,
@@ -309,6 +314,7 @@ function DraggableDecor({
   onRotatePointerDown,
   boxRef,
   label,
+  keepInside = false,
 }: {
   interactive: boolean
   x: number
@@ -322,18 +328,55 @@ function DraggableDecor({
   onRotatePointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void
   boxRef?: RefObject<HTMLDivElement | null>
   label?: string
+  /** Keep the whole box inside the safe area, exactly as it's baked. */
+  keepInside?: boolean
 }) {
   const handlesOn = interactive && showDragHandles
   const localBoxRef = useRef<HTMLDivElement>(null)
   const textBoxRef = boxRef ?? localBoxRef
+  const outerRef = useRef<HTMLDivElement>(null)
+  const [placed, setPlaced] = useState({ x, y, fit: 1 })
+
+  // Same rule as the baked image: nudge the box in from the edges and
+  // shrink it if it's wider than the safe area.
+  useLayoutEffect(() => {
+    const outer = outerRef.current
+    const frame = outer?.offsetParent as HTMLElement | null
+    // The text itself is the last child (resize / rotate handles come first).
+    const content = textBoxRef.current?.lastElementChild as HTMLElement | null
+    let next = { x, y, fit: 1 }
+    if (keepInside && outer && frame && frame.clientWidth > 0 && frame.clientHeight > 0) {
+      const source = content ?? outer
+      const widthPct =
+        (Math.max(source.scrollWidth, source.offsetWidth) / frame.clientWidth) * 100
+      const heightPct = (source.offsetHeight / frame.clientHeight) * 100
+      const fit = canvasBoxFitScale(widthPct)
+      next = {
+        x: clampCanvasBoxCentre(x, widthPct * fit, CANVAS_TEXT_SAFE_MARGIN_X),
+        y: clampCanvasBoxCentre(y, heightPct * fit, CANVAS_TEXT_SAFE_MARGIN_Y),
+        fit,
+      }
+    }
+    if (
+      Math.abs(next.x - placed.x) > 0.01 ||
+      Math.abs(next.y - placed.y) > 0.01 ||
+      Math.abs(next.fit - placed.fit) > 0.001
+    ) {
+      setPlaced(next)
+    }
+  })
 
   return (
     <div
+      ref={outerRef}
       className="absolute inline-block w-max max-w-[92%] touch-none select-none overflow-visible"
       style={{
-        left: `${x}%`,
-        top: `${y}%`,
-        transform: "translate(-50%, -50%)",
+        left: `${placed.x}%`,
+        top: `${placed.y}%`,
+        transform:
+          placed.fit < 1
+            ? `translate(-50%, -50%) scale(${placed.fit})`
+            : "translate(-50%, -50%)",
       }}
     >
       <div
@@ -444,6 +487,7 @@ function CanvasTextBox({
       showDragHandles={selected}
       label={canvasSelectableLabel(layer.id)}
       boxRef={boxRef}
+      keepInside
       onPointerDown={(event) => {
         selectCanvasItem(layer.id)
         drag.onPointerDown(event)
