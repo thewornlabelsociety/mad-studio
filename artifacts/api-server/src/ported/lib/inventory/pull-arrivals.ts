@@ -339,6 +339,18 @@ function extractListingAesthetics(record: Record<string, unknown>): {
   }
 }
 
+/**
+ * The listing's page on the Worn Label website: /product/<listing id>.
+ * (The listing id, not the shop item id — and the old
+ * /marketplace/listings/... address now shows an error page.)
+ */
+function wornLabelProductUrl(record: Record<string, unknown>): string | null {
+  const id = stringField(record, "id")
+  return id && /^\d+$/.test(id)
+    ? `https://www.wornlabelsociety.co.nz/product/${id}`
+    : null
+}
+
 /** Worn Label Society `/api/public/marketplace/listings` (array). */
 function parseWornLabelListings(payload: unknown): PulledArrival[] {
   const rows = Array.isArray(payload)
@@ -408,7 +420,8 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
           discountedAt: stringField(record, "discountedAt"),
         }),
         availability: classifyWornLabelAvailability(record),
-        listing_url: listingUrlFromRecord(record),
+        listing_url:
+          listingUrlFromRecord(record) ?? wornLabelProductUrl(record),
       })
     })
     .filter((item): item is PulledArrival => item != null)

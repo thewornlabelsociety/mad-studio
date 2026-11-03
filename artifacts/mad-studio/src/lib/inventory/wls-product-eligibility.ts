@@ -152,7 +152,9 @@ export function buildWlsDestinationUrl(input: {
         : `https://${websiteRaw}`
     )
     if (/wornlabelsociety\.co\.nz$/i.test(base.hostname.replace(/^www\./i, ""))) {
-      base.hostname = "www.wornlabelsociety.co.nz"
+      // Listing pages need the listing id, which comes with the next stock
+      // pull. Until then send people to new arrivals, never an error page.
+      return "https://www.wornlabelsociety.co.nz/shop?newArrivals=true"
     }
     return `${base.origin}/marketplace/listings/${encodeURIComponent(itemId)}`
   } catch {
