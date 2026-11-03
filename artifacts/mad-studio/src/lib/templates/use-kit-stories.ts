@@ -182,6 +182,11 @@ export function useKitStories(input: {
   const [colours, setColours] = useState<Record<string, Rgb | null>>({})
   // Vibe, background and placement edits per item, kept across visits.
   const [edits, setEdits] = useRememberedState<Record<string, StoryEdits>>(`mad.storyEdits.${entityId}`, {})
+  // The last On the card choices carry to every item you haven't set yourself.
+  const [lastHidden, setLastHidden] = useRememberedState<Partial<Record<StoryField, boolean>>>(
+    `mad.storyFieldsLast.${entityId}`,
+    {}
+  )
   const [sharedAt, setSharedAt] = useState<Record<string, string | null>>({})
   const sampling = useRef(new Set<string>())
 
@@ -321,6 +326,7 @@ export function useKitStories(input: {
     for (const row of eligible) {
       const id = row.marketingEntityId
       const rowEdits = edits[id] ?? {}
+      const hidden = rowEdits.hidden ?? lastHidden
       const pick = pickStoryBackground({
         kit,
         traits: detectItemTraits({ text: itemText(row), colour: colours[id] ?? null }),
@@ -357,12 +363,12 @@ export function useKitStories(input: {
         sizeLabel: rowEdits.sizeLabel?.trim() || shopSize,
         shopSizeLabel: shopSize,
         show: {
-          tag: !rowEdits.hidden?.tag,
-          vibe: !rowEdits.hidden?.vibe,
-          designer: !rowEdits.hidden?.designer,
-          category: !rowEdits.hidden?.category,
-          size: !rowEdits.hidden?.size,
-          price: !rowEdits.hidden?.price,
+          tag: !hidden.tag,
+          vibe: !hidden.vibe,
+          designer: !hidden.designer,
+          category: !hidden.category,
+          size: !hidden.size,
+          price: !hidden.price,
         },
         priceLabel: formatWlsNzdPrice(row),
         sourceImage,
@@ -374,11 +380,13 @@ export function useKitStories(input: {
       })
     }
     return out
-  }, [eligible, edits, kit, colours, cutouts, entityName, entityId])
+  }, [eligible, edits, lastHidden, kit, colours, cutouts, entityName, entityId])
 
   const patch = useCallback((id: string, next: StoryEdits) => {
     setEdits((current) => ({ ...current, [id]: { ...current[id], ...next } }))
-  }, [])
+    // Ticking a line on or off also sets it for the next items.
+    if (next.hidden) setLastHidden(next.hidden)
+  }, [setEdits, setLastHidden])
 
   const retryCutout = useCallback((id: string) => {
     setCutoutFailed((current) => {

@@ -435,7 +435,13 @@ export function WlsDailyStoryWorkspace({
                     onClick={() =>
                       selectedId &&
                       story &&
-                      patch(selectedId, { hidden: { ...story.edits.hidden, [field.id]: on } })
+                      patch(selectedId, {
+                        // Every line as it shows now, with this one switched.
+                        hidden: {
+                          ...Object.fromEntries(STORY_FIELDS.map((row) => [row.id, !story.show[row.id]])),
+                          [field.id]: on,
+                        },
+                      })
                     }
                     aria-pressed={on}
                     title={
