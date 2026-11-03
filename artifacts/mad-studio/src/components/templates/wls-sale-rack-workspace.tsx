@@ -24,7 +24,7 @@ import {
 } from "@/lib/templates/use-kit-stories"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { useRememberedState } from "@/lib/use-remembered-state"
-import { useStoryCardStyle } from "@/lib/templates/story-card-style"
+import { pieceType, useStoryCardStyle } from "@/lib/templates/story-card-style"
 import { cn } from "@/lib/utils"
 
 /** A carousel takes the cover plus nine pieces. */
@@ -306,6 +306,7 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
                         vibe={item.vibe}
                         designer={item.designer}
                         sizeLabel={item.sizeLabel}
+                        categoryLabel={pieceType(item.row.title, item.row.brand)}
                         priceLine={{ was: money(item.was), now: money(item.now) }}
                         cardStyle={cardStyle}
                         showLinkGuide={false}

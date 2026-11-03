@@ -40,13 +40,14 @@ import {
   copyStoryLink,
   shareOrDownloadStory,
   STORY_FIELDS,
+  type StoryField,
   storyCardWords,
   useKitStories,
 } from "@/lib/templates/use-kit-stories"
 import {
   WLS_DAILY_STORY_STUDIO_MAX_FRAMES,
 } from "@/lib/templates/wls-daily-story-studio-seed"
-import { useStoryCardStyle } from "@/lib/templates/story-card-style"
+import { useStoryCardStyle, type CardField } from "@/lib/templates/story-card-style"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -62,6 +63,15 @@ type TemplateState = {
   instance: EntityTemplateInstance
   versionId: string | null
   created: boolean
+}
+
+/** Which Card style switch also controls each per-Story line. */
+const STORY_FIELD_STYLE: Partial<Record<StoryField, CardField>> = {
+  designer: "brand",
+  category: "category",
+  vibe: "vibe",
+  size: "size",
+  price: "price",
 }
 
 export function WlsDailyStoryWorkspace({
@@ -413,19 +423,28 @@ export function WlsDailyStoryWorkspace({
             <h2 className="font-typewriter text-xs uppercase tracking-widest">On the card</h2>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Words on the card">
               {STORY_FIELDS.map((field) => {
-                const on = story?.show[field.id] ?? true
+                // Card style can switch a line off for every Story at once.
+                const styleField = STORY_FIELD_STYLE[field.id]
+                const offEverywhere = styleField ? !cardStyle.fields[styleField] : false
+                const on = !offEverywhere && (story?.show[field.id] ?? true)
                 return (
                   <button
                     key={field.id}
                     type="button"
-                    disabled={!story}
+                    disabled={!story || offEverywhere}
                     onClick={() =>
                       selectedId &&
                       story &&
                       patch(selectedId, { hidden: { ...story.edits.hidden, [field.id]: on } })
                     }
                     aria-pressed={on}
-                    title={on ? `Take ${field.label.toLowerCase()} off the card` : `Put ${field.label.toLowerCase()} on the card`}
+                    title={
+                      offEverywhere
+                        ? `${field.label} is off for every Story. Turn it on in Card style (top right).`
+                        : on
+                          ? `Take ${field.label.toLowerCase()} off the card`
+                          : `Put ${field.label.toLowerCase()} on the card`
+                    }
                     className={cn(
                       "flex h-8 items-center gap-1 border-2 border-mad-black px-2.5 text-xs font-medium disabled:opacity-40",
                       on ? "bg-mad-black text-mad-white" : "border-dashed text-mad-black/70 hover:bg-[#F4EFE6]"
@@ -471,6 +490,37 @@ export function WlsDailyStoryWorkspace({
                 : story.vibeFromShop
                   ? "From the shop listing. Change it if you like."
                   : "The listing has no vibe, so this is from the title."}
+            </span>
+          </label>
+
+          <label className="grid gap-1.5">
+            <span className="font-typewriter text-xs uppercase tracking-widest">Sub category</span>
+            <input
+              id="story-category"
+              type="text"
+              value={story?.edits.category ?? story?.shopCategory ?? ""}
+              maxLength={32}
+              disabled={!story}
+              onChange={(event) => selectedId && patch(selectedId, { category: event.target.value })}
+              className="h-10 border-2 border-mad-black bg-white px-3 text-sm uppercase tracking-wider"
+            />
+            <span className="flex items-center justify-between gap-2 text-[11px] text-mad-black/55">
+              <span>
+                {story?.edits.category !== undefined && story.shopCategory
+                  ? `From the title: ${story.shopCategory}.`
+                  : "The kind of piece, from the shop title. Change it if you like."}
+              </span>
+              {story?.edits.category !== undefined ? (
+                <button
+                  type="button"
+                  onClick={() => selectedId && patch(selectedId, { category: undefined })}
+                  title="Go back to the sub category from the title"
+                  aria-label="Use the sub category from the title"
+                  className="flex size-6 shrink-0 items-center justify-center text-mad-black/60 hover:text-mad-black"
+                >
+                  <RotateCcw className="size-3" aria-hidden />
+                </button>
+              ) : null}
             </span>
           </label>
 

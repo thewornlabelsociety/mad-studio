@@ -48,7 +48,7 @@ export type StoryCardStyle = {
 
 export const DEFAULT_STORY_CARD_STYLE: StoryCardStyle = {
   // Stories lead with the vibe and skip the "No. 01" numbering.
-  fields: { ...DEFAULT_CARD_FIELDS, number: false, vibe: true },
+  fields: { ...DEFAULT_CARD_FIELDS, number: false, vibe: true, category: true },
   align: "center",
   pillAlign: "right",
   pillFill: "outline",
@@ -61,7 +61,7 @@ export const DEFAULT_STORY_CARD_STYLE: StoryCardStyle = {
  */
 export function useStoryCardStyle(entityId: string) {
   const [style, setStyle] = useRememberedState<StoryCardStyle>(
-    `mad.storyCardStyle.${entityId}`,
+    `mad.storyCardStyle.v2.${entityId}`,
     DEFAULT_STORY_CARD_STYLE
   )
   // Older saves may miss a field added later.

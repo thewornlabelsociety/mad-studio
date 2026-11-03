@@ -25,6 +25,8 @@ export const EditItemSlide = forwardRef<
     editLabel: string
     /** Small line above the designer, e.g. NO. 01 or THE HAT. */
     eyebrow?: string | null
+    /** A heading over the piece, under the header rule, e.g. the vibe. */
+    heading?: string | null
     /** The title page's style: editorial sets the designer in the tall serif. */
     editorial?: boolean
     /** Where the words sit under the piece. */
@@ -57,7 +59,7 @@ export const EditItemSlide = forwardRef<
     className?: string
   }
 >(function EditItemSlide(
-  { background, brandName, editLabel, eyebrow = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, subject = NO_ADJUST, onSubjectChange, subjectSelected = false, onSubjectSelect, showLinkGuide = false, className },
+  { background, brandName, editLabel, eyebrow = null, heading = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, subject = NO_ADJUST, onSubjectChange, subjectSelected = false, onSubjectSelect, showLinkGuide = false, className },
   ref
 ) {
   const ink = background.text_color
@@ -101,6 +103,25 @@ export const EditItemSlide = forwardRef<
           <Wordmark brandName={brandName} accent={accent} size={2.6} />
         </div>
         <span style={{ display: "block", height: "0.25cqw", background: ink, opacity: 0.5, marginTop: "2.4cqw" }} />
+        {heading?.trim() ? (
+          <p
+            style={{
+              ...caps,
+              fontWeight: 600,
+              fontSize: "3.6cqw",
+              letterSpacing: "0.32em",
+              lineHeight: 1.3,
+              color: accent,
+              textAlign: align,
+              marginTop: "4cqw",
+              // Sits a touch left so it reads as centred over the item, and follows
+              // the item when it is dragged sideways (the item area is 76cqw wide).
+              transform: `translateX(${(subject.dx * 0.76 - (align === "center" ? 1.2 : 0)).toFixed(2)}cqw)`,
+            }}
+          >
+            {heading.trim()}
+          </p>
+        ) : null}
         {/* The fabric pill sits under the header, top right unless moved. */}
         {fabricLabel ? (
           <div style={{ display: "flex", justifyContent: toFlex(pillAlign), marginTop: "3cqw" }}>

@@ -81,7 +81,8 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
       imageUrl={imageUrl}
       designer={show.brand ? designer : null}
       categoryLabel={show.category ? categoryLabel : null}
-      vibeLabel={show.vibe ? vibe : null}
+      // The vibe heads the card, above the item, like an eyebrow.
+      heading={show.vibe ? vibe : null}
       sizeLabel={show.size ? sizeLabel : null}
       fabricLabel={fabricLabel}
       pillAlign={cardStyle.pillAlign}

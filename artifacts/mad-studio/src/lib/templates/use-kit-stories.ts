@@ -30,12 +30,13 @@ import { buildWlsDailyStoryCanvasModel } from "@/lib/templates/wls-daily-story"
 import { useRememberedState } from "@/lib/use-remembered-state"
 
 /** The words a new-arrival Story can show; each can be ticked off per Story. */
-export type StoryField = "tag" | "vibe" | "designer" | "size" | "price"
+export type StoryField = "tag" | "vibe" | "designer" | "category" | "size" | "price"
 
 export const STORY_FIELDS: Array<{ id: StoryField; label: string }> = [
   { id: "tag", label: "New in" },
   { id: "vibe", label: "Vibe" },
   { id: "designer", label: "Brand" },
+  { id: "category", label: "Sub category" },
   { id: "size", label: "Size" },
   { id: "price", label: "Price" },
 ]
@@ -45,6 +46,8 @@ export type StoryEdits = {
   /** Replaces the brand line, e.g. "No tag" becomes a short title. */
   designer?: string
   sizeLabel?: string
+  /** Replaces the sub category from the title, e.g. "Leather Jacket". */
+  category?: string
   /** Fields ticked off this Story. Missing means shown. */
   hidden?: Partial<Record<StoryField, boolean>>
   /** A fabric pill, e.g. LEATHER; none until picked. */
@@ -71,7 +74,7 @@ export function storyCardWords(story: KitStory): {
     designer: story.show.designer && story.designer.trim() ? story.designer : null,
     sizeLabel: story.show.size ? story.sizeLabel : null,
     // Shown when Card style switches them on.
-    categoryLabel: pieceType(story.row.title, story.row.brand),
+    categoryLabel: story.show.category && story.category.trim() ? story.category : null,
     priceLabel: story.show.price ? shortPrice(story.priceLabel) : null,
     fabricLabel: story.edits.fabric?.trim() || null,
   }
@@ -89,6 +92,10 @@ export type KitStory = {
   designer: string
   /** The brand line from the shop, before any edit. */
   shopDesigner: string
+  /** The kind of piece, e.g. MAXI SKIRT. */
+  category: string
+  /** The kind of piece from the shop title, before any edit. */
+  shopCategory: string
   sizeLabel: string | null
   shopSizeLabel: string | null
   /** Which words go on the card. */
@@ -345,12 +352,15 @@ export function useKitStories(input: {
         vibeFromShop: Boolean(row.vibe?.trim()),
         designer: rowEdits.designer?.trim() || model.designer,
         shopDesigner: model.designer,
+        category: rowEdits.category?.trim() || pieceType(row.title, row.brand) || "",
+        shopCategory: pieceType(row.title, row.brand) ?? "",
         sizeLabel: rowEdits.sizeLabel?.trim() || shopSize,
         shopSizeLabel: shopSize,
         show: {
           tag: !rowEdits.hidden?.tag,
           vibe: !rowEdits.hidden?.vibe,
           designer: !rowEdits.hidden?.designer,
+          category: !rowEdits.hidden?.category,
           size: !rowEdits.hidden?.size,
           price: !rowEdits.hidden?.price,
         },
