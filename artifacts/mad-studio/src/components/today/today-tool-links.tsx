@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "wouter"
-import { ArrowRight, CalendarRange, CircleDot, Clock, Columns2, Layers3, Megaphone, Search, Shirt, Sparkles, Tag, type LucideIcon } from "lucide-react"
+import { ArrowRight, CalendarRange, Camera, CircleDot, Clock, Columns2, Layers3, Megaphone, Search, Shirt, Sparkles, Tag, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -23,6 +23,12 @@ const TOOLS: Array<{ path: string; icon: LucideIcon; title: string; detail: stri
     icon: Layers3,
     title: "One piece, three ways",
     detail: "One piece from the racks, styled three ways",
+  },
+  {
+    path: "/templates/wls-staff-outfit",
+    icon: Camera,
+    title: "Staff outfit check",
+    detail: "The team in pieces from the racks, every piece tagged",
   },
   {
     path: "/templates/wls-inspo",
