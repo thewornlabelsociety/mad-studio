@@ -56,16 +56,23 @@ export const SaleItemSlide = forwardRef<
     wasLabel: string
     nowLabel: string
     percentOff: number
+    /** Top-left label; SALE RACK by default. */
+    kicker?: string
+    /** A dot special's tag dot: the badge takes its colour. */
+    dot?: { hex: string; text: string } | null
     className?: string
   }
 >(function SaleItemSlide(
-  { background, brandName, imageUrl, designer, sizeLabel, wasLabel, nowLabel, percentOff, className },
+  { background, brandName, imageUrl, designer, sizeLabel, wasLabel, nowLabel, percentOff, kicker = "Sale rack", dot = null, className },
   ref
 ) {
+  const badge = dot ? { fill: dot.hex, ink: dot.text } : { fill: background.accent_color, ink: background.color }
+  // A dot the same colour as the slide needs a ring to show.
+  const ringed = dot != null && dot.hex.toLowerCase() === background.color.toLowerCase()
   return (
     <div ref={ref} className={className} style={frame(background)}>
       <div style={{ position: "absolute", inset: "6cqw 6cqw auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <p style={{ ...caps, fontSize: "3.6cqw", letterSpacing: "0.3em", color: background.accent_color }}>Sale rack</p>
+        <p style={{ ...caps, fontSize: "3.6cqw", letterSpacing: "0.3em", color: background.accent_color }}>{kicker}</p>
         <Wordmark brandName={brandName} accent={background.accent_color} />
       </div>
 
@@ -96,8 +103,9 @@ export const SaleItemSlide = forwardRef<
             width: "19cqw",
             height: "19cqw",
             borderRadius: "50%",
-            background: background.accent_color,
-            color: background.color,
+            background: badge.fill,
+            color: badge.ink,
+            boxShadow: ringed ? `0 0 0 0.6cqw ${background.color}, 0 0 0 0.9cqw ${background.text_color}` : undefined,
             display: "grid",
             placeItems: "center",
             textAlign: "center",

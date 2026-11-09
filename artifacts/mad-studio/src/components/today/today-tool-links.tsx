@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "wouter"
-import { ArrowRight, CalendarRange, Clock, Columns2, Megaphone, Search, Shirt, Sparkles, Tag, type LucideIcon } from "lucide-react"
+import { ArrowRight, CalendarRange, CircleDot, Clock, Columns2, Megaphone, Search, Shirt, Sparkles, Tag, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -35,6 +35,12 @@ const TOOLS: Array<{ path: string; icon: LucideIcon; title: string; detail: stri
     icon: Tag,
     title: "Sale rack",
     detail: "Thursday carousel and Stories from markdowns",
+  },
+  {
+    path: "/templates/wls-specials",
+    icon: CircleDot,
+    title: "This week's specials",
+    detail: "A dot special with was and now on every piece",
   },
   {
     path: "/templates/wls-wants",
