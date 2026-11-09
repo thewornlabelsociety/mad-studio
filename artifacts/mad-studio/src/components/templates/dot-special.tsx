@@ -1,6 +1,6 @@
 "use client"
 
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react"
+import { forwardRef, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react"
 import { useLocation } from "wouter"
 import { ArrowRight, Check, FileText, Loader2, Share2 } from "lucide-react"
 import { toast } from "sonner"
@@ -41,6 +41,11 @@ const DEFAULT_SPECIAL: DotSpecial = {
   footer: "In-store & online · Whangārei",
 }
 
+/** The brand's current dot special, kept on this device and shared by every screen that shows it. */
+export function useDotSpecial(entityId: string) {
+  return useRememberedState<DotSpecial>(`mad.dotSpecial.${entityId}`, DEFAULT_SPECIAL)
+}
+
 const WHEN_PRESETS = ["This weekend only", "This week only", "Today only"]
 
 /** A4 at 96dpi; exported at 2x for print. */
@@ -52,7 +57,7 @@ export function printBackground(kit: StoryBackground[]): StoryBackground {
   return { ...kit[0], id: "print_white", name: "White", color: "#FFFFFF", text_color: "#252525", accent_color: "#94733F" }
 }
 
-function colourLabel(name: WornLabelTagColorName): string {
+export function colourLabel(name: WornLabelTagColorName): string {
   return name.charAt(0) + name.slice(1).toLowerCase()
 }
 
@@ -166,6 +171,74 @@ export const DotSpecialArt = forwardRef<
   )
 })
 
+/** The dot special's wording: dot colour, discount, when, script line and bottom line. */
+export function DotSpecialFields({
+  special,
+  onChange,
+}: {
+  special: DotSpecial
+  onChange: Dispatch<SetStateAction<DotSpecial>>
+}) {
+  const field = "h-9 w-full border-2 border-mad-black bg-white px-2 text-sm"
+
+  function set<K extends keyof DotSpecial>(key: K, value: DotSpecial[K]) {
+    onChange((current) => ({ ...current, [key]: value }))
+  }
+
+  return (
+    <div className="grid content-start gap-3">
+      <div className="grid gap-1 text-xs">
+        <span className="font-typewriter uppercase tracking-widest">Dot colour</span>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Dot colour">
+          {(Object.keys(WORN_LABEL_TAG_COLORS) as WornLabelTagColorName[]).map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => set("color", name)}
+              title={colourLabel(name)}
+              aria-label={`${colourLabel(name)} dot`}
+              aria-pressed={special.color === name}
+              className={cn(
+                "size-8 rounded-full border border-black/20",
+                special.color === name && "ring-2 ring-mad-black ring-offset-2"
+              )}
+              style={{ background: WORN_LABEL_TAG_COLORS[name].hex }}
+            />
+          ))}
+        </div>
+      </div>
+      <label className="grid gap-1 text-xs">
+        <span className="font-typewriter uppercase tracking-widest">Discount</span>
+        <input id="dot-discount" className={field} value={special.discount} maxLength={14} onChange={(e) => set("discount", e.target.value)} />
+      </label>
+      <label className="grid gap-1 text-xs">
+        <span className="font-typewriter uppercase tracking-widest">When</span>
+        <input id="dot-when" className={field} value={special.when} maxLength={32} onChange={(e) => set("when", e.target.value)} />
+      </label>
+      <div className="flex flex-wrap gap-1.5">
+        {WHEN_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => set("when", preset)}
+            className="border border-mad-black/30 px-2.5 py-1 text-xs hover:border-mad-black"
+          >
+            {preset}
+          </button>
+        ))}
+      </div>
+      <label className="grid gap-1 text-xs">
+        <span className="font-typewriter uppercase tracking-widest">Script line (optional)</span>
+        <input id="dot-line" className={field} value={special.line} maxLength={48} onChange={(e) => set("line", e.target.value)} />
+      </label>
+      <label className="grid gap-1 text-xs">
+        <span className="font-typewriter uppercase tracking-widest">Bottom line</span>
+        <input id="dot-footer" className={field} value={special.footer} maxLength={40} onChange={(e) => set("footer", e.target.value)} />
+      </label>
+    </div>
+  )
+}
+
 /** Colour dot special editor: kit Story and feed card, plus the white A4 sheet for the shop. */
 export function DotSpecialPanel({
   entityId,
@@ -177,7 +250,7 @@ export function DotSpecialPanel({
   kit: StoryBackground[]
 }) {
   const [, navigate] = useLocation()
-  const [special, setSpecial] = useRememberedState<DotSpecial>(`mad.dotSpecial.${entityId}`, DEFAULT_SPECIAL)
+  const [special, setSpecial] = useDotSpecial(entityId)
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.dotSpecial.${entityId}.background`, "charcoal")
   const [busy, setBusy] = useState<"story" | "studio" | "print" | null>(null)
   const storyRef = useRef<HTMLDivElement>(null)
@@ -185,7 +258,6 @@ export function DotSpecialPanel({
   const printRef = useRef<HTMLDivElement>(null)
   const background = kit.find((bg) => bg.id === backgroundId) ?? kit[0]
   const white = useMemo(() => printBackground(kit), [kit])
-  const field = "h-9 w-full border-2 border-mad-black bg-white px-2 text-sm"
 
   // Opened from a campaign step (#dot-special): bring it into view.
   useEffect(() => {
@@ -193,10 +265,6 @@ export function DotSpecialPanel({
     const timer = window.setTimeout(() => document.getElementById("dot-special")?.scrollIntoView({ behavior: "smooth" }), 300)
     return () => window.clearTimeout(timer)
   }, [])
-
-  function set<K extends keyof DotSpecial>(key: K, value: DotSpecial[K]) {
-    setSpecial((current) => ({ ...current, [key]: value }))
-  }
 
   async function run(kind: "story" | "studio" | "print", work: () => Promise<void>) {
     setBusy(kind)
@@ -282,56 +350,7 @@ export function DotSpecialPanel({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-        <div className="grid content-start gap-3">
-          <div className="grid gap-1 text-xs">
-            <span className="font-typewriter uppercase tracking-widest">Dot colour</span>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Dot colour">
-              {(Object.keys(WORN_LABEL_TAG_COLORS) as WornLabelTagColorName[]).map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => set("color", name)}
-                  title={colourLabel(name)}
-                  aria-label={`${colourLabel(name)} dot`}
-                  aria-pressed={special.color === name}
-                  className={cn(
-                    "size-8 rounded-full border border-black/20",
-                    special.color === name && "ring-2 ring-mad-black ring-offset-2"
-                  )}
-                  style={{ background: WORN_LABEL_TAG_COLORS[name].hex }}
-                />
-              ))}
-            </div>
-          </div>
-          <label className="grid gap-1 text-xs">
-            <span className="font-typewriter uppercase tracking-widest">Discount</span>
-            <input id="dot-discount" className={field} value={special.discount} maxLength={14} onChange={(e) => set("discount", e.target.value)} />
-          </label>
-          <label className="grid gap-1 text-xs">
-            <span className="font-typewriter uppercase tracking-widest">When</span>
-            <input id="dot-when" className={field} value={special.when} maxLength={32} onChange={(e) => set("when", e.target.value)} />
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {WHEN_PRESETS.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => set("when", preset)}
-                className="border border-mad-black/30 px-2.5 py-1 text-xs hover:border-mad-black"
-              >
-                {preset}
-              </button>
-            ))}
-          </div>
-          <label className="grid gap-1 text-xs">
-            <span className="font-typewriter uppercase tracking-widest">Script line (optional)</span>
-            <input id="dot-line" className={field} value={special.line} maxLength={48} onChange={(e) => set("line", e.target.value)} />
-          </label>
-          <label className="grid gap-1 text-xs">
-            <span className="font-typewriter uppercase tracking-widest">Bottom line</span>
-            <input id="dot-footer" className={field} value={special.footer} maxLength={40} onChange={(e) => set("footer", e.target.value)} />
-          </label>
-        </div>
+        <DotSpecialFields special={special} onChange={setSpecial} />
 
         <div className="flex flex-wrap items-start gap-5">
           <div className="flex w-[200px] flex-col gap-2">

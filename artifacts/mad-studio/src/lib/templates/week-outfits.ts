@@ -75,7 +75,7 @@ export function wearsWith(a: GarmentGender | null, b: GarmentGender | null): boo
   return a == null || b == null || a === "unisex" || b === "unisex" || a === b
 }
 
-function sortBySlot(ids: string[], byId: Map<string, OutfitPiece>): string[] {
+export function sortBySlot(ids: string[], byId: Map<string, OutfitPiece>): string[] {
   return [...ids].sort(
     (a, b) =>
       OUTFIT_SLOT_ORDER.indexOf(byId.get(a)?.slot ?? "other") -
