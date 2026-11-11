@@ -878,10 +878,10 @@ export const CANVAS_TEXT_FONTS: CanvasTextFontDefinition[] = [
   {
     id: "wls_serif",
     label: "Worn Label serif",
-    className: "uppercase tracking-tight font-medium",
-    primaryFamily: "Bodoni Moda",
-    canvasWeight: 500,
-    style: { fontFamily: '"Bodoni Moda", Didot, "Times New Roman", serif' },
+    className: "uppercase tracking-tight font-normal",
+    primaryFamily: "DM Serif Display",
+    canvasWeight: 400,
+    style: { fontFamily: '"DM Serif Display", Georgia, "Times New Roman", serif' },
   },
   {
     id: "wls_script",
