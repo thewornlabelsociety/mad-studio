@@ -89,6 +89,11 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
       pieceIds.flatMap((id) => {
         const story = stories.get(id)
         if (!story || story.row.price == null) return []
+        // Already marked down on the website: its sale price is the special
+        // price, so don't take the discount off a second time.
+        if (story.row.wasPrice != null) {
+          return [{ ...story, was: Number(story.row.wasPrice), now: Number(story.row.price) } as SpecialStory]
+        }
         const was = Number(story.row.price)
         return [{ ...story, was, now: discount ? specialPrice(was, discount) : null } as SpecialStory]
       }),
