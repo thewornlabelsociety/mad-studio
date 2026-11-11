@@ -99,7 +99,15 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
   /** Priced stock not already on the special, for the search panel. */
   const options: PickerOption[] = useMemo(
     () =>
-      eligible.flatMap((row) => {
+      // Newest markdowns first, then the rest of the stock.
+      [...eligible]
+        .sort((a, b) => {
+          const aDown = a.wasPrice != null
+          const bDown = b.wasPrice != null
+          if (aDown !== bDown) return aDown ? -1 : 1
+          return (b.discountedAt ?? "").localeCompare(a.discountedAt ?? "")
+        })
+        .flatMap((row) => {
         if (pieceIds.includes(row.marketingEntityId) || row.price == null) return []
         const story = stories.get(row.marketingEntityId)
         if (!story) return []
@@ -109,9 +117,18 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
             id: row.marketingEntityId,
             brand: story.designer,
             title: row.title,
-            detail: [formatSizeForText(row.size), money(Number(row.price)), row.vibe].filter(Boolean).join(" · "),
+            detail: [
+              formatSizeForText(row.size),
+              row.wasPrice != null
+                ? `${money(Number(row.price))} (was ${money(row.wasPrice)})`
+                : money(Number(row.price)),
+              row.vibe,
+            ]
+              .filter(Boolean)
+              .join(" · "),
             thumb: image ? proxiedImageUrl(image, entityId) : null,
             searchText: [row.title, row.brand, row.description, row.category, row.vibe, row.size].filter(Boolean).join(" "),
+            markedDown: row.wasPrice != null,
           },
         ]
       }),
@@ -306,7 +323,7 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
             )}
             {loaded && pieces.length < SPECIALS_MAX ? (
               <div>
-                <PiecePicker label="piece" adding addText="Add a piece" options={options} onPick={addPiece} />
+                <PiecePicker label="piece" adding addText="Add a piece" options={options} onPick={addPiece} markedDownOnly />
               </div>
             ) : null}
           </section>

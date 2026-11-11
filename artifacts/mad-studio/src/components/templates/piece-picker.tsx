@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, Tag } from "lucide-react"
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { matchesQuery } from "@/lib/templates/week-outfits"
@@ -14,6 +14,8 @@ export type PickerOption = {
   thumb: string | null
   /** Everything searchable: title, brand, colour, category, vibe, size. */
   searchText: string
+  /** Marked down on the website (has a was price). */
+  markedDown?: boolean
 }
 
 /** Search the stock that fits this spot, by colour, brand or type, and pick one. */
@@ -24,7 +26,10 @@ export function PiecePicker({
   adding = false,
   addText,
   quiet = false,
+  markedDownOnly = false,
 }: {
+  /** Start with only marked-down pieces showing (when there are any). */
+  markedDownOnly?: boolean
   /** e.g. "top", for the button's name and the search placeholder. */
   label: string
   /** Adds a new piece rather than swapping one out: a labelled "Add a …" button. */
@@ -69,6 +74,7 @@ export function PiecePicker({
         <PieceSearch
           label={label}
           options={options}
+          markedDownOnly={markedDownOnly}
           onPick={(id) => {
             onPick(id)
             setOpen(false)
@@ -84,15 +90,29 @@ export function PieceSearch({
   label,
   options,
   onPick,
+  markedDownOnly = false,
 }: {
   label: string
   options: PickerOption[]
   onPick: (id: string) => void
+  /** Start with only marked-down pieces showing (when there are any). */
+  markedDownOnly?: boolean
 }) {
   const [query, setQuery] = useState("")
+  const markedDownCount = useMemo(
+    () => options.filter((option) => option.markedDown).length,
+    [options]
+  )
+  const [onlyMarkedDown, setOnlyMarkedDown] = useState(markedDownOnly)
+  const filtering = onlyMarkedDown && markedDownCount > 0
+  const pool = useMemo(
+    () => (filtering ? options.filter((option) => option.markedDown) : options),
+    [options, filtering]
+  )
+  // Every match: the list scrolls, so nothing past an arbitrary cap is lost.
   const results = useMemo(
-    () => options.filter((option) => matchesQuery(option.searchText, query)).slice(0, 40),
-    [options, query]
+    () => pool.filter((option) => matchesQuery(option.searchText, query)),
+    [pool, query]
   )
   return (
     <>
@@ -106,11 +126,33 @@ export function PieceSearch({
           aria-label={`Search ${label}s`}
           className="h-9 w-full border-2 border-mad-black px-2 text-sm"
         />
-        <p className="mt-1 text-[11px] text-mad-black/55">
-          {results.length === options.length
-            ? `${options.length} that fit here`
-            : `${results.length} of ${options.length} match`}
-        </p>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-mad-black/55">
+            {results.length === pool.length
+              ? `${pool.length} ${filtering ? "marked down" : "that fit here"}`
+              : `${results.length} of ${pool.length} match`}
+          </p>
+          {markedDownCount > 0 ? (
+            <button
+              type="button"
+              aria-pressed={filtering}
+              title={
+                filtering
+                  ? "Showing marked-down pieces only. Click to show all stock."
+                  : `Show only the ${markedDownCount} marked-down pieces`
+              }
+              onClick={() => setOnlyMarkedDown((value) => !value)}
+              className={
+                filtering
+                  ? "flex h-6 items-center gap-1 border-2 border-mad-black bg-mad-black px-1.5 text-[11px] text-mad-white"
+                  : "flex h-6 items-center gap-1 border-2 border-mad-black bg-white px-1.5 text-[11px] hover:bg-[#F4EFE6]"
+              }
+            >
+              <Tag className="size-3" aria-hidden />
+              Marked down
+            </button>
+          ) : null}
+        </div>
       </div>
       <ul className="max-h-80 overflow-y-auto">
         {results.length === 0 ? (
