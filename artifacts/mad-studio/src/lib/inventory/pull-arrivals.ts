@@ -44,6 +44,8 @@ export type PulledArrival = {
   gender?: string | null
   /** Shop markdown: full price and when it was discounted (Worn Label feeds). */
   markdown?: ListingMarkdown
+  /** Colour of the dot on the tag (Worn Label feeds). */
+  dot_colour?: string | null
   availability: ListingAvailability
   listing_url: string | null
 }
@@ -419,6 +421,7 @@ function parseWornLabelListings(payload: unknown): PulledArrival[] {
           salePrice: numberField(record, "salePrice", "discountedPrice"),
           discountedAt: stringField(record, "discountedAt"),
         }),
+        dot_colour: stringField(record, "dotColour", "dot_colour", "dotColor") ?? null,
         availability: classifyWornLabelAvailability(record),
         listing_url:
           listingUrlFromRecord(record) ?? wornLabelProductUrl(record),

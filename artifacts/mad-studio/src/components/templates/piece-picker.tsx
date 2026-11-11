@@ -14,7 +14,7 @@ export type PickerOption = {
   thumb: string | null
   /** Everything searchable: title, brand, colour, category, vibe, size. */
   searchText: string
-  /** Marked down on the website (has a was price). */
+  /** In the picker's quick filter (marked down, or this week's dot). */
   markedDown?: boolean
 }
 
@@ -27,9 +27,12 @@ export function PiecePicker({
   addText,
   quiet = false,
   markedDownOnly = false,
+  filterLabel,
 }: {
   /** Start with only marked-down pieces showing (when there are any). */
   markedDownOnly?: boolean
+  /** Name of the quick filter; "Marked down" by default. */
+  filterLabel?: string
   /** e.g. "top", for the button's name and the search placeholder. */
   label: string
   /** Adds a new piece rather than swapping one out: a labelled "Add a …" button. */
@@ -75,6 +78,7 @@ export function PiecePicker({
           label={label}
           options={options}
           markedDownOnly={markedDownOnly}
+          filterLabel={filterLabel}
           onPick={(id) => {
             onPick(id)
             setOpen(false)
@@ -91,12 +95,15 @@ export function PieceSearch({
   options,
   onPick,
   markedDownOnly = false,
+  filterLabel = "Marked down",
 }: {
   label: string
   options: PickerOption[]
   onPick: (id: string) => void
   /** Start with only marked-down pieces showing (when there are any). */
   markedDownOnly?: boolean
+  /** Name of the quick filter; "Marked down" by default. */
+  filterLabel?: string
 }) {
   const [query, setQuery] = useState("")
   const markedDownCount = useMemo(
@@ -129,7 +136,7 @@ export function PieceSearch({
         <div className="mt-1 flex items-center justify-between gap-2">
           <p className="text-[11px] text-mad-black/55">
             {results.length === pool.length
-              ? `${pool.length} ${filtering ? "marked down" : "that fit here"}`
+              ? `${pool.length} ${filtering ? filterLabel.toLowerCase() : "that fit here"}`
               : `${results.length} of ${pool.length} match`}
           </p>
           {markedDownCount > 0 ? (
@@ -138,8 +145,8 @@ export function PieceSearch({
               aria-pressed={filtering}
               title={
                 filtering
-                  ? "Showing marked-down pieces only. Click to show all stock."
-                  : `Show only the ${markedDownCount} marked-down pieces`
+                  ? `Showing ${filterLabel.toLowerCase()} pieces only. Click to show all stock.`
+                  : `Show only the ${markedDownCount} ${filterLabel.toLowerCase()} pieces`
               }
               onClick={() => setOnlyMarkedDown((value) => !value)}
               className={
@@ -149,7 +156,7 @@ export function PieceSearch({
               }
             >
               <Tag className="size-3" aria-hidden />
-              Marked down
+              {filterLabel}
             </button>
           ) : null}
         </div>
