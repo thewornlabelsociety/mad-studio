@@ -811,6 +811,32 @@ export function StudioWorkspace({
     [rawSpark]
   )
 
+  // The Hashtags editor is what publishes: keep the pack's tags equal to it.
+  // An empty editor takes the pack's tags (AI / formula / restored draft) so
+  // the tags you see are always the tags in the caption.
+  const packTags = pack?.seo_caption.search_optimized_tags
+  useEffect(() => {
+    if (!packTags) return
+    if (optimizationTags.length === 0) {
+      if (packTags.length > 0) {
+        setOptimizationTags(packTags.slice(0, OPTIMIZATION_TAG_MAX))
+      }
+      return
+    }
+    if (packTags.join(" ") === optimizationTags.join(" ")) return
+    setPack((current) =>
+      current
+        ? {
+            ...current,
+            seo_caption: {
+              ...current.seo_caption,
+              search_optimized_tags: optimizationTags,
+            },
+          }
+        : current
+    )
+  }, [packTags, optimizationTags])
+
   const liveRedirectSlugSeed = useMemo(() => {
     if (!isFudi) return null
     return (
@@ -3023,6 +3049,8 @@ export function StudioWorkspace({
     setRestoredAt(null)
     setActiveHookId(null)
     quickPackCaption.current = null
+    // New artwork, new hashtags: don't carry the last post's tags over.
+    setOptimizationTags([])
     syncPackUrl(null)
   }
 
@@ -3112,6 +3140,10 @@ export function StudioWorkspace({
   }
 
   function onPackChange(next: CampaignPack) {
+    // Tags edited on the pack become the Hashtags editor's tags too.
+    setOptimizationTags(
+      next.seo_caption.search_optimized_tags.slice(0, OPTIMIZATION_TAG_MAX)
+    )
     setPack(next)
     setRestoredAt(null)
   }

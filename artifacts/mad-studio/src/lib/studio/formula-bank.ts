@@ -556,7 +556,7 @@ export function buildCampaignPackFromFormula(input: {
       // One word per tag (hashtags can't have spaces); brand-neutral extras.
       search_optimized_tags: [
         ...new Set(
-          [slots.brand, slots.item, slots.cityArea, "local", "newin"]
+          [slots.brand, slots.item, slots.cityArea, "local"]
             .map((tag) =>
               tag
                 .toLowerCase()
