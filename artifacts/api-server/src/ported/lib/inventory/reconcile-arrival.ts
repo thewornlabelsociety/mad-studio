@@ -3,6 +3,7 @@ import { buildSeededCopyDraft } from "./intake-caption-default.ts"
 import type { ListingAvailability } from "./listing-availability.ts"
 import { withListingSyncMetrics } from "./listing-availability.ts"
 import { withListingGarmentMetrics } from "./listing-garment.ts"
+import { withListingDotMetrics } from "./listing-dot.ts"
 import { withListingMarkdownMetrics, type ListingMarkdown } from "./listing-markdown.ts"
 import { withListingVibeMetrics } from "./listing-vibe.ts"
 
@@ -23,6 +24,8 @@ export type ArrivalReconcileInput = {
   gender?: string | null
   /** Shop markdown; left out by feeds without one. */
   markdown?: ListingMarkdown
+  /** Tag dot colour; left out by feeds without one. */
+  dot_colour?: string | null
   availability: ListingAvailability
   listing_url: string | null
 }
@@ -129,6 +132,7 @@ export function buildArrivalReconcilePatch(input: {
   if (input.incoming.markdown !== undefined) {
     metrics = withListingMarkdownMetrics(metrics, input.incoming.markdown)
   }
+  metrics = withListingDotMetrics(metrics, input.incoming.dot_colour)
   if (input.incoming.category !== undefined || input.incoming.gender !== undefined) {
     metrics = withListingGarmentMetrics(metrics, {
       category: input.incoming.category,
@@ -173,7 +177,7 @@ export function buildArrivalInsertRow(input: {
     input.incoming.markdown ?? { wasPrice: null, discountedAt: null }
   )
   const metrics = withListingSyncMetrics(
-    listing,
+    withListingDotMetrics(listing, input.incoming.dot_colour),
     {
       availability: input.incoming.availability,
       syncedAt: input.syncedAt,

@@ -18,6 +18,8 @@ import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { parseDotDiscount, specialPrice } from "@/lib/templates/dot-specials"
+import { dotSpecialsForWeek, mondayOf, nzToday, type DotSpecialWeek } from "@/lib/templates/dot-rotation"
+import type { WornLabelTagColorName } from "@/types/social-creative"
 import {
   bakeStoryPng,
   copyStoryLink,
@@ -55,6 +57,25 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
   const storyNodes = useRef<Record<string, HTMLDivElement | null>>({})
   // The same dot as the Colour dot special on the sale rack, so the two always match.
   const [special, setSpecial] = useDotSpecial(entityId)
+  // The website's own rotation: this week's 25% dot, then its 50% dot.
+  const weekSpecials = useMemo(() => dotSpecialsForWeek(), [])
+  const [appliedWeek, setAppliedWeek] = useRememberedState<string | null>(`mad.specials.${entityId}.week`, null)
+  function applyWebsiteDot(row: DotSpecialWeek) {
+    setSpecial((current) => ({
+      ...current,
+      color: row.colour.toUpperCase() as WornLabelTagColorName,
+      discount: `${row.percent}% off`,
+      when: "This week only",
+    }))
+  }
+  // A new week: start from the dot the website has on special.
+  useEffect(() => {
+    const monday = mondayOf(nzToday())
+    if (appliedWeek === monday || weekSpecials.length === 0) return
+    setAppliedWeek(monday)
+    applyWebsiteDot(weekSpecials[0])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedWeek, weekSpecials])
   const [pieceIds, setPieceIds] = useRememberedState<string[]>(`mad.specials.${entityId}.pieces`, [])
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.specials.${entityId}.background`, null)
   const [cardStyle, setCardStyle] = useStoryCardStyle(entityId)
@@ -89,6 +110,11 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
       pieceIds.flatMap((id) => {
         const story = stories.get(id)
         if (!story || story.row.price == null) return []
+        // Already marked down on the website: its sale price is the special
+        // price, so don't take the discount off a second time.
+        if (story.row.wasPrice != null) {
+          return [{ ...story, was: Number(story.row.wasPrice), now: Number(story.row.price) } as SpecialStory]
+        }
         const was = Number(story.row.price)
         return [{ ...story, was, now: discount ? specialPrice(was, discount) : null } as SpecialStory]
       }),
@@ -96,10 +122,28 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
   )
   const waiting = pieces.filter((item) => !item.cutoutUrl && !cutoutFailed[item.row.marketingEntityId])
 
+  // The website sends each piece's tag dot; older syncs don't, so fall back
+  // to "marked down" until the next sync brings the dots in.
+  const activeDot = colourLabel(special.color)
+  const stockHasDots = useMemo(() => eligible.some((row) => row.dotColour), [eligible])
+  const inFilter = (row: (typeof eligible)[number]) =>
+    stockHasDots ? row.dotColour === activeDot : row.wasPrice != null
+
   /** Priced stock not already on the special, for the search panel. */
   const options: PickerOption[] = useMemo(
     () =>
-      eligible.flatMap((row) => {
+      // This dot's pieces first, then other markdowns (newest first), then the rest.
+      [...eligible]
+        .sort((a, b) => {
+          const aDot = inFilter(a)
+          const bDot = inFilter(b)
+          if (aDot !== bDot) return aDot ? -1 : 1
+          const aDown = a.wasPrice != null
+          const bDown = b.wasPrice != null
+          if (aDown !== bDown) return aDown ? -1 : 1
+          return (b.discountedAt ?? "").localeCompare(a.discountedAt ?? "")
+        })
+        .flatMap((row) => {
         if (pieceIds.includes(row.marketingEntityId) || row.price == null) return []
         const story = stories.get(row.marketingEntityId)
         if (!story) return []
@@ -109,13 +153,26 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
             id: row.marketingEntityId,
             brand: story.designer,
             title: row.title,
-            detail: [formatSizeForText(row.size), money(Number(row.price)), row.vibe].filter(Boolean).join(" · "),
+            detail: [
+              formatSizeForText(row.size),
+              row.wasPrice != null
+                ? `${money(Number(row.price))} (was ${money(row.wasPrice)})`
+                : money(Number(row.price)),
+              row.dotColour ? `${row.dotColour} dot` : null,
+              row.vibe,
+            ]
+              .filter(Boolean)
+              .join(" · "),
             thumb: image ? proxiedImageUrl(image, entityId) : null,
-            searchText: [row.title, row.brand, row.description, row.category, row.vibe, row.size].filter(Boolean).join(" "),
+            searchText: [row.title, row.brand, row.description, row.category, row.vibe, row.size, row.dotColour ? `${row.dotColour} dot` : null]
+              .filter(Boolean)
+              .join(" "),
+            markedDown: inFilter(row),
           },
         ]
       }),
-    [eligible, pieceIds, stories, entityId]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [eligible, pieceIds, stories, entityId, activeDot, stockHasDots]
   )
 
   function addPiece(id: string) {
@@ -201,6 +258,37 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
             Pick the dot and the discount, then add the pieces from the website
             that carry it. Each card shows the price before and after.
           </p>
+          {weekSpecials.length > 0 ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label="This week's dot specials on the website">
+              <span className="font-typewriter text-[10px] uppercase tracking-widest text-mad-black/60">
+                On the website this week
+              </span>
+              {weekSpecials.map((row) => {
+                const name = row.colour.toUpperCase() as WornLabelTagColorName
+                const active = special.color === name && discount?.kind === "percent" && discount.value === row.percent
+                return (
+                  <button
+                    key={`${row.colour}-${row.percent}`}
+                    type="button"
+                    onClick={() => applyWebsiteDot(row)}
+                    aria-pressed={active}
+                    title={`Use the ${row.colour.toLowerCase()} dot at ${row.percent}% off (tagged ${row.taggedFrom} to ${row.taggedTo})`}
+                    className={cn(
+                      "flex h-7 items-center gap-1.5 border-2 border-mad-black px-2 text-xs",
+                      active ? "bg-mad-black text-mad-white" : "bg-white hover:bg-[#F4EFE6]"
+                    )}
+                  >
+                    <span
+                      className="size-3 rounded-full ring-1 ring-white/70"
+                      style={{ background: WORN_LABEL_TAG_COLORS[name]?.hex }}
+                      aria-hidden
+                    />
+                    {row.colour} dot · {row.percent}% off
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <StoryCardStyleMenu style={cardStyle} onChange={setCardStyle} background={background} className="size-9" />
@@ -306,7 +394,11 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
             )}
             {loaded && pieces.length < SPECIALS_MAX ? (
               <div>
-                <PiecePicker label="piece" adding addText="Add a piece" options={options} onPick={addPiece} />
+                <PiecePicker label="piece" adding addText="Add a piece" options={options}
+                  onPick={addPiece}
+                  markedDownOnly
+                  filterLabel={stockHasDots ? `${activeDot} dot` : "Marked down"}
+                />
               </div>
             ) : null}
           </section>
