@@ -5,7 +5,7 @@ import { KIT_DISPLAY } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
 /** The moodboard's tall serif, signature script and spaced small caps. */
-export const EDITORIAL_SERIF = "'Bodoni Moda', Didot, 'Times New Roman', serif"
+export const EDITORIAL_SERIF = "'DM Serif Display', Georgia, 'Times New Roman', serif"
 export const EDITORIAL_SCRIPT = "'Mrs Saint Delafield', 'Brush Script MT', cursive"
 
 export type EditorialAccent = "none" | "brush" | "oval" | "arrow"
