@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useLocation } from "wouter"
 import { ArrowRight, Check, Globe, ImagePlus, Loader2, Plus, Share2, X } from "lucide-react"
 import { toast } from "sonner"
+
+import { useSlidesOut } from "@/components/planner/day-draft-target"
 
 import {
   AnnouncementCard,
@@ -19,7 +20,6 @@ import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { findMoment, type MomentCard } from "@/lib/planner/nz-moments"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { proxiedPhotoUrl, shrinkPhoto, uploadPhoto } from "@/lib/templates/upload-photo"
-import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, onTouchDevice, shareOrDownloadStory, shareStoryFiles } from "@/lib/templates/use-kit-stories"
 import { cn } from "@/lib/utils"
 
@@ -204,7 +204,8 @@ function oneLine(text: string): string {
 
 /** Sales, opening hours, events: a type-only Story and feed card in the kit. */
 export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null, brandIdentity = null }: Props) {
-  const [, navigate] = useLocation()
+  // Studio on its own screen; the day being filled when opened from the planner.
+  const out = useSlidesOut(entityId)
   // Every card renders off screen too, so all of them can be saved at once.
   const storyRefs = useRef(new Map<string, HTMLDivElement>())
   const cardRefs = useRef(new Map<string, HTMLDivElement>())
@@ -379,8 +380,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
         "",
         ...lines,
       ].join("\n").trim()
-      saveStudioSlidesHandoff(entityId, { urls, caption })
-      navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
+      await out.sendOut({ urls, caption })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the card.")
       setBusy(null)
@@ -762,7 +762,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
                 title={count > 1 ? "Open the cards in Studio as a carousel" : "Open the card in Studio to schedule it"}
               >
                 {busy === "studio" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-                {count > 1 ? `Send ${count} cards to Studio` : "Send card to Studio"}
+                {out.inDrawer ? out.cardLabel : count > 1 ? `Send ${count} cards to Studio` : "Send card to Studio"}
               </Button>
             </div>
           </div>

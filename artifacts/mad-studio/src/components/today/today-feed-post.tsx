@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 const STATE: Record<PlannedDay["state"], { label: string; className: string }> = {
   posted: { label: "Posted", className: "bg-emerald-100 text-emerald-800" },
   planned: { label: "Planned", className: "bg-mad-black text-mad-white" },
+  draft: { label: "Needs approval", className: "bg-mad-lime text-mad-black" },
   failed: { label: "Didn't post", className: "bg-mad-vermillion/15 text-mad-vermillion" },
   empty: { label: "Not made yet", className: "bg-black/5 text-mad-black/60" },
 }

@@ -46,7 +46,7 @@ const TOOLS: Array<{ path: string; icon: LucideIcon; title: string; detail: stri
     path: "/templates/wls-sale-rack",
     icon: Tag,
     title: "Sale rack",
-    detail: "Thursday carousel and Stories from markdowns",
+    detail: "Tuesday carousel and Stories from markdowns",
   },
   {
     path: "/templates/wls-specials",

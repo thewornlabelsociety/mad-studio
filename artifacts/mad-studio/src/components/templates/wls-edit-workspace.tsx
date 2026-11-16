@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useLocation } from "wouter"
 import {
   ArrowRight,
   BringToFront,
@@ -23,6 +22,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { useSlidesOut } from "@/components/planner/day-draft-target"
+
 import { isAdjusted, NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import { AnnouncementCard, AnnouncementStory, type Announcement } from "@/components/templates/announcement-slides"
 import {
@@ -40,7 +41,6 @@ import type { VisualPresets } from "@/lib/entities/dna-schema"
 import type { GarmentSlot } from "@/lib/inventory/listing-garment"
 import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
-import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { proxiedPhotoUrl, shrinkPhoto, uploadPhoto } from "@/lib/templates/upload-photo"
 import { bakeStoryPng, shareOrDownloadStory, useKitStories, type KitStory } from "@/lib/templates/use-kit-stories"
 import { OUTFIT_SLOT_LABELS, toOutfitPiece } from "@/lib/templates/week-outfits"
@@ -109,7 +109,8 @@ function oneLine(text: string): string {
 
 /** A themed edit: a title page, a flatlay of the edit, then a card per piece, for the feed and Stories. */
 export function WlsEditWorkspace({ entityId, entityName, industry = null, brandIdentity = null }: Props) {
-  const [, navigate] = useLocation()
+  // Studio on its own screen; the day being filled when opened from the planner.
+  const out = useSlidesOut(entityId)
   const slideNodes = useRef<Array<HTMLDivElement | null>>([])
   const storyNodes = useRef<Record<string, HTMLDivElement | null>>({})
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
@@ -496,8 +497,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
         urls.push(await uploadRenderedPng(blob, entityId))
       }
       if (urls.length < 2) throw new Error("Add a piece or a photo first.")
-      saveStudioSlidesHandoff(entityId, { urls, caption: caption() })
-      navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
+      await out.sendOut({ urls, caption: caption() })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the slides.")
       setSending(false)
@@ -1347,7 +1347,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
           title={waiting.length > 0 ? "Waiting for cutouts" : "Open the carousel in Studio"}
         >
           {sending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-          {sending ? "Preparing slides…" : "Send to Studio"}
+          {sending ? "Preparing slides…" : out.label}
         </Button>
       </section>
     </div>

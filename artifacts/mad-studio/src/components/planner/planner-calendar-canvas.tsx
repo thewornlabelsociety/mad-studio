@@ -1,8 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link } from "wouter"
 import {
+  CalendarPlus,
   ChevronLeft,
   ChevronRight,
   GripVertical,
@@ -28,9 +29,12 @@ import {
   startOfWeekMonday,
   type PlannerCalendarView,
 } from "@/components/planner/planner-calendar-utils"
+import { PostTypeDrawer } from "@/components/planner/post-type-drawer"
+import { postTypeById, postTypeByPath, VIDEO_ICON, WLS_POST_TYPES, type PostType } from "@/components/planner/post-types"
 import { PlatformIcon } from "@/components/ui/app-icons"
 import {
   Popover,
+  PopoverClose,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
@@ -61,7 +65,7 @@ import {
 import { ymd } from "@/lib/planner/campaign-recipes"
 import type { SharedStory } from "@/lib/planner/campaign-progress"
 import { campaignStepsOn, type CampaignPlan } from "@/lib/planner/campaign-recipes"
-import { WLS_WEEK_RHYTHM } from "@/lib/planner/week-rhythm"
+import { rhythmHref, WLS_WEEK_RHYTHM } from "@/lib/planner/week-rhythm"
 import { useLocation } from "wouter"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
@@ -146,6 +150,10 @@ export function PlannerCalendarCanvas({
   const [dropKey, setDropKey] = useState<string | null>(null)
   const [picks, setPicks] = useState<ArtDirectorPick[]>([])
   const [isWls, setIsWls] = useState(false)
+  const [brandName, setBrandName] = useState("")
+  /** The post type open in the side drawer, and the day it's for. */
+  const [making, setMaking] = useState<{ typeId: string; day: Date } | null>(null)
+  const openPostType = useCallback((typeId: string, day: Date) => setMaking({ typeId, day }), [])
   // Campaign days and NZ dates show on every day.
   const campaigns = useCampaignPlans(entityId, isWls)
 
@@ -192,7 +200,10 @@ export function PlannerCalendarCanvas({
         const isFashion =
           resolveIndustryProfile({ name: data?.name ?? "", industry: data?.industry ?? "" }).id ===
           "worn_label"
-        if (!cancelled) setIsWls(isFashion)
+        if (!cancelled) {
+          setIsWls(isFashion)
+          setBrandName(data?.name ?? "")
+        }
         const suggestions = await fetchNewArrivalSuggestions({ entityId, isFashion, limit: 24 })
         if (!cancelled) {
           setPicks(artDirectorPicks({ items: suggestions.map((row) => row.item), isFashion, max: 4 }))
@@ -324,6 +335,7 @@ export function PlannerCalendarCanvas({
   })
 
   return (
+    <OpenPostTypeContext.Provider value={isWls ? openPostType : null}>
     <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-mad-white">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-mad-black px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -506,12 +518,26 @@ export function PlannerCalendarCanvas({
 
       <CalendarPostPanel
         entityId={entityId}
+        brandName={brandName}
         post={selected}
         open={panelOpen}
         onOpenChange={setPanelOpen}
         onChanged={() => void load()}
+        onEditDraft={(typeId, day) => {
+          setPanelOpen(false)
+          openPostType(typeId, day)
+        }}
+      />
+
+      <PostTypeDrawer
+        entityId={entityId}
+        type={postTypeById(making?.typeId)}
+        day={making?.day ?? null}
+        onClose={() => setMaking(null)}
+        onDrafted={() => void load()}
       />
     </section>
+    </OpenPostTypeContext.Provider>
   )
 }
 
@@ -586,7 +612,42 @@ function PostCard({
   )
 }
 
-/** Ideas for an empty day: what's planned or on that day, the week's slot, then new arrivals. */
+/** Opens a post type in the side drawer for a day (set by the canvas, read by every Fill this day). */
+const OpenPostTypeContext = createContext<((typeId: string, day: Date) => void) | null>(null)
+
+/** One post type in Fill this day: tap to open it in the drawer. */
+function PostTypeRow({
+  type,
+  detail,
+  onOpen,
+  highlight = false,
+}: {
+  type: PostType
+  detail?: string
+  onOpen: () => void
+  highlight?: boolean
+}) {
+  const Icon = type.icon
+  return (
+    <PopoverClose asChild>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-mad-lime/30"
+        title={`Make ${type.title.toLowerCase()} in a drawer and add it to this day`}
+      >
+        <Icon className={cn("size-4 shrink-0", highlight ? "text-mad-black" : "text-neutral-500")} aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-semibold">{type.title}</span>
+          <span className="block truncate text-[0.75rem] text-neutral-600">{detail ?? type.detail}</span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-neutral-400" aria-hidden />
+      </button>
+    </PopoverClose>
+  )
+}
+
+/** Ideas for an empty day: the week's slot, every post type, what's on that day, then new arrivals. */
 function FillDay({
   picks,
   entityId,
@@ -609,6 +670,9 @@ function FillDay({
   const moments = isWls ? datePillsOn(campaigns, date) : []
   // Monday first, matching the Week planner's rhythm.
   const slot = isWls ? WLS_WEEK_RHYTHM[(date.getDay() + 6) % 7] : null
+  const slotType = slot ? postTypeByPath(slot.path) : null
+  const openType = useContext(OpenPostTypeContext)
+  const dayIsPast = ymd(date) < ymd(new Date())
   const heading = "font-typewriter text-[0.68rem] font-bold tracking-widest text-neutral-500 uppercase"
   const row = "flex items-center gap-2 px-3 py-2"
   const make =
@@ -638,11 +702,57 @@ function FillDay({
           </button>
         )}
       </PopoverTrigger>
-      <PopoverContent align="start" className="max-h-[70vh] w-80 overflow-y-auto rounded-none border-2 border-mad-black p-0">
+      {/* Capped to the room Radix finds on screen, so the list scrolls instead of running off the bottom. */}
+      <PopoverContent
+        align="start"
+        collisionPadding={12}
+        onWheel={(event) => event.stopPropagation()}
+        className="max-h-[min(70vh,var(--radix-popover-content-available-height))] w-80 overflow-y-auto overscroll-contain rounded-none border-2 border-mad-black p-0"
+      >
         <p className="flex items-center gap-1.5 border-b-2 border-mad-black px-3 py-2 font-typewriter text-[0.72rem] font-bold tracking-widest text-mad-vermillion uppercase">
           <Sparkles className="size-3.5" aria-hidden />
           Ideas for {date.toLocaleDateString("en-NZ", { weekday: "long", day: "numeric", month: "short" })}
         </p>
+
+        {/* The day's regular post comes first: it's what this day is for. */}
+        {slot ? (
+          <div className="border-b border-neutral-200 bg-mad-lime/10 py-1">
+            <p className={cn(heading, "px-3 pt-1")}>Your week</p>
+            {slotType && openType && !dayIsPast ? (
+              <PostTypeRow type={slotType} detail={slot.detail} onOpen={() => openType(slotType.id, date)} highlight />
+            ) : (
+              <div className={row}>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold">{slot.title}</p>
+                  <p className="truncate text-[0.75rem] text-neutral-600">{slot.detail}</p>
+                </div>
+                <Link href={rhythmHref(slot, entityId)} className={make}>
+                  Make it
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* Every post type, each opening in a drawer that adds it to this day for approval. */}
+        {isWls && openType && !dayIsPast ? (
+          <div className="border-b border-neutral-200 py-1">
+            <p className={cn(heading, "px-3 pt-1")}>Make a post</p>
+            {WLS_POST_TYPES.filter((type) => type.id !== slotType?.id).map((type) => (
+              <PostTypeRow key={type.id} type={type} onOpen={() => openType(type.id, date)} />
+            ))}
+            <div className={row}>
+              <VIDEO_ICON className="size-4 shrink-0 text-neutral-500" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold">Short video</p>
+                <p className="truncate text-[0.75rem] text-neutral-600">Try-on, rack walk or steam and tag, in Studio</p>
+              </div>
+              <Link href={`/studio?eid=${eid}`} className={make}>
+                Studio
+              </Link>
+            </div>
+          </div>
+        ) : null}
 
         {steps.length > 0 || moments.length > 0 ? (
           <div className="border-b border-neutral-200 py-1">
@@ -669,21 +779,6 @@ function FillDay({
                 </Link>
               </div>
             ))}
-          </div>
-        ) : null}
-
-        {slot ? (
-          <div className="border-b border-neutral-200 py-1">
-            <p className={cn(heading, "px-3 pt-1")}>Your week</p>
-            <div className={row}>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold">{slot.title}</p>
-                <p className="truncate text-[0.75rem] text-neutral-600">{slot.detail}</p>
-              </div>
-              <Link href={`${slot.path}?eid=${eid}`} className={make}>
-                Make it
-              </Link>
-            </div>
           </div>
         ) : null}
 

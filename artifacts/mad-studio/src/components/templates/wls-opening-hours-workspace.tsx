@@ -1,9 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useLocation } from "wouter"
 import { ArrowRight, Check, Loader2, RefreshCw, RotateCcw, Share2, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
+
+import { useSlidesOut } from "@/components/planner/day-draft-target"
 
 import {
   OpeningHoursCard,
@@ -16,7 +17,6 @@ import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
-import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
 import {
   DAY_NAMES,
@@ -78,7 +78,8 @@ function draftKey(entityId: string): string {
 
 /** Opening hours from the website: today's hours as a Story, or the week's. */
 export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null, brandIdentity = null }: Props) {
-  const [, navigate] = useLocation()
+  // Studio on its own screen; the day being filled when opened from the planner.
+  const out = useSlidesOut(entityId)
   const storyRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const [contact, setContact] = useState<WebsiteContact | null>(null)
@@ -204,8 +205,7 @@ export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null
     try {
       const { blob } = await bakeStoryPng(cardRef.current)
       const url = await uploadRenderedPng(blob, entityId)
-      saveStudioSlidesHandoff(entityId, { urls: [url], caption: caption() })
-      navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
+      await out.sendOut({ urls: [url], caption: caption() })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the card.")
       setBusy(null)
@@ -437,7 +437,7 @@ export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null
                   title="Open the card in Studio to schedule it"
                 >
                   {busy === "studio" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-                  Send card to Studio
+                  {out.cardLabel}
                 </Button>
               </div>
             </div>

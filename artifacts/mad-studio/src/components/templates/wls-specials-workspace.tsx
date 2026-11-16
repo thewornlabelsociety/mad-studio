@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useLocation } from "wouter"
 import { ArrowRight, Check, Link2, Loader2, RefreshCw, Scissors, Share2, X } from "lucide-react"
 import { toast } from "sonner"
+
+import { useSlidesOut } from "@/components/planner/day-draft-target"
 
 import { StoryCardStyleMenu } from "@/components/templates/card-style-controls"
 import { colourLabel, DotSpecialArt, DotSpecialFields, useDotSpecial } from "@/components/templates/dot-special"
@@ -16,7 +17,6 @@ import { percentOff } from "@/lib/inventory/listing-markdown"
 import { WORN_LABEL_TAG_COLORS } from "@/lib/social-creative/worn-label-promo-theme"
 import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
-import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { parseDotDiscount, specialPrice } from "@/lib/templates/dot-specials"
 import {
   bakeStoryPng,
@@ -49,7 +49,8 @@ type SpecialStory = KitStory & { was: number; now: number | null }
 
 /** This week's dot special: the dot card, then a card per piece with the price before and after. */
 export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, brandIdentity = null }: Props) {
-  const [, navigate] = useLocation()
+  // Studio on its own screen; the day being filled when opened from the planner.
+  const out = useSlidesOut(entityId)
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
   const slideNodes = useRef<Array<HTMLDivElement | null>>([])
   const storyNodes = useRef<Record<string, HTMLDivElement | null>>({})
@@ -155,8 +156,7 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
         urls.push(await uploadRenderedPng(blob, entityId))
       }
       if (urls.length < 2) throw new Error("Add at least one piece first.")
-      saveStudioSlidesHandoff(entityId, { urls, caption: caption() })
-      navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
+      await out.sendOut({ urls, caption: caption() })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the slides.")
       setSending(false)
@@ -250,7 +250,7 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
             }
           >
             {sending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-            {sending ? "Preparing slides…" : "Send to Studio"}
+            {sending ? "Preparing slides…" : out.label}
           </Button>
         </div>
       </header>

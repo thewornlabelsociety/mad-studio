@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useLocation } from "wouter"
 import {
   ArrowRight,
   BringToFront,
@@ -17,6 +16,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { useSlidesOut } from "@/components/planner/day-draft-target"
+
 import { isAdjusted, NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
 import { INSPO_LAYER_ID, InspoVsWlsSlide } from "@/components/templates/inspo-slide"
 import type { SlidePiece } from "@/components/templates/outfit-slides"
@@ -26,7 +27,6 @@ import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { requestCutout } from "@/lib/media/request-cutout"
 import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
-import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { proxiedPhotoUrl, shrinkPhoto, uploadPhoto } from "@/lib/templates/upload-photo"
 import { bakeStoryPng, shareOrDownloadStory, useKitStories } from "@/lib/templates/use-kit-stories"
 import { OUTFIT_SLOT_LABELS, toOutfitPiece } from "@/lib/templates/week-outfits"
@@ -54,7 +54,8 @@ function shortPrice(label: string | null | undefined): string | null {
 
 /** Wednesday's post: an inspo look beside the same look from the racks. */
 export function WlsInspoWorkspace({ entityId, entityName, industry = null, brandIdentity = null }: Props) {
-  const [, navigate] = useLocation()
+  // Studio on its own screen; the day being filled when opened from the planner.
+  const out = useSlidesOut(entityId)
   const slideNode = useRef<HTMLDivElement | null>(null)
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
   // Kept as a draft on this device, so leaving the screen keeps the post.
@@ -236,8 +237,7 @@ export function WlsInspoWorkspace({ entityId, entityName, industry = null, brand
     try {
       const { blob } = await bake()
       const url = await uploadRenderedPng(blob, entityId)
-      saveStudioSlidesHandoff(entityId, { urls: [url], caption: caption() })
-      navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
+      await out.sendOut({ urls: [url], caption: caption() })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the slide.")
       setSending(false)
@@ -333,7 +333,7 @@ export function WlsInspoWorkspace({ entityId, entityName, industry = null, brand
             title={waiting.length > 0 ? "Waiting for cutouts" : "Open the slide in Studio"}
           >
             {sending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-            {sending ? "Preparing slide…" : "Send to Studio"}
+            {sending ? "Preparing slide…" : out.label}
           </Button>
         </div>
       </header>
