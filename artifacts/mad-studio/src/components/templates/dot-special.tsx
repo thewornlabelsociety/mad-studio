@@ -20,8 +20,9 @@ import { WORN_LABEL_TAG_COLORS } from "@/lib/social-creative/worn-label-promo-th
 import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { useSlidesOut } from "@/components/planner/day-draft-target"
+import { bakeStoryFrames } from "@/components/planner/finish-panel"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
-import { useRememberedState } from "@/lib/use-remembered-state"
+import { useBrandSetting } from "@/lib/use-brand-setting"
 import { cn } from "@/lib/utils"
 import type { WornLabelTagColorName } from "@/types/social-creative"
 
@@ -44,7 +45,7 @@ const DEFAULT_SPECIAL: DotSpecial = {
 
 /** The brand's current dot special, kept on this device and shared by every screen that shows it. */
 export function useDotSpecial(entityId: string) {
-  return useRememberedState<DotSpecial>(`mad.dotSpecial.${entityId}`, DEFAULT_SPECIAL)
+  return useBrandSetting<DotSpecial>(entityId, "dot_special", `mad.dotSpecial.${entityId}`, DEFAULT_SPECIAL)
 }
 
 const WHEN_PRESETS = ["This weekend only", "This week only", "Today only"]
@@ -287,7 +288,12 @@ export function DotSpecialPanel({
   // The feed card goes through the same finish panel as every other post.
   const out = useSlidesOut(entityId)
   const [special, setSpecial] = useDotSpecial(entityId)
-  const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.dotSpecial.${entityId}.background`, "charcoal")
+  const [backgroundId, setBackgroundId] = useBrandSetting<string | null>(
+    entityId,
+    "dot_special_background",
+    `mad.dotSpecial.${entityId}.background`,
+    "charcoal"
+  )
   const [busy, setBusy] = useState<"story" | "studio" | "print" | null>(null)
   const storyRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -330,7 +336,13 @@ export function DotSpecialPanel({
       if (!cardRef.current) return
       const { blob } = await bakeStoryPng(cardRef.current)
       const url = await uploadRenderedPng(blob, entityId)
-      await out.sendOut({ urls: [url], caption: dotSpecialCaption(special), title: "Dot special card", kind: "dot_special_card" })
+      await out.sendOut({
+        urls: [url],
+        caption: dotSpecialCaption(special),
+        title: "Dot special card",
+        kind: "dot_special_card",
+        story: () => bakeStoryFrames([storyRef.current], entityId),
+      })
     })
 
   const downloadPrint = () =>

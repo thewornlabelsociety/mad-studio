@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Link } from "wouter"
 import {
   CalendarPlus,
+  CalendarRange,
   ChevronLeft,
   ChevronRight,
   GripVertical,
@@ -154,6 +155,68 @@ export function PlannerCalendarCanvas({
   /** The post type open in the side drawer, and the day it's for. */
   const [making, setMaking] = useState<{ typeId: string; day: Date } | null>(null)
   const openPostType = useCallback((typeId: string, day: Date) => setMaking({ typeId, day }), [])
+  /** Fill my week: the days still to make after the one open in the drawer. */
+  const [weekQueue, setWeekQueue] = useState<Array<{ typeId: string; day: Date }>>([])
+  const [filling, setFilling] = useState(false)
+  const [inWeekRun, setInWeekRun] = useState(false)
+
+  /**
+   * The next seven days from today: each one with no post yet whose regular
+   * slot is a post type (not a video, not the optional Sunday). Opens the
+   * first in the drawer; each draft moves on to the next.
+   */
+  async function fillMyWeek() {
+    setFilling(true)
+    try {
+      const start = startOfDay(new Date())
+      const end = new Date(start)
+      end.setDate(end.getDate() + 7)
+      const booked = await fetchCalendarPosts({ entityId, from: start, to: end })
+      const taken = new Set(booked.map((post) => ymd(post.time)))
+      const days: Array<{ typeId: string; day: Date }> = []
+      for (let offset = 0; offset < 7; offset++) {
+        const day = new Date(start)
+        day.setDate(day.getDate() + offset)
+        const slot = WLS_WEEK_RHYTHM[(day.getDay() + 6) % 7]
+        const type = postTypeByPath(slot.path)
+        if (!type || slot.optional || taken.has(ymd(day))) continue
+        days.push({ typeId: type.id, day })
+      }
+      if (days.length === 0) {
+        toast.success("Every day this week already has its post.")
+        return
+      }
+      toast.message(
+        `${days.length} day${days.length === 1 ? "" : "s"} to make. Each opens in turn; close the drawer to stop.`
+      )
+      setMaking(days[0])
+      setWeekQueue(days.slice(1))
+      setInWeekRun(true)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't check the week.")
+    } finally {
+      setFilling(false)
+    }
+  }
+
+  /** After a draft from the drawer: on to the next day in Fill my week, or close. */
+  function afterDrafted() {
+    void load()
+    const [next, ...rest] = weekQueue
+    setMaking(next ?? null)
+    setWeekQueue(rest)
+    if (!next && inWeekRun) {
+      setInWeekRun(false)
+      toast.success("That's the week drafted. Approve each day on the calendar.")
+    }
+  }
+
+  /** Closing the drawer (without adding) also stops Fill my week. */
+  function closeDrawer() {
+    setMaking(null)
+    setWeekQueue([])
+    setInWeekRun(false)
+  }
   // Campaign days and NZ dates show on every day.
   const campaigns = useCampaignPlans(entityId, isWls)
 
@@ -340,6 +403,18 @@ export function PlannerCalendarCanvas({
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-mad-black px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           {toolbarStart}
+          {isWls ? (
+            <button
+              type="button"
+              onClick={() => void fillMyWeek()}
+              disabled={filling}
+              title="Make each empty day's regular post this week, one after another, as drafts to approve"
+              className="inline-flex h-8 items-center gap-1.5 border-2 border-mad-black bg-mad-black px-2.5 font-typewriter text-[0.7rem] font-bold tracking-wider text-mad-white uppercase hover:bg-mad-vermillion disabled:opacity-50"
+            >
+              {filling ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <CalendarRange className="size-3.5" aria-hidden />}
+              Fill my week
+            </button>
+          ) : null}
           <div className="flex items-center">
             <button
               type="button"
@@ -533,8 +608,10 @@ export function PlannerCalendarCanvas({
         entityId={entityId}
         type={postTypeById(making?.typeId)}
         day={making?.day ?? null}
-        onClose={() => setMaking(null)}
-        onDrafted={() => void load()}
+        onClose={closeDrawer}
+        onDrafted={afterDrafted}
+        // Fill my week: how many days are left after this one.
+        remaining={weekQueue.length}
       />
     </section>
     </OpenPostTypeContext.Provider>

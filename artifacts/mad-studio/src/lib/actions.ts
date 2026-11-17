@@ -40,6 +40,7 @@ export const saveEntityDna = (...args: any[]) => action("saveEntityDna", ...args
 export const saveAudienceSegments = (...args: any[]) =>
   action("saveAudienceSegments", ...args)
 export const saveVisualPresets = (...args: any[]) => action("saveVisualPresets", ...args)
+export const saveTemplateSetting = (...args: any[]) => action("saveTemplateSetting", ...args)
 export const saveCanvasLayouts = (...args: any[]) => action("saveCanvasLayouts", ...args)
 export const saveWantsList = (...args: any[]) => action("saveWantsList", ...args)
 export const getCampaignPlans = (...args: any[]) => action("getCampaignPlans", ...args)

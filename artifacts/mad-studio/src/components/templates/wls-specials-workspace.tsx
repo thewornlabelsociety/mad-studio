@@ -5,12 +5,12 @@ import { ArrowRight, Check, Link2, Loader2, RefreshCw, Scissors, Share2, X } fro
 import { toast } from "sonner"
 
 import { useSlidesOut } from "@/components/planner/day-draft-target"
+import { bakeStoryFrames } from "@/components/planner/finish-panel"
 
 import { StoryCardStyleMenu } from "@/components/templates/card-style-controls"
 import { colourLabel, DotSpecialArt, DotSpecialFields, useDotSpecial } from "@/components/templates/dot-special"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { PiecePicker, type PickerOption } from "@/components/templates/piece-picker"
-import { SaleItemSlide } from "@/components/templates/sale-slides"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { percentOff } from "@/lib/inventory/listing-markdown"
@@ -156,7 +156,11 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
         urls.push(await uploadRenderedPng(blob, entityId))
       }
       if (urls.length < 2) throw new Error("Add at least one piece first.")
-      await out.sendOut({ urls, caption: caption() })
+      await out.sendOut({
+        urls,
+        caption: caption(),
+        story: () => bakeStoryFrames(pieces.map((item) => storyNodes.current[item.row.marketingEntityId]), entityId),
+      })
       // Back from the finish panel: saved, or closed without saving.
       setSending(false)
     } catch (error) {
@@ -334,20 +338,26 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
               </li>
               {pieces.map((item, index) => (
                 <li key={item.row.marketingEntityId} className="min-w-0">
-                  <SaleItemSlide
+                  {/* The same card as the Sale rack and Today Stories, the dot in the tag's colour. */}
+                  <KitStoryCanvas
                     ref={(node) => {
                       slideNodes.current[index + 1] = node
                     }}
+                    story={false}
                     background={background}
                     brandName={entityName}
+                    tag={`${dotName} special`}
                     imageUrl={item.cutoutUrl ? item.imageUrl : null}
+                    vibe={item.vibe}
                     designer={item.designer}
                     sizeLabel={item.sizeLabel}
-                    wasLabel={item.now == null ? "" : money(item.was)}
-                    nowLabel={money(item.now ?? item.was)}
-                    percentOff={item.now == null ? 0 : percentOff(item.was, item.now)}
-                    kicker={`${dotName} special`}
-                    dot={dot}
+                    categoryLabel={pieceType(item.row.title, item.row.brand)}
+                    priceLabel={item.now == null ? money(item.was) : null}
+                    priceLine={item.now == null ? null : { was: money(item.was), now: money(item.now) }}
+                    percentOff={item.now == null ? null : percentOff(item.was, item.now)}
+                    dotColour={dot}
+                    cardStyle={cardStyle}
+                    showLinkGuide={false}
                     className="rounded-sm shadow-md"
                   />
                 </li>

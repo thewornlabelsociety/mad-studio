@@ -12,10 +12,11 @@ import { cn } from "@/lib/utils"
 
 type Channel = DayDraft["platforms"][number]
 
-const CHANNELS: Array<{ id: Channel; label: string }> = [
+const CHANNELS: Array<{ id: Channel; label: string; story?: boolean }> = [
   { id: "instagram_feed", label: "Instagram feed" },
   { id: "facebook", label: "Facebook" },
   { id: "tiktok", label: "TikTok photos" },
+  { id: "instagram_story", label: "Instagram Story", story: true },
 ]
 
 /** What a template hands over once its slides are made. */
@@ -26,6 +27,11 @@ export type FinishRequest = {
   title: string
   urls: string[]
   caption: string
+  /**
+   * The template's Story version, made only if Instagram Story is ticked:
+   * one frame, or several shown one after another.
+   */
+  story?: () => Promise<string[]>
   /** The day to start on (the planner's day in its drawer); today otherwise. */
   day?: Date | null
   /** Default time of day. */
@@ -141,22 +147,34 @@ export function FinishPanelHost({ brandName, industry }: { brandName: string; in
     }
     setSaving(status)
     try {
-      const { saved } = await saveDayDrafts({
-        entityId: request.entityId,
-        day: when,
-        status,
-        drafts: [
-          {
-            kind: request.kind,
-            platforms: channels,
-            title: request.title,
-            caption: mergeCaptionWithTags(caption, tags),
-            mediaUrls: request.urls,
-            hour: when.getHours(),
-            time: when,
-          },
-        ],
-      })
+      const feed = channels.filter((id) => id !== "instagram_story")
+      const drafts: DayDraft[] = []
+      if (feed.length > 0) {
+        drafts.push({
+          kind: request.kind,
+          platforms: feed,
+          title: request.title,
+          caption: mergeCaptionWithTags(caption, tags),
+          mediaUrls: request.urls,
+          hour: when.getHours(),
+          time: when,
+        })
+      }
+      // The Story is its own post beside the feed one, made only when ticked.
+      if (channels.includes("instagram_story") && request.story) {
+        const frames = await request.story()
+        if (frames.length === 0) throw new Error("The Story isn't ready yet. Try again in a moment.")
+        drafts.push({
+          kind: `${request.kind}_story`,
+          platforms: ["instagram_story"],
+          title: `${request.title} Story`,
+          caption: "",
+          mediaUrls: frames,
+          hour: when.getHours(),
+          time: when,
+        })
+      }
+      const { saved } = await saveDayDrafts({ entityId: request.entityId, day: when, status, drafts })
       if (saved.length === 0) {
         toast.message(
           `${dayLabel(when)} already has an approved ${request.title.toLowerCase()}. Unschedule it in the planner, or schedule this one instead.`
@@ -225,7 +243,7 @@ export function FinishPanelHost({ brandName, industry }: { brandName: string; in
               <div className="grid gap-1.5">
                 <span className={label}>Post to</span>
                 <div className="flex flex-wrap gap-1.5">
-                  {CHANNELS.map((channel) => {
+                  {CHANNELS.filter((channel) => !channel.story || request.story).map((channel) => {
                     const on = channels.includes(channel.id)
                     return (
                       <button
@@ -334,4 +352,19 @@ export function FinishPanelHost({ brandName, industry }: { brandName: string; in
       </SheetContent>
     </Sheet>
   )
+}
+
+/** Bakes rendered Story cards and uploads them, in order, for a request's `story`. */
+export async function bakeStoryFrames(nodes: Array<HTMLElement | null | undefined>, entityId: string): Promise<string[]> {
+  const [{ bakeStoryPng }, { uploadRenderedPng }] = await Promise.all([
+    import("@/lib/templates/use-kit-stories"),
+    import("@/lib/studio/final-artwork"),
+  ])
+  const urls: string[] = []
+  for (const node of nodes.slice(0, 10)) {
+    if (!node) continue
+    const { blob } = await bakeStoryPng(node)
+    urls.push(await uploadRenderedPng(blob, entityId))
+  }
+  return urls
 }

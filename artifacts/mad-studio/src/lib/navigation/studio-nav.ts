@@ -63,8 +63,9 @@ export function buildCalendarViews(input: {
       id: "week",
       href: `/week${entityQuery}`,
       match: "/week",
-      label: "Week",
-      description: "Your grid and the week's rhythm",
+      // "Grid", so it isn't confused with the calendar's week view.
+      label: "Grid",
+      description: "Your Instagram grid and the week's rhythm",
     },
     ...(showPromoFor(activeEntity)
       ? [
@@ -85,17 +86,25 @@ export function buildCalendarViews(input: {
       description: "Queue, storyboard & results",
     },
   ]
-  if (showPromoFor(activeEntity)) {
-    views.push({
-      id: "promo",
-      href: `/promo${entityQuery}`,
-      match: "/promo",
-      label: "Promo",
-      description: "Weekly tag specials",
-    })
-  }
+  // No Promo tab: the dot special lives on the Sale rack and Specials (Create).
+  // The /promo page still works for old links.
   return views
 }
+
+/** The Worn Label template screens, all reached from Create. */
+const TEMPLATE_SCREENS = [
+  "/templates/wls-sale-rack",
+  "/templates/wls-specials",
+  "/templates/wls-week-outfits",
+  "/templates/wls-inspo",
+  "/templates/wls-wants",
+  "/templates/wls-edit",
+  "/templates/wls-three-ways",
+  "/templates/wls-staff-outfit",
+  "/templates/wls-announcement",
+  "/templates/wls-opening-hours",
+  "/templates/wls-daily-story",
+]
 
 export function buildStudioNavItems(input: {
   entityQuery: string
@@ -125,17 +134,19 @@ export function buildStudioNavItems(input: {
     },
     {
       id: "calendar",
-      href: `/week${entityQuery}`,
-      match: buildCalendarViews(input).map((view) => view.match),
-      label: "Week",
-      description: "Your grid, plan & calendar",
+      // The calendar: Fill this day, drafts to approve, and what's booked.
+      href: `/planner${entityQuery}`,
+      match: [...buildCalendarViews(input).map((view) => view.match), "/promo"],
+      label: "Plan",
+      description: "Calendar, drafts and approvals",
       icon: CalendarDays,
       section: "main",
     },
     {
       id: "create",
       href: studioHref,
-      match: ["/create", "/studio", "/templates/wls-"],
+      // The template screens are where Worn Label's posts are made.
+      match: ["/create", "/studio", ...TEMPLATE_SCREENS],
       label: "Create",
       description: "Make a post",
       icon: Sparkles,
@@ -174,7 +185,8 @@ export function buildStudioNavItems(input: {
     {
       id: "templates",
       href: `/templates${entityQuery}`,
-      match: "/templates",
+      // Only its own page: the template screens under it belong to Create.
+      match: "/templates$",
       label: "Templates",
       description: "Brand templates & starters",
       icon: LayoutTemplate,
@@ -208,7 +220,10 @@ export function isStudioNavActive(
   match: string | string[]
 ): boolean {
   const prefixes = Array.isArray(match) ? match : [match]
-  return prefixes.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  return prefixes.some((prefix) =>
+    // A trailing $ means that page only, not the pages under it.
+    prefix.endsWith("$")
+      ? pathname === prefix.slice(0, -1)
+      : pathname === prefix || pathname.startsWith(`${prefix}/`)
   )
 }

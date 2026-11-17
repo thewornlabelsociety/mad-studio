@@ -1,7 +1,7 @@
 "use client"
 
 import type { CardAlign, PillFill, PillShape } from "@/components/templates/edit-slides"
-import { useRememberedState } from "@/lib/use-remembered-state"
+import { useBrandSetting } from "@/lib/use-brand-setting"
 
 /** What a piece card can show, switched on and off for every card at once. */
 export type CardField = "tag" | "logo" | "number" | "brand" | "category" | "vibe" | "size" | "price" | "was" | "discount"
@@ -68,7 +68,10 @@ export const DEFAULT_STORY_CARD_STYLE: StoryCardStyle = {
  * kept per brand on this device.
  */
 export function useStoryCardStyle(entityId: string) {
-  const [style, setStyle] = useRememberedState<StoryCardStyle>(
+  // Kept with the brand, so every device and teammate uses the same card style.
+  const [style, setStyle] = useBrandSetting<StoryCardStyle>(
+    entityId,
+    "story_card_style",
     `mad.storyCardStyle.v2.${entityId}`,
     DEFAULT_STORY_CARD_STYLE
   )

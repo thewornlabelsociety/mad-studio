@@ -5,6 +5,7 @@ import { ArrowRight, Check, Loader2, Plus, Save, Share2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { useSlidesOut } from "@/components/planner/day-draft-target"
+import { bakeStoryFrames } from "@/components/planner/finish-panel"
 
 import { WantsCard, WantsStory } from "@/components/templates/wants-slides"
 import { Button } from "@/components/ui/button"
@@ -121,7 +122,7 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
         "",
         `${note.trim() || "Bring them in"}. We sell on consignment and do the work for you.`,
       ].join("\n")
-      await out.sendOut({ urls: [url], caption })
+      await out.sendOut({ urls: [url], caption, story: () => bakeStoryFrames([storyRef.current], entityId) })
       // Back from the finish panel: saved, or closed without saving.
       setBusy(null)
     } catch (error) {

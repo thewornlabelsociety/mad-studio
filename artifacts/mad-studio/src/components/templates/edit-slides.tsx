@@ -58,12 +58,14 @@ export const EditItemSlide = forwardRef<
     showLinkGuide?: boolean
     /** A sale dot top right, e.g. 25% OFF, tilted like a swing tag. */
     percentOff?: number | null
+    /** A dot special's tag colour for that dot; the accent otherwise. */
+    dotColour?: { hex: string; text: string } | null
     /** False leaves the brand wordmark off the top right. */
     showWordmark?: boolean
     className?: string
   }
 >(function EditItemSlide(
-  { background, brandName, editLabel, eyebrow = null, heading = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, subject = NO_ADJUST, onSubjectChange, subjectSelected = false, onSubjectSelect, showLinkGuide = false, percentOff = null, showWordmark = true, className },
+  { background, brandName, editLabel, eyebrow = null, heading = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, subject = NO_ADJUST, onSubjectChange, subjectSelected = false, onSubjectSelect, showLinkGuide = false, percentOff = null, dotColour = null, showWordmark = true, className },
   ref
 ) {
   const ink = background.text_color
@@ -145,8 +147,13 @@ export const EditItemSlide = forwardRef<
             width: story ? "17cqw" : "18cqw",
             height: story ? "17cqw" : "18cqw",
             borderRadius: "50%",
-            background: accent,
-            color: background.color,
+            background: dotColour?.hex ?? accent,
+            color: dotColour?.text ?? background.color,
+            // A dot the same colour as the card needs a ring to show.
+            boxShadow:
+              dotColour && dotColour.hex.toLowerCase() === background.color.toLowerCase()
+                ? `0 0 0 0.6cqw ${background.color}, 0 0 0 0.9cqw ${ink}`
+                : undefined,
             display: "grid",
             placeItems: "center",
             textAlign: "center",
