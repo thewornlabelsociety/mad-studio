@@ -1,6 +1,6 @@
 import { forwardRef, type CSSProperties } from "react"
 
-import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
+import { KIT_DISPLAY_SCALE, kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 import type { WantsItem } from "@/lib/entities/dna-schema"
 
@@ -50,7 +50,7 @@ function WantsLayout({ background, brandName, items, note, story }: Props & { st
           gap: `${3.4 * unit}cqw`,
         }}
       >
-        <p style={{ ...caps, fontWeight: 700, fontSize: `${(story ? 12 : 10) * fit}cqw`, letterSpacing: "0.04em", lineHeight: 0.98 }}>
+        <p style={{ ...caps, fontWeight: 700, fontSize: `calc(${(story ? 12 : 10) * fit}cqw * ${KIT_DISPLAY_SCALE})`, letterSpacing: "0.04em", lineHeight: 0.98 }}>
           We&apos;re searching for
         </p>
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: `${2.4 * fit}cqw` }}>

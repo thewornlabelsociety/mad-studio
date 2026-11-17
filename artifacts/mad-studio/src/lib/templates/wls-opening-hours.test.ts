@@ -103,3 +103,28 @@ test("today in New Zealand", () => {
   assert.equal(nzDateKey(new Date(Date.UTC(2026, 9, 29, 23))), "2026-10-30")
   assert.equal(dateFromKey("2026-10-30").getDay(), 5)
 })
+
+test("hoursStoryDays books an 8am Story on open days only, skipping holidays and the past", async () => {
+  const { hoursStoryDays } = await import("./wls-opening-hours.ts")
+  const week = parseWebsiteHours({
+    hours_weekday: "Tue–Wed  11:30am–3pm",
+    hours_thursday: "Thu Late Night  11:30am–7pm",
+    hours_friday: "Fri  11:30am–3pm",
+    hours_saturday: "Sat  10am–2pm",
+    hours_sunday: "Sun–Mon  Closed",
+  })
+  // Monday 16 Nov 2026, 9pm: the week ahead is Tue 17 to Sun 22.
+  const { days, holidays } = hoursStoryDays(week, "2026-11-17", { now: new Date(2026, 10, 16, 21) })
+  assert.deepEqual(days.map((d) => d.key), ["2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-21"])
+  assert.equal(days[0].postAt.getHours(), 8)
+  assert.deepEqual(holidays, [])
+
+  // Tuesday at 9am: today's 8am has gone, so it starts on Wednesday.
+  const later = hoursStoryDays(week, "2026-11-17", { now: new Date(2026, 10, 17, 9) })
+  assert.equal(later.days[0].key, "2026-11-18")
+
+  // Christmas week: Friday 25 Dec 2026 is a public holiday and is left out.
+  const xmas = hoursStoryDays(week, "2026-12-22", { now: new Date(2026, 11, 21) })
+  assert.ok(!xmas.days.some((d) => d.key === "2026-12-25"))
+  assert.ok(xmas.holidays.some((h) => h.key === "2026-12-25"))
+})

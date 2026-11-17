@@ -22,6 +22,8 @@ function post(key: string, time: Date, platforms: string[], status: CalendarPost
     time,
     status,
     overdue: false,
+    draftKind: null,
+    draftData: null,
   }
 }
 
@@ -47,6 +49,15 @@ test("each day shows its feed posts and whether it's done", () => {
   )
   assert.equal(week[0].slot.title, "A week of outfits")
   assert.equal(week[3].posts[0].key, "sale")
+})
+
+test("Tuesday is sale rack day, and a drafted day needs approval", () => {
+  const posts = [post("sale-draft", new Date(2026, 10, 3, 11), ["instagram_feed"], "draft")]
+  const week = planWeek({ weekStart: monday, posts, rhythm: WLS_WEEK_RHYTHM })
+  assert.equal(week[1].slot.title, "Sale rack and dot special")
+  assert.equal(week[1].state, "draft")
+  // A draft isn't on the grid until it's approved.
+  assert.deepEqual(gridPosts({ posts, until: new Date(2026, 10, 9), now: monday }), [])
 })
 
 test("the grid is newest first, Instagram feed only, up to the week's end", () => {

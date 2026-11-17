@@ -1,20 +1,21 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Link, useLocation } from "wouter"
-import { ArrowRight, Check, Link2, Loader2, RefreshCw, Scissors, Share2, Tag } from "lucide-react"
+import { Link, useLocation, useSearch } from "wouter"
+import { ArrowRight, CalendarPlus, Check, Link2, Loader2, RefreshCw, Scissors, Share2, Tag, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { DotSpecialPanel } from "@/components/templates/dot-special"
+import { useDayDraftTarget, useSlidesOut } from "@/components/planner/day-draft-target"
+
+import { colourLabel, DotSpecialPanel, dotSpecialCaption, useDotSpecial } from "@/components/templates/dot-special"
+import { dayLabel, nextDraftDay, parseYmd, saveDayDrafts, type DayDraft } from "@/lib/planner/day-drafts"
 import { StoryCardStyleMenu } from "@/components/templates/card-style-controls"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
 import { SaleCoverSlide, SaleItemSlide } from "@/components/templates/sale-slides"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { percentOff } from "@/lib/inventory/listing-markdown"
-import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
-import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import {
   bakeStoryPng,
   copyStoryLink,
@@ -29,6 +30,9 @@ import { cn } from "@/lib/utils"
 
 /** A carousel takes the cover plus nine pieces. */
 const SALE_SLIDES_MAX = 9
+
+/** Quick picks for the line under the week on the cover. */
+const COVER_NOTES = ["Menswear edit", "Womenswear edit", "Surf vibes", "Last chance"]
 
 type Props = {
   entityId: string
@@ -53,16 +57,35 @@ type SaleStory = KitStory & { was: number; now: number }
 /** This week's sale rack from shop markdowns: a carousel for the feed and a Story per piece. */
 export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, brandIdentity = null }: Props) {
   const [, navigate] = useLocation()
+  // Studio on its own screen; the day being filled when opened from the planner.
+  const out = useSlidesOut(entityId)
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
   const slideNodes = useRef<Array<HTMLDivElement | null>>([])
   const storyNodes = useRef<Record<string, HTMLDivElement | null>>({})
-  // Ticked pieces and background are kept, so leaving the screen keeps the carousel.
-  const [picked, setPicked] = useRememberedState<string[] | null>(`mad.saleRack.${entityId}.picked`, null)
+  // Ticked pieces are kept for the week, so leaving the screen keeps the carousel
+  // and a new week starts from that week's latest markdowns.
+  const [picked, setPicked] = useRememberedState<string[] | null>(`mad.saleRack.${entityId}.picked.${thisWeekLabel()}`, null)
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.saleRack.${entityId}.background`, null)
+  // The line under the week on the cover, kept for the week like the picks.
+  const [coverNote, setCoverNote] = useRememberedState<string>(`mad.saleRack.${entityId}.coverNote.${thisWeekLabel()}`, "")
+  const note = coverNote.trim()
   // The same card look as every other Story.
   const [cardStyle, setCardStyle] = useStoryCardStyle(entityId)
   const [sending, setSending] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [drafting, setDrafting] = useState(false)
+  const [special] = useDotSpecial(entityId)
+  const dotStoryNode = useRef<HTMLDivElement | null>(null)
+  // From the planner: ?day=2026-11-17 is the day to draft for, and ?draft=1
+  // drafts straight away once the slides are ready.
+  const search = useSearch()
+  const query = useMemo(() => new URLSearchParams(search), [search])
+  // In the planner's drawer, the day being filled wins.
+  const target = useDayDraftTarget()
+  const pickedDay = target?.day ?? parseYmd(query.get("day"))
+  const draftDay = pickedDay ?? nextDraftDay()
+  const autoDraft = query.get("draft") === "1"
+  const autoDrafted = useRef(false)
 
   // Marked-down items, newest markdown first (needs the list before cutouts).
   const [saleIds, setSaleIds] = useState<string[]>([])
@@ -112,32 +135,97 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
     })
   }
 
+  // No piece-by-piece list: brand, size and was/now are already on every slide.
   function caption(): string {
-    const lines = chosen.map((item) => {
-      const size = formatSizeForText(item.row.size)
-      return `${item.designer}${size ? ` (${size})` : ""}: was ${money(item.was)}, now ${money(item.now)}`
-    })
     return [
-      "This week on the sale rack.",
+      note ? `This week on the sale rack: ${note}.` : "This week on the sale rack.",
       "",
-      ...lines,
-      "",
-      "One of each, so be quick. Shop through the link in our bio or come see them in store.",
+      "One of each, so be quick. Shop through the link in our bio or come try on in store.",
     ].join("\n")
   }
+
+  /** The cover and every picked piece as uploaded images, in carousel order. */
+  async function bakeSlides(): Promise<string[]> {
+    const urls: string[] = []
+    for (const node of slideNodes.current.slice(0, chosen.length + 1)) {
+      if (!node) continue
+      const { blob } = await bakeStoryPng(node)
+      urls.push(await uploadRenderedPng(blob, entityId))
+    }
+    return urls
+  }
+
+  /** The carousel and the dot special Story go on the day as drafts, then back to the planner. */
+  async function draftForDay() {
+    setDrafting(true)
+    try {
+      const drafts: DayDraft[] = []
+      if (chosen.length > 0) {
+        const urls = await bakeSlides()
+        if (urls.length >= 2) {
+          drafts.push({
+            kind: "sale_rack",
+            platforms: ["instagram_feed", "facebook"],
+            title: note ? `Sale rack: ${note}` : "Sale rack",
+            caption: caption(),
+            mediaUrls: urls,
+            hour: 11,
+          })
+        }
+      }
+      if (dotStoryNode.current) {
+        const { blob } = await bakeStoryPng(dotStoryNode.current)
+        const url = await uploadRenderedPng(blob, entityId)
+        drafts.push({
+          kind: "dot_special",
+          platforms: ["instagram_story"],
+          title: `${colourLabel(special.color)} dot special`,
+          caption: dotSpecialCaption(special),
+          mediaUrls: [url],
+          hour: 9,
+          data: { special, backgroundId: dotStoryNode.current.dataset.backgroundId ?? null },
+        })
+      }
+      if (drafts.length === 0) throw new Error("Nothing to draft yet: pick some pieces first.")
+      const { saved, skipped } = await saveDayDrafts({ entityId, day: draftDay, drafts })
+      const name = (kind: string) => (kind === "sale_rack" ? "carousel" : "dot special Story")
+      if (saved.length > 0) {
+        toast.success(
+          `${saved.length === 2 ? "Carousel and Story" : name(saved[0]).replace(/^./, (c) => c.toUpperCase())} drafted for ${dayLabel(draftDay)}. Approve in the planner.`
+        )
+      }
+      if (skipped.length > 0) {
+        toast.message(
+          `${dayLabel(draftDay)}'s ${skipped.map(name).join(" and ")} ${skipped.length === 1 ? "is" : "are"} already approved, so ${skipped.length === 1 ? "it was" : "they were"} left as ${skipped.length === 1 ? "it is" : "they are"}. Unschedule in the planner to redraft.`
+        )
+      }
+      if (target) target.onDrafted()
+      else navigate(`/planner?eid=${encodeURIComponent(entityId)}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't save the drafts.")
+      setDrafting(false)
+    }
+  }
+
+  // ?draft=1: draft once the markdowns are in and every picked piece is cut out.
+  const hasMarkdowns = eligible.some((row) => row.wasPrice != null && row.price != null)
+  useEffect(() => {
+    if (!autoDraft || autoDrafted.current || !loaded || drafting) return
+    // Markdowns found: wait for the list, the picks, their slides, and their cutouts.
+    if (hasMarkdowns && (saleIds.length === 0 || picked === null || (picked.length > 0 && chosen.length === 0) || waiting.length > 0)) return
+    autoDrafted.current = true
+    setDrafting(true)
+    // A beat for the slides' photos to paint before they're baked. Not cleared
+    // on re-render: the screen keeps updating while it waits.
+    window.setTimeout(() => void draftForDay(), 1200)
+  })
 
   async function sendToStudio() {
     setSending(true)
     try {
-      const urls: string[] = []
-      for (const node of slideNodes.current.slice(0, chosen.length + 1)) {
-        if (!node) continue
-        const { blob } = await bakeStoryPng(node)
-        urls.push(await uploadRenderedPng(blob, entityId))
-      }
+      const urls = await bakeSlides()
       if (urls.length < 2) throw new Error("Pick at least one piece first.")
-      saveStudioSlidesHandoff(entityId, { urls, caption: caption() })
-      navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
+      await out.sendOut({ urls, caption: caption() })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the slides.")
       setSending(false)
@@ -172,7 +260,7 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
       <header className="flex flex-wrap items-end justify-between gap-3 border-b-2 border-mad-black pb-3">
         <div>
           <p className="font-typewriter text-[10px] uppercase tracking-widest text-mad-black/60">
-            Thursday carousel and Stories · {thisWeekLabel()}
+            Tuesday carousel and Stories · {thisWeekLabel()}
           </p>
           <h1 className="brand-typewriter text-xl">Sale rack</h1>
           <p className="mt-1 max-w-xl text-sm text-mad-black/70">
@@ -216,16 +304,45 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
           </Button>
           <Button
             type="button"
-            className="border-2 border-mad-black bg-mad-black text-mad-white"
-            disabled={chosen.length === 0 || waiting.length > 0 || sending}
-            onClick={() => void sendToStudio()}
-            title={waiting.length > 0 ? "Waiting for cutouts" : "Open the carousel in Studio"}
+            variant="outline"
+            className="border-2 border-mad-black"
+            disabled={waiting.length > 0 || sending || drafting || !loaded}
+            onClick={() => void draftForDay()}
+            title={
+              waiting.length > 0
+                ? "Waiting for cutouts"
+                : `Put the carousel and the dot special Story on ${dayLabel(draftDay)} to approve`
+            }
           >
-            {sending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-            {sending ? "Preparing slides…" : "Send to Studio"}
+            {drafting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <CalendarPlus className="mr-2 size-4" />}
+            {drafting ? "Drafting…" : `Draft for ${draftDay.toLocaleDateString("en-NZ", { weekday: "long" })}`}
           </Button>
+          {/* In the drawer, Draft for <day> already adds the carousel (and the dot Story). */}
+          {out.inDrawer ? null : (
+            <Button
+              type="button"
+              className="border-2 border-mad-black bg-mad-black text-mad-white"
+              disabled={chosen.length === 0 || waiting.length > 0 || sending || drafting}
+              onClick={() => void sendToStudio()}
+              title={waiting.length > 0 ? "Waiting for cutouts" : "Open the carousel in Studio"}
+            >
+              {sending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
+              {sending ? "Preparing slides…" : out.label}
+            </Button>
+          )}
         </div>
       </header>
+
+      {autoDraft && (drafting || !autoDrafted.current) ? (
+        <p role="status" className="flex items-center gap-2 border-2 border-mad-black bg-mad-lime/30 px-3 py-2 text-sm">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          {drafting
+            ? `Saving the drafts for ${dayLabel(draftDay)}…`
+            : waiting.length > 0
+              ? `Cutting out ${waiting.length} piece${waiting.length === 1 ? "" : "s"}, then drafting for ${dayLabel(draftDay)}…`
+              : `Getting the slides ready to draft for ${dayLabel(draftDay)}…`}
+        </p>
+      ) : null}
 
       {!loaded ? (
         <p className="flex items-center gap-2 text-sm text-mad-black/60">
@@ -250,6 +367,45 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
             <h2 id="sale-carousel" className="font-typewriter text-xs uppercase tracking-widest">
               Carousel · {chosen.length + 1} slides
             </h2>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="grid gap-1 text-xs">
+                <span className="font-typewriter uppercase tracking-widest">Text under the week (optional)</span>
+                <input
+                  id="sale-cover-note"
+                  className="h-9 w-64 border-2 border-mad-black bg-white px-2 text-sm"
+                  value={coverNote}
+                  maxLength={40}
+                  placeholder="e.g. Menswear edit"
+                  onChange={(event) => setCoverNote(event.target.value)}
+                />
+              </label>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Ideas for the text under the week">
+                {COVER_NOTES.map((idea) => (
+                  <button
+                    key={idea}
+                    type="button"
+                    onClick={() => setCoverNote(idea)}
+                    aria-pressed={note.toLowerCase() === idea.toLowerCase()}
+                    className={cn(
+                      "h-9 border border-mad-black/30 px-2.5 text-xs hover:border-mad-black",
+                      note.toLowerCase() === idea.toLowerCase() && "border-mad-black bg-mad-lime"
+                    )}
+                  >
+                    {idea}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCoverNote("")}
+                  disabled={!note}
+                  title="Clear the text under the week"
+                  aria-label="Clear the text under the week"
+                  className="flex size-9 items-center justify-center border border-mad-black/30 hover:border-mad-black disabled:opacity-40"
+                >
+                  <X className="size-3.5" aria-hidden />
+                </button>
+              </div>
+            </div>
             <ol className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
               <li className="min-w-0">
                 <SaleCoverSlide
@@ -258,7 +414,8 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
                   }}
                   background={background}
                   brandName={entityName}
-                  weekLabel={thisWeekLabel()}
+                  weekLabel={thisWeekLabel(pickedDay ?? undefined)}
+                  note={note}
                   className="rounded-sm shadow-md"
                 />
               </li>
@@ -357,7 +514,21 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
         </>
       )}
 
-      <DotSpecialPanel entityId={entityId} entityName={entityName} kit={kit} />
+      <DotSpecialPanel
+        entityId={entityId}
+        entityName={entityName}
+        kit={kit}
+        ready={loaded}
+        onStoryNode={(node) => {
+          dotStoryNode.current = node
+        }}
+        draft={{
+          label: `Draft for ${draftDay.toLocaleDateString("en-NZ", { weekday: "long" })}`,
+          busy: drafting,
+          disabled: waiting.length > 0 || sending || !loaded,
+          onClick: () => void draftForDay(),
+        }}
+      />
     </div>
   )
 }

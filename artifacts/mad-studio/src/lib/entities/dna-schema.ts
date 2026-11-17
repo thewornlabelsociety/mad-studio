@@ -59,6 +59,10 @@ export const visualPresetsSchema = z.object({
   palette: z.array(z.string()).max(12).optional(),
   /** Default on-image headline font (a CANVAS_TEXT_FONTS id). */
   heading_font_id: z.string().optional(),
+  /** Template fonts by role (ids from lib/brands/template-fonts): display, serif, script. */
+  template_fonts: z
+    .object({ display: z.string().optional(), serif: z.string().optional(), script: z.string().optional() })
+    .optional(),
   /** Up to five Story backgrounds; new-arrival Stories pick one per item. */
   story_kit: z.array(storyBackgroundSchema).max(5).optional(),
 })

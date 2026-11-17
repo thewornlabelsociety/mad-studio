@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client"
 
 export type CalendarPostStatus =
+  | "draft"
   | "scheduled"
   | "processing"
   | "published"
@@ -31,10 +32,14 @@ export type CalendarPost = {
   slots: CalendarPostSlot[]
   /** Earliest time that day, for ordering. */
   time: Date
-  /** Worst-first summary: failed > processing > scheduled > published. */
+  /** Worst-first summary: failed > draft > processing > scheduled > published. */
   status: CalendarPostStatus
   /** Still waiting to go out well after its time — the scheduler may be paused. */
   overdue: boolean
+  /** For a draft: what made it ("sale_rack", "dot_special"), so it can be reopened there. */
+  draftKind: string | null
+  /** For a draft: what it was made from (e.g. the dot special's wording). */
+  draftData: unknown
 }
 
 /** A few minutes' grace before a scheduled post counts as overdue. */
@@ -56,10 +61,12 @@ type Row = {
 
 const STATUS_RANK: Record<CalendarPostStatus, number> = {
   failed: 0,
-  processing: 1,
-  scheduled: 2,
-  published: 3,
-  cancelled: 4,
+  // Waiting on approval: shown ahead of what's simply scheduled.
+  draft: 1,
+  processing: 2,
+  scheduled: 3,
+  published: 4,
+  cancelled: 5,
 }
 
 function asStatus(value: string): CalendarPostStatus {
@@ -105,8 +112,11 @@ export async function fetchCalendarPosts(input: {
     // Hidden from the calendar (e.g. test posts) — still live on the platform.
     if (payloadOf(row).calendar_hidden === true) continue
     const time = new Date(row.scheduled_time)
-    const key = row.campaign_id ? `${row.campaign_id}:${dayKey(time)}` : row.id
     const payload = payloadOf(row)
+    // Studio posts group by campaign; drafts made together (e.g. the sale rack
+    // on Instagram and Facebook) share a draft_group.
+    const group = stringOf(payload.draft_group)
+    const key = row.campaign_id ? `${row.campaign_id}:${dayKey(time)}` : group ? `draft:${group}` : row.id
     const slides = Array.isArray(payload.media_urls)
       ? payload.media_urls.filter((url): url is string => typeof url === "string")
       : []
@@ -141,6 +151,8 @@ export async function fetchCalendarPosts(input: {
       time,
       status: slot.status,
       overdue: false,
+      draftKind: stringOf(payload.draft_kind) || null,
+      draftData: payload.draft_data ?? null,
     })
   }
   const now = Date.now()

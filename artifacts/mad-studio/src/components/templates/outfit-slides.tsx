@@ -2,7 +2,7 @@ import { forwardRef, type CSSProperties } from "react"
 import { ArrowRight } from "lucide-react"
 
 import { AdjustableLayer, type LayerAdjust } from "@/components/templates/adjustable-layer"
-import { KIT_DISPLAY as DISPLAY, kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
+import { KIT_DISPLAY as DISPLAY, KIT_DISPLAY_SCALE, kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 import type { GarmentSlot } from "@/lib/inventory/listing-garment"
 
@@ -237,7 +237,7 @@ export const OutfitCoverSlide = forwardRef<
           style={{
             ...caps,
             fontWeight: 700,
-            fontSize: `${titleSize}cqw`,
+            fontSize: `calc(${titleSize}cqw * ${KIT_DISPLAY_SCALE})`,
             letterSpacing: "0.04em",
             lineHeight: 0.95,
             marginTop: "1cqw",

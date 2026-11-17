@@ -1,7 +1,7 @@
 import { forwardRef } from "react"
 
 import { AdjustableLayer, NO_ADJUST, type LayerAdjust } from "@/components/templates/adjustable-layer"
-import { EDITORIAL_SERIF } from "@/components/templates/editorial-announcement"
+import { EDITORIAL_SERIF, EDITORIAL_SERIF_SCALE, EDITORIAL_SERIF_WEIGHT } from "@/components/templates/editorial-announcement"
 import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
@@ -185,7 +185,7 @@ export const EditItemSlide = forwardRef<
               <p
                 style={
                   editorial
-                    ? { margin: 0, fontFamily: EDITORIAL_SERIF, textTransform: "uppercase", fontWeight: 500, fontSize: `${designerSize}cqw`, letterSpacing: "0.04em", lineHeight: 1.05 }
+                    ? { margin: 0, fontFamily: EDITORIAL_SERIF, textTransform: "uppercase", fontWeight: EDITORIAL_SERIF_WEIGHT, fontSize: `calc(${designerSize}cqw * ${EDITORIAL_SERIF_SCALE})`, letterSpacing: "0.04em", lineHeight: 1.05 }
                     : { ...caps, fontWeight: 600, fontSize: `${designerSize}cqw`, letterSpacing: "0.16em", lineHeight: 1.1 }
                 }
               >

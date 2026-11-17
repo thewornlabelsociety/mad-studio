@@ -58,6 +58,7 @@ const GRID_LOOKBACK_DAYS = 63
 const STATE_LABEL: Record<PlannedDay["state"], string> = {
   posted: "Posted",
   planned: "Planned",
+  draft: "Needs approval",
   failed: "Didn't post",
   empty: "Empty",
 }
@@ -305,6 +306,7 @@ export function WeekPlanner({ entityId, isWornLabel }: { entityId: string; isWor
                           "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
                           day.state === "posted" && "bg-emerald-100 text-emerald-800",
                           day.state === "planned" && "bg-mad-black text-mad-white",
+                          day.state === "draft" && "bg-mad-lime text-mad-black",
                           day.state === "failed" && "bg-mad-vermillion/15 text-mad-vermillion",
                           day.state === "empty" && "bg-black/5 text-mad-black/55"
                         )}

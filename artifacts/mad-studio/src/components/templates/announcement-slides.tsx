@@ -1,7 +1,7 @@
 import { forwardRef, type CSSProperties } from "react"
 
 import { EditorialAnnouncement, type EditorialAccent } from "@/components/templates/editorial-announcement"
-import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
+import { KIT_DISPLAY_SCALE, kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
 export type Announcement = {
@@ -121,7 +121,7 @@ function AnnouncementLayout({ background, brandName, announcement, linkSpace, st
           style={{
             ...caps,
             fontWeight: 700,
-            fontSize: `${headlineSize(headline, story)}cqw`,
+            fontSize: `calc(${headlineSize(headline, story)}cqw * ${KIT_DISPLAY_SCALE})`,
             letterSpacing: "0.04em",
             lineHeight: 0.98,
             textWrap: "balance",

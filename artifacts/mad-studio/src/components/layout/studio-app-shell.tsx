@@ -16,6 +16,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useBrandTemplateFonts } from "@/components/templates/brand-template-fonts"
 import { cn } from "@/lib/utils"
 
 type Props = TopbarProps & {
@@ -77,6 +78,8 @@ export function StudioAppShell({
 }: Props) {
   const [brainOpen, setBrainOpen] = useState(false)
   const [sopOpen, setSopOpen] = useState(false)
+  // The brand kit's template fonts, for every template on the page.
+  useBrandTemplateFonts(topbarProps.activeEntityId)
   const activeEntity =
     topbarProps.entities.find(
       (entity) => entity.id === topbarProps.activeEntityId

@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useLocation } from "wouter"
 import { ArrowRight, Check, ImagePlus, Loader2, Scissors, Share2, X } from "lucide-react"
 import { toast } from "sonner"
+
+import { useSlidesOut } from "@/components/planner/day-draft-target"
 
 import type { SlidePiece } from "@/components/templates/outfit-slides"
 import { PiecePicker, type PickerOption } from "@/components/templates/piece-picker"
@@ -12,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
-import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { pieceType } from "@/lib/templates/story-card-style"
 import { proxiedPhotoUrl, shrinkPhoto, uploadPhoto } from "@/lib/templates/upload-photo"
 import { bakeStoryPng, shareOrDownloadStory, useKitStories } from "@/lib/templates/use-kit-stories"
@@ -42,7 +42,8 @@ function shortPrice(label: string | null | undefined): string | null {
 
 /** A staff member's outfit from the racks: their photo, their name and every piece tagged with size and price. */
 export function WlsStaffOutfitWorkspace({ entityId, entityName, industry = null, brandIdentity = null }: Props) {
-  const [, navigate] = useLocation()
+  // Studio on its own screen; the day being filled when opened from the planner.
+  const out = useSlidesOut(entityId)
   const feedNode = useRef<HTMLDivElement | null>(null)
   const storyNode = useRef<HTMLDivElement | null>(null)
   const isWls = isWornLabelFashionEntity({ name: entityName, industry })
@@ -182,8 +183,7 @@ export function WlsStaffOutfitWorkspace({ entityId, entityName, industry = null,
       if (!feedNode.current) return
       const { blob } = await bakeStoryPng(feedNode.current)
       const url = await uploadRenderedPng(blob, entityId)
-      saveStudioSlidesHandoff(entityId, { urls: [url], caption: caption() })
-      navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
+      await out.sendOut({ urls: [url], caption: caption() })
     })
 
   const saveStory = () =>
@@ -260,7 +260,7 @@ export function WlsStaffOutfitWorkspace({ entityId, entityName, industry = null,
             title={!ready ? "Add a photo and at least one piece" : "Open the feed card in Studio"}
           >
             {busy === "studio" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-            {busy === "studio" ? "Preparing…" : "Send to Studio"}
+            {busy === "studio" ? "Preparing…" : out.label}
           </Button>
         </div>
       </header>

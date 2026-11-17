@@ -22,6 +22,14 @@ import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import type { StudioEntityDna } from "@/lib/campaigns/entity-dna"
 import type { LogoCorner, VisualPresets } from "@/lib/entities/dna-schema"
 import { CANVAS_TEXT_FONTS } from "@/lib/studio/canvas-text-types"
+import {
+  resolveTemplateFonts,
+  TEMPLATE_FONT_CHOICES,
+  templateFontChoice,
+  type TemplateFontRole,
+  type TemplateFonts,
+} from "@/lib/brands/template-fonts"
+import { TEMPLATE_FONTS_EVENT, type TemplateFontsEventDetail } from "@/components/templates/brand-template-fonts"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -75,6 +83,12 @@ export function VisualPresetCard({ entity, className }: Props) {
         toast.error(result.error)
         return
       }
+      // Restyle any template already open on the page.
+      window.dispatchEvent(
+        new CustomEvent<TemplateFontsEventDetail>(TEMPLATE_FONTS_EVENT, {
+          detail: { entityId: entity.id, fonts: resolveTemplateFonts(draft.template_fonts) },
+        })
+      )
       toast.success("Visual presets saved — Story & Carousel will use these.")
     })
   }
@@ -228,6 +242,14 @@ export function VisualPresetCard({ entity, className }: Props) {
         }
       />
 
+      <TemplateFontsField
+        value={resolveTemplateFonts(draft.template_fonts)}
+        brandName={entity.name}
+        onChange={(template_fonts) =>
+          setDraft((current) => ({ ...current, template_fonts }))
+        }
+      />
+
       <LogoField
         entityId={entity.id}
         logoUrl={draft.logo_url ?? null}
@@ -354,6 +376,81 @@ function HeadlineFontField({
       >
         {sample}
       </p>
+    </div>
+  )
+}
+
+const TEMPLATE_FONT_ROLES: Array<{ role: TemplateFontRole; label: string; hint: string }> = [
+  { role: "display", label: "Capitals", hint: "Brand name, titles, prices and small spaced lines" },
+  { role: "serif", label: "Serif headline", hint: "Big announcement headlines and edit names" },
+  { role: "script", label: "Script line", hint: "Short handwritten accents, never body text" },
+]
+
+/**
+ * The templates' three fonts. Each sample is drawn at the weight and size
+ * the templates use, on dark and light, so what you pick is what reads.
+ */
+function TemplateFontsField({
+  value,
+  brandName,
+  onChange,
+}: {
+  value: TemplateFonts
+  brandName: string
+  onChange: (fonts: TemplateFonts) => void
+}) {
+  const sampleText: Record<TemplateFontRole, string> = {
+    display: brandName || "Worn Label Society",
+    serif: "New season",
+    script: "the best wardrobes aren't new",
+  }
+  return (
+    <div className="grid gap-3 border-t border-neutral-200 pt-4">
+      <div>
+        <Label className="font-typewriter text-[0.72rem] font-bold tracking-widest uppercase">Template fonts</Label>
+        <p className="mt-1 text-xs text-neutral-600">
+          Used on every template: Stories, carousels, the dot special and the A4 sheet. Save presets to apply.
+        </p>
+      </div>
+      {TEMPLATE_FONT_ROLES.map(({ role, label, hint }) => {
+        const active = templateFontChoice(role, value[role])
+        const sampleStyle = {
+          fontFamily: active.stack,
+          fontWeight: active.weight,
+          textTransform: role === "script" ? undefined : ("uppercase" as const),
+          letterSpacing: role === "display" ? "0.18em" : role === "serif" ? "-0.01em" : undefined,
+          fontSize: `${(role === "display" ? 0.95 : role === "serif" ? 1.6 : 1.45) * active.scale}rem`,
+          lineHeight: 1.15,
+        }
+        return (
+          <div key={role} className="grid gap-2 sm:grid-cols-[minmax(0,14rem)_1fr] sm:items-center">
+            <div className="grid gap-1">
+              <span className="font-typewriter text-[0.7rem] font-bold tracking-wider uppercase">{label}</span>
+              <Select value={active.id} onValueChange={(id) => onChange({ ...value, [role]: id })}>
+                <SelectTrigger aria-label={`${label} font`} className="rounded-none border-2 border-mad-black">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-none border-2 border-mad-black">
+                  {TEMPLATE_FONT_CHOICES[role].map((choice) => (
+                    <SelectItem key={choice.id} value={choice.id}>
+                      <span style={{ fontFamily: choice.stack, fontWeight: choice.weight }}>{choice.label}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-[0.75rem] leading-snug text-neutral-500">{hint}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <p className="truncate bg-[#252525] px-3 py-3 text-[#F1EADB]" style={sampleStyle}>
+                {sampleText[role]}
+              </p>
+              <p className="truncate border border-neutral-200 bg-white px-3 py-3 text-[#252525]" style={sampleStyle}>
+                {sampleText[role]}
+              </p>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

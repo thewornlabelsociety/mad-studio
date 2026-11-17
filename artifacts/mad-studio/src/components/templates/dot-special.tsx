@@ -2,17 +2,19 @@
 
 import { forwardRef, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react"
 import { useLocation } from "wouter"
-import { ArrowRight, Check, FileText, Loader2, Share2 } from "lucide-react"
+import { ArrowRight, CalendarPlus, Check, FileText, Loader2, Share2 } from "lucide-react"
 import { toast } from "sonner"
 
 import {
   Brush,
   EDITORIAL_SCRIPT,
-  EDITORIAL_SERIF,
+  EDITORIAL_SCRIPT_SCALE,
+  EDITORIAL_SCRIPT_WEIGHT,
   gold,
   Rule,
+  scaled,
 } from "@/components/templates/editorial-announcement"
-import { KIT_DISPLAY } from "@/components/templates/kit-type"
+import { KIT_DISPLAY, KIT_DISPLAY_SCALE } from "@/components/templates/kit-type"
 import { Button } from "@/components/ui/button"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 import { WORN_LABEL_TAG_COLORS } from "@/lib/social-creative/worn-label-promo-theme"
@@ -61,6 +63,12 @@ export function colourLabel(name: WornLabelTagColorName): string {
   return name.charAt(0) + name.slice(1).toLowerCase()
 }
 
+/** The discount's size in cqw: `max` for short ones, smaller so a long one stays inside the 86cqw column. */
+function discountSize(discount: string, max: number): number {
+  // About 0.78em per bold capital with its tracking.
+  return Math.min(max, 84 / (Math.max(discount.length, 1) * 0.78))
+}
+
 /**
  * The dot special in the brand kit: brand line, the tag-coloured dot, the
  * discount in the tall serif, a gold brush, then when and where.
@@ -74,12 +82,14 @@ export const DotSpecialArt = forwardRef<
   const dot = WORN_LABEL_TAG_COLORS[special.color]
   const story = aspect === "story"
   const a4 = aspect === "a4"
+  // Small spaced lines in the kit's display capitals: the hairline serif vanished at this size.
   const spaced = (size: number) => ({
     margin: 0,
-    fontFamily: EDITORIAL_SERIF,
+    fontFamily: KIT_DISPLAY,
+    fontWeight: 600,
     textTransform: "uppercase" as const,
     fontSize: `${size}cqw`,
-    letterSpacing: "0.32em",
+    letterSpacing: "0.24em",
   })
   // A dark dot on a dark background (or white on white) needs a ring to show.
   const ring = dot.hex.toLowerCase() === "#111111" || background.color.toLowerCase() === dot.hex.toLowerCase()
@@ -88,6 +98,8 @@ export const DotSpecialArt = forwardRef<
     <div
       ref={ref}
       className={className}
+      // Read when the Story is saved as a draft, so the draft can be edited with the same background.
+      data-background-id={background.id}
       style={{
         position: "relative",
         width: a4 ? A4_WIDTH : "100%",
@@ -132,15 +144,17 @@ export const DotSpecialArt = forwardRef<
           }}
         />
         <p style={spaced(story ? 3.4 : a4 ? 3.2 : 2.8)}>{colourLabel(special.color)} dot</p>
+        {/* Bold kit sans, not the hairline serif: it has to read on the white A4 sheet too. */}
         <p
           style={{
             margin: 0,
-            fontFamily: EDITORIAL_SERIF,
+            fontFamily: KIT_DISPLAY,
             textTransform: "uppercase",
-            fontWeight: 500,
-            fontSize: `${(story ? 20 : a4 ? 18 : 15) * Math.min(1, 8 / Math.max(special.discount.length, 1))}cqw`,
+            fontWeight: 700,
+            fontSize: scaled(discountSize(special.discount || "50% off", story ? 17 : a4 ? 15 : 13), KIT_DISPLAY_SCALE),
             lineHeight: 0.95,
-            letterSpacing: "-0.01em",
+            letterSpacing: "0.02em",
+            whiteSpace: "nowrap",
           }}
         >
           {special.discount || "50% off"}
@@ -152,8 +166,9 @@ export const DotSpecialArt = forwardRef<
             style={{
               margin: "1cqw 0 0",
               fontFamily: EDITORIAL_SCRIPT,
-              fontSize: `${story ? 10 : a4 ? 9 : 7.5}cqw`,
-              lineHeight: 1.05,
+              fontWeight: EDITORIAL_SCRIPT_WEIGHT,
+              fontSize: scaled(story ? 10 : a4 ? 9 : 7.5, EDITORIAL_SCRIPT_SCALE),
+              lineHeight: 1.15,
               color: accent,
               transform: "rotate(-4deg)",
             }}
@@ -170,6 +185,18 @@ export const DotSpecialArt = forwardRef<
     </div>
   )
 })
+
+/** The caption that goes with the dot special card or Story. */
+export function dotSpecialCaption(special: DotSpecial): string {
+  return [
+    `${colourLabel(special.color)} dot: ${special.discount}. ${special.when}.`.replace(/\.\./g, "."),
+    "",
+    "Look for the coloured dot on the tag.",
+    special.footer,
+  ]
+    .join("\n")
+    .trim()
+}
 
 /** The dot special's wording: dot colour, discount, when, script line and bottom line. */
 export function DotSpecialFields({
@@ -244,10 +271,19 @@ export function DotSpecialPanel({
   entityId,
   entityName,
   kit,
+  ready = true,
+  onStoryNode,
+  draft,
 }: {
   entityId: string
   entityName: string
   kit: StoryBackground[]
+  /** False while content above is still loading; the #dot-special jump waits for it. */
+  ready?: boolean
+  /** The rendered Story, for screens that save it as a draft. */
+  onStoryNode?: (node: HTMLDivElement | null) => void
+  /** A "Draft for <day>" button beside the Story, from the screen that can draft. */
+  draft?: { label: string; busy: boolean; disabled: boolean; onClick: () => void }
 }) {
   const [, navigate] = useLocation()
   const [special, setSpecial] = useDotSpecial(entityId)
@@ -259,12 +295,15 @@ export function DotSpecialPanel({
   const background = kit.find((bg) => bg.id === backgroundId) ?? kit[0]
   const white = useMemo(() => printBackground(kit), [kit])
 
-  // Opened from a campaign step (#dot-special): bring it into view.
+  // Opened from the planner or a campaign step (#dot-special): bring it into view
+  // once whatever sits above it has loaded, or it gets pushed back down.
+  const jumped = useRef(false)
   useEffect(() => {
-    if (window.location.hash !== "#dot-special") return
+    if (!ready || jumped.current || window.location.hash !== "#dot-special") return
+    jumped.current = true
     const timer = window.setTimeout(() => document.getElementById("dot-special")?.scrollIntoView({ behavior: "smooth" }), 300)
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [ready])
 
   async function run(kind: "story" | "studio" | "print", work: () => Promise<void>) {
     setBusy(kind)
@@ -291,13 +330,7 @@ export function DotSpecialPanel({
       if (!cardRef.current) return
       const { blob } = await bakeStoryPng(cardRef.current)
       const url = await uploadRenderedPng(blob, entityId)
-      const caption = [
-        `${colourLabel(special.color)} dot: ${special.discount}. ${special.when}.`.replace(/\.\./g, "."),
-        "",
-        "Look for the coloured dot on the tag.",
-        special.footer,
-      ].join("\n").trim()
-      saveStudioSlidesHandoff(entityId, { urls: [url], caption })
+      saveStudioSlidesHandoff(entityId, { urls: [url], caption: dotSpecialCaption(special) })
       navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
     })
 
@@ -354,11 +387,29 @@ export function DotSpecialPanel({
 
         <div className="flex flex-wrap items-start gap-5">
           <div className="flex w-[200px] flex-col gap-2">
-            <DotSpecialArt ref={storyRef} special={special} background={background} brandName={entityName} aspect="story" className="rounded-md shadow-md" />
+            <DotSpecialArt
+              ref={(node) => {
+                storyRef.current = node
+                onStoryNode?.(node)
+              }}
+              special={special} background={background} brandName={entityName} aspect="story" className="rounded-md shadow-md" />
             <Button type="button" className="border-2 border-mad-black bg-mad-black text-mad-white" disabled={busy != null} onClick={() => void saveStory()}>
               {busy === "story" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Share2 className="mr-2 size-4" />}
               Save Story image
             </Button>
+            {draft ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-2 border-mad-black"
+                disabled={busy != null || draft.disabled || draft.busy}
+                onClick={draft.onClick}
+                title="Put this Story and the carousel on the day to approve, replacing the drafts there"
+              >
+                {draft.busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <CalendarPlus className="mr-2 size-4" />}
+                {draft.busy ? "Drafting…" : draft.label}
+              </Button>
+            ) : null}
           </div>
           <div className="flex w-[240px] flex-col gap-2">
             <DotSpecialArt ref={cardRef} special={special} background={background} brandName={entityName} aspect="card" className="rounded-sm shadow-md" />

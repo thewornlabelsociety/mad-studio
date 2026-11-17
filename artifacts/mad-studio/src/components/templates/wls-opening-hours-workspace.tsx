@@ -1,9 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useLocation } from "wouter"
-import { ArrowRight, Check, Loader2, RefreshCw, RotateCcw, Share2, TriangleAlert } from "lucide-react"
+import { ArrowRight, CalendarClock, Check, Clock, Loader2, RefreshCw, RotateCcw, Share2, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
+
+import { useSlidesOut } from "@/components/planner/day-draft-target"
 
 import {
   OpeningHoursCard,
@@ -15,8 +16,8 @@ import { Button } from "@/components/ui/button"
 import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
+import { scheduleDayStories } from "@/lib/planner/day-drafts"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
-import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
 import {
   DAY_NAMES,
@@ -24,6 +25,7 @@ import {
   dateFromKey,
   dayLabel,
   holidaysInWeek,
+  hoursStoryDays,
   nzDateKey,
   parseWebsiteHours,
   planForDay,
@@ -72,13 +74,25 @@ function weekFootnote(week: WeekHours, key: string): string {
   return `${names}: hours may vary`
 }
 
+/** The words under a day's hours Story or card. */
+function todayCaption(t: TodayHours, location: string): string {
+  return [
+    [t.kicker, `${t.day} ${t.date}`].filter((part) => part.trim()).join(", "),
+    t.hours,
+    t.note,
+    "",
+    location,
+  ].filter((line, index, lines) => line.trim() || (index > 0 && lines[index - 1].trim())).join("\n").trim()
+}
+
 function draftKey(entityId: string): string {
   return `mad.opening-hours.${entityId}`
 }
 
 /** Opening hours from the website: today's hours as a Story, or the week's. */
 export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null, brandIdentity = null }: Props) {
-  const [, navigate] = useLocation()
+  // Studio on its own screen; the day being filled when opened from the planner.
+  const out = useSlidesOut(entityId)
   const storyRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const [contact, setContact] = useState<WebsiteContact | null>(null)
@@ -159,18 +173,46 @@ export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null
     else setFootnoteEdit(null)
   }
 
+  // Every morning: an "Open today" Story for each open day in the next week,
+  // with any words changed for that day, booked for 8am.
+  const morning = useMemo(() => (week ? hoursStoryDays(week, nzDateKey()) : null), [week])
+  const morningDays = (morning?.days ?? []).map((item) => ({
+    ...item,
+    today: { ...todayFromWebsite(week!, item.key), ...todayEdits[item.key] },
+  }))
+  const morningNodes = useRef<Record<string, HTMLDivElement | null>>({})
+  const [booking, setBooking] = useState(false)
+
+  async function bookMornings() {
+    if (morningDays.length === 0) return
+    setBooking(true)
+    try {
+      const stories = []
+      for (const item of morningDays) {
+        const node = morningNodes.current[item.key]
+        if (!node) continue
+        const { blob } = await bakeStoryPng(node)
+        stories.push({
+          postAt: item.postAt,
+          mediaUrl: await uploadRenderedPng(blob, entityId),
+          title: `Opening hours: ${item.today.day}`,
+          caption: todayCaption(item.today, location),
+        })
+      }
+      const { booked, skipped } = await scheduleDayStories({ entityId, kind: "opening_hours_story", stories })
+      toast.success(
+        `${booked} morning Stor${booked === 1 ? "y" : "ies"} booked for 8am.${skipped ? ` ${skipped} already posted, left as they were.` : ""} They're on the planner.`
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't book the Stories.")
+    } finally {
+      setBooking(false)
+    }
+  }
+
   function caption(): string {
     if (!post) return ""
-    if (post.mode === "today") {
-      const t = post.today
-      return [
-        [t.kicker, `${t.day} ${t.date}`].filter((part) => part.trim()).join(", "),
-        t.hours,
-        t.note,
-        "",
-        location,
-      ].filter((line, index, lines) => line.trim() || (index > 0 && lines[index - 1].trim())).join("\n").trim()
-    }
+    if (post.mode === "today") return todayCaption(post.today, location)
     return [
       "Our opening hours",
       "",
@@ -204,8 +246,7 @@ export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null
     try {
       const { blob } = await bakeStoryPng(cardRef.current)
       const url = await uploadRenderedPng(blob, entityId)
-      saveStudioSlidesHandoff(entityId, { urls: [url], caption: caption() })
-      navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
+      await out.sendOut({ urls: [url], caption: caption() })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the card.")
       setBusy(null)
@@ -437,10 +478,62 @@ export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null
                   title="Open the card in Studio to schedule it"
                 >
                   {busy === "studio" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-                  Send card to Studio
+                  {out.cardLabel}
                 </Button>
               </div>
             </div>
+          </section>
+
+          <section
+            aria-labelledby="hours-mornings"
+            className="grid content-start gap-3 border-2 border-mad-black bg-white p-4 lg:col-span-2"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 id="hours-mornings" className="font-typewriter text-xs uppercase tracking-widest">
+                  Every morning
+                </h2>
+                <p className="mt-1 max-w-xl text-sm text-mad-black/70">
+                  An &ldquo;Open today&rdquo; Story at 8am on each day you&apos;re open this coming week, in the
+                  background picked above. Closed days get nothing. Booking again replaces the ones not yet posted.
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="border-2 border-mad-black bg-mad-black text-mad-white"
+                disabled={booking || morningDays.length === 0}
+                onClick={() => void bookMornings()}
+                title="Book these Stories on the planner for 8am"
+              >
+                {booking ? <Loader2 className="mr-2 size-4 animate-spin" /> : <CalendarClock className="mr-2 size-4" />}
+                {booking ? "Booking…" : `Schedule ${morningDays.length} morning Stor${morningDays.length === 1 ? "y" : "ies"}`}
+              </Button>
+            </div>
+            {morningDays.length > 0 ? (
+              <ul className="grid gap-1 text-sm sm:grid-cols-2">
+                {morningDays.map((item) => (
+                  <li key={item.key} className="flex items-center gap-2">
+                    <Clock className="size-3.5 shrink-0 text-mad-black/50" aria-hidden />
+                    <span className="font-medium">
+                      {item.today.day} {item.today.date}
+                    </span>
+                    <span className="text-mad-black/70">
+                      · {item.today.hours}
+                      {item.today.note ? ` (${item.today.note})` : ""} · posts 8am
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-mad-black/60">No open days left to book this week.</p>
+            )}
+            {morning && morning.holidays.length > 0 ? (
+              <p className="flex items-center gap-2 text-xs text-mad-black/70">
+                <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+                Left out: {morning.holidays.map((h) => `${h.name} (${h.key.slice(8)}/${h.key.slice(5, 7)})`).join(", ")}. The
+                website has no holiday hours, so post those days from Today above.
+              </p>
+            ) : null}
           </section>
 
           {/* Full-size copies for saving, without the preview's rounded corners; never shown. */}
@@ -448,6 +541,19 @@ export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null
             <div className="w-[230px]">
               <OpeningHoursStory ref={storyRef} background={background} brandName={entityName} post={post} linkSpace={linkSpace} />
             </div>
+            {morningDays.map((item) => (
+              <div key={item.key} className="w-[230px]">
+                <OpeningHoursStory
+                  ref={(node) => {
+                    morningNodes.current[item.key] = node
+                  }}
+                  background={background}
+                  brandName={entityName}
+                  post={{ mode: "today", today: item.today, location }}
+                  linkSpace={false}
+                />
+              </div>
+            ))}
             <div className="w-[300px]">
               <OpeningHoursCard ref={cardRef} background={background} brandName={entityName} post={post} />
             </div>

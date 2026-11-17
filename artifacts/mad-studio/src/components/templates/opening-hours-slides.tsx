@@ -1,6 +1,6 @@
 import { forwardRef } from "react"
 
-import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
+import { KIT_DISPLAY_SCALE, kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 import type { WeekRow } from "@/lib/templates/wls-opening-hours"
 
@@ -60,7 +60,7 @@ function TodayLayout({ background, today, story }: { background: StoryBackground
           style={{
             ...caps,
             fontWeight: 600,
-            fontSize: `${(story ? 11 : 8.6) * (today.hours.length > 14 ? 0.8 : 1)}cqw`,
+            fontSize: `calc(${(story ? 11 : 8.6) * (today.hours.length > 14 ? 0.8 : 1)}cqw * ${KIT_DISPLAY_SCALE})`,
             letterSpacing: "0.06em",
             lineHeight: 1,
             opacity: closed ? 0.85 : 1,

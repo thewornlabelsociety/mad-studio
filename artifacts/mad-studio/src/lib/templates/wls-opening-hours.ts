@@ -236,3 +236,37 @@ export function holidaysInWeek(from: Date): Array<[string, Date]> {
     .flatMap(nzPublicHolidays)
     .filter(([, date]) => date >= start && date <= end)
 }
+
+/** One morning hours Story to book: the day, and the time it goes up. */
+export type HoursStoryDay = { key: string; date: Date; postAt: Date }
+
+/**
+ * The days in the next `count` (from `fromKey`) that get a morning "Open
+ * today" Story: open days only. Closed days get nothing, and public holidays
+ * are left out because the website doesn't give holiday hours. A day whose
+ * post time has already passed is skipped too.
+ */
+export function hoursStoryDays(
+  week: WeekHours,
+  fromKey: string,
+  options: { count?: number; hour?: number; minute?: number; now?: Date } = {}
+): { days: HoursStoryDay[]; holidays: Array<{ key: string; name: string }> } {
+  const { count = 7, hour = 8, minute = 0, now = new Date() } = options
+  const start = dateFromKey(fromKey)
+  const days: HoursStoryDay[] = []
+  const holidays: Array<{ key: string; name: string }> = []
+  for (let offset = 0; offset < count; offset++) {
+    const date = addDays(start, offset)
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+    const plan = planForDay(week, date)
+    if (!plan.hours || plan.hours.closed) continue
+    if (plan.holiday) {
+      holidays.push({ key, name: plan.holiday })
+      continue
+    }
+    const postAt = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute)
+    if (postAt.getTime() <= now.getTime() + 5 * 60 * 1000) continue
+    days.push({ key, date, postAt })
+  }
+  return { days, holidays }
+}
