@@ -56,10 +56,14 @@ export const EditItemSlide = forwardRef<
     onSubjectSelect?: (selected: boolean) => void
     /** Stories: a dashed link-sticker zone, never baked into the export. */
     showLinkGuide?: boolean
+    /** A sale dot top right, e.g. 25% OFF, tilted like a swing tag. */
+    percentOff?: number | null
+    /** False leaves the brand wordmark off the top right. */
+    showWordmark?: boolean
     className?: string
   }
 >(function EditItemSlide(
-  { background, brandName, editLabel, eyebrow = null, heading = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, subject = NO_ADJUST, onSubjectChange, subjectSelected = false, onSubjectSelect, showLinkGuide = false, className },
+  { background, brandName, editLabel, eyebrow = null, heading = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, subject = NO_ADJUST, onSubjectChange, subjectSelected = false, onSubjectSelect, showLinkGuide = false, percentOff = null, showWordmark = true, className },
   ref
 ) {
   const ink = background.text_color
@@ -100,7 +104,7 @@ export const EditItemSlide = forwardRef<
       <div style={{ position: "absolute", left: "7cqw", right: "7cqw", top: `${top}cqw` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "4cqw" }}>
           <p style={{ ...caps, fontSize: "2.4cqw", letterSpacing: "0.34em", lineHeight: 1.4, color: accent }}>{editLabel}</p>
-          <Wordmark brandName={brandName} accent={accent} size={2.6} />
+          {showWordmark ? <Wordmark brandName={brandName} accent={accent} size={2.6} /> : null}
         </div>
         <span style={{ display: "block", height: "0.25cqw", background: ink, opacity: 0.5, marginTop: "2.4cqw" }} />
         {heading?.trim() ? (
@@ -129,6 +133,35 @@ export const EditItemSlide = forwardRef<
           </div>
         ) : null}
       </div>
+
+      {percentOff && percentOff > 0 ? (
+        <div
+          style={{
+            ...caps,
+            position: "absolute",
+            zIndex: 2,
+            right: "7cqw",
+            top: story ? "21%" : "20%",
+            width: story ? "17cqw" : "18cqw",
+            height: story ? "17cqw" : "18cqw",
+            borderRadius: "50%",
+            background: accent,
+            color: background.color,
+            display: "grid",
+            placeItems: "center",
+            textAlign: "center",
+            fontWeight: 700,
+            fontSize: story ? "4.6cqw" : "4.8cqw",
+            lineHeight: 0.95,
+            transform: "rotate(-10deg)",
+          }}
+        >
+          <span>
+            {percentOff}%
+            <span style={{ display: "block", fontSize: "2.8cqw", letterSpacing: "0.16em" }}>off</span>
+          </span>
+        </div>
+      ) : null}
 
       <div style={{ position: "absolute", left: "12cqw", right: "12cqw", top: story ? "22%" : "21%", bottom: story ? "30%" : "35%" }}>
         {imageUrl ? (

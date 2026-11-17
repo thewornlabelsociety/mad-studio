@@ -11,7 +11,7 @@ import { colourLabel, DotSpecialPanel, dotSpecialCaption, useDotSpecial } from "
 import { dayLabel, nextDraftDay, parseYmd, saveDayDrafts, type DayDraft } from "@/lib/planner/day-drafts"
 import { StoryCardStyleMenu } from "@/components/templates/card-style-controls"
 import { KitStoryCanvas } from "@/components/templates/kit-story-canvas"
-import { SaleCoverSlide, SaleItemSlide } from "@/components/templates/sale-slides"
+import { SaleCoverSlide } from "@/components/templates/sale-slides"
 import { Button } from "@/components/ui/button"
 import type { VisualPresets } from "@/lib/entities/dna-schema"
 import { percentOff } from "@/lib/inventory/listing-markdown"
@@ -66,6 +66,10 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
   // and a new week starts from that week's latest markdowns.
   const [picked, setPicked] = useRememberedState<string[] | null>(`mad.saleRack.${entityId}.picked.${thisWeekLabel()}`, null)
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.saleRack.${entityId}.background`, null)
+  const [pieceBackgroundId, setPieceBackgroundId] = useRememberedState<string | null>(
+    `mad.saleRack.${entityId}.pieceBackground`,
+    null
+  )
   // The line under the week on the cover, kept for the week like the picks.
   const [coverNote, setCoverNote] = useRememberedState<string>(`mad.saleRack.${entityId}.coverNote.${thisWeekLabel()}`, "")
   const note = coverNote.trim()
@@ -121,6 +125,8 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
   )
   const chosen = sale.filter((item) => picked?.includes(item.row.marketingEntityId))
   const background = kit.find((bg) => bg.id === backgroundId) ?? kit[0]
+  // Every piece on one colour; until one is picked, the cover's.
+  const pieceBackground = kit.find((bg) => bg.id === pieceBackgroundId) ?? background
   const waiting = chosen.filter((item) => !item.cutoutUrl && !cutoutFailed[item.row.marketingEntityId])
 
   function toggle(id: string) {
@@ -270,27 +276,34 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <StoryCardStyleMenu style={cardStyle} onChange={setCardStyle} background={background} className="size-9" />
-          <div className="flex items-center gap-1.5" role="group" aria-label="Carousel background">
-            {kit.map((bg) => (
-              <button
-                key={bg.id}
-                type="button"
-                onClick={() => setBackgroundId(bg.id)}
-                title={bg.name}
-                aria-label={`Use ${bg.name} for the carousel`}
-                aria-pressed={bg.id === background.id}
-                className={cn(
-                  "relative size-8 rounded-full border border-black/15",
-                  bg.id === background.id && "ring-2 ring-mad-black ring-offset-2"
-                )}
-                style={{ background: bg.color }}
-              >
-                {bg.id === background.id ? (
-                  <Check className="absolute inset-0 m-auto size-3.5" style={{ color: bg.text_color }} aria-hidden />
-                ) : null}
-              </button>
-            ))}
-          </div>
+          {/* The cover can stand apart; every piece shares one colour. */}
+          {[
+            { label: "Cover", current: background, set: setBackgroundId },
+            { label: "Pieces", current: pieceBackground, set: setPieceBackgroundId },
+          ].map((group) => (
+            <div key={group.label} className="flex items-center gap-1.5" role="group" aria-label={`${group.label} colour`}>
+              <span className="font-typewriter text-[10px] uppercase tracking-widest text-mad-black/60">{group.label}</span>
+              {kit.map((bg) => (
+                <button
+                  key={bg.id}
+                  type="button"
+                  onClick={() => group.set(bg.id)}
+                  title={`${bg.name} for the ${group.label.toLowerCase()}`}
+                  aria-label={`Use ${bg.name} for the ${group.label.toLowerCase()}`}
+                  aria-pressed={bg.id === group.current.id}
+                  className={cn(
+                    "relative size-7 rounded-full border border-black/15",
+                    bg.id === group.current.id && "ring-2 ring-mad-black ring-offset-2"
+                  )}
+                  style={{ background: bg.color }}
+                >
+                  {bg.id === group.current.id ? (
+                    <Check className="absolute inset-0 m-auto size-3" style={{ color: bg.text_color }} aria-hidden />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ))}
           <Button
             type="button"
             variant="outline"
@@ -421,18 +434,24 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
               </li>
               {chosen.map((item, index) => (
                 <li key={item.row.marketingEntityId} className="min-w-0">
-                  <SaleItemSlide
+                  {/* The Today Story card at feed size, in the shared card style, every piece on one colour with its % off dot. */}
+                  <KitStoryCanvas
                     ref={(node) => {
                       slideNodes.current[index + 1] = node
                     }}
-                    background={background}
+                    story={false}
+                    background={pieceBackground}
+                    percentOff={percentOff(item.was, item.now)}
                     brandName={entityName}
+                    tag="Sale"
                     imageUrl={item.cutoutUrl ? item.imageUrl : null}
+                    vibe={item.vibe}
                     designer={item.designer}
                     sizeLabel={item.sizeLabel}
-                    wasLabel={money(item.was)}
-                    nowLabel={money(item.now)}
-                    percentOff={percentOff(item.was, item.now)}
+                    categoryLabel={pieceType(item.row.title, item.row.brand)}
+                    priceLine={{ was: money(item.was), now: money(item.now) }}
+                    cardStyle={cardStyle}
+                    showLinkGuide={false}
                     className="rounded-sm shadow-md"
                   />
                 </li>

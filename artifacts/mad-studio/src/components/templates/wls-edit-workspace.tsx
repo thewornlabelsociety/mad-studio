@@ -125,7 +125,9 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     return [...new Set([...pieceIds, ...onFlatlays])]
   }, [entries, pieceIds])
   const [adjusts, setAdjusts] = useRememberedState<Record<string, LayerAdjust>>(`${draftKey}.placements`, {})
-  const [cardFields, setCardFields] = useRememberedState<Record<CardField, boolean>>(`${draftKey}.cardFields`, DEFAULT_CARD_FIELDS)
+  const [savedCardFields, setCardFields] = useRememberedState<Record<CardField, boolean>>(`${draftKey}.cardFields`, DEFAULT_CARD_FIELDS)
+  // Older saves miss switches added later (label, logo, old price): those start on.
+  const cardFields = { ...DEFAULT_CARD_FIELDS, ...savedCardFields }
   const [cardAlign, setCardAlign] = useRememberedState<CardAlign>(`${draftKey}.cardAlign`, "center")
   // The fabric pill's own alignment, colour and shape.
   const [pillAlign, setPillAlign] = useRememberedState<CardAlign>(`${draftKey}.pillCorner`, "right")
@@ -524,7 +526,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
     return {
       background: bgFor(id),
       brandName: entityName,
-      editLabel,
+      editLabel: cardFields.tag ? editLabel : "",
+      showWordmark: cardFields.logo,
       eyebrow: cardFields.number ? eyebrowFor(id) : null,
       editorial: title.style === "editorial",
       align: cardAlign,
@@ -538,7 +541,7 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
       pillFill,
       pillShape,
       priceLabel: cardFields.price ? shortPrice(story.priceLabel) : null,
-      wasLabel: cardFields.price && story.row.wasPrice != null ? money(story.row.wasPrice) : null,
+      wasLabel: cardFields.price && cardFields.was && story.row.wasPrice != null ? money(story.row.wasPrice) : null,
     }
   }
 
