@@ -381,6 +381,8 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
         ...lines,
       ].join("\n").trim()
       await out.sendOut({ urls, caption })
+      // Back from the finish panel: saved, or closed without saving.
+      setBusy(null)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the card.")
       setBusy(null)

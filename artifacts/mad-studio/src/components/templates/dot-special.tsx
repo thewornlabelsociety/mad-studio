@@ -1,7 +1,6 @@
 "use client"
 
 import { forwardRef, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react"
-import { useLocation } from "wouter"
 import { ArrowRight, CalendarPlus, Check, FileText, Loader2, Share2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,7 +19,7 @@ import type { StoryBackground } from "@/lib/brands/story-kit"
 import { WORN_LABEL_TAG_COLORS } from "@/lib/social-creative/worn-label-promo-theme"
 import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
-import { saveStudioSlidesHandoff, STUDIO_SLIDES_QUERY_FLAG } from "@/lib/studio/studio-slides-handoff"
+import { useSlidesOut } from "@/components/planner/day-draft-target"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
 import { useRememberedState } from "@/lib/use-remembered-state"
 import { cn } from "@/lib/utils"
@@ -285,7 +284,8 @@ export function DotSpecialPanel({
   /** A "Draft for <day>" button beside the Story, from the screen that can draft. */
   draft?: { label: string; busy: boolean; disabled: boolean; onClick: () => void }
 }) {
-  const [, navigate] = useLocation()
+  // The feed card goes through the same finish panel as every other post.
+  const out = useSlidesOut(entityId)
   const [special, setSpecial] = useDotSpecial(entityId)
   const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.dotSpecial.${entityId}.background`, "charcoal")
   const [busy, setBusy] = useState<"story" | "studio" | "print" | null>(null)
@@ -330,8 +330,7 @@ export function DotSpecialPanel({
       if (!cardRef.current) return
       const { blob } = await bakeStoryPng(cardRef.current)
       const url = await uploadRenderedPng(blob, entityId)
-      saveStudioSlidesHandoff(entityId, { urls: [url], caption: dotSpecialCaption(special) })
-      navigate(`/studio?eid=${encodeURIComponent(entityId)}&${STUDIO_SLIDES_QUERY_FLAG}=1`)
+      await out.sendOut({ urls: [url], caption: dotSpecialCaption(special), title: "Dot special card", kind: "dot_special_card" })
     })
 
   const downloadPrint = () =>
@@ -415,7 +414,7 @@ export function DotSpecialPanel({
             <DotSpecialArt ref={cardRef} special={special} background={background} brandName={entityName} aspect="card" className="rounded-sm shadow-md" />
             <Button type="button" variant="outline" className="border-2 border-mad-black" disabled={busy != null} onClick={() => void sendCard()}>
               {busy === "studio" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-              Send card to Studio
+              {out.cardLabel}
             </Button>
           </div>
           <div className="flex w-[212px] flex-col gap-2">

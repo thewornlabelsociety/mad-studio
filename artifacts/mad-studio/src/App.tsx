@@ -33,6 +33,7 @@ import WlsStaffOutfitPage from "@/app/templates/wls-staff-outfit/page"
 import WlsInspoPage from "@/app/templates/wls-inspo/page"
 import WlsEditPage from "@/app/templates/wls-edit/page"
 import WlsWantsPage from "@/app/templates/wls-wants/page"
+import CreatePage from "@/app/create/page"
 import WlsAnnouncementPage from "@/app/templates/wls-announcement/page"
 import WlsOpeningHoursPage from "@/app/templates/wls-opening-hours/page"
 import { AuthForm } from "@/components/auth/auth-form"
@@ -144,6 +145,7 @@ function App() {
         <Route path="/privacy" component={PrivacyPolicyPage} />
         <Route path="/terms" component={TermsOfServicePage} />
         <Route path="/studio">{() => <PageLoader load={() => StudioPage({ searchParams: query() })} />}</Route>
+        <Route path="/create">{() => <PageLoader load={() => CreatePage({ searchParams: query() })} />}</Route>
         <Route path="/templates">{() => <PageLoader load={() => TemplatesPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-daily-story">{() => <PageLoader load={() => WlsDailyStoryPage({ searchParams: query() })} />}</Route>
         <Route path="/templates/wls-week-outfits">{() => <PageLoader load={() => WlsWeekOutfitsPage({ searchParams: query() })} />}</Route>

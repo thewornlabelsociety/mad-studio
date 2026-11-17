@@ -500,6 +500,8 @@ export function WlsEditWorkspace({ entityId, entityName, industry = null, brandI
       }
       if (urls.length < 2) throw new Error("Add a piece or a photo first.")
       await out.sendOut({ urls, caption: caption() })
+      // Back from the finish panel: saved, or closed without saving.
+      setSending(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the slides.")
       setSending(false)

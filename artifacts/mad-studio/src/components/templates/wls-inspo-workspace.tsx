@@ -238,6 +238,8 @@ export function WlsInspoWorkspace({ entityId, entityName, industry = null, brand
       const { blob } = await bake()
       const url = await uploadRenderedPng(blob, entityId)
       await out.sendOut({ urls: [url], caption: caption() })
+      // Back from the finish panel: saved, or closed without saving.
+      setSending(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the slide.")
       setSending(false)

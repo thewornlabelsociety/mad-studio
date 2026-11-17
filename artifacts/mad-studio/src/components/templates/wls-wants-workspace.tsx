@@ -122,6 +122,8 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
         `${note.trim() || "Bring them in"}. We sell on consignment and do the work for you.`,
       ].join("\n")
       await out.sendOut({ urls: [url], caption })
+      // Back from the finish panel: saved, or closed without saving.
+      setBusy(null)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the card.")
       setBusy(null)

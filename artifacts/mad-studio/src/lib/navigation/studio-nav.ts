@@ -13,6 +13,7 @@ import {
 
 import { resolveEntityType } from "@/lib/social-creative/resolve-entity-type"
 import type { AccessibleEntity } from "@/lib/types"
+import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 
 export type StudioNavItem = {
   id: string
@@ -101,9 +102,16 @@ export function buildStudioNavItems(input: {
   activeEntity: AccessibleEntity | null
 }): StudioNavItem[] {
   const { entityQuery } = input
-  const studioHref = entityQuery
-    ? `/studio${entityQuery}&step=2`
-    : "/studio?step=2"
+  // Worn Label makes posts from its templates: Create is their menu, with
+  // Studio at the bottom for anything else. Other brands go straight to Studio.
+  const wornLabel = input.activeEntity
+    ? isWornLabelFashionEntity({ name: input.activeEntity.name, industry: input.activeEntity.industry })
+    : false
+  const studioHref = wornLabel
+    ? `/create${entityQuery}`
+    : entityQuery
+      ? `/studio${entityQuery}&step=2`
+      : "/studio?step=2"
 
   const main: StudioNavItem[] = [
     {
@@ -127,7 +135,7 @@ export function buildStudioNavItems(input: {
     {
       id: "create",
       href: studioHref,
-      match: "/studio",
+      match: ["/create", "/studio", "/templates/wls-"],
       label: "Create",
       description: "Make a post",
       icon: Sparkles,
