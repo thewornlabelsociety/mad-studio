@@ -1,7 +1,7 @@
 import { forwardRef, type CSSProperties } from "react"
 import { ArrowRight } from "lucide-react"
 
-import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
+import { KIT_DISPLAY_SCALE, kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
 
@@ -24,7 +24,7 @@ export const SaleCoverSlide = forwardRef<
       </div>
       <div style={{ position: "absolute", left: "6cqw", right: "6cqw", top: "50%", transform: "translateY(-50%)" }}>
         <p style={{ ...caps, fontSize: "5cqw", letterSpacing: "0.3em", color: background.accent_color }}>This week on the</p>
-        <p style={{ ...caps, fontWeight: 700, fontSize: "21cqw", letterSpacing: "0.04em", lineHeight: 0.92, marginTop: "1cqw" }}>
+        <p style={{ ...caps, fontWeight: 700, fontSize: `calc(21cqw * ${KIT_DISPLAY_SCALE})`, letterSpacing: "0.04em", lineHeight: 0.92, marginTop: "1cqw" }}>
           Sale
           <br />
           Rack

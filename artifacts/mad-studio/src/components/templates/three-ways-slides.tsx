@@ -1,7 +1,7 @@
 import { forwardRef } from "react"
 import { ArrowRight } from "lucide-react"
 
-import { kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
+import { KIT_DISPLAY_SCALE, kitCaps as caps, kitFrame as frame, KitWordmark as Wordmark } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
 /** Slide 1: the one piece, big, under ONE PIECE / THREE WAYS, with its brand, size and price. */
@@ -30,7 +30,7 @@ export const ThreeWaysCoverSlide = forwardRef<
           {kicker.trim() ? (
             <p style={{ ...caps, fontSize: "4cqw", letterSpacing: "0.3em", color: background.accent_color }}>{kicker}</p>
           ) : null}
-          <p style={{ ...caps, fontWeight: 700, fontSize: `${titleSize}cqw`, letterSpacing: "0.04em", lineHeight: 0.95, marginTop: "1cqw" }}>
+          <p style={{ ...caps, fontWeight: 700, fontSize: `calc(${titleSize}cqw * ${KIT_DISPLAY_SCALE})`, letterSpacing: "0.04em", lineHeight: 0.95, marginTop: "1cqw" }}>
             {title || "Three ways"}
           </p>
         </div>

@@ -3,7 +3,10 @@ import type { CSSProperties } from "react"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
 /** The kit's one typeface: letter-spaced capitals, as on the website. */
-export const KIT_DISPLAY = "'Josefin Sans', 'Century Gothic', Futura, system-ui, sans-serif"
+// Set from the brand kit (lib/brands/template-fonts); these are the defaults.
+export const KIT_DISPLAY = "var(--kit-display, 'Josefin Sans', 'Century Gothic', Futura, system-ui, sans-serif)"
+/** Size adjustment for the chosen display font; big headlines multiply by it so wider fonts still fit. */
+export const KIT_DISPLAY_SCALE = "var(--kit-display-scale, 1)"
 
 export const kitCaps: CSSProperties = { fontFamily: KIT_DISPLAY, textTransform: "uppercase", margin: 0 }
 

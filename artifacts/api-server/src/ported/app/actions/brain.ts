@@ -217,13 +217,19 @@ function withOperatorBrandSettings(
       ? (identity.visual_presets as Record<string, unknown>)
       : undefined
   const storyKit = operator.visual_presets?.story_kit
+  // Fonts chosen in the brand kit survive a fresh scrape too.
+  const templateFonts = operator.visual_presets?.template_fonts
   return {
     ...identity,
     wants_list: operator.wants_list,
     wants_note: operator.wants_note,
     campaign_plans: operator.campaign_plans,
     visual_presets: scrapedPresets
-      ? { ...scrapedPresets, ...(storyKit ? { story_kit: storyKit } : {}) }
+      ? {
+          ...scrapedPresets,
+          ...(storyKit ? { story_kit: storyKit } : {}),
+          ...(templateFonts ? { template_fonts: templateFonts } : {}),
+        }
       : operator.visual_presets,
   }
 }
@@ -501,6 +507,7 @@ export async function saveVisualPresets(input: {
     logo_corner?: LogoCorner
     palette?: string[]
     heading_font_id?: string
+    template_fonts?: { display?: string; serif?: string; script?: string }
     story_kit?: StoryBackground[]
   }
 }): Promise<ActionResult<{ brandIdentity: BrandIdentity }>> {

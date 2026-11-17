@@ -8,11 +8,13 @@ import { toast } from "sonner"
 import {
   Brush,
   EDITORIAL_SCRIPT,
-  EDITORIAL_SERIF,
+  EDITORIAL_SCRIPT_SCALE,
+  EDITORIAL_SCRIPT_WEIGHT,
   gold,
   Rule,
+  scaled,
 } from "@/components/templates/editorial-announcement"
-import { KIT_DISPLAY } from "@/components/templates/kit-type"
+import { KIT_DISPLAY, KIT_DISPLAY_SCALE } from "@/components/templates/kit-type"
 import { Button } from "@/components/ui/button"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 import { WORN_LABEL_TAG_COLORS } from "@/lib/social-creative/worn-label-promo-theme"
@@ -80,12 +82,14 @@ export const DotSpecialArt = forwardRef<
   const dot = WORN_LABEL_TAG_COLORS[special.color]
   const story = aspect === "story"
   const a4 = aspect === "a4"
+  // Small spaced lines in the kit's display capitals: the hairline serif vanished at this size.
   const spaced = (size: number) => ({
     margin: 0,
-    fontFamily: EDITORIAL_SERIF,
+    fontFamily: KIT_DISPLAY,
+    fontWeight: 600,
     textTransform: "uppercase" as const,
     fontSize: `${size}cqw`,
-    letterSpacing: "0.32em",
+    letterSpacing: "0.24em",
   })
   // A dark dot on a dark background (or white on white) needs a ring to show.
   const ring = dot.hex.toLowerCase() === "#111111" || background.color.toLowerCase() === dot.hex.toLowerCase()
@@ -147,7 +151,7 @@ export const DotSpecialArt = forwardRef<
             fontFamily: KIT_DISPLAY,
             textTransform: "uppercase",
             fontWeight: 700,
-            fontSize: `${discountSize(special.discount || "50% off", story ? 17 : a4 ? 15 : 13)}cqw`,
+            fontSize: scaled(discountSize(special.discount || "50% off", story ? 17 : a4 ? 15 : 13), KIT_DISPLAY_SCALE),
             lineHeight: 0.95,
             letterSpacing: "0.02em",
             whiteSpace: "nowrap",
@@ -162,8 +166,9 @@ export const DotSpecialArt = forwardRef<
             style={{
               margin: "1cqw 0 0",
               fontFamily: EDITORIAL_SCRIPT,
-              fontSize: `${story ? 10 : a4 ? 9 : 7.5}cqw`,
-              lineHeight: 1.05,
+              fontWeight: EDITORIAL_SCRIPT_WEIGHT,
+              fontSize: scaled(story ? 10 : a4 ? 9 : 7.5, EDITORIAL_SCRIPT_SCALE),
+              lineHeight: 1.15,
               color: accent,
               transform: "rotate(-4deg)",
             }}

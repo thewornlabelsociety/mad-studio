@@ -134,5 +134,6 @@ export function resolveVisualPresets(input: {
     logo_url: parsed.data.logo_url?.trim() || undefined,
     logo_corner: parsed.data.logo_corner,
     story_kit: parsed.data.story_kit,
+    template_fonts: parsed.data.template_fonts,
   }
 }

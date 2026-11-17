@@ -5,17 +5,26 @@ import { KIT_DISPLAY } from "@/components/templates/kit-type"
 import type { StoryBackground } from "@/lib/brands/story-kit"
 
 /** The moodboard's tall serif, signature script and spaced small caps. */
-export const EDITORIAL_SERIF = "'Bodoni Moda', Didot, 'Times New Roman', serif"
-export const EDITORIAL_SCRIPT = "'Mrs Saint Delafield', 'Brush Script MT', cursive"
+// Brand kit fonts (lib/brands/template-fonts), with each one's readable weight and size scale.
+export const EDITORIAL_SERIF = "var(--kit-serif, 'Bodoni Moda', Didot, 'Times New Roman', serif)"
+export const EDITORIAL_SERIF_WEIGHT = "var(--kit-serif-weight, 600)"
+export const EDITORIAL_SERIF_SCALE = "var(--kit-serif-scale, 1)"
+export const EDITORIAL_SCRIPT = "var(--kit-script, 'Mrs Saint Delafield', 'Brush Script MT', cursive)"
+export const EDITORIAL_SCRIPT_WEIGHT = "var(--kit-script-weight, 400)"
+export const EDITORIAL_SCRIPT_SCALE = "var(--kit-script-scale, 1)"
 
 export type EditorialAccent = "none" | "brush" | "oval" | "arrow"
 
-/** Gold for the brush and script: deeper on light backgrounds, cream on mid-tones. */
+/**
+ * Gold for the brush and script: deep bronze on light backgrounds, cream on
+ * mid-tones. The lighter gold (#94733F) was about 2.5:1 on beige, too faint
+ * for a thin script; this bronze is about 4:1 there and 7:1 on white.
+ */
 export function gold(background: StoryBackground): string {
   const hex = background.color.replace("#", "")
   const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
   const light = 0.2126 * r + 0.7152 * g + 0.0722 * b
-  if (light > 0.6) return "#94733F"
+  if (light > 0.6) return "#6B5229"
   if (light > 0.45) return "#F1EADB"
   return "#CBA977"
 }
@@ -37,18 +46,37 @@ function serifSize(headline: string, story: boolean): number {
   return Math.min(cap * byRows, fit)
 }
 
-function scriptSize(text: string, story: boolean): number {
+/**
+ * Script size as CSS. Two limits: wide enough for the longest line (adjusted
+ * for how wide the brand kit's script is), and short enough for the space
+ * between the brand name and the details (several script lines used to push
+ * up under the brand name and off the bottom). Height doesn't depend on the
+ * font, so only the width limit takes the font's adjustment.
+ */
+function scriptSize(text: string, story: boolean, factor = 1): string {
   const rows = lines(text)
   const longest = Math.max(...rows.map((row) => row.length), 1)
-  const fit = 90 / (longest * 0.3)
-  return Math.min(story ? 26 : 21, fit)
+  // 80 not 86: the script is tilted, so its ends need room to stay on the card.
+  const byWidth = (80 / (longest * 0.3)) * factor
+  const byHeight = Math.min(story ? 26 : 21, (story ? 62 : 44) / (rows.length * 1.15)) * factor
+  return `min(${byHeight.toFixed(2)}cqw, calc(${byWidth.toFixed(2)}cqw * ${EDITORIAL_SCRIPT_SCALE}))`
 }
 
+/** A size in cqw, scaled for the brand kit's chosen font in that role. */
+export function scaled(size: number, scale: string): string {
+  return `calc(${size.toFixed(2)}cqw * ${scale})`
+}
+
+/**
+ * Kickers and detail lines: small, widely spaced capitals. They were the
+ * serif at a hairline weight, which vanished at this size; the kit's display
+ * capitals at a solid weight read clearly on any background.
+ */
 const smallCaps: CSSProperties = {
   margin: 0,
-  fontFamily: EDITORIAL_SERIF,
+  fontFamily: KIT_DISPLAY,
   textTransform: "uppercase",
-  fontWeight: 400,
+  fontWeight: 600,
 }
 
 export function Rule({ color, width = 14 }: { color: string; width?: number }) {
@@ -143,7 +171,7 @@ export function EditorialAnnouncement({
         {kicker.length > 0 ? (
           <div style={{ display: "grid", gap: "1cqw" }}>
             {kicker.map((line) => (
-              <p key={line} style={{ ...smallCaps, fontSize: story ? "3.2cqw" : "2.6cqw", letterSpacing: "0.32em" }}>
+              <p key={line} style={{ ...smallCaps, fontSize: story ? "3.2cqw" : "2.6cqw", letterSpacing: "0.24em" }}>
                 {line}
               </p>
             ))}
@@ -156,16 +184,19 @@ export function EditorialAnnouncement({
               ? {
                   margin: 0,
                   fontFamily: EDITORIAL_SCRIPT,
-                  fontSize: `${scriptSize(headline, story)}cqw`,
-                  lineHeight: 1.05,
+                  fontWeight: EDITORIAL_SCRIPT_WEIGHT,
+                  fontSize: scriptSize(headline, story),
+                  lineHeight: 1.15,
                   color: accent,
                   whiteSpace: "pre-line",
                   transform: "rotate(-6deg)",
                 }
               : {
-                  ...smallCaps,
-                  fontWeight: 500,
-                  fontSize: `${serifSize(headline, story)}cqw`,
+                  margin: 0,
+                  fontFamily: EDITORIAL_SERIF,
+                  textTransform: "uppercase",
+                  fontWeight: EDITORIAL_SERIF_WEIGHT,
+                  fontSize: scaled(serifSize(headline, story), EDITORIAL_SERIF_SCALE),
                   lineHeight: 0.98,
                   letterSpacing: "-0.01em",
                   whiteSpace: "pre-line",
@@ -180,8 +211,12 @@ export function EditorialAnnouncement({
             style={{
               margin: "-1cqw 0 0",
               fontFamily: EDITORIAL_SCRIPT,
-              fontSize: `${scriptSize(script, story) * 0.9}cqw`,
-              lineHeight: 1,
+              fontWeight: EDITORIAL_SCRIPT_WEIGHT,
+              // Never bigger than a script headline above it, so the headline still leads.
+              fontSize: scriptHeadline
+                ? `min(${scriptSize(script, story, 0.9)}, ${scriptSize(headline, story, 0.8)})`
+                : scriptSize(script, story, 0.9),
+              lineHeight: 1.1,
               color: accent,
               whiteSpace: "pre-line",
               transform: "rotate(-6deg)",
@@ -210,7 +245,7 @@ export function EditorialAnnouncement({
             }}
           >
             {details.map((line) => (
-              <p key={line} style={{ ...smallCaps, fontSize: story ? "3.2cqw" : "2.6cqw", letterSpacing: "0.32em", transform: accentKind === "oval" ? "rotate(4deg)" : undefined }}>
+              <p key={line} style={{ ...smallCaps, fontSize: story ? "3.2cqw" : "2.6cqw", letterSpacing: "0.24em", transform: accentKind === "oval" ? "rotate(4deg)" : undefined }}>
                 {line}
               </p>
             ))}

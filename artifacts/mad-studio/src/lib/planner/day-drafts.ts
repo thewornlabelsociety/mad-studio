@@ -157,6 +157,77 @@ export async function approveDrafts(input: {
   }
 }
 
+/**
+ * Books Instagram Stories straight onto the calendar (no approval step), e.g.
+ * the 8am "Open today" hours. A day's earlier booking of the same kind is
+ * replaced; a day where it has already gone out is skipped.
+ */
+export async function scheduleDayStories(input: {
+  entityId: string
+  kind: string
+  stories: Array<{ postAt: Date; mediaUrl: string; title: string; caption: string }>
+}): Promise<{ booked: number; skipped: number }> {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  let booked = 0
+  let skipped = 0
+  for (const story of input.stories) {
+    const from = new Date(story.postAt.getFullYear(), story.postAt.getMonth(), story.postAt.getDate())
+    const to = new Date(from)
+    to.setDate(to.getDate() + 1)
+    const sameDay = () =>
+      supabase
+        .from("scheduled_posts")
+        .select("id, status")
+        .eq("entity_id", input.entityId)
+        .eq("platform", "instagram_story")
+        .eq("payload->>draft_kind", input.kind)
+        .gte("scheduled_time", from.toISOString())
+        .lt("scheduled_time", to.toISOString())
+        .neq("status", "cancelled")
+    const { data: existing, error: readError } = await sameDay()
+    if (readError) throw new Error(readError.message)
+    const rows = (existing ?? []) as Array<{ id: string; status: string }>
+    if (rows.some((row) => row.status === "published" || row.status === "processing" || row.status === "publishing")) {
+      skipped++
+      continue
+    }
+    const stale = rows.filter((row) => row.status === "scheduled" || row.status === "draft" || row.status === "failed")
+    if (stale.length > 0) {
+      const { error } = await supabase
+        .from("scheduled_posts")
+        .update({ status: "cancelled", updated_at: new Date().toISOString() })
+        .in(
+          "id",
+          stale.map((row) => row.id)
+        )
+      if (error) throw new Error(error.message)
+    }
+    const { error } = await supabase.from("scheduled_posts").insert({
+      entity_id: input.entityId,
+      platform: "instagram_story",
+      status: "scheduled",
+      mode: "scheduled",
+      timing_source: "manual",
+      scheduled_time: story.postAt.toISOString(),
+      created_by: user?.id ?? null,
+      payload: {
+        title: story.title,
+        caption: story.caption,
+        media_url: story.mediaUrl,
+        media_urls: null,
+        story_urls: null,
+        draft_kind: input.kind,
+      } as Json,
+    })
+    if (error) throw new Error(error.message)
+    booked++
+  }
+  return { booked, skipped }
+}
+
 /** New artwork (and wording) for a draft that's still waiting on approval. */
 export async function updateDraftArtwork(input: {
   entityId: string
