@@ -17,13 +17,15 @@ export type DraftKind = string
 export type DayDraft = {
   kind: DraftKind
   /** Where it goes: a row each, shown and approved together as one post. */
-  platforms: Array<"instagram_feed" | "facebook" | "instagram_story">
+  platforms: Array<"instagram_feed" | "facebook" | "instagram_story" | "tiktok">
   title: string
   caption: string
   /** One image, or 2–10 carousel slides. */
   mediaUrls: string[]
   /** Hour of the day it's set to go out (local time). */
   hour: number
+  /** An exact time, when one was picked; otherwise `hour` on the day. */
+  time?: Date
   /** What it was made from (e.g. the dot special's wording), so it can be edited from the calendar. */
   data?: Json
 }
@@ -47,6 +49,13 @@ export async function saveDayDrafts(input: {
   entityId: string
   day: Date
   drafts: DayDraft[]
+  /**
+   * "scheduled" books them to go out with no approval step (the finish
+   * panel's Schedule). It still replaces that day's draft of the kind, and
+   * isn't held back by one already approved: scheduling is a choice made
+   * there and then.
+   */
+  status?: "draft" | "scheduled"
 }): Promise<{ saved: DraftKind[]; skipped: DraftKind[] }> {
   if (input.drafts.length === 0) return { saved: [], skipped: [] }
   const supabase = createClient()
@@ -69,8 +78,10 @@ export async function saveDayDrafts(input: {
   const approved = new Set(
     ((approvedRows ?? []) as Array<{ draft_kind?: string | null }>).map((row) => row.draft_kind).filter(Boolean)
   )
-  const skipped = input.drafts.filter((draft) => approved.has(draft.kind)).map((draft) => draft.kind)
-  const drafts = input.drafts.filter((draft) => !approved.has(draft.kind))
+  const status = input.status ?? "draft"
+  const held = (draft: DayDraft) => status === "draft" && approved.has(draft.kind)
+  const skipped = input.drafts.filter(held).map((draft) => draft.kind)
+  const drafts = input.drafts.filter((draft) => !held(draft))
   if (drafts.length === 0) return { saved: [], skipped }
 
   for (const draft of drafts) {
@@ -88,13 +99,13 @@ export async function saveDayDrafts(input: {
   const { error } = await supabase.from("scheduled_posts").insert(
     drafts.flatMap((draft) => {
       const urls = draft.mediaUrls.filter(Boolean)
-      const time = draftTime(input.day, draft.hour).toISOString()
+      const time = (draft.time ?? draftTime(input.day, draft.hour)).toISOString()
       // Ties the platforms together so the calendar shows them as one post.
       const group = `${draft.kind}:${ymdOf(input.day)}:${Date.now()}`
       return draft.platforms.map((platform) => ({
         entity_id: input.entityId,
         platform,
-        status: "draft",
+        status,
         mode: "scheduled",
         timing_source: "manual",
         scheduled_time: time,

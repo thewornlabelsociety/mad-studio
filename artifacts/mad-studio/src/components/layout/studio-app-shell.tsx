@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useBrandTemplateFonts } from "@/components/templates/brand-template-fonts"
+import { FinishPanelHost } from "@/components/planner/finish-panel"
 import { cn } from "@/lib/utils"
 
 type Props = TopbarProps & {
@@ -110,6 +111,8 @@ export function StudioAppShell({
       )}
     >
       <TeamSopGuideSheet open={sopOpen} onOpenChange={setSopOpen} />
+      {/* Where every template's finished post goes: day, time, channels, caption, then draft or schedule. */}
+      <FinishPanelHost brandName={activeEntity?.name ?? ""} industry={activeEntity?.industry ?? null} />
       {activeEntity ? (
         <BrainDrawer
           open={brainOpen}

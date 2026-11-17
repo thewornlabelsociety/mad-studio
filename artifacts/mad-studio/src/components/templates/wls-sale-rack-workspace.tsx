@@ -232,6 +232,8 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
       const urls = await bakeSlides()
       if (urls.length < 2) throw new Error("Pick at least one piece first.")
       await out.sendOut({ urls, caption: caption() })
+      // Back from the finish panel: saved, or closed without saving.
+      setSending(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the slides.")
       setSending(false)

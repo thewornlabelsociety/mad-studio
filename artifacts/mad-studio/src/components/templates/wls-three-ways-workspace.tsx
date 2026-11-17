@@ -269,6 +269,8 @@ export function WlsThreeWaysWorkspace({ entityId, entityName, industry = null, b
       }
       if (urls.length < 2) throw new Error("The slides aren't ready yet.")
       await out.sendOut({ urls, caption: buildCaption() })
+      // Back from the finish panel: saved, or closed without saving.
+      setSending(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the slides.")
       setSending(false)

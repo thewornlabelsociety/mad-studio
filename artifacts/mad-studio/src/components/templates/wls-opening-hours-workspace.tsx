@@ -247,6 +247,8 @@ export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null
       const { blob } = await bakeStoryPng(cardRef.current)
       const url = await uploadRenderedPng(blob, entityId)
       await out.sendOut({ urls: [url], caption: caption() })
+      // Back from the finish panel: saved, or closed without saving.
+      setBusy(null)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't prepare the card.")
       setBusy(null)
