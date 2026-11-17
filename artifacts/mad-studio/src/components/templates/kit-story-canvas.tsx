@@ -35,6 +35,10 @@ type Props = {
   priceLine?: { was: string; now: string } | null
   /** Dashed link-sticker zone; never baked into the export. */
   showLinkGuide?: boolean
+  /** False draws the same card at feed size (4:5), e.g. for carousel slides. */
+  story?: boolean
+  /** Sale slides: a % off dot top right. */
+  percentOff?: number | null
   className?: string
 }
 
@@ -63,6 +67,8 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
     onSubjectSelect,
     priceLine = null,
     showLinkGuide = true,
+    story = true,
+    percentOff = null,
     className,
   },
   ref
@@ -72,10 +78,11 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
     <EditItemSlide
       ref={ref}
       className={className}
-      story
+      story={story}
       background={background}
       brandName={brandName}
-      editLabel={tag ?? ""}
+      editLabel={show.tag ? (tag ?? "") : ""}
+      showWordmark={show.logo}
       eyebrow={show.number ? eyebrow : null}
       align={cardStyle.align}
       imageUrl={imageUrl}
@@ -88,14 +95,16 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
       pillAlign={cardStyle.pillAlign}
       pillFill={cardStyle.pillFill}
       pillShape={cardStyle.pillShape}
-      // A sale always shows its prices; otherwise the Price switch decides.
-      priceLabel={priceLine ? priceLine.now : show.price ? priceLabel : null}
-      wasLabel={priceLine ? priceLine.was : null}
+      // Every part has its switch: the price, the struck-through old price
+      // (only beside a price) and the % off dot.
+      priceLabel={show.price ? (priceLine ? priceLine.now : priceLabel) : null}
+      wasLabel={priceLine && show.price && show.was ? priceLine.was : null}
       subject={subject}
       onSubjectChange={onSubjectChange}
       subjectSelected={subjectSelected}
       onSubjectSelect={onSubjectSelect}
       showLinkGuide={showLinkGuide}
+      percentOff={show.discount ? percentOff : null}
     />
   )
 })

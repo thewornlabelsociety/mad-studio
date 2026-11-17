@@ -4,24 +4,32 @@ import type { CardAlign, PillFill, PillShape } from "@/components/templates/edit
 import { useRememberedState } from "@/lib/use-remembered-state"
 
 /** What a piece card can show, switched on and off for every card at once. */
-export type CardField = "number" | "brand" | "category" | "vibe" | "size" | "price"
+export type CardField = "tag" | "logo" | "number" | "brand" | "category" | "vibe" | "size" | "price" | "was" | "discount"
 
 export const CARD_FIELDS: Array<{ id: CardField; label: string }> = [
+  { id: "tag", label: "Label" },
+  { id: "logo", label: "Logo" },
   { id: "number", label: "Eyebrow" },
   { id: "brand", label: "Brand" },
   { id: "category", label: "Sub category" },
   { id: "vibe", label: "Vibe" },
   { id: "size", label: "Size" },
   { id: "price", label: "Price" },
+  { id: "was", label: "Old price" },
+  { id: "discount", label: "% off dot" },
 ]
 
 export const DEFAULT_CARD_FIELDS: Record<CardField, boolean> = {
+  tag: true,
+  logo: true,
   number: true,
   brand: true,
   category: false,
   vibe: false,
   size: true,
   price: true,
+  was: true,
+  discount: true,
 }
 
 export const PILL_FILLS: Array<{ id: PillFill; label: string }> = [
