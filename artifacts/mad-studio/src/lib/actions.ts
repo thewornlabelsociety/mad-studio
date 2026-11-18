@@ -18,7 +18,14 @@ export const signInWithPassword = (...args: any[]) => action("signInWithPassword
 export const signUpWithPassword = (...args: any[]) => action("signUpWithPassword", ...args)
 export const signOut = (...args: any[]) => action("signOut", ...args)
 export const setActiveEntity = async (entityId: string, options?: { redirectTo?: string }) => {
-  const result = await action("setActiveEntity", entityId, options)
+  // The server only remembers the brand in a cookie, which is set here as well,
+  // so switching still works if the API is down (it used to crash the page).
+  let result: unknown = null
+  try {
+    result = await action("setActiveEntity", entityId, options)
+  } catch (error) {
+    console.warn("Brand switch: the API didn't answer; switching on this device only.", error)
+  }
   document.cookie = `mega_entity_id=${encodeURIComponent(entityId)}; path=/; SameSite=Lax`
   const destination = options?.redirectTo?.startsWith("/") && !options.redirectTo.startsWith("//") ? options.redirectTo : "/studio"
   window.location.assign(`${destination}?eid=${encodeURIComponent(entityId)}`)
