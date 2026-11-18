@@ -6,6 +6,7 @@ import { ArrowRight, CalendarPlus, Check, Link2, Loader2, RefreshCw, Scissors, S
 import { toast } from "sonner"
 
 import { useDayDraftTarget, useSlidesOut } from "@/components/planner/day-draft-target"
+import { bakeStoryFrames } from "@/components/planner/finish-panel"
 
 import { colourLabel, DotSpecialPanel, dotSpecialCaption, useDotSpecial } from "@/components/templates/dot-special"
 import { dayLabel, nextDraftDay, parseYmd, saveDayDrafts, type DayDraft } from "@/lib/planner/day-drafts"
@@ -25,6 +26,7 @@ import {
 } from "@/lib/templates/use-kit-stories"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
 import { useRememberedState } from "@/lib/use-remembered-state"
+import { useBrandSetting } from "@/lib/use-brand-setting"
 import { pieceType, useStoryCardStyle } from "@/lib/templates/story-card-style"
 import { cn } from "@/lib/utils"
 
@@ -65,8 +67,16 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
   // Ticked pieces are kept for the week, so leaving the screen keeps the carousel
   // and a new week starts from that week's latest markdowns.
   const [picked, setPicked] = useRememberedState<string[] | null>(`mad.saleRack.${entityId}.picked.${thisWeekLabel()}`, null)
-  const [backgroundId, setBackgroundId] = useRememberedState<string | null>(`mad.saleRack.${entityId}.background`, null)
-  const [pieceBackgroundId, setPieceBackgroundId] = useRememberedState<string | null>(
+  // The carousel colours are kept with the brand, the same on every device.
+  const [backgroundId, setBackgroundId] = useBrandSetting<string | null>(
+    entityId,
+    "sale_rack_cover_background",
+    `mad.saleRack.${entityId}.background`,
+    null
+  )
+  const [pieceBackgroundId, setPieceBackgroundId] = useBrandSetting<string | null>(
+    entityId,
+    "sale_rack_piece_background",
     `mad.saleRack.${entityId}.pieceBackground`,
     null
   )
@@ -231,7 +241,12 @@ export function WlsSaleRackWorkspace({ entityId, entityName, industry = null, br
     try {
       const urls = await bakeSlides()
       if (urls.length < 2) throw new Error("Pick at least one piece first.")
-      await out.sendOut({ urls, caption: caption() })
+      await out.sendOut({
+        urls,
+        caption: caption(),
+        // The Story: each piece's Sale Story, one after another.
+        story: () => bakeStoryFrames(chosen.map((item) => storyNodes.current[item.row.marketingEntityId]), entityId),
+      })
       // Back from the finish panel: saved, or closed without saving.
       setSending(false)
     } catch (error) {

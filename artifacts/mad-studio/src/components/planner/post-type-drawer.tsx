@@ -22,14 +22,17 @@ export function PostTypeDrawer({
   day,
   onClose,
   onDrafted,
+  remaining = 0,
 }: {
   entityId: string
   /** The post type to make; null keeps the drawer closed. */
   type: PostType | null
   day: Date | null
   onClose: () => void
-  /** After a draft is saved, to reload the calendar. */
+  /** After a draft is saved: the calendar closes the drawer or moves to the next day. */
   onDrafted: () => void
+  /** Fill my week: days still to make after this one. */
+  remaining?: number
 }) {
   const [brand, setBrand] = useState<Brand | null>(null)
 
@@ -65,6 +68,7 @@ export function PostTypeDrawer({
               <SheetDescription className="text-xs text-neutral-600">
                 For {dayLabel(day)}. Make it here, then press Add to{" "}
                 {day.toLocaleDateString("en-NZ", { weekday: "long" })} to put it on the day for approval.
+                {remaining > 0 ? ` Then on to the next day: ${remaining} more after this.` : ""}
               </SheetDescription>
             </SheetHeader>
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">
@@ -75,13 +79,11 @@ export function PostTypeDrawer({
                     kind: type.id,
                     title: type.title,
                     hour: type.hour,
-                    onDrafted: () => {
-                      onClose()
-                      onDrafted()
-                    },
+                    onDrafted,
                   }}
                 >
-                  <Suspense fallback={<Loading />}>
+                  {/* A fresh editor for each day, so one day's work doesn't carry into the next. */}
+                  <Suspense key={`${type.id}-${dayLabel(day)}`} fallback={<Loading />}>
                     <type.Editor entityId={entityId} {...brand} />
                   </Suspense>
                 </DayDraftTargetProvider>

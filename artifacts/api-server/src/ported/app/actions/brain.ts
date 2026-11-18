@@ -179,6 +179,7 @@ type OperatorBrandSettings = {
   wants_list?: unknown
   wants_note?: unknown
   campaign_plans?: unknown
+  template_settings?: unknown
   visual_presets?: Record<string, unknown>
 }
 
@@ -200,6 +201,7 @@ async function currentOperatorBrandSettings(
     wants_list: record.wants_list,
     wants_note: record.wants_note,
     campaign_plans: record.campaign_plans,
+    template_settings: record.template_settings,
     visual_presets:
       presets && typeof presets === "object" && !Array.isArray(presets)
         ? (presets as Record<string, unknown>)
@@ -224,6 +226,7 @@ function withOperatorBrandSettings(
     wants_list: operator.wants_list,
     wants_note: operator.wants_note,
     campaign_plans: operator.campaign_plans,
+    template_settings: operator.template_settings,
     visual_presets: scrapedPresets
       ? {
           ...scrapedPresets,
@@ -431,6 +434,7 @@ export async function saveEntityDna(input: {
         ...identity.data,
         canvas_layouts: identity.data.canvas_layouts ?? layouts,
         campaign_plans: operator.campaign_plans,
+        template_settings: operator.template_settings,
       } as unknown as Json,
       audience_segments: audiences as unknown as Json,
       ...(input.industry ? { industry: input.industry } : {}),
@@ -552,6 +556,11 @@ export async function saveVisualPresets(input: {
       : undefined,
     wants_list: Array.isArray(current.wants_list) ? current.wants_list : undefined,
     wants_note: typeof current.wants_note === "string" ? current.wants_note : undefined,
+    // Template settings live alongside; saving presets must not drop them.
+    template_settings:
+      current.template_settings && typeof current.template_settings === "object" && !Array.isArray(current.template_settings)
+        ? (current.template_settings as Record<string, unknown>)
+        : undefined,
   })
 
   if (!parsed.success) {
@@ -930,4 +939,51 @@ export async function clearCampaignTakeaway(input: {
 
 export async function validateDnaShape(dna: unknown) {
   return entityDnaSchema.safeParse(dna)
+}
+
+/**
+ * One template setting for the brand (card style, dot special wording,
+ * colours), so every device and teammate sees the same. Stored under
+ * brand_identity.template_settings[key]; nothing else in the brand changes.
+ */
+export async function saveTemplateSetting(input: {
+  entityId: string
+  key: string
+  value: unknown
+}): Promise<ActionResult<{ saved: true }>> {
+  if (!/^[A-Za-z0-9_.-]{1,64}$/.test(input.key)) {
+    return { ok: false, error: "That setting name isn't valid." }
+  }
+  if (JSON.stringify(input.value ?? null).length > 20_000) {
+    return { ok: false, error: "That setting is too large to save." }
+  }
+  const auth = await assertCanEdit(input.entityId)
+  if (auth.error) {
+    return { ok: false, error: auth.error }
+  }
+  const { data: row, error: readError } = await auth.supabase
+    .from("entities")
+    .select("brand_identity")
+    .eq("id", input.entityId)
+    .single()
+  if (readError || !row) {
+    return { ok: false, error: readError?.message ?? "Entity not found." }
+  }
+  const current =
+    row.brand_identity && typeof row.brand_identity === "object" && !Array.isArray(row.brand_identity)
+      ? (row.brand_identity as Record<string, unknown>)
+      : {}
+  const settings =
+    current.template_settings && typeof current.template_settings === "object" && !Array.isArray(current.template_settings)
+      ? (current.template_settings as Record<string, unknown>)
+      : {}
+  const { error } = await auth.supabase
+    .from("entities")
+    .update({
+      brand_identity: { ...current, template_settings: { ...settings, [input.key]: input.value ?? null } } as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.entityId)
+  if (error) return { ok: false, error: error.message }
+  return { ok: true, data: { saved: true } }
 }

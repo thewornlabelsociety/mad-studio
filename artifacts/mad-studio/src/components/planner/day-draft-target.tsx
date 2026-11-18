@@ -46,7 +46,14 @@ export function useSlidesOut(entityId: string) {
   // Off the planner, the screen's own post type names and times the post.
   const type = postTypeByPath(location)
 
-  async function sendOut(input: { urls: string[]; caption: string; title?: string; kind?: string }): Promise<void> {
+  async function sendOut(input: {
+    urls: string[]
+    caption: string
+    title?: string
+    kind?: string
+    /** The Story version, offered as Instagram Story in the finish panel. */
+    story?: () => Promise<string[]>
+  }): Promise<void> {
     await requestFinish({
       entityId,
       // A second post from the same screen (the dot special card) names its own kind.
@@ -54,6 +61,7 @@ export function useSlidesOut(entityId: string) {
       title: input.title ?? target?.title ?? type?.title ?? "Post",
       urls: input.urls,
       caption: input.caption,
+      story: input.story,
       day: target?.day ?? null,
       hour: target?.hour ?? type?.hour ?? 11,
       onSaved: target?.onDrafted,

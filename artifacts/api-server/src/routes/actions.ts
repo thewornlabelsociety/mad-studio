@@ -25,6 +25,7 @@ const actions: Record<string, (...args: any[]) => Promise<unknown>> = {
   saveEntityDna: brain.saveEntityDna,
   saveAudienceSegments: brain.saveAudienceSegments,
   saveVisualPresets: brain.saveVisualPresets,
+  saveTemplateSetting: brain.saveTemplateSetting,
   saveCanvasLayouts: brain.saveCanvasLayouts,
   saveWantsList: brain.saveWantsList,
   getCampaignPlans: brain.getCampaignPlans,

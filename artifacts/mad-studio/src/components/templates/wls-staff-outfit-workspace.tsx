@@ -5,6 +5,7 @@ import { ArrowRight, Check, ImagePlus, Loader2, Scissors, Share2, X } from "luci
 import { toast } from "sonner"
 
 import { useSlidesOut } from "@/components/planner/day-draft-target"
+import { bakeStoryFrames } from "@/components/planner/finish-panel"
 
 import type { SlidePiece } from "@/components/templates/outfit-slides"
 import { PiecePicker, type PickerOption } from "@/components/templates/piece-picker"
@@ -183,7 +184,7 @@ export function WlsStaffOutfitWorkspace({ entityId, entityName, industry = null,
       if (!feedNode.current) return
       const { blob } = await bakeStoryPng(feedNode.current)
       const url = await uploadRenderedPng(blob, entityId)
-      await out.sendOut({ urls: [url], caption: caption() })
+      await out.sendOut({ urls: [url], caption: caption(), story: () => bakeStoryFrames([storyNode.current], entityId) })
     })
 
   const saveStory = () =>

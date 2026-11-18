@@ -5,6 +5,7 @@ import { ArrowRight, CalendarClock, Check, Clock, Loader2, RefreshCw, RotateCcw,
 import { toast } from "sonner"
 
 import { useSlidesOut } from "@/components/planner/day-draft-target"
+import { bakeStoryFrames } from "@/components/planner/finish-panel"
 
 import {
   OpeningHoursCard,
@@ -246,7 +247,7 @@ export function WlsOpeningHoursWorkspace({ entityId, entityName, industry = null
     try {
       const { blob } = await bakeStoryPng(cardRef.current)
       const url = await uploadRenderedPng(blob, entityId)
-      await out.sendOut({ urls: [url], caption: caption() })
+      await out.sendOut({ urls: [url], caption: caption(), story: () => bakeStoryFrames([storyRef.current], entityId) })
       // Back from the finish panel: saved, or closed without saving.
       setBusy(null)
     } catch (error) {

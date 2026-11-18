@@ -39,6 +39,8 @@ type Props = {
   story?: boolean
   /** Sale slides: a % off dot top right. */
   percentOff?: number | null
+  /** The dot's colour, for a dot special. */
+  dotColour?: { hex: string; text: string } | null
   className?: string
 }
 
@@ -69,6 +71,7 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
     showLinkGuide = true,
     story = true,
     percentOff = null,
+    dotColour = null,
     className,
   },
   ref
@@ -105,6 +108,7 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
       onSubjectSelect={onSubjectSelect}
       showLinkGuide={showLinkGuide}
       percentOff={show.discount ? percentOff : null}
+      dotColour={dotColour}
     />
   )
 })

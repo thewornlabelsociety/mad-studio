@@ -123,6 +123,8 @@ export const brandIdentitySchema = z.object({
   /** "We're searching for" list and its sign-off — set by the team, never scraped. */
   wants_list: z.array(wantsItemSchema).max(10).optional(),
   wants_note: z.string().max(80).optional(),
+  /** Template settings (card style, dot special, colours), set by the team on any device; never scraped. */
+  template_settings: z.record(z.string(), z.unknown()).optional(),
   /** Default caption when website sync creates a new marketing_entities row. */
   intake_caption_default: z
     .enum(["title", "listing_description"])

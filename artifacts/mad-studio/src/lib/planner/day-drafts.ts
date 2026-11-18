@@ -116,7 +116,8 @@ export async function saveDayDrafts(input: {
           media_url: urls[0] ?? null,
           // Feed and Facebook take the slides as a carousel; a Story is one image.
           media_urls: platform !== "instagram_story" && urls.length >= 2 ? urls.slice(0, 10) : null,
-          story_urls: null,
+          // Several Story frames go up one after another.
+          story_urls: platform === "instagram_story" && urls.length >= 2 ? urls.slice(0, 10) : null,
           draft_kind: draft.kind,
           draft_group: group,
           draft_data: draft.data ?? null,

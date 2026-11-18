@@ -5,6 +5,7 @@ import { ArrowRight, Check, Globe, ImagePlus, Loader2, Plus, Share2, X } from "l
 import { toast } from "sonner"
 
 import { useSlidesOut } from "@/components/planner/day-draft-target"
+import { bakeStoryFrames } from "@/components/planner/finish-panel"
 
 import {
   AnnouncementCard,
@@ -380,7 +381,7 @@ export function WlsAnnouncementWorkspace({ entityId, entityName, industry = null
         "",
         ...lines,
       ].join("\n").trim()
-      await out.sendOut({ urls, caption })
+      await out.sendOut({ urls, caption, story: () => bakeStoryFrames([...storyRefs.current.values()], entityId) })
       // Back from the finish panel: saved, or closed without saving.
       setBusy(null)
     } catch (error) {
