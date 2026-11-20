@@ -14,6 +14,7 @@ import {
   type GarmentGender,
 } from "./listing-garment.ts"
 import { readListingMarkdownFromMetrics } from "./listing-markdown.ts"
+import { readListingDotFromMetrics, type WlsDotColour } from "./listing-dot.ts"
 
 export const MARKETING_ENTITY_STATUSES = [
   "unfeatured",
@@ -131,6 +132,8 @@ export type MarketingEntity = {
   /** Full price before a shop markdown; null when the item is not discounted. */
   listing_was_price?: number | null
   listing_discounted_at?: string | null
+  /** Colour of the dot on the tag, from the website. */
+  listing_dot_colour?: WlsDotColour | null
   aesthetic_slugs: string[]
   scheduled_at: string | null
   channels: string[]
@@ -397,6 +400,7 @@ export function mapMarketingEntityRow(row: {
     listing_gender: listingGarment.gender,
     listing_was_price: listingMarkdown.wasPrice,
     listing_discounted_at: listingMarkdown.discountedAt,
+    listing_dot_colour: readListingDotFromMetrics(row.metrics),
     aesthetic_slugs: listingVibe.aesthetic_slugs,
     scheduled_at: row.scheduled_at,
     channels: Array.isArray(row.channels) ? row.channels : [],
