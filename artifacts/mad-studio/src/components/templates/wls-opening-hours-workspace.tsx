@@ -47,7 +47,7 @@ type Props = {
 type Mode = "today" | "week"
 
 /** The day's words as the website's hours say them. */
-function todayFromWebsite(week: WeekHours, key: string): TodayHours {
+export function todayFromWebsite(week: WeekHours, key: string): TodayHours {
   const date = dateFromKey(key)
   const plan = planForDay(week, date)
   const { day, date: dateText } = dayLabel(date)

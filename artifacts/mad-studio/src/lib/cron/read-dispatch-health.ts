@@ -11,7 +11,7 @@ export type DispatchCronHealth = {
   detail: Record<string, unknown> | null
 }
 
-export async function readDispatchCronHealth(): Promise<DispatchCronHealth> {
+export async function readDispatchCronHealth(entityId?: string | null): Promise<DispatchCronHealth> {
   try {
     const admin = createAdminClient()
     const { data, error } = await admin
@@ -38,6 +38,22 @@ export async function readDispatchCronHealth(): Promise<DispatchCronHealth> {
           : null,
     }
   } catch {
+    // In the browser there's no service key to read the heartbeat. Judge by
+    // what matters instead: is any of this brand's booked posts well overdue?
+    if (entityId) {
+      try {
+        const { createClient } = await import("@/lib/supabase/client")
+        const { count } = await createClient()
+          .from("scheduled_posts")
+          .select("id", { count: "exact", head: true })
+          .eq("entity_id", entityId)
+          .eq("status", "scheduled")
+          .lt("scheduled_time", new Date(Date.now() - STALE_MS).toISOString())
+        return { jobName: DISPATCH_JOB, lastRunAt: null, lastStatus: null, stale: (count ?? 0) > 0, detail: null }
+      } catch {
+        /* fall through */
+      }
+    }
     return {
       jobName: DISPATCH_JOB,
       lastRunAt: null,

@@ -34,7 +34,13 @@ export async function action<T = any>(name: string, ...args: any[]): Promise<T> 
     result?: unknown
   }>(response)
   if (!parsed.ok) {
-    if (response.status === 502 || response.status === 503 || response.status === 504) {
+    // An empty 500 is the local dev proxy failing to reach the API server, not an app error.
+    if (
+      response.status === 502 ||
+      response.status === 503 ||
+      response.status === 504 ||
+      (response.status === 500 && /^Empty response/i.test(parsed.error ?? ""))
+    ) {
       throw new Error(
         `${parsed.error} The MAD API server may be stopped — on Replit, start the API Server workflow (port 8080) or run bash scripts/replit-dev.sh.`
       )
