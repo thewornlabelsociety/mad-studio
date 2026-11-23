@@ -8,7 +8,11 @@ import { DEFAULT_STORY_CARD_STYLE, type StoryCardStyle } from "@/lib/templates/s
 type Props = {
   background: StoryBackground
   brandName: string
-  /** Top-left label, e.g. NEW IN. Null leaves it off. */
+  /**
+   * The label, e.g. NEW IN. Null leaves it off. On Stories it is a dot top
+   * right, since Instagram's profile picture covers the top left; beside a
+   * % off dot it stays top left.
+   */
   tag: string | null
   imageUrl: string | null
   /** Null or empty leaves the line off. */
@@ -77,6 +81,7 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
   ref
 ) {
   const show = cardStyle.fields
+  const tagAsDot = story && !(show.discount && percentOff && percentOff > 0)
   return (
     <EditItemSlide
       ref={ref}
@@ -84,7 +89,8 @@ export const KitStoryCanvas = forwardRef<HTMLDivElement, Props>(function KitStor
       story={story}
       background={background}
       brandName={brandName}
-      editLabel={show.tag ? (tag ?? "") : ""}
+      editLabel={show.tag && !tagAsDot ? (tag ?? "") : ""}
+      badgeLabel={show.tag && tagAsDot ? tag : null}
       showWordmark={show.logo}
       eyebrow={show.number ? eyebrow : null}
       align={cardStyle.align}

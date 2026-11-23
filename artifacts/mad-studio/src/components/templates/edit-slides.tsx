@@ -62,10 +62,12 @@ export const EditItemSlide = forwardRef<
     dotColour?: { hex: string; text: string } | null
     /** False leaves the brand wordmark off the top right. */
     showWordmark?: boolean
+    /** A word dot top right, e.g. NEW IN, where no % off dot sits. */
+    badgeLabel?: string | null
     className?: string
   }
 >(function EditItemSlide(
-  { background, brandName, editLabel, eyebrow = null, heading = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, subject = NO_ADJUST, onSubjectChange, subjectSelected = false, onSubjectSelect, showLinkGuide = false, percentOff = null, dotColour = null, showWordmark = true, className },
+  { background, brandName, editLabel, eyebrow = null, heading = null, editorial = false, align = "center", imageUrl, designer, categoryLabel = null, vibeLabel = null, sizeLabel, fabricLabel = null, pillAlign = "right", pillFill = "outline", pillShape = "round", priceLabel, wasLabel = null, story = false, subject = NO_ADJUST, onSubjectChange, subjectSelected = false, onSubjectSelect, showLinkGuide = false, percentOff = null, dotColour = null, showWordmark = true, badgeLabel = null, className },
   ref
 ) {
   const ink = background.text_color
@@ -96,6 +98,7 @@ export const EditItemSlide = forwardRef<
   const flexAlign = toFlex(align)
   // Stories keep clear of Instagram's top bar and the reply box at the bottom.
   const top = story ? 13 : 6
+  const badgeWords = badgeLabel?.trim() ? badgeLabel.trim().split(/\s+/) : []
   return (
     <div
       ref={ref}
@@ -135,6 +138,40 @@ export const EditItemSlide = forwardRef<
           </div>
         ) : null}
       </div>
+
+      {!(percentOff && percentOff > 0) && badgeWords.length ? (
+        <div
+          style={{
+            ...caps,
+            position: "absolute",
+            zIndex: 2,
+            right: "7cqw",
+            top: story ? "21%" : "20%",
+            width: story ? "17cqw" : "18cqw",
+            height: story ? "17cqw" : "18cqw",
+            borderRadius: "50%",
+            background: dotColour?.hex ?? accent,
+            color: dotColour?.text ?? background.color,
+            display: "grid",
+            placeItems: "center",
+            textAlign: "center",
+            fontWeight: 700,
+            // Long words step down so they stay inside the dot.
+            fontSize: `${Math.min(3.4, 13 / Math.max(...badgeWords.map((word) => word.length), 1)).toFixed(2)}cqw`,
+            letterSpacing: "0.12em",
+            lineHeight: 1.05,
+            transform: "rotate(-10deg)",
+          }}
+        >
+          <span>
+            {badgeWords.map((word, i) => (
+              <span key={i} style={{ display: "block" }}>
+                {word}
+              </span>
+            ))}
+          </span>
+        </div>
+      ) : null}
 
       {percentOff && percentOff > 0 ? (
         <div
