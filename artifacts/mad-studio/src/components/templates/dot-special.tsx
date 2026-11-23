@@ -48,6 +48,22 @@ export function useDotSpecial(entityId: string) {
   return useBrandSetting<DotSpecial>(entityId, "dot_special", `mad.dotSpecial.${entityId}`, DEFAULT_SPECIAL)
 }
 
+const DEFAULT_SECOND_SPECIAL: DotSpecial = {
+  color: "PINK",
+  discount: "50% off",
+  when: "This week only",
+  line: "",
+  footer: "In-store & online · Whangārei",
+}
+
+/** The week's second dot (e.g. pink 50% off), kept with the brand. Off until switched on. */
+export function useSecondDotSpecial(entityId: string) {
+  return useBrandSetting<DotSpecial & { on: boolean }>(entityId, "dot_special_second", `mad.dotSpecial2.${entityId}`, {
+    ...DEFAULT_SECOND_SPECIAL,
+    on: false,
+  })
+}
+
 const WHEN_PRESETS = ["This weekend only", "This week only", "Today only"]
 
 /** A4 at 96dpi; exported at 2x for print. */
@@ -287,7 +303,16 @@ export function DotSpecialPanel({
 }) {
   // The feed card goes through the same finish panel as every other post.
   const out = useSlidesOut(entityId)
-  const [special, setSpecial] = useDotSpecial(entityId)
+  // Two dots a week (e.g. purple 25% off, pink 50% off); the editor shows one at a time.
+  const [firstSpecial, setFirstSpecial] = useDotSpecial(entityId)
+  const [second, setSecond] = useSecondDotSpecial(entityId)
+  const [which, setWhich] = useState<"first" | "second">("first")
+  const special: DotSpecial = which === "second" ? second : firstSpecial
+  const setSpecial: Dispatch<SetStateAction<DotSpecial>> =
+    which === "second"
+      ? (action) =>
+          setSecond((current) => ({ ...(typeof action === "function" ? action(current) : action), on: current.on }))
+      : setFirstSpecial
   const [backgroundId, setBackgroundId] = useBrandSetting<string | null>(
     entityId,
     "dot_special_background",
@@ -394,7 +419,47 @@ export function DotSpecialPanel({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-        <DotSpecialFields special={special} onChange={setSpecial} />
+        <div className="grid content-start gap-3">
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Which dot">
+            {(
+              [
+                { id: "first", label: "First dot", dot: firstSpecial },
+                { id: "second", label: "Second dot", dot: second },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setWhich(option.id)}
+                aria-pressed={which === option.id}
+                className={cn(
+                  "flex h-9 items-center gap-2 border-2 border-mad-black px-2.5 text-xs",
+                  which === option.id ? "bg-mad-black text-mad-white" : "hover:bg-[#F4EFE6]",
+                  option.id === "second" && !second.on && "border-dashed opacity-70"
+                )}
+              >
+                <span
+                  aria-hidden
+                  className="size-3.5 rounded-full border border-black/20"
+                  style={{ background: WORN_LABEL_TAG_COLORS[option.dot.color].hex }}
+                />
+                {option.label} · {option.dot.discount}
+              </button>
+            ))}
+          </div>
+          {which === "second" ? (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                id="dot-second-on"
+                type="checkbox"
+                checked={second.on}
+                onChange={(event) => setSecond((current) => ({ ...current, on: event.target.checked }))}
+              />
+              Running a second dot this week
+            </label>
+          ) : null}
+          <DotSpecialFields special={special} onChange={setSpecial} />
+        </div>
 
         <div className="flex flex-wrap items-start gap-5">
           <div className="flex w-[200px] flex-col gap-2">

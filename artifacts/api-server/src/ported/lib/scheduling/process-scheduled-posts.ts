@@ -20,6 +20,8 @@ export type ScheduledPostPayload = {
   media_urls?: string[] | null
   /** Instagram Story sequence (2–10 frames); media_url is frame 1. */
   story_urls?: string[] | null
+  /** Facebook rows: "story" posts a Page Story (story_urls for several frames). */
+  placement?: "feed" | "story" | null
   destination_url?: string | null
   slug_seed?: string | null
 }
@@ -99,6 +101,14 @@ async function dispatchRow(
         carouselUrls,
       })
     case "facebook":
+      if (payload.placement === "story") {
+        return publishCampaignToSocials(ctx, {
+          ...base,
+          platform: "facebook",
+          placement: "story",
+          storyUrls: storyUrls.length >= 2 ? storyUrls : null,
+        })
+      }
       return publishCampaignToSocials(ctx, {
         ...base,
         platform: "facebook",

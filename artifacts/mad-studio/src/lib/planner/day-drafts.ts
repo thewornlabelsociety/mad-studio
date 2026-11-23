@@ -17,7 +17,8 @@ export type DraftKind = string
 export type DayDraft = {
   kind: DraftKind
   /** Where it goes: a row each, shown and approved together as one post. */
-  platforms: Array<"instagram_feed" | "facebook" | "instagram_story" | "tiktok">
+  // "facebook_story" is saved as a Facebook row marked as a Page Story.
+  platforms: Array<"instagram_feed" | "facebook" | "instagram_story" | "facebook_story" | "tiktok">
   title: string
   caption: string
   /** One image, or 2–10 carousel slides. */
@@ -102,7 +103,10 @@ export async function saveDayDrafts(input: {
       const time = (draft.time ?? draftTime(input.day, draft.hour)).toISOString()
       // Ties the platforms together so the calendar shows them as one post.
       const group = `${draft.kind}:${ymdOf(input.day)}:${Date.now()}`
-      return draft.platforms.map((platform) => ({
+      return draft.platforms.map((channel) => {
+        const story = channel === "instagram_story" || channel === "facebook_story"
+        const platform = channel === "facebook_story" ? "facebook" : channel
+        return {
         entity_id: input.entityId,
         platform,
         status,
@@ -115,14 +119,16 @@ export async function saveDayDrafts(input: {
           caption: draft.caption,
           media_url: urls[0] ?? null,
           // Feed and Facebook take the slides as a carousel; a Story is one image.
-          media_urls: platform !== "instagram_story" && urls.length >= 2 ? urls.slice(0, 10) : null,
+          media_urls: !story && urls.length >= 2 ? urls.slice(0, 10) : null,
           // Several Story frames go up one after another.
-          story_urls: platform === "instagram_story" && urls.length >= 2 ? urls.slice(0, 10) : null,
+          story_urls: story && urls.length >= 2 ? urls.slice(0, 10) : null,
+          placement: channel === "facebook_story" ? "story" : undefined,
           draft_kind: draft.kind,
           draft_group: group,
           draft_data: draft.data ?? null,
         } as Json,
-      }))
+        }
+      })
     })
   )
   if (error) throw draftError(error.message)

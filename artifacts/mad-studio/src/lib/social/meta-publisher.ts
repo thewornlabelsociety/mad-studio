@@ -494,6 +494,46 @@ export async function publishInstagramStorySequence(input: {
   }
 }
 
+/**
+ * Facebook Page Stories: each frame is uploaded as an unpublished Page photo,
+ * then published as a Story with /{page}/photo_stories, in order.
+ */
+export async function publishFacebookStories(input: {
+  connection: SocialConnectionRow
+  mediaUrls: string[]
+}): Promise<MetaPublishResult> {
+  const pageId = input.connection.account_id
+  const urls = input.mediaUrls.slice(0, 10).filter(Boolean)
+  if (urls.length === 0) {
+    throw new Error("A Facebook Story needs at least one image.")
+  }
+  const mediaIds: string[] = []
+  for (const [index, mediaUrl] of urls.entries()) {
+    const photo = await graphRequest<{ id: string }>(`/${encodeURIComponent(pageId)}/photos`, {
+      method: "POST",
+      accessToken: input.connection.access_token,
+      body: { url: mediaUrl, published: "false" },
+    })
+    if (!photo.id) throw new Error("Facebook didn't return a photo for the Story.")
+    const story = await graphRequest<{ post_id?: string; success?: boolean }>(
+      `/${encodeURIComponent(pageId)}/photo_stories`,
+      {
+        method: "POST",
+        accessToken: input.connection.access_token,
+        body: { photo_id: photo.id },
+      }
+    )
+    mediaIds.push(story.post_id ?? photo.id)
+    if (index < urls.length - 1) await wait(800)
+  }
+  return {
+    platform: "facebook",
+    placement: "story",
+    mediaId: mediaIds[mediaIds.length - 1]!,
+    mediaIds,
+  }
+}
+
 export async function publishToMeta(input: {
   connection: SocialConnectionRow
   mediaUrl: string
@@ -533,9 +573,10 @@ export async function publishToMeta(input: {
   }
   if (input.connection.platform === "facebook") {
     if (input.placement === "story") {
-      throw new Error(
-        "Facebook Page Stories are not supported by this publisher yet — use Instagram Stories or a Facebook feed photo."
-      )
+      return publishFacebookStories({
+        connection: input.connection,
+        mediaUrls: storySequence ?? [input.mediaUrl],
+      })
     }
     if (carousel) {
       return publishFacebookAlbumPost({ ...input, mediaUrls: carousel })

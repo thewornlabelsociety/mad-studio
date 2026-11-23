@@ -22,6 +22,7 @@ import { resolveIntakeCaptionDefaultSource } from "@/lib/inventory/intake-captio
 import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
 import { ComingUp } from "@/components/planner/coming-up"
 import { MorningStoryFeed } from "@/components/today/morning-story-feed"
+import { DailyStorySet } from "@/components/today/daily-story-set"
 import { TodayAlerts, TodayFeedPost } from "@/components/today/today-feed-post"
 import { TodayActionDeck } from "@/components/today/action-deck"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
@@ -128,7 +129,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   const unfeaturedCount = unfeaturedCountRaw ?? 0
   const failedDispatchCount = failedDispatchCountRaw ?? 0
 
-  const dispatchCronHealth = await readDispatchCronHealth()
+  const dispatchCronHealth = await readDispatchCronHealth(activeEntityId)
 
   const deck = await fetchPendingTodayDeck({
     supabase,
@@ -235,6 +236,13 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
               entityId={activeEntityId}
               failedCount={failedDispatchCount}
               schedulerPaused={dispatchCronHealth?.stale !== false}
+            />
+            {/* The day's Story set: hours, arrivals, dot specials, sale, for Instagram and Facebook. */}
+            <DailyStorySet
+              entityId={activeEntityId}
+              entityName={activeEntity.name}
+              industry={activeEntity.industry}
+              brandIdentity={storyBrandIdentity}
             />
             <MorningStoryFeed
               entityId={activeEntityId}

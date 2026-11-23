@@ -16,8 +16,13 @@ export function useCampaignPlans(entityId: string, enabled: boolean): CampaignPl
     if (!enabled) return
     let live = true
     void (async () => {
-      const result = (await getCampaignPlans({ entityId })) as { ok: boolean; data?: { plans: CampaignPlan[] } }
-      if (live && result.ok && result.data) setPlans(result.data.plans)
+      try {
+        const result = (await getCampaignPlans({ entityId })) as { ok: boolean; data?: { plans: CampaignPlan[] } }
+        if (live && result.ok && result.data) setPlans(result.data.plans)
+      } catch (error) {
+        // Campaign pills are extra; the calendar works without them.
+        console.warn("Campaign plans didn't load:", error)
+      }
     })()
     return () => {
       live = false

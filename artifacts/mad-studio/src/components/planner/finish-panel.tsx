@@ -17,6 +17,7 @@ const CHANNELS: Array<{ id: Channel; label: string; story?: boolean }> = [
   { id: "facebook", label: "Facebook" },
   { id: "tiktok", label: "TikTok photos" },
   { id: "instagram_story", label: "Instagram Story", story: true },
+  { id: "facebook_story", label: "Facebook Story", story: true },
 ]
 
 /** What a template hands over once its slides are made. */
@@ -147,7 +148,8 @@ export function FinishPanelHost({ brandName, industry }: { brandName: string; in
     }
     setSaving(status)
     try {
-      const feed = channels.filter((id) => id !== "instagram_story")
+      const storyChannels: Channel[] = channels.filter((id) => id === "instagram_story" || id === "facebook_story")
+      const feed = channels.filter((id) => !storyChannels.includes(id))
       const drafts: DayDraft[] = []
       if (feed.length > 0) {
         drafts.push({
@@ -161,12 +163,12 @@ export function FinishPanelHost({ brandName, industry }: { brandName: string; in
         })
       }
       // The Story is its own post beside the feed one, made only when ticked.
-      if (channels.includes("instagram_story") && request.story) {
+      if (storyChannels.length > 0 && request.story) {
         const frames = await request.story()
         if (frames.length === 0) throw new Error("The Story isn't ready yet. Try again in a moment.")
         drafts.push({
           kind: `${request.kind}_story`,
-          platforms: ["instagram_story"],
+          platforms: storyChannels,
           title: `${request.title} Story`,
           caption: "",
           mediaUrls: frames,

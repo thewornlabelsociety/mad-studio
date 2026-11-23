@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "crypto"
 import { NextResponse } from "next/server"
 
+import { recordCronHeartbeat } from "@/lib/cron/record-heartbeat"
 import { processScheduledPosts } from "@/lib/scheduling/process-scheduled-posts"
 import { resolveAppOrigin } from "@/lib/social/publish-campaign"
 
@@ -36,6 +37,12 @@ async function runDispatch(request: Request) {
     const result = await processScheduledPosts({
       ctx: { origin: resolveAppOrigin(), secret: expected },
       limit: 25,
+    })
+    // The same heartbeat as /api/cron/dispatch-scheduled, so Today knows posting is running.
+    await recordCronHeartbeat({
+      jobName: "dispatch-scheduled",
+      status: "ok",
+      detail: { route: "dispatch", processed: result.processed, successes: result.successes, failures: result.failures },
     })
     return NextResponse.json({
       processed: result.processed,
