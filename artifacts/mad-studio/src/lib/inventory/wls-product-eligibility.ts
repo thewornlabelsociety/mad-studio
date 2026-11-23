@@ -5,6 +5,7 @@ import {
   type ListingAvailability,
 } from "./listing-availability.ts"
 import { compareNewestArrival } from "./arrival-order.ts"
+import type { WlsDotColour } from "./listing-dot.ts"
 import {
   categoryFromDescription,
   type GarmentGender,
@@ -66,6 +67,8 @@ export type WlsProductSelection = {
   /** Full price before a shop markdown (the item is on the sale rack). */
   wasPrice?: number | null
   discountedAt?: string | null
+  /** Colour of the dot on the tag, from the website ("Black", "Yellow" …). */
+  dotColour?: WlsDotColour | null
   /** Explicit listing size only — never invented. */
   size: string | null
   price: number | null
@@ -326,6 +329,7 @@ export function evaluateWlsProductEligibility(
         ? item.listing_was_price
         : null,
     discountedAt: item.listing_discounted_at ?? null,
+    dotColour: item.listing_dot_colour ?? null,
     size: verifiedSize,
     price: item.price == null ? null : Number(item.price),
     currency: item.listing_currency,
