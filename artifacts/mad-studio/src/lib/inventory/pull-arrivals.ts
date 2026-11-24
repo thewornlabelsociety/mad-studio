@@ -874,7 +874,22 @@ async function markStaleWebsiteIntakeUnavailable(input: {
           >)
         : { views: 0, clicks: 0, sales: 0 }
 
+    // Still missing: re-stamp the date once a day, so a sold piece the shop
+    // dropped stays hidden rather than coming back after the stale grace.
     if (currentMetrics.listing_availability === "unavailable") {
+      const lastSynced = Date.parse(String(currentMetrics.listing_synced_at ?? ""))
+      if (
+        Number.isFinite(lastSynced) &&
+        Date.parse(input.syncedAt) - lastSynced < 24 * 60 * 60 * 1000
+      ) {
+        continue
+      }
+      const restamped = { ...currentMetrics, listing_synced_at: input.syncedAt }
+      const { error: restampError } = await input.admin
+        .from("marketing_entities")
+        .update({ metrics: restamped as Json })
+        .eq("id", row.id)
+      if (restampError) throw new Error(restampError.message)
       continue
     }
 
