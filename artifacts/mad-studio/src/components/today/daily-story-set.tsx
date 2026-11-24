@@ -25,6 +25,7 @@ import { bakeStoryPng, useKitStories, type KitStory } from "@/lib/templates/use-
 import { nzDateKey, parseWebsiteHours, type WebsiteContact } from "@/lib/templates/wls-opening-hours"
 import { useBrandSetting } from "@/lib/use-brand-setting"
 import { cn } from "@/lib/utils"
+import { dotDiscountLine } from "@/lib/templates/dot-specials"
 
 type Props = {
   entityId: string
@@ -202,7 +203,7 @@ export function DailyStorySet({ entityId, entityName, industry = null, brandIden
     ...[firstDot, ...(secondDot.on ? [secondDot] : [])].map((dot, index) => ({
       id: `dot-${index}`,
       section: "Dot specials",
-      label: `${dot.color.toLowerCase()} dot ${dot.discount}`,
+      label: `${dot.color.toLowerCase()} dot ${dotDiscountLine(dot.discount)}`,
       render: (ref: (node: HTMLDivElement | null) => void) => (
         <DotSpecialArt ref={ref} special={dot} background={dotBackground} brandName={entityName} aspect="story" />
       ),

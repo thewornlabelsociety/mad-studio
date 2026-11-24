@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { parseDotDiscount, specialPrice } from "./dot-specials.ts"
+import { dotDiscountLine, dotDiscountWording, parseDotDiscount, specialPrice } from "./dot-specials.ts"
 
 test("reads percentages, half price and dollars off", () => {
   assert.deepEqual(parseDotDiscount("25% off"), { kind: "percent", value: 25 })
@@ -22,4 +22,12 @@ test("special price rounds to the cent and stops at zero", () => {
   assert.equal(specialPrice(39.99, { kind: "percent", value: 30 }), 27.99)
   assert.equal(specialPrice(120, { kind: "amount", value: 20 }), 100)
   assert.equal(specialPrice(8, { kind: "amount", value: 10 }), 0)
+})
+
+test("percentage dot specials read up to", () => {
+  assert.deepEqual(dotDiscountWording("50% off"), { upTo: true, amount: "50% off" })
+  assert.equal(dotDiscountLine("25% off"), "up to 25% off")
+  assert.equal(dotDiscountLine("Up to 25% off"), "Up to 25% off")
+  assert.equal(dotDiscountLine("$10 off"), "$10 off")
+  assert.equal(dotDiscountLine(""), "")
 })

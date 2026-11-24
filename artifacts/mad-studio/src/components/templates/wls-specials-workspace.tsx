@@ -17,7 +17,7 @@ import { percentOff } from "@/lib/inventory/listing-markdown"
 import { WORN_LABEL_TAG_COLORS } from "@/lib/social-creative/worn-label-promo-theme"
 import { formatSizeForText } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl, uploadRenderedPng } from "@/lib/studio/final-artwork"
-import { parseDotDiscount, specialPrice } from "@/lib/templates/dot-specials"
+import { dotDiscountLine, parseDotDiscount, specialPrice } from "@/lib/templates/dot-specials"
 import {
   bakeStoryPng,
   copyStoryLink,
@@ -134,7 +134,7 @@ export function WlsSpecialsWorkspace({ entityId, entityName, industry = null, br
       return `${item.designer}${size ? ` (${size})` : ""}: ${price}`
     })
     return [
-      `${dotName}: ${special.discount}. ${special.when}.`.replace(/\.\./g, "."),
+      `${dotName}: ${dotDiscountLine(special.discount)}. ${special.when}.`.replace(/\.\./g, "."),
       `Look for the ${colourLabel(special.color).toLowerCase()} dot on the tag.`,
       "",
       ...lines,
