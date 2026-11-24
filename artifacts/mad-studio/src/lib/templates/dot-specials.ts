@@ -22,6 +22,25 @@ export function parseDotDiscount(text: string): DotDiscount | null {
   return null
 }
 
+/**
+ * A percentage dot special reads "up to": designer and brand new with tags pieces stop
+ * at 25% off (designer 15% then 25%), so not every piece in the colour takes the full amount.
+ * "50% off" -> { upTo: true, amount: "50% off" }. Dollars off, or text that already says
+ * "up to", is left as typed.
+ */
+export function dotDiscountWording(text: string): { upTo: boolean; amount: string } {
+  const amount = text.trim()
+  if (!amount) return { upTo: false, amount }
+  if (/\bup\s*to\b/i.test(amount)) return { upTo: false, amount }
+  return { upTo: parseDotDiscount(amount)?.kind === "percent", amount }
+}
+
+/** The discount as one line for captions and labels, e.g. "up to 50% off". */
+export function dotDiscountLine(text: string): string {
+  const { upTo, amount } = dotDiscountWording(text)
+  return upTo ? `up to ${amount}` : amount
+}
+
 /** The special price, to the cent; never below zero. */
 export function specialPrice(price: number, discount: DotDiscount): number {
   const off = discount.kind === "percent" ? (price * discount.value) / 100 : discount.value

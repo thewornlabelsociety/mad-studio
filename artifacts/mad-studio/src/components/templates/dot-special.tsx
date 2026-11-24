@@ -23,6 +23,7 @@ import { useSlidesOut } from "@/components/planner/day-draft-target"
 import { bakeStoryFrames } from "@/components/planner/finish-panel"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
 import { useBrandSetting } from "@/lib/use-brand-setting"
+import { dotDiscountLine, dotDiscountWording } from "@/lib/templates/dot-specials"
 import { cn } from "@/lib/utils"
 import type { WornLabelTagColorName } from "@/types/social-creative"
 
@@ -160,6 +161,10 @@ export const DotSpecialArt = forwardRef<
           }}
         />
         <p style={spaced(story ? 3.4 : a4 ? 3.2 : 2.8)}>{colourLabel(special.color)} dot</p>
+        {/* "Up to": designer and brand new with tags pieces stop at 25% off. */}
+        {dotDiscountWording(special.discount || "50% off").upTo ? (
+          <p style={{ ...spaced(story ? 3.2 : a4 ? 3 : 2.6), marginBottom: "-1.2cqw" }}>Up to</p>
+        ) : null}
         {/* Bold kit sans, not the hairline serif: it has to read on the white A4 sheet too. */}
         <p
           style={{
@@ -205,7 +210,7 @@ export const DotSpecialArt = forwardRef<
 /** The caption that goes with the dot special card or Story. */
 export function dotSpecialCaption(special: DotSpecial): string {
   return [
-    `${colourLabel(special.color)} dot: ${special.discount}. ${special.when}.`.replace(/\.\./g, "."),
+    `${colourLabel(special.color)} dot: ${dotDiscountLine(special.discount)}. ${special.when}.`.replace(/\.\./g, "."),
     "",
     "Look for the coloured dot on the tag.",
     special.footer,
@@ -443,7 +448,7 @@ export function DotSpecialPanel({
                   className="size-3.5 rounded-full border border-black/20"
                   style={{ background: WORN_LABEL_TAG_COLORS[option.dot.color].hex }}
                 />
-                {option.label} · {option.dot.discount}
+                {option.label} · {dotDiscountLine(option.dot.discount)}
               </button>
             ))}
           </div>
