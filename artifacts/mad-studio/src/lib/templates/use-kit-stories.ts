@@ -22,6 +22,7 @@ import { currentVibeLabel } from "@/lib/inventory/listing-vibe"
 import { pieceType, shortPrice } from "@/lib/templates/story-card-style"
 import type { WlsProductSelection } from "@/lib/inventory/wls-product-eligibility"
 import { requestCutout } from "@/lib/media/request-cutout"
+import { pullNewArrivalsForEntityClient } from "@/lib/studio/pull-new-arrivals-client"
 import { hasSeeThroughBackground, sampleItemColour } from "@/lib/media/sample-item-colour"
 import { formatCanvasSizeTagLabel } from "@/lib/studio/canvas-size-tag-label"
 import { proxiedImageUrl } from "@/lib/studio/final-artwork"
@@ -138,6 +139,9 @@ function firstImage(row: WlsProductSelection): string | null {
   return row.sourceImageUrls.find((url) => /^https?:\/\//i.test(url)) ?? null
 }
 
+const WEBSITE_CHECK_MS = 10 * 60 * 1000
+const lastWebsiteCheck = new Map<string, number>()
+
 async function saveStoryState(body: {
   entityId: string
   marketingEntityId: string
@@ -241,8 +245,25 @@ export function useKitStories(input: {
 
   useEffect(() => {
     if (!isWornLabel) return
-    void reload()
-  }, [isWornLabel, reload])
+    let cancelled = false
+    void (async () => {
+      await reload()
+      // Then check the shop, so pieces that have sold drop off on refresh.
+      // Quiet, and at most every 10 minutes per brand.
+      const last = lastWebsiteCheck.get(entityId) ?? 0
+      if (Date.now() - last < WEBSITE_CHECK_MS) return
+      lastWebsiteCheck.set(entityId, Date.now())
+      try {
+        await pullNewArrivalsForEntityClient(entityId)
+        if (!cancelled) await reload()
+      } catch {
+        // A failed check leaves the list as it was.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isWornLabel, reload, entityId])
 
   // Cut out the requested products one at a time; keep each cutout on the item.
   const cutoutKey = cutoutIds.join(",")
