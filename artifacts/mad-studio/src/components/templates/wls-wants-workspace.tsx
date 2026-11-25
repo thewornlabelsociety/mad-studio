@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react"
-import { ArrowRight, Check, Loader2, Plus, Save, Share2, X } from "lucide-react"
+import { ArrowRight, Check, ImageOff, Loader2, Megaphone, Plus, Save, Share2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { useSlidesOut } from "@/components/planner/day-draft-target"
@@ -9,7 +9,7 @@ import { bakeStoryFrames } from "@/components/planner/finish-panel"
 
 import { WantsCard, WantsStory } from "@/components/templates/wants-slides"
 import { Button } from "@/components/ui/button"
-import { saveWantsList } from "@/lib/actions"
+import { getShopCallouts, saveWantsList } from "@/lib/actions"
 import { resolveStoryKit } from "@/lib/brands/story-kit"
 import { resolveVisualPresets } from "@/lib/brands/visual-presets"
 import type { VisualPresets, WantsItem } from "@/lib/entities/dna-schema"
@@ -17,6 +17,7 @@ import { completeActiveStep } from "@/lib/planner/campaign-progress"
 import { uploadRenderedPng } from "@/lib/studio/final-artwork"
 import { bakeStoryPng, shareOrDownloadStory } from "@/lib/templates/use-kit-stories"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
+import { calloutToWants, formatCalloutDate, proxiedCalloutPhoto, type ShopCallout } from "@/lib/shop/shop-callouts"
 import { cn } from "@/lib/utils"
 
 const MAX_LINES = 10
@@ -50,6 +51,39 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
   const [backgroundId, setBackgroundId] = useState<string | null>(null)
   const [busy, setBusy] = useState<"story" | "studio" | null>(null)
   const [saving, startSaving] = useTransition()
+  // Opened from a shop call-out (Today card): its types, photos and caption.
+  const [callout, setCallout] = useState<ShopCallout | null>(null)
+  const [photoIndex, setPhotoIndex] = useState<number | null>(null)
+  const photoUrl = callout && photoIndex != null && callout.images[photoIndex] ? proxiedCalloutPhoto(callout.images[photoIndex], entityId) : null
+
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get("callout"))
+    if (!Number.isInteger(id) || id <= 0) return
+    let cancelled = false
+    getShopCallouts(entityId)
+      .then((result: { ok: boolean; error?: string; data?: { callouts: ShopCallout[] } }) => {
+        if (cancelled) return
+        if (!result?.ok) {
+          toast.error(result?.error ?? "Couldn't load the shop call-out.")
+          return
+        }
+        const found = result.data?.callouts.find((c) => c.id === id)
+        if (!found) {
+          toast.error("That call-out isn't in the shop feed any more.")
+          return
+        }
+        const wants = calloutToWants(found)
+        setCallout(found)
+        setItems(wants.items.length ? wants.items : [newLine()])
+        setNote(wants.note)
+        setPhotoIndex(found.images.length ? 0 : null)
+        setDirty(true)
+      })
+      .catch(() => !cancelled && toast.error("Couldn't reach the shop."))
+    return () => {
+      cancelled = true
+    }
+  }, [entityId])
 
   const kit = useMemo(
     () =>
@@ -115,14 +149,16 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
     try {
       const { blob } = await bakeStoryPng(cardRef.current)
       const url = await uploadRenderedPng(blob, entityId)
-      const caption = [
+      const caption = callout?.caption || [
         "We're searching for:",
         "",
         ...filled.map((item) => `${item.label}${item.detail ? ` (${item.detail})` : ""}`),
         "",
         `${note.trim() || "Bring them in"}. We sell on consignment and do the work for you.`,
       ].join("\n")
-      await out.sendOut({ urls: [url], caption, story: () => bakeStoryFrames([storyRef.current], entityId) })
+      // From a call-out: the card first, then the editorial photos, as a carousel.
+      const urls = callout ? [url, ...callout.images.slice(0, 9)] : [url]
+      await out.sendOut({ urls, caption, story: () => bakeStoryFrames([storyRef.current], entityId) })
       // Back from the finish panel: saved, or closed without saving.
       setBusy(null)
     } catch (error) {
@@ -174,6 +210,58 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
           ))}
         </div>
       </header>
+
+      {callout ? (
+        <section aria-labelledby="wants-callout" className="grid gap-3 border-2 border-mad-black bg-mad-lime/30 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex min-w-0 items-start gap-2">
+              <Megaphone className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <div className="min-w-0">
+                <h2 id="wants-callout" className="font-typewriter text-xs font-bold uppercase tracking-widest">
+                  From the shop call-out
+                </h2>
+                <p className="text-sm">
+                  {callout.title}, emailed {formatCalloutDate(callout.sentAt)}. The list, sign-off and caption are filled in; the
+                  photos go after the card in the post.
+                </p>
+              </div>
+            </div>
+          </div>
+          {callout.images.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Photo behind the words">
+              <span className="font-typewriter text-[10px] uppercase tracking-widest text-mad-black/60">Behind the words</span>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={photoIndex == null}
+                onClick={() => setPhotoIndex(null)}
+                className={cn(
+                  "flex h-14 w-11 items-center justify-center border border-mad-black/30 bg-white",
+                  photoIndex == null && "ring-2 ring-mad-black ring-offset-2"
+                )}
+                title="No photo"
+              >
+                <ImageOff className="size-4" aria-hidden />
+                <span className="sr-only">No photo</span>
+              </button>
+              {callout.images.map((url, index) => (
+                <button
+                  key={url}
+                  type="button"
+                  role="radio"
+                  aria-checked={photoIndex === index}
+                  onClick={() => setPhotoIndex(index)}
+                  className={cn("h-14 w-11 overflow-hidden border border-mad-black/30", photoIndex === index && "ring-2 ring-mad-black ring-offset-2")}
+                  title={`Photo ${index + 1}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`Photo ${index + 1}`} className="size-full object-cover" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         <section aria-labelledby="wants-list" className="grid content-start gap-3">
@@ -259,7 +347,7 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
           </h2>
           <div className="flex flex-wrap items-start gap-5">
             <div className="flex w-[230px] flex-col gap-2">
-              <WantsStory ref={storyRef} background={background} brandName={entityName} items={items} note={note} className="rounded-md shadow-md" />
+              <WantsStory ref={storyRef} background={background} brandName={entityName} items={items} note={note} photoUrl={photoUrl} className="rounded-md shadow-md" />
               <Button
                 type="button"
                 className="border-2 border-mad-black bg-mad-black text-mad-white"
@@ -271,7 +359,7 @@ export function WlsWantsWorkspace({ entityId, entityName, industry = null, brand
               </Button>
             </div>
             <div className="flex w-[280px] flex-col gap-2">
-              <WantsCard ref={cardRef} background={background} brandName={entityName} items={items} note={note} className="rounded-sm shadow-md" />
+              <WantsCard ref={cardRef} background={background} brandName={entityName} items={items} note={note} photoUrl={photoUrl} className="rounded-sm shadow-md" />
               <Button
                 type="button"
                 variant="outline"

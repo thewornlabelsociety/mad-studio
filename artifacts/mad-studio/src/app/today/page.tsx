@@ -23,6 +23,7 @@ import { fetchPendingTodayDeck } from "@/lib/today/daily-queue"
 import { ComingUp } from "@/components/planner/coming-up"
 import { MorningStoryFeed } from "@/components/today/morning-story-feed"
 import { DailyStorySet } from "@/components/today/daily-story-set"
+import { ShopCalloutCard } from "@/components/today/shop-callout-card"
 import { TodayAlerts, TodayFeedPost } from "@/components/today/today-feed-post"
 import { TodayActionDeck } from "@/components/today/action-deck"
 import { isWornLabelFashionEntity } from "@/lib/templates/wls-daily-story"
@@ -251,6 +252,8 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
               brandIdentity={storyBrandIdentity}
             />
             <TodayFeedPost entityId={activeEntityId} />
+            {/* A stock call-out the shop has just emailed, ready for socials. */}
+            <ShopCalloutCard entityId={activeEntityId} />
             <ComingUp entityId={activeEntityId} compact />
           </div>
         </div>

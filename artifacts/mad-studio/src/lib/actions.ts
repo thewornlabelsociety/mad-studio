@@ -50,6 +50,7 @@ export const saveVisualPresets = (...args: any[]) => action("saveVisualPresets",
 export const saveTemplateSetting = (...args: any[]) => action("saveTemplateSetting", ...args)
 export const saveCanvasLayouts = (...args: any[]) => action("saveCanvasLayouts", ...args)
 export const saveWantsList = (...args: any[]) => action("saveWantsList", ...args)
+export const getShopCallouts = (...args: any[]) => action("getShopCallouts", ...args)
 export const getCampaignPlans = (...args: any[]) => action("getCampaignPlans", ...args)
 export const saveCampaignPlans = (...args: any[]) => action("saveCampaignPlans", ...args)
 export const commitScrapedDna = (...args: any[]) => action("commitScrapedDna", ...args)

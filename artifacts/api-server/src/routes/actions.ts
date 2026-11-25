@@ -5,6 +5,7 @@ import * as campaigns from "../ported/app/actions/campaigns";
 import * as createEntity from "../ported/app/actions/create-entity";
 import * as inventory from "../ported/app/actions/inventory";
 import * as scheduling from "../ported/app/actions/scheduling";
+import * as shopCallouts from "../ported/app/actions/shop-callouts";
 import * as socialConnections from "../ported/app/actions/social-connections";
 import * as todayQueue from "../ported/app/actions/today-queue";
 import { RedirectSignal } from "../lib/http-response";
@@ -28,6 +29,7 @@ const actions: Record<string, (...args: any[]) => Promise<unknown>> = {
   saveTemplateSetting: brain.saveTemplateSetting,
   saveCanvasLayouts: brain.saveCanvasLayouts,
   saveWantsList: brain.saveWantsList,
+  getShopCallouts: shopCallouts.getShopCallouts,
   getCampaignPlans: brain.getCampaignPlans,
   saveCampaignPlans: brain.saveCampaignPlans,
   commitScrapedDna: brain.commitScrapedDna,
