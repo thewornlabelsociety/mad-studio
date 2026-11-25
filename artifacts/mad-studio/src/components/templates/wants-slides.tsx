@@ -11,6 +11,30 @@ type Props = {
   items: WantsItem[]
   note: string
   className?: string
+  /** Optional photo behind the type (e.g. a shop call-out photo), darkened so the words stay readable. */
+  photoUrl?: string | null
+}
+
+function PhotoLayer({ photoUrl, background }: Pick<Props, "photoUrl" | "background">) {
+  if (!photoUrl) return null
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photoUrl}
+        alt=""
+        crossOrigin="anonymous"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: `color-mix(in srgb, ${background.color} 64%, transparent)`,
+        }}
+      />
+    </>
+  )
 }
 
 /**
@@ -109,6 +133,7 @@ function WantsLayout({ background, brandName, items, note, story }: Props & { st
 export const WantsStory = forwardRef<HTMLDivElement, Props>(function WantsStory(props, ref) {
   return (
     <div ref={ref} className={props.className} style={frame(props.background, "9 / 16")}>
+      <PhotoLayer photoUrl={props.photoUrl} background={props.background} />
       <WantsLayout {...props} story />
     </div>
   )
@@ -117,6 +142,7 @@ export const WantsStory = forwardRef<HTMLDivElement, Props>(function WantsStory(
 export const WantsCard = forwardRef<HTMLDivElement, Props>(function WantsCard(props, ref) {
   return (
     <div ref={ref} className={props.className} style={frame(props.background, "4 / 5")}>
+      <PhotoLayer photoUrl={props.photoUrl} background={props.background} />
       <WantsLayout {...props} story={false} />
     </div>
   )
